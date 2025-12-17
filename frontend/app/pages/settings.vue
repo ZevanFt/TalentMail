@@ -1,11 +1,16 @@
 <script setup lang="ts">
 import { User, Shield, Palette, LogOut, ArrowLeft, Mail, Bell, Lock, HardDrive, Users } from 'lucide-vue-next'
 const router = useRouter()
-// 当前激活的 Tab
+const { logout } = useApi()
+
 const activeTab = ref('profile')
 
-// 使用无侧边栏布局
 definePageMeta({ layout: 'pool' })
+
+const handleLogout = () => {
+  logout()
+  router.push('/login')
+}
 </script>
 
 <template>
@@ -70,7 +75,7 @@ definePageMeta({ layout: 'pool' })
 
       <!-- 底部退出 -->
       <div class="p-4 border-t border-gray-100 dark:border-gray-800">
-        <button
+        <button @click="handleLogout"
           class="tab-btn text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 hover:text-red-600 w-full justify-start">
           <LogOut class="w-4 h-4" /> 退出登录
         </button>

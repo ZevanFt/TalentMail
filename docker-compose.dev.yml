@@ -10,9 +10,9 @@ services:
       dockerfile: Dockerfile
     # 'ports' 将容器的端口映射到主机的端口
     # 格式是 "主机端口:容器端口"
-    # 这样我们就可以通过访问主机的 8000 端口来访问容器内的 FastAPI 应用
     ports:
-      - "8000:8000"
+      - "8000:8000"  # FastAPI HTTP API
+      - "24:24"      # LMTP 邮件接收服务
     # 'volumes' 将主机的文件或目录挂载到容器中
     # 格式是 "主机路径:容器路径"
     # 这对于开发非常重要，因为我们在主机上修改代码后，会立刻同步到容器里，无需重新构建镜像
@@ -79,7 +79,9 @@ services:
 
   # --- 邮件服务器 (docker-mailserver) ---
   mailserver:
-    image: docker.io/mailserver/docker-mailserver:latest
+    build:
+      context: ./config/mail
+      dockerfile: Dockerfile
     container_name: talentmail-mailserver-1
     hostname: maillink.talenting.test
     env_file: ./config/mail/development/mailserver.env

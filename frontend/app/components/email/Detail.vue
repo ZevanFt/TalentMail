@@ -1,13 +1,20 @@
 <script setup lang="ts">
 import { ArrowLeft, Trash2, Archive, Star, Reply, Forward, MoreHorizontal } from 'lucide-vue-next'
-const { selectedEmail } = useEmails()
+const { selectedEmailDetail, formatTime } = useEmails()
+
+// 获取发件人首字母
+const getAvatar = (sender: string) => {
+  if (!sender) return '?'
+  const match = sender.match(/^([^<]+)/) || sender.match(/<([^>]+)>/)
+  const name = match?.[1]?.trim() || sender
+  return name.charAt(0).toUpperCase()
+}
 </script>
 
 <template>
-  <!-- 修正：flex-1 确保占据右侧剩余空间 -->
-  <main class="flex-1 h-full bg-white dark:bg-bg-dark flex flex-col min-w-0">
-    <template v-if="selectedEmail">
-      <!-- 顶部工具栏 (图标栏) -->
+  <main class="flex-1 h-full bg-white dark:bg-bg-dark flex flex-col min-w-0 relative">
+    <template v-if="selectedEmailDetail">
+      <!-- 顶部工具栏 -->
       <div class="h-14 border-b border-gray-100 dark:border-gray-800 flex items-center px-6 justify-between shrink-0">
         <div class="flex items-center gap-1">
           <button class="btn-icon">
@@ -31,21 +38,22 @@ const { selectedEmail } = useEmails()
         <div class="max-w-4xl mx-auto">
           <!-- 邮件标题 -->
           <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 leading-tight">
-            {{ selectedEmail.subject }}
+            {{ selectedEmailDetail.subject }}
           </h1>
 
           <!-- 发件人卡片 -->
           <div class="flex items-start gap-4 mb-8">
-            <div
-              :class="`w-12 h-12 rounded-full ${selectedEmail.color} flex items-center justify-center text-lg text-white font-medium shrink-0`">
-              {{ selectedEmail.avatar }}
+            <div class="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-lg text-white font-medium shrink-0">
+              {{ getAvatar(selectedEmailDetail.sender) }}
             </div>
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 mb-0.5">
-                <span class="text-base font-bold text-gray-900 dark:text-white">{{ selectedEmail.from }}</span>
-                <span class="text-xs text-gray-500">&lt;{{ selectedEmail.id }}@example.com&gt;</span>
+                <span class="text-base font-bold text-gray-900 dark:text-white">{{ selectedEmailDetail.sender }}</span>
               </div>
-              <div class="text-xs text-gray-500">{{ selectedEmail.date }} {{ selectedEmail.time }}</div>
+              <div class="text-xs text-gray-500">
+                收件人: {{ selectedEmailDetail.recipients }}
+                <span class="ml-4">{{ formatTime(selectedEmailDetail.received_at) }}</span>
+              </div>
             </div>
           </div>
 
@@ -53,31 +61,25 @@ const { selectedEmail } = useEmails()
           <div class="border-t border-dashed border-gray-200 dark:border-gray-800 my-8"></div>
 
           <!-- 正文 -->
-          <div
+          <div v-if="selectedEmailDetail.body_html"
+            class="prose prose-zinc dark:prose-invert max-w-none"
+            v-html="selectedEmailDetail.body_html">
+          </div>
+          <div v-else
             class="prose prose-zinc dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 whitespace-pre-line leading-7 text-base">
-            {{ selectedEmail.body }}
+            {{ selectedEmailDetail.body_text }}
           </div>
         </div>
       </div>
 
-      <!-- 底部回复栏 (固定在底部) -->
-      <!-- 修改：底部回复栏 -->
-      <!-- 添加 justify-end 让按钮靠右 -->
-      <!-- 修正：底部浮动栏 -->
+      <!-- 底部浮动栏 -->
       <div class="absolute bottom-6 right-8 flex gap-3 z-20">
-
-        <!-- 转发按钮 -->
-        <button
-          class="flex items-center gap-2 px-5 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-50 dark:hover:bg-gray-700 transition-all text-sm font-medium border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md">
+        <button class="flex items-center gap-2 px-5 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-50 dark:hover:bg-gray-700 transition-all text-sm font-medium border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md">
           <Forward class="w-4 h-4" /> 转发
         </button>
-
-        <!-- 回复按钮 (紫色) -->
-        <button
-          class="flex items-center gap-2 px-6 py-2 bg-primary text-white rounded-full hover:bg-primary-hover transition-all text-sm font-medium shadow-lg shadow-primary/30 hover:shadow-primary/50 hover:-translate-y-0.5">
+        <button class="flex items-center gap-2 px-6 py-2 bg-primary text-white rounded-full hover:bg-primary-hover transition-all text-sm font-medium shadow-lg shadow-primary/30 hover:shadow-primary/50 hover:-translate-y-0.5">
           <Reply class="w-4 h-4" /> 回复
         </button>
-
       </div>
     </template>
 

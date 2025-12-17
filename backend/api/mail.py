@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from sqlalchemy.orm import Session
-from typing import Optional, List
+from typing import Optional
 from api import deps
 from db.database import SessionLocal
 from schemas import email as email_schema
 from db import models
 from crud import email as email_crud
 from core.mail import send_email as core_send_email
-from core.imap_sync import sync_user_mailbox
+from core.mail_sync import sync_user_mailbox, sync_all_mailboxes
 from db.models import User
 from db.models.email import Email, Folder
 from crud.folder import get_user_folder_by_role
@@ -85,21 +85,28 @@ def sync_emails(
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_active_user),
 ):
-    """
-    同步当前用户的收件箱邮件
-    使用 Dovecot Master User 机制，后端用管理员账户代理访问用户邮箱
-    """
+    """同步当前用户的收件箱邮件（使用 Dovecot Master User）"""
     try:
-        new_count = sync_user_mailbox(
-            db=db,
-            user_email=current_user.email,
-            user_id=current_user.id,
-            folder_role="inbox"
-        )
+        new_count = sync_user_mailbox(db, current_user)
         return {"status": "success", "data": {"new_emails": new_count}}
     except Exception as e:
         logger.error(f"同步邮件失败: {e}")
         raise HTTPException(status_code=500, detail="Failed to sync emails")
+
+
+@router.post("/sync-all")
+def sync_all_emails(
+    current_user: User = Depends(deps.get_current_active_user),
+):
+    """同步所有用户的邮件（仅管理员）"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    try:
+        results = sync_all_mailboxes()
+        return {"status": "success", "data": results}
+    except Exception as e:
+        logger.error(f"同步所有邮件失败: {e}")
+        raise HTTPException(status_code=500, detail="Failed to sync all emails")
 
 
 @router.get("", response_model=email_schema.EmailListResponse)

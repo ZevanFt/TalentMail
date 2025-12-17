@@ -1,23 +1,39 @@
 <script setup lang="ts">
-import { Mail, Eye, EyeOff, Moon, Sun } from 'lucide-vue-next'
-const { isDark, toggleTheme } = useTheme() // 复用之前的 hook
+import { Mail, Eye, EyeOff, Moon, Sun, Loader2 } from 'lucide-vue-next'
+const { isDark, toggleTheme } = useTheme()
+const { login } = useApi()
+const { appName, emailDomain } = useConfig()
+const router = useRouter()
 
-// 禁用默认布局 (不显示侧边栏和Header)
 definePageMeta({
     layout: false
 })
 
 const showPassword = ref(false)
+const loading = ref(false)
+const error = ref('')
+
 const form = reactive({
-    email: '',
+    username: '',  // 只输入用户名部分
     password: ''
 })
 
-const handleLogin = () => {
-    // 这里写登录逻辑
-    console.log('Login:', form)
-    // 登录成功后跳转
-    useRouter().push('/')
+// 完整邮箱地址
+const fullEmail = computed(() => `${form.username}${emailDomain}`)
+
+const handleLogin = async () => {
+    if (loading.value || !form.username) return
+    loading.value = true
+    error.value = ''
+    
+    try {
+        await login(fullEmail.value, form.password)
+        router.push('/')
+    } catch (e: any) {
+        error.value = e.data?.detail || '登录失败，请检查用户名和密码'
+    } finally {
+        loading.value = false
+    }
 }
 </script>
 
@@ -35,16 +51,22 @@ const handleLogin = () => {
                     class="w-12 h-12 bg-gradient-to-tr from-primary to-purple-400 rounded-xl flex items-center justify-center text-white shadow-lg shadow-primary/30 mb-4">
                     <Mail class="w-6 h-6" />
                 </div>
-                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">TalentMail</h1>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ appName }}</h1>
                 <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">登录你的邮箱</p>
             </div>
 
             <!-- 表单区域 -->
             <form @submit.prevent="handleLogin" class="space-y-5">
 
-                <!-- 邮箱 -->
+                <!-- 邮箱（用户名 + 固定后缀） -->
                 <div class="space-y-1.5">
-                    <input v-model="form.email" type="email" placeholder="邮箱地址" class="input-field" required>
+                    <div class="flex items-stretch rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all">
+                        <input v-model="form.username" type="text" placeholder="用户名"
+                            class="flex-[6] min-w-0 px-4 py-3 bg-gray-50 dark:bg-gray-900 text-sm outline-none text-gray-900 dark:text-white placeholder-gray-400 border-none" required>
+                        <span class="flex-[4] px-2 py-3 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 flex items-center justify-center border-l border-gray-200 dark:border-gray-700 domain-suffix">
+                            {{ emailDomain }}
+                        </span>
+                    </div>
                 </div>
 
                 <!-- 密码 -->
@@ -59,10 +81,14 @@ const handleLogin = () => {
                     </button>
                 </div>
 
+                <!-- 错误提示 -->
+                <div v-if="error" class="text-red-500 text-sm text-center">{{ error }}</div>
+
                 <!-- 登录按钮 -->
-                <button type="submit"
-                    class="w-full bg-primary hover:bg-primary-hover text-white font-bold py-3 rounded-xl shadow-lg shadow-primary/25 transition-all active:scale-[0.98] mt-2">
-                    登录
+                <button type="submit" :disabled="loading"
+                    class="w-full bg-primary hover:bg-primary-hover disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-lg shadow-primary/25 transition-all active:scale-[0.98] mt-2 flex items-center justify-center gap-2">
+                    <Loader2 v-if="loading" class="w-5 h-5 animate-spin" />
+                    {{ loading ? '登录中...' : '登录' }}
                 </button>
 
             </form>
@@ -89,8 +115,11 @@ const handleLogin = () => {
 </template>
 
 <style scoped>
-/* 输入框通用样式 */
 .input-field {
     @apply w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-gray-900 dark:text-white placeholder-gray-400;
+}
+.domain-suffix {
+    font-size: clamp(0.65rem, 2.5cqw, 0.875rem);
+    container-type: inline-size;
 }
 </style>

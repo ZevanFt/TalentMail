@@ -11,7 +11,7 @@
       "mailServerPrefix": "maillink",
       "smtpPort": 587,
       "strictEmailValidation": false,
-      "useCredentials": false
+      "useCredentials": true
     },
     "production": {
       "_comment": "生产环境配置。使用真实的 .vip 域名和邮件服务器。",

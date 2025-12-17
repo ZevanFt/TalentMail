@@ -1,38 +1,111 @@
+interface Email {
+  id: number
+  subject: string
+  sender: string
+  snippet: string
+  received_at: string
+  is_read: boolean
+  is_starred: boolean
+  has_attachments: boolean
+}
+
+interface EmailDetail extends Email {
+  recipients: string
+  body_html: string | null
+  body_text: string | null
+}
+
+interface Folder {
+  id: number
+  name: string
+  role: string
+  unread_count: number
+}
+
 export const useEmails = () => {
-  const selectedEmailId = useState<number | null>('selectedEmailId', () => 1)
+  const { getEmails, getEmail, getFolders, syncEmails } = useApi()
+  
+  const emails = useState<Email[]>('emails', () => [])
+  const folders = useState<Folder[]>('folders', () => [])
+  const currentFolderId = useState<number | null>('currentFolderId', () => null)
+  const selectedEmailId = useState<number | null>('selectedEmailId', () => null)
+  const selectedEmailDetail = useState<EmailDetail | null>('selectedEmailDetail', () => null)
+  const loading = useState('emailsLoading', () => false)
+  const syncing = useState('emailsSyncing', () => false)
 
-  const emails = useState('emails', () => [
-    {
-      id: 1,
-      from: 'Talent Team',
-      avatar: 'T',
-      color: 'bg-primary',
-      subject: '欢迎使用 TalentMail 🚀',
-      snippet: '这是您的第一封邮件，体验一下极速的收发信体验吧...',
-      body: `你好，Talent！\n\n欢迎来到 TalentMail。这不仅仅是一个邮件客户端，更是你高效工作的开始。\n\n目前我们已经完成了：\n1. Nuxt 4 架构迁移\n2. 响应式布局\n3. 模拟数据流\n\n加油！`,
-      time: '10:32',
-      date: '今天',
-      read: false,
-      starred: true
-    },
-    {
-      id: 2,
-      from: 'GitHub',
-      avatar: 'G',
-      color: 'bg-zinc-700',
-      subject: '[GitHub] Security Alert',
-      snippet: 'We noticed a new sign-in to your account...',
-      body: 'Security Alert: We noticed a new sign-in to your GitHub account from a Linux device.',
-      time: '09:15',
-      date: '今天',
-      read: true,
-      starred: false
+  // 加载文件夹列表
+  const loadFolders = async () => {
+    try {
+      const res = await getFolders()
+      folders.value = res.data
+      // 默认选中收件箱
+      const inbox = res.data.find((f: Folder) => f.role === 'inbox')
+      if (inbox && !currentFolderId.value) {
+        currentFolderId.value = inbox.id
+      }
+    } catch (e) {
+      console.error('加载文件夹失败:', e)
     }
-  ])
+  }
 
-  const selectedEmail = computed(() => 
-    emails.value.find(e => e.id === selectedEmailId.value)
-  )
+  // 加载邮件列表
+  const loadEmails = async (folderId?: number) => {
+    const id = folderId || currentFolderId.value
+    if (!id) return
+    
+    loading.value = true
+    try {
+      const res = await getEmails(id)
+      emails.value = res.data.items
+      currentFolderId.value = id
+    } catch (e) {
+      console.error('加载邮件失败:', e)
+    } finally {
+      loading.value = false
+    }
+  }
 
-  return { emails, selectedEmailId, selectedEmail }
+  // 加载邮件详情
+  const loadEmailDetail = async (id: number) => {
+    try {
+      const res = await getEmail(id)
+      selectedEmailDetail.value = res.data
+      selectedEmailId.value = id
+    } catch (e) {
+      console.error('加载邮件详情失败:', e)
+    }
+  }
+
+  // 同步邮件
+  const sync = async () => {
+    syncing.value = true
+    try {
+      const res = await syncEmails()
+      if (res.data.new_emails > 0) {
+        await loadEmails()
+      }
+      return res.data.new_emails
+    } catch (e) {
+      console.error('同步邮件失败:', e)
+      return 0
+    } finally {
+      syncing.value = false
+    }
+  }
+
+  // 格式化时间
+  const formatTime = (dateStr: string) => {
+    const date = new Date(dateStr)
+    const now = new Date()
+    const isToday = date.toDateString() === now.toDateString()
+    return isToday
+      ? date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+      : date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
+  }
+
+  return {
+    emails, folders, currentFolderId, selectedEmailId, selectedEmailDetail,
+    loading, syncing,
+    loadFolders, loadEmails, loadEmailDetail, sync, formatTime
+  }
 }
