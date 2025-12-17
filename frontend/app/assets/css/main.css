@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    /* 
+       修复点：
+       1. 移除了不存在的 text-text-main
+       2. 增加了 bg-bg-light (浅色背景) 和 dark:bg-bg-dark (深色背景)
+       3. 使用标准颜色 text-gray-900 和 dark:text-gray-100
+    */
+    @apply bg-bg-light dark:bg-bg-dark text-gray-900 dark:text-gray-100 font-sans antialiased overflow-hidden;
+  }
+}
+
+/* 现代化滚动条 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 dark:bg-zinc-700 rounded-full;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400 dark:bg-zinc-600;
+}

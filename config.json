@@ -1,0 +1,26 @@
+{
+  "_comment": "这是 TalentMail 项目的主要配置文件。它以 baseDomain 为核心，动态定义应用的结构和行为。",
+  "currentEnvironment": "development",
+  "appName": "TalentMail",
+  "appIcon": "/logo.svg",
+  "environments": {
+    "development": {
+      "_comment": "开发环境配置。使用 .test 域名和 docker-mailserver 进行邮件收发。",
+      "baseDomain": "talenting.test",
+      "webPrefix": "mail",
+      "mailServerPrefix": "maillink",
+      "smtpPort": 587,
+      "strictEmailValidation": false,
+      "useCredentials": false
+    },
+    "production": {
+      "_comment": "生产环境配置。使用真实的 .vip 域名和邮件服务器。",
+      "baseDomain": "talenting.vip",
+      "webPrefix": "mail",
+      "mailServerPrefix": "maillink",
+      "smtpPort": 587,
+      "strictEmailValidation": true,
+      "useCredentials": true
+    }
+  }
+}

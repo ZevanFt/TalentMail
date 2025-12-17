@@ -1,0 +1,28 @@
+# ===================================
+# Caddyfile for Production Environment
+# ===================================
+
+# 你的主应用域名
+# Caddy 会自动为此域名申请 Let's Encrypt 的 HTTPS 证书
+mail.talenting.vip {
+    # 开启 gzip 和 zstd 压缩
+    encode gzip zstd
+
+    # 将 API 请求代理到后端服务
+    # 'backend' 是你在 docker-compose.yml 中定义的服务名
+    reverse_proxy /api/* backend:8000
+
+    # 将其他所有请求代理到前端服务
+    # 'frontend' 是你在 docker-compose.yml 中定义的服务名
+    reverse_proxy /* frontend:3000
+}
+
+# 你的邮件服务器管理界面域名
+# Caddy 同样会自动为其申请 HTTPS 证书
+# 注意：这个域名需要和你邮件服务器(Poste.io)的配置匹配
+maillink.talenting.vip {
+    # 将请求代理到邮件服务器
+    # 'mailserver' 是你在 docker-compose.yml 中定义的服务名
+    # 8080 是 Poste.io 暴露的 HTTP 端口，Caddy 会在前面加上 HTTPS
+    reverse_proxy mailserver:8080
+}

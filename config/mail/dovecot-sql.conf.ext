@@ -1,0 +1,32 @@
+# Dovecot SQL 认证配置
+# 连接到 TalentMail 的 PostgreSQL 数据库进行用户认证
+
+# 数据库驱动
+driver = pgsql
+
+# 数据库连接字符串
+# 注意：在 Docker 网络中，db 是数据库容器的主机名
+connect = host=db dbname=talentmail user=user password=password
+
+# 默认密码方案 - bcrypt (我们的数据库使用 $2b$ 格式)
+default_pass_scheme = BLF-CRYPT
+
+# 密码查询
+# %u = 完整的 user@domain
+# %n = user 部分
+# %d = domain 部分
+password_query = \
+  SELECT email AS user, password_hash AS password \
+  FROM users WHERE email = '%u'
+
+# 用户查询 - 返回邮件存储位置
+# 所有用户使用相同的 uid/gid (vmail)
+user_query = \
+  SELECT \
+    '/var/mail/%d/%n' AS home, \
+    5000 AS uid, \
+    5000 AS gid \
+  FROM users WHERE email = '%u'
+
+# 用户迭代查询 (用于 doveadm 等工具)
+iterate_query = SELECT email AS user FROM users
