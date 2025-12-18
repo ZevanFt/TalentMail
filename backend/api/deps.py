@@ -40,3 +40,11 @@ def get_current_active_user(
     # if not current_user.is_active:
     #     raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
+
+
+def get_current_user_from_token(db: Session, token: str) -> models.User | None:
+    """从 token 获取用户（用于 WebSocket 认证）"""
+    token_data = security.verify_token(token)
+    if not token_data:
+        return None
+    return crud_user.get_user_by_email(db, email=token_data.sub)

@@ -1,6 +1,77 @@
 <script setup lang="ts">
-import { ArrowLeft, Trash2, Archive, Star, Reply, Forward, MoreHorizontal } from 'lucide-vue-next'
-const { selectedEmailDetail, formatTime } = useEmails()
+import { ArrowLeft, Trash2, Archive, Star, Reply, Forward, MoreHorizontal, Mail, MailOpen, ReplyAll, Eye, Send, CheckCircle, XCircle, Loader2, RefreshCw } from 'lucide-vue-next'
+const { selectedEmailDetail, formatTime, toggleRead, removeEmail, startReply, startReplyAll, startForward, folders, currentFolderId, loadEmails } = useEmails()
+const { isComposeOpen } = useGlobalModal()
+const { getTrackingStats, resendEmail } = useApi()
+
+// 追踪统计
+const trackingStats = ref<any>(null)
+const loadingTracking = ref(false)
+
+// 加载追踪统计
+const loadTrackingStats = async (emailId: number) => {
+  loadingTracking.value = true
+  try {
+    const res = await getTrackingStats(emailId)
+    trackingStats.value = res.data
+  } catch {
+    trackingStats.value = null
+  } finally {
+    loadingTracking.value = false
+  }
+}
+
+// 监听邮件变化，加载追踪统计
+watch(() => selectedEmailDetail.value, (email) => {
+  if (email?.is_tracked) {
+    loadTrackingStats(email.id)
+  } else {
+    trackingStats.value = null
+  }
+}, { immediate: true })
+
+// 切换已读状态
+const handleToggleRead = () => {
+  if (selectedEmailDetail.value) {
+    toggleRead(selectedEmailDetail.value.id, !selectedEmailDetail.value.is_read)
+  }
+}
+
+// 回复
+const handleReply = () => {
+  if (selectedEmailDetail.value) {
+    startReply(selectedEmailDetail.value)
+    isComposeOpen.value = true
+  }
+}
+
+// 回复全部
+const handleReplyAll = () => {
+  if (selectedEmailDetail.value) {
+    startReplyAll(selectedEmailDetail.value)
+    isComposeOpen.value = true
+  }
+}
+
+// 转发
+const handleForward = () => {
+  if (selectedEmailDetail.value) {
+    startForward(selectedEmailDetail.value)
+    isComposeOpen.value = true
+  }
+}
+
+// 删除确认
+const showDeleteConfirm = ref(false)
+const handleDelete = () => {
+  showDeleteConfirm.value = true
+}
+const confirmDelete = () => {
+  if (selectedEmailDetail.value) {
+    removeEmail(selectedEmailDetail.value.id)
+  }
+  showDeleteConfirm.value = false
+}
 
 // 获取发件人首字母
 const getAvatar = (sender: string) => {
@@ -9,6 +80,78 @@ const getAvatar = (sender: string) => {
   const name = match?.[1]?.trim() || sender
   return name.charAt(0).toUpperCase()
 }
+
+// 格式化收件人显示
+const formatRecipients = (recipientsStr: string) => {
+  if (!recipientsStr) return ''
+  try {
+    const data = JSON.parse(recipientsStr)
+    const parts: string[] = []
+    if (data.to?.length) {
+      const toList = data.to.map((r: any) => r.name ? `${r.name} <${r.email}>` : r.email).join(', ')
+      parts.push(`收件人: ${toList}`)
+    }
+    if (data.cc?.length) {
+      const ccList = data.cc.map((r: any) => r.name ? `${r.name} <${r.email}>` : r.email).join(', ')
+      parts.push(`抄送: ${ccList}`)
+    }
+    return parts.join(' | ')
+  } catch {
+    return `收件人: ${recipientsStr}`
+  }
+}
+
+// 是否是已发送文件夹
+const isSentFolder = computed(() => {
+  const folder = folders.value.find(f => f.id === currentFolderId.value)
+  return folder?.role === 'sent'
+})
+
+// 投递状态配置
+const deliveryStatusConfig: Record<string, { icon: any; text: string; class: string }> = {
+  pending: { icon: Loader2, text: '等待发送', class: 'text-gray-500 bg-gray-100 dark:bg-gray-800' },
+  sending: { icon: Loader2, text: '发送中', class: 'text-blue-500 bg-blue-100 dark:bg-blue-900/30' },
+  sent: { icon: Send, text: '已发送', class: 'text-green-600 bg-green-100 dark:bg-green-900/30' },
+  delivered: { icon: CheckCircle, text: '已送达', class: 'text-green-600 bg-green-100 dark:bg-green-900/30' },
+  failed: { icon: XCircle, text: '发送失败', class: 'text-red-500 bg-red-100 dark:bg-red-900/30' },
+}
+
+// 当前投递状态
+const currentDeliveryStatus = computed(() => {
+  const status = selectedEmailDetail.value?.delivery_status
+  return status ? deliveryStatusConfig[status] : null
+})
+
+// 重新发送
+const resending = ref(false)
+const handleResend = async () => {
+  if (!selectedEmailDetail.value || resending.value) return
+  resending.value = true
+  try {
+    await resendEmail(selectedEmailDetail.value.id)
+    // 刷新邮件列表
+    if (currentFolderId.value) {
+      await loadEmails(currentFolderId.value)
+    }
+  } finally {
+    resending.value = false
+  }
+}
+
+// 是否可以重新发送
+const canResend = computed(() => {
+  const status = selectedEmailDetail.value?.delivery_status
+  return isSentFolder.value && (status === 'failed' || status === 'pending')
+})
+
+// 是否有真实的 HTML 内容（排除只有追踪像素的情况）
+const hasRealHtmlContent = computed(() => {
+  const html = selectedEmailDetail.value?.body_html
+  if (!html) return false
+  // 移除追踪像素后检查是否还有内容
+  const withoutTracker = html.replace(/<img[^>]*track\/open[^>]*>/gi, '').trim()
+  return withoutTracker.length > 0
+})
 </script>
 
 <template>
@@ -21,10 +164,14 @@ const getAvatar = (sender: string) => {
             <ArrowLeft class="w-5 h-5" />
           </button>
           <div class="w-px h-4 bg-gray-200 dark:bg-gray-700 mx-2"></div>
+          <button class="btn-icon" @click="handleToggleRead" :title="selectedEmailDetail.is_read ? '标记为未读' : '标记为已读'">
+            <MailOpen v-if="selectedEmailDetail.is_read" class="w-5 h-5" />
+            <Mail v-else class="w-5 h-5" />
+          </button>
           <button class="btn-icon">
             <Archive class="w-5 h-5" />
           </button>
-          <button class="btn-icon hover:text-red-500 hover:bg-red-50">
+          <button class="btn-icon hover:text-red-500 hover:bg-red-50" @click="handleDelete" title="删除">
             <Trash2 class="w-5 h-5" />
           </button>
         </div>
@@ -51,8 +198,38 @@ const getAvatar = (sender: string) => {
                 <span class="text-base font-bold text-gray-900 dark:text-white">{{ selectedEmailDetail.sender }}</span>
               </div>
               <div class="text-xs text-gray-500">
-                收件人: {{ selectedEmailDetail.recipients }}
+                {{ formatRecipients(selectedEmailDetail.recipients) }}
                 <span class="ml-4">{{ formatTime(selectedEmailDetail.received_at) }}</span>
+              </div>
+              <!-- 投递状态 + 追踪统计（仅已发送文件夹显示） -->
+              <div v-if="isSentFolder && (currentDeliveryStatus || (selectedEmailDetail.is_tracked && trackingStats))" class="mt-2 flex items-center gap-3 text-xs flex-wrap">
+                <!-- 投递状态 -->
+                <span v-if="currentDeliveryStatus"
+                  class="flex items-center gap-1 px-2 py-1 rounded-full"
+                  :class="currentDeliveryStatus.class"
+                  :title="selectedEmailDetail.delivery_error || ''">
+                  <component :is="currentDeliveryStatus.icon"
+                    class="w-3 h-3"
+                    :class="{ 'animate-spin': selectedEmailDetail.delivery_status === 'sending' || selectedEmailDetail.delivery_status === 'pending' }" />
+                  {{ currentDeliveryStatus.text }}
+                </span>
+                <!-- 重新发送按钮 -->
+                <button v-if="canResend" @click="handleResend" :disabled="resending"
+                  class="flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
+                  <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': resending }" />
+                  {{ resending ? '发送中...' : '重新发送' }}
+                </button>
+                <!-- 追踪统计 -->
+                <template v-if="selectedEmailDetail.is_tracked && trackingStats">
+                  <span class="text-gray-300 dark:text-gray-600">→</span>
+                  <span class="flex items-center gap-1 px-2 py-1 rounded-full" :class="trackingStats.open_count > 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-800'">
+                    <Eye class="w-3 h-3" />
+                    {{ trackingStats.open_count > 0 ? `对方已读 ${trackingStats.open_count} 次` : '对方未读' }}
+                  </span>
+                  <span v-if="trackingStats.last_opened_at" class="text-gray-400">
+                    {{ formatTime(trackingStats.last_opened_at) }}
+                  </span>
+                </template>
               </div>
             </div>
           </div>
@@ -61,23 +238,33 @@ const getAvatar = (sender: string) => {
           <div class="border-t border-dashed border-gray-200 dark:border-gray-800 my-8"></div>
 
           <!-- 正文 -->
-          <div v-if="selectedEmailDetail.body_html"
+          <div v-if="hasRealHtmlContent"
             class="prose prose-zinc dark:prose-invert max-w-none"
             v-html="selectedEmailDetail.body_html">
           </div>
-          <div v-else
-            class="prose prose-zinc dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 whitespace-pre-line leading-7 text-base">
-            {{ selectedEmailDetail.body_text }}
-          </div>
+          <template v-else>
+            <div v-if="selectedEmailDetail.body_text"
+              class="prose prose-zinc dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 whitespace-pre-line leading-7 text-base">
+              {{ selectedEmailDetail.body_text }}
+            </div>
+            <div v-else class="text-gray-400 italic">
+              (无正文内容)
+            </div>
+            <!-- 隐藏的追踪像素（确保追踪功能正常工作） -->
+            <div v-if="selectedEmailDetail.body_html" v-html="selectedEmailDetail.body_html" class="hidden"></div>
+          </template>
         </div>
       </div>
 
       <!-- 底部浮动栏 -->
       <div class="absolute bottom-6 right-8 flex gap-3 z-20">
-        <button class="flex items-center gap-2 px-5 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-50 dark:hover:bg-gray-700 transition-all text-sm font-medium border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md">
+        <button @click="handleForward" class="flex items-center gap-2 px-5 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-50 dark:hover:bg-gray-700 transition-all text-sm font-medium border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md">
           <Forward class="w-4 h-4" /> 转发
         </button>
-        <button class="flex items-center gap-2 px-6 py-2 bg-primary text-white rounded-full hover:bg-primary-hover transition-all text-sm font-medium shadow-lg shadow-primary/30 hover:shadow-primary/50 hover:-translate-y-0.5">
+        <button @click="handleReplyAll" class="flex items-center gap-2 px-5 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-50 dark:hover:bg-gray-700 transition-all text-sm font-medium border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md">
+          <ReplyAll class="w-4 h-4" /> 回复全部
+        </button>
+        <button @click="handleReply" class="flex items-center gap-2 px-6 py-2 bg-primary text-white rounded-full hover:bg-primary-hover transition-all text-sm font-medium shadow-lg shadow-primary/30 hover:shadow-primary/50 hover:-translate-y-0.5">
           <Reply class="w-4 h-4" /> 回复
         </button>
       </div>
@@ -89,6 +276,19 @@ const getAvatar = (sender: string) => {
         选择一封邮件查看
       </div>
     </template>
+
+    <!-- 删除确认对话框 -->
+    <CommonModal v-model="showDeleteConfirm" title="确认删除" width-class="w-full max-w-sm">
+      <p class="text-gray-600 dark:text-gray-300">确定要将此邮件移到垃圾箱吗？</p>
+      <template #footer>
+        <button @click="showDeleteConfirm = false" class="px-4 py-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 rounded-lg">
+          取消
+        </button>
+        <button @click="confirmDelete" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
+          删除
+        </button>
+      </template>
+    </CommonModal>
   </main>
 </template>
 

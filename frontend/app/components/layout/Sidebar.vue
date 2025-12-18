@@ -1,31 +1,110 @@
 <script setup lang="ts">
 import {
   Mail, Star, Send, File, Trash2, Plus, Box,
-  Archive, AlertOctagon,
+  Archive, AlertOctagon, CircleDot,
   ChevronRight, ChevronDown, RotateCw,
   FolderOpen, Tag, Clock, Paperclip, Users, Cloud, PlusCircle
 } from 'lucide-vue-next'
 
 const { isComposeOpen } = useGlobalModal()
+const { folders, currentFolderId, loadEmails, loadFolders, loadFilteredEmails, loadSnoozedEmails, loadAllEmails, currentFilter } = useEmails()
+const { token } = useApi()
 const route = useRoute()
 
 const isOpen = reactive({ more: false, tags: true, center: true, tools: true })
 const toggle = (key: keyof typeof isOpen) => { isOpen[key] = !isOpen[key] }
 
-const mainFolders = [
-  { name: '收件箱', icon: Mail, to: '/', count: 12 },
-  { name: '红旗邮件', icon: Star, to: '/starred', count: 3, iconClass: 'text-red-500' },
-  { name: '待办邮件', icon: Clock, to: '/snoozed' },
-  { name: '草稿箱', icon: File, to: '/drafts', count: 2 },
-  { name: '已发送', icon: Send, to: '/sent' },
-]
+// 文件夹角色 -> 中文名称 & 图标映射
+const folderConfig: Record<string, { name: string; icon: any; iconClass?: string }> = {
+  inbox: { name: '收件箱', icon: Mail },
+  sent: { name: '已发送', icon: Send },
+  drafts: { name: '草稿箱', icon: File },
+  trash: { name: '已删除', icon: Trash2 },
+  spam: { name: '垃圾邮件', icon: AlertOctagon },
+  archive: { name: '归档', icon: Archive },
+}
 
-const moreFolders = [
-  { name: '已删除', icon: Trash2, to: '/trash' },
-  { name: '垃圾邮件', icon: AlertOctagon, to: '/spam', count: 99 },
-  { name: '归档', icon: Archive, to: '/archive' },
-  { name: '所有邮件', icon: FolderOpen, to: '/all' },
-]
+// 虚拟文件夹（前端特有视图，不对应后端文件夹）
+const virtualFolders = {
+  starred: { id: 'starred', name: '红旗邮件', icon: Star, iconClass: 'text-red-500', filter: { is_starred: true } },
+  unread: { id: 'unread', name: '未读邮件', icon: CircleDot, iconClass: 'text-blue-500', filter: { is_read: false } },
+  snoozed: { id: 'snoozed', name: '待办邮件', icon: Clock, filter: { snoozed: true } },
+}
+
+// 获取文件夹显示名称
+const getFolderName = (role: string, originalName: string) => folderConfig[role]?.name || originalName
+const getFolderIcon = (role: string) => folderConfig[role]?.icon || FolderOpen
+
+// 主要文件夹（收件箱、未读、红旗、待办、草稿、已发送）
+const mainFolders = computed(() => {
+  const result: any[] = []
+  // 收件箱
+  const inbox = folders.value.find(f => f.role === 'inbox')
+  if (inbox) result.push({ ...inbox, name: getFolderName(inbox.role, inbox.name), icon: getFolderIcon(inbox.role) })
+  // 未读邮件（虚拟）
+  result.push(virtualFolders.unread)
+  // 红旗邮件（虚拟）
+  result.push(virtualFolders.starred)
+  // 待办邮件（虚拟）
+  result.push(virtualFolders.snoozed)
+  // 草稿箱
+  const drafts = folders.value.find(f => f.role === 'drafts')
+  if (drafts) result.push({ ...drafts, name: getFolderName(drafts.role, drafts.name), icon: getFolderIcon(drafts.role) })
+  // 已发送
+  const sent = folders.value.find(f => f.role === 'sent')
+  if (sent) result.push({ ...sent, name: getFolderName(sent.role, sent.name), icon: getFolderIcon(sent.role) })
+  return result
+})
+
+// 更多文件夹
+const moreRoles = ['trash', 'spam', 'archive']
+const moreFolders = computed(() => [
+  ...folders.value.filter(f => moreRoles.includes(f.role)).map(f => ({
+    ...f,
+    name: getFolderName(f.role, f.name),
+    icon: getFolderIcon(f.role)
+  })),
+  { id: 'all', name: '所有邮件', icon: FolderOpen, virtual: true, unread_count: 0 }
+])
+
+// 当前选中的虚拟文件夹 ID
+const selectedVirtualId = useState<string | null>('selectedVirtualId', () => null)
+
+// 切换文件夹
+const selectFolder = (folder: any) => {
+  if (folder.id === 'snoozed') {
+    // 待办邮件
+    selectedVirtualId.value = folder.id
+    loadSnoozedEmails()
+  } else if (folder.id === 'all') {
+    // 所有邮件
+    selectedVirtualId.value = folder.id
+    loadAllEmails()
+  } else if (folder.filter) {
+    // 其他虚拟文件夹：使用筛选
+    selectedVirtualId.value = folder.id
+    loadFilteredEmails(folder.filter)
+  } else {
+    // 真实文件夹
+    selectedVirtualId.value = null
+    loadEmails(folder.id)
+  }
+}
+
+// 判断是否选中
+const isSelected = (folder: any) => {
+  if (folder.filter || folder.virtual) {
+    return selectedVirtualId.value === folder.id
+  }
+  return currentFolderId.value === folder.id && !selectedVirtualId.value
+}
+
+// 初始化加载文件夹
+onMounted(async () => {
+  if (token.value && folders.value.length === 0) {
+    await loadFolders()
+  }
+})
 
 const tags = ref([
   { id: 1, name: '工作', color: 'bg-blue-500' },
@@ -59,22 +138,16 @@ const isActive = (path: string) => route.path === path
     <nav class="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar space-y-0.5 mt-1 pb-4">
 
       <!-- 1. 核心列表 -->
-      <!-- 
-        【修正】
-        1. 删除了 border-b (分割线)。
-        2. 删除了 mx-3 (它导致了上方列表比下方缩进更多)。
-        现在上方列表和下方“更多”按钮共享完全一致的对齐逻辑。
-      -->
       <div class="space-y-0.5">
-        <NuxtLink v-for="item in mainFolders" :key="item.name" :to="item.to" class="nav-item group"
-          active-class="active">
+        <button v-for="item in mainFolders" :key="item.id" @click="selectFolder(item)"
+          class="nav-item group w-full text-left" :class="{ active: isSelected(item) }">
           <component :is="item.icon" class="w-4 h-4 shrink-0 transition-colors"
-            :class="[isActive(item.to) ? 'text-primary' : (item.iconClass || 'text-inherit')]" />
+            :class="[isSelected(item) ? 'text-primary' : '', item.iconClass || 'text-inherit']" />
           <span class="flex-1 truncate">{{ item.name }}</span>
-          <span v-if="item.count" class="count-badge" :class="{ 'text-primary font-bold': isActive(item.to) }">
-            {{ item.count }}
+          <span v-if="item.unread_count" class="count-badge" :class="{ 'text-primary font-bold': isSelected(item) }">
+            {{ item.unread_count }}
           </span>
-        </NuxtLink>
+        </button>
       </div>
 
       <!-- 2. 更多 -->
@@ -86,13 +159,13 @@ const isActive = (path: string) => route.path === path
 
         <Transition name="slide">
           <div v-if="isOpen.more" class="overflow-hidden space-y-0.5">
-            <NuxtLink v-for="item in moreFolders" :key="item.name" :to="item.to" class="sub-item group"
-              active-class="active">
+            <button v-for="item in moreFolders" :key="item.id" @click="selectFolder(item)"
+              class="sub-item group w-full text-left" :class="{ active: isSelected(item) }">
               <component :is="item.icon" class="w-4 h-4 shrink-0 transition-colors text-inherit"
-                :class="isActive(item.to) ? 'text-primary' : ''" />
+                :class="isSelected(item) ? 'text-primary' : ''" />
               <span class="flex-1 truncate">{{ item.name }}</span>
-              <span v-if="item.count" class="text-xs text-gray-400">{{ item.count }}</span>
-            </NuxtLink>
+              <span v-if="item.unread_count" class="text-xs text-gray-400">{{ item.unread_count }}</span>
+            </button>
           </div>
         </Transition>
       </div>

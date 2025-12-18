@@ -1,14 +1,16 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
 from starlette.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import asyncio
 from db.database import engine, SessionLocal
 from db import models  # 确保导入 models 以注册表
-from api import auth, mail, users, folders
+from api import auth, mail, users, folders, tracking
+from api.deps import get_current_user_from_token
 from initial import initial_data
 from core.mailserver_sync import sync_users_to_mailserver
 from core.lmtp_server import start_lmtp_server, stop_lmtp_server
 from core.mail_sync import periodic_sync
+from core import websocket as ws_manager
 import logging
 
 # 配置日志
@@ -34,6 +36,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(mail.router, prefix="/api/emails", tags=["Emails"])
 app.include_router(folders.router, prefix="/api/folders", tags=["Folders"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
+app.include_router(tracking.router, prefix="/api/track", tags=["Tracking"])
 
 # 定时同步任务
 sync_task = None
@@ -81,3 +84,31 @@ async def on_shutdown():
 @app.get("/")
 def read_root():
     return {"message": "Welcome to TalentMail API"}
+
+
+@app.websocket("/ws/{token}")
+async def websocket_endpoint(websocket: WebSocket, token: str):
+    """WebSocket 端点，用于实时推送新邮件通知"""
+    try:
+        # 验证 token 获取用户
+        db = SessionLocal()
+        try:
+            user = get_current_user_from_token(db, token)
+            if not user:
+                await websocket.close(code=4001)
+                return
+            user_id = user.id
+        finally:
+            db.close()
+        
+        await ws_manager.connect(websocket, user_id)
+        try:
+            while True:
+                # 保持连接，等待客户端消息（心跳）
+                data = await websocket.receive_text()
+                if data == "ping":
+                    await websocket.send_text("pong")
+        except WebSocketDisconnect:
+            ws_manager.disconnect(websocket, user_id)
+    except Exception as e:
+        logger.error(f"WebSocket 错误: {e}")

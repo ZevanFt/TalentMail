@@ -18,16 +18,16 @@ async def send_email(
     """
     Connects to the SMTP server and sends an email.
     """
-    # Create the email message
-    msg = MIMEMultipart()
+    # Create the email message (multipart/alternative for text + html)
+    msg = MIMEMultipart('alternative')
     
     # Format sender and recipients
-    sender_name = sender_email.split('@')[0] # Simple name for now
+    sender_name = sender_email.split('@')[0]
     msg['From'] = formataddr((str(Header(sender_name, 'utf-8')), sender_email))
     
     to_addrs = [formataddr((recipient.name, recipient.email)) for recipient in email_data.to]
     cc_addrs = [formataddr((recipient.name, recipient.email)) for recipient in email_data.cc]
-    bcc_addrs = [recipient.email for recipient in email_data.bcc] # BCC should not be in headers
+    bcc_addrs = [recipient.email for recipient in email_data.bcc]
 
     msg['To'] = ", ".join(to_addrs)
     if cc_addrs:
@@ -37,8 +37,12 @@ async def send_email(
     msg['Date'] = formatdate(localtime=True)
     msg['Message-ID'] = make_msgid(domain=sender_email.split('@')[1])
 
-    # Attach body
-    msg.attach(MIMEText(email_data.body_html, 'html', 'utf-8'))
+    # Attach body - both plain text and HTML
+    body_text = email_data.body_text or email_data.body_html or ""
+    body_html = email_data.body_html or f"<pre>{email_data.body_text or ''}</pre>"
+    
+    msg.attach(MIMEText(body_text, 'plain', 'utf-8'))
+    msg.attach(MIMEText(body_html, 'html', 'utf-8'))
 
     all_recipients = [recipient.email for recipient in email_data.to] + \
                      [recipient.email for recipient in email_data.cc] + \

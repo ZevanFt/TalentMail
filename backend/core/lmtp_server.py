@@ -12,12 +12,14 @@ from email.header import decode_header
 from email.utils import parsedate_to_datetime
 from datetime import datetime
 from typing import Optional
+import asyncio
 from aiosmtpd.controller import Controller
 from aiosmtpd.lmtp import LMTP
 from sqlalchemy.orm import Session
 from db.database import SessionLocal
 from db.models.email import Email, Folder
 from db.models.user import User
+from core import websocket as ws_manager
 import logging
 
 logger = logging.getLogger(__name__)
@@ -174,6 +176,15 @@ class LMTPHandler:
                     )
                     db.add(db_email)
                     logger.info(f"LMTP: 邮件已存入数据库 to={rcpt_email} subject={subject[:50]}")
+                    
+                    # 通知用户有新邮件
+                    try:
+                        asyncio.create_task(ws_manager.notify_new_email(user.id, {
+                            "subject": subject,
+                            "sender": sender
+                        }))
+                    except Exception as e:
+                        logger.warning(f"WebSocket 通知失败: {e}")
                 
                 db.commit()
                 

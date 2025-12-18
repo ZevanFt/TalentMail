@@ -33,6 +33,8 @@ class Email(Base):
     folder_id = Column(Integer, ForeignKey("folders.id"), nullable=False, comment="邮件所在的文件夹ID")
     mailbox_address = Column(String, index=True, comment="接收该邮件的邮箱地址（用于区分不同别名/域名收到的邮件）")
     message_id = Column(String, unique=False, nullable=True, comment="邮件的全局唯一Message-ID（发送后才有）")
+    in_reply_to = Column(String, nullable=True, comment="回复的邮件的Message-ID")
+    references = Column(Text, nullable=True, comment="邮件引用链（空格分隔的Message-ID列表）")
     thread_id = Column(String, nullable=True, index=True, comment="邮件所属线索的ID")
     subject = Column(String, comment="邮件主题")
     sender = Column(String, comment="发件人地址")
@@ -47,6 +49,8 @@ class Email(Base):
     scheduled_send_at = Column(DateTime(timezone=True), nullable=True, comment="计划发送时间")
     snoozed_until = Column(DateTime(timezone=True), nullable=True, comment="邮件被推迟到何时显示")
     is_tracked = Column(Boolean, default=False, comment="是否启用邮件追踪")
+    delivery_status = Column(String, default="pending", comment="投递状态: pending/sending/sent/delivered/failed")
+    delivery_error = Column(Text, nullable=True, comment="投递失败的错误信息")
     # Soft delete fields
     deleted_at = Column(DateTime(timezone=True), nullable=True, comment="软删除时间戳，非空表示已移入回收站")
     is_purged = Column(Boolean, default=False, comment="是否已从回收站彻底清除")

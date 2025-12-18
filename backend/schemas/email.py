@@ -18,7 +18,8 @@ class EmailCreate(BaseModel):
     subject: str = ""
     body_html: str = ""
     body_text: Optional[str] = None
-    # attachments: Optional[List[UploadFile]] = [] # We will handle attachments later
+    reply_to_id: Optional[int] = None  # 回复的邮件ID
+    is_tracked: bool = False  # 是否启用追踪
 
 class EmailRead(BaseModel):
     """Schema for reading email data (output)."""
@@ -50,6 +51,8 @@ class EmailListItem(BaseModel):
     is_read: bool
     is_starred: bool
     has_attachments: bool = False
+    is_tracked: bool = False
+    delivery_status: Optional[str] = None  # pending/sending/sent/delivered/failed
 
 
 class EmailListData(BaseModel):
@@ -85,6 +88,9 @@ class EmailDetail(BaseModel):
     received_at: datetime
     is_read: bool
     is_starred: bool
+    is_tracked: bool = False
+    delivery_status: Optional[str] = None
+    delivery_error: Optional[str] = None
     attachments: List[AttachmentInfo] = []
 
 
