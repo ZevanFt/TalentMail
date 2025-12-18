@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 import asyncio
 from db.database import engine, SessionLocal
 from db import models  # 确保导入 models 以注册表
-from api import auth, mail, users, folders, tracking
+from api import auth, mail, users, folders, tracking, invite, pool, signatures
 from api.deps import get_current_user_from_token
 from initial import initial_data
 from core.mailserver_sync import sync_users_to_mailserver
@@ -37,6 +37,9 @@ app.include_router(mail.router, prefix="/api/emails", tags=["Emails"])
 app.include_router(folders.router, prefix="/api/folders", tags=["Folders"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
 app.include_router(tracking.router, prefix="/api/track", tags=["Tracking"])
+app.include_router(invite.router, prefix="/api/invite", tags=["Invite"])
+app.include_router(pool.router, prefix="/api/pool", tags=["Pool"])
+app.include_router(signatures.router, prefix="/api/signatures", tags=["Signatures"])
 
 # 定时同步任务
 sync_task = None

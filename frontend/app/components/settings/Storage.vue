@@ -1,71 +1,93 @@
 <script setup lang="ts">
-import { HardDrive, Archive, Trash2, AlertTriangle, FileText, Image, Video } from 'lucide-vue-next'
+import { HardDrive, Archive, Trash2, AlertTriangle, Mail } from 'lucide-vue-next'
+
+const { getStorageStats } = useApi()
+
+const loading = ref(true)
+const stats = ref({
+    storage_used_bytes: 0,
+    storage_limit_bytes: 10 * 1024 * 1024 * 1024,
+    email_count: 0,
+    email_bytes: 0
+})
+
+const loadStats = async () => {
+    try {
+        stats.value = await getStorageStats()
+    } catch (e: any) {
+        console.error('加载存储统计失败', e)
+    } finally {
+        loading.value = false
+    }
+}
+
+// 格式化字节
+const formatBytes = (bytes: number) => {
+    if (bytes === 0) return '0 B'
+    const k = 1024
+    const sizes = ['B', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+}
+
+// 使用百分比
+const usagePercent = computed(() => {
+    return Math.round((stats.value.storage_used_bytes / stats.value.storage_limit_bytes) * 100)
+})
+
+onMounted(loadStats)
 </script>
 
 <template>
     <div class="space-y-8">
         <h2 class="section-title">存储与配额</h2>
 
-        <!-- 1. 空间使用概览卡片 -->
-        <div class="card">
-            <div class="flex items-center gap-4 mb-6">
-                <div class="p-3 bg-blue-100 text-blue-600 dark:bg-blue-900/30 rounded-xl">
-                    <HardDrive class="w-6 h-6" />
-                </div>
-                <div>
-                    <div class="text-2xl font-bold text-gray-900 dark:text-white flex items-baseline gap-2">
-                        2.4 GB
-                        <span class="text-sm text-gray-500 font-normal">/ 10 GB</span>
-                    </div>
-                    <div class="text-sm text-gray-500">已使用 24% 的存储空间</div>
-                </div>
-            </div>
+        <div v-if="loading" class="text-gray-500">加载中...</div>
 
-            <!-- 进度条 -->
-            <div class="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-4 mb-2 overflow-hidden flex">
-                <!-- 邮件 (紫) -->
-                <div class="bg-primary h-full" style="width: 15%" title="邮件"></div>
-                <!-- 附件 (蓝) -->
-                <div class="bg-blue-500 h-full" style="width: 8%" title="附件"></div>
-                <!-- 垃圾 (红) -->
-                <div class="bg-red-500 h-full" style="width: 1%" title="垃圾箱"></div>
-            </div>
+        <template v-else>
+            <!-- 1. 空间使用概览卡片 -->
+            <div class="card">
+                <div class="flex items-center gap-4 mb-6">
+                    <div class="p-3 bg-blue-100 text-blue-600 dark:bg-blue-900/30 rounded-xl">
+                        <HardDrive class="w-6 h-6" />
+                    </div>
+                    <div>
+                        <div class="text-2xl font-bold text-gray-900 dark:text-white flex items-baseline gap-2">
+                            {{ formatBytes(stats.storage_used_bytes) }}
+                            <span class="text-sm text-gray-500 font-normal">/ {{ formatBytes(stats.storage_limit_bytes) }}</span>
+                        </div>
+                        <div class="text-sm text-gray-500">已使用 {{ usagePercent }}% 的存储空间</div>
+                    </div>
+                </div>
 
-            <!-- 图例 -->
-            <div class="flex gap-4 text-xs text-gray-500 mb-6">
-                <div class="flex items-center gap-1.5">
-                    <div class="w-2 h-2 rounded-full bg-primary"></div> 邮件 (1.5GB)
+                <!-- 进度条 -->
+                <div class="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-4 mb-2 overflow-hidden">
+                    <div class="bg-primary h-full transition-all" :style="{ width: usagePercent + '%' }"></div>
                 </div>
-                <div class="flex items-center gap-1.5">
-                    <div class="w-2 h-2 rounded-full bg-blue-500"></div> 附件 (800MB)
-                </div>
-                <div class="flex items-center gap-1.5">
-                    <div class="w-2 h-2 rounded-full bg-red-500"></div> 垃圾箱 (100MB)
-                </div>
-            </div>
 
-            <!-- 分类统计 -->
-            <div class="grid grid-cols-3 gap-4">
-                <div class="stat-box">
-                    <div class="flex items-center gap-2 mb-1 text-gray-500 text-xs">
-                        <FileText class="w-3.5 h-3.5" /> 文档
+                <!-- 统计 -->
+                <div class="flex gap-4 text-xs text-gray-500 mb-6">
+                    <div class="flex items-center gap-1.5">
+                        <div class="w-2 h-2 rounded-full bg-primary"></div> 邮件 ({{ formatBytes(stats.email_bytes) }})
                     </div>
-                    <div class="font-bold text-gray-900 dark:text-white">450 MB</div>
                 </div>
-                <div class="stat-box">
-                    <div class="flex items-center gap-2 mb-1 text-gray-500 text-xs">
-                        <Image class="w-3.5 h-3.5" /> 图片
+
+                <!-- 分类统计 -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="stat-box">
+                        <div class="flex items-center gap-2 mb-1 text-gray-500 text-xs">
+                            <Mail class="w-3.5 h-3.5" /> 邮件数量
+                        </div>
+                        <div class="font-bold text-gray-900 dark:text-white">{{ stats.email_count }} 封</div>
                     </div>
-                    <div class="font-bold text-gray-900 dark:text-white">1.2 GB</div>
-                </div>
-                <div class="stat-box">
-                    <div class="flex items-center gap-2 mb-1 text-gray-500 text-xs">
-                        <Video class="w-3.5 h-3.5" /> 视频/其他
+                    <div class="stat-box">
+                        <div class="flex items-center gap-2 mb-1 text-gray-500 text-xs">
+                            <HardDrive class="w-3.5 h-3.5" /> 邮件占用
+                        </div>
+                        <div class="font-bold text-gray-900 dark:text-white">{{ formatBytes(stats.email_bytes) }}</div>
                     </div>
-                    <div class="font-bold text-gray-900 dark:text-white">750 MB</div>
                 </div>
             </div>
-        </div>
 
         <!-- 2. 自动清理规则 -->
         <div class="card space-y-6">
@@ -106,22 +128,22 @@ import { HardDrive, Archive, Trash2, AlertTriangle, FileText, Image, Video } fro
             </div>
         </div>
 
-        <!-- 3. 扩容提示 -->
-        <div
-            class="bg-gradient-to-r from-primary/10 to-purple-500/10 border border-primary/20 rounded-xl p-4 flex items-start gap-3">
-            <AlertTriangle class="w-5 h-5 text-primary shrink-0 mt-0.5" />
-            <div>
-                <h4 class="font-bold text-gray-900 dark:text-white text-sm">空间不足？</h4>
-                <p class="text-xs text-gray-600 dark:text-gray-300 mt-1 mb-3">
-                    升级到 Pro 套餐可获得 100GB 存储空间以及无限别名支持。
-                </p>
-                <button
-                    class="text-xs bg-primary text-white px-3 py-1.5 rounded-lg hover:bg-primary-hover transition-colors">
-                    查看升级方案
-                </button>
+            <!-- 3. 扩容提示 -->
+            <div v-if="usagePercent > 80"
+                class="bg-gradient-to-r from-primary/10 to-purple-500/10 border border-primary/20 rounded-xl p-4 flex items-start gap-3">
+                <AlertTriangle class="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                <div>
+                    <h4 class="font-bold text-gray-900 dark:text-white text-sm">空间不足？</h4>
+                    <p class="text-xs text-gray-600 dark:text-gray-300 mt-1 mb-3">
+                        升级到 Pro 套餐可获得 100GB 存储空间以及无限别名支持。
+                    </p>
+                    <button
+                        class="text-xs bg-primary text-white px-3 py-1.5 rounded-lg hover:bg-primary-hover transition-colors">
+                        查看升级方案
+                    </button>
+                </div>
             </div>
-        </div>
-
+        </template>
     </div>
 </template>
 

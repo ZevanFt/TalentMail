@@ -17,7 +17,7 @@ from aiosmtpd.controller import Controller
 from aiosmtpd.lmtp import LMTP
 from sqlalchemy.orm import Session
 from db.database import SessionLocal
-from db.models.email import Email, Folder
+from db.models.email import Email, Folder, TempMailbox
 from db.models.user import User
 from core import websocket as ws_manager
 import logging
@@ -88,16 +88,25 @@ class LMTPHandler:
         # 提取纯邮箱地址
         email_addr = extract_email_address(address)
         
-        # 检查用户是否存在
         db: Session = SessionLocal()
         try:
+            # 检查是否是注册用户
             user = db.query(User).filter(User.email == email_addr).first()
-            if not user:
-                logger.warning(f"LMTP: 拒绝投递到未知用户 {email_addr}")
-                return '550 User not found'
+            if user:
+                envelope.rcpt_tos.append(address)
+                return '250 OK'
             
-            envelope.rcpt_tos.append(address)
-            return '250 OK'
+            # 检查是否是临时邮箱
+            temp_mailbox = db.query(TempMailbox).filter(
+                TempMailbox.email == email_addr,
+                TempMailbox.is_active == True
+            ).first()
+            if temp_mailbox:
+                envelope.rcpt_tos.append(address)
+                return '250 OK'
+            
+            logger.warning(f"LMTP: 拒绝投递到未知地址 {email_addr}")
+            return '550 User not found'
         finally:
             db.close()
     
@@ -134,11 +143,24 @@ class LMTPHandler:
                 for rcpt in envelope.rcpt_tos:
                     rcpt_email = extract_email_address(rcpt)
                     
-                    # 查找用户和收件箱
-                    user = db.query(User).filter(User.email == rcpt_email).first()
-                    if not user:
-                        logger.warning(f"LMTP: 用户不存在 {rcpt_email}")
-                        continue
+                    # 先检查是否是临时邮箱
+                    temp_mailbox = db.query(TempMailbox).filter(
+                        TempMailbox.email == rcpt_email,
+                        TempMailbox.is_active == True
+                    ).first()
+                    
+                    if temp_mailbox:
+                        # 临时邮箱：存入所有者的收件箱
+                        user = db.query(User).filter(User.id == temp_mailbox.owner_id).first()
+                        if not user:
+                            logger.warning(f"LMTP: 临时邮箱所有者不存在 {rcpt_email}")
+                            continue
+                    else:
+                        # 普通用户邮箱
+                        user = db.query(User).filter(User.email == rcpt_email).first()
+                        if not user:
+                            logger.warning(f"LMTP: 用户不存在 {rcpt_email}")
+                            continue
                     
                     inbox = db.query(Folder).filter(
                         Folder.user_id == user.id,

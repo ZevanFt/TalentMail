@@ -1,6 +1,6 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_serializer
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, date
 from .common import CustomEmailStr
 
 # --- User Schemas ---
@@ -11,22 +11,59 @@ class UserCreate(BaseModel):
     password: str
     display_name: Optional[str] = None
     phone: Optional[str] = None
-    redemption_code: str
+    invite_code: str  # 邀请码，必填
 
 # Schema for reading user data (output)
 class UserRead(BaseModel):
     id: int
-    email: CustomEmailStr # Use our custom email type to allow .test domains in responses
+    email: CustomEmailStr
     display_name: Optional[str] = None
     avatar_url: Optional[str] = None
     theme: str
     storage_used_bytes: int
+    role: str  # 用户角色
+    pool_enabled: bool = False
+    # 通知设置
+    enable_desktop_notifications: bool = True
+    enable_sound_notifications: bool = True
+    enable_pool_notifications: bool = False
+    # 自动回复
+    auto_reply_enabled: bool = False
+    auto_reply_start_date: Optional[date] = None
+    auto_reply_end_date: Optional[date] = None
+    auto_reply_message: Optional[str] = None
     created_at: datetime
 
     class Config:
-        from_attributes = True # Updated from orm_mode for Pydantic v2
+        from_attributes = True
+    
+    @field_serializer('auto_reply_start_date', 'auto_reply_end_date')
+    def serialize_date(self, v: Optional[date]) -> Optional[str]:
+        return v.isoformat() if v else None
 
 # Schema for the development password reset endpoint
 class UserPasswordReset(BaseModel):
     email: CustomEmailStr
+    new_password: str
+
+
+# Schema for updating user profile
+class UserUpdate(BaseModel):
+    display_name: Optional[str] = None
+    avatar_url: Optional[str] = None
+    theme: Optional[str] = None
+    # 通知设置
+    enable_desktop_notifications: Optional[bool] = None
+    enable_sound_notifications: Optional[bool] = None
+    enable_pool_notifications: Optional[bool] = None
+    # 自动回复
+    auto_reply_enabled: Optional[bool] = None
+    auto_reply_start_date: Optional[str] = None
+    auto_reply_end_date: Optional[str] = None
+    auto_reply_message: Optional[str] = None
+
+
+# Schema for changing password
+class PasswordChange(BaseModel):
+    current_password: str
     new_password: str

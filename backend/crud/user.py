@@ -4,9 +4,30 @@ from db import models
 from schemas.user import UserCreate
 from core import security
 from typing import Optional
+from datetime import datetime, timezone
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def validate_invite_code(db: Session, code: str) -> Optional[models.InviteCode]:
+    """验证邀请码是否有效"""
+    invite = db.query(models.InviteCode).filter(models.InviteCode.code == code).first()
+    if not invite:
+        return None
+    if not invite.is_active:
+        return None
+    if invite.expires_at and invite.expires_at < datetime.now(timezone.utc):
+        return None
+    if invite.max_uses > 0 and invite.used_count >= invite.max_uses:
+        return None
+    return invite
+
+
+def use_invite_code(db: Session, invite: models.InviteCode):
+    """使用邀请码（增加使用次数）"""
+    invite.used_count += 1
+    db.add(invite)
 
 def get_user_by_email(db: Session, email: str):
     """
@@ -74,14 +95,14 @@ def sync_user_to_mailserver(email: str, password: str) -> bool:
         return False
 
 
-def create_user(db: Session, user: UserCreate):
+def create_user(db: Session, user: UserCreate, invite: models.InviteCode = None):
     """
     Creates a new user and their default mail folders in the database.
     Also syncs the user to the mailserver with the plaintext password.
     """
     logger.info(f"准备创建用户及其默认文件夹，邮箱: {user.email}")
     try:
-        user_data = user.model_dump(exclude={"password", "redemption_code"})
+        user_data = user.model_dump(exclude={"password", "invite_code"})
         logger.info("用户输入数据已成功序列化。")
         
         hashed_password = security.get_password_hash(user.password)

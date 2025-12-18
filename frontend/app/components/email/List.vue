@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { Star, RefreshCw, Loader2, Circle, Clock, X, Send, CheckCircle, XCircle, Eye } from 'lucide-vue-next'
 
-const { emails, selectedEmailId, folders, currentFolderId, loading, syncing, loadFolders, loadEmails, loadEmailDetail, sync, formatTime, toggleRead, toggleStar, snooze, searchQuery, isSearching, clearSearch, startAutoSync, stopAutoSync } = useEmails()
+const { emails, selectedEmailId, folders, currentFolderId, loading, syncing, loadFolders, loadEmails, loadEmailDetail, sync, formatTime, toggleRead, toggleStar, snooze, searchQuery, isSearching, clearSearch, startAutoSync, stopAutoSync, editDraft } = useEmails()
+const { isComposeOpen } = useGlobalModal()
+const { getEmail } = useApi()
 
 // 获取 Sidebar 中选中的虚拟文件夹 ID
 const selectedVirtualId = useState<string | null>('selectedVirtualId', () => null)
@@ -89,6 +91,12 @@ const isSentFolder = computed(() => {
   return folder?.role === 'sent'
 })
 
+// 是否是草稿箱
+const isDraftsFolder = computed(() => {
+  const folder = folders.value.find(f => f.id === currentFolderId.value)
+  return folder?.role === 'drafts'
+})
+
 // 获取发件人首字母
 const getAvatar = (sender: string) => {
   if (!sender) return '?'
@@ -98,7 +106,14 @@ const getAvatar = (sender: string) => {
 }
 
 // 选择邮件
-const selectEmail = (id: number) => {
+const selectEmail = async (id: number) => {
+  // 草稿箱：打开编辑弹窗
+  if (isDraftsFolder.value) {
+    const res = await getEmail(id)
+    editDraft(res.data)
+    isComposeOpen.value = true
+    return
+  }
   selectedEmailId.value = id
   loadEmailDetail(id)
 }

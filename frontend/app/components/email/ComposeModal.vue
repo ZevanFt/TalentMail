@@ -2,7 +2,7 @@
 import { Paperclip, Send, Loader2, Eye } from 'lucide-vue-next'
 
 const { isComposeOpen } = useGlobalModal()
-const { sendEmail } = useApi()
+const { sendEmail, saveDraft, updateDraft, deleteDraft, getDefaultSignature } = useApi()
 const { composeState, resetCompose, formatTime, folders, loadEmails, currentFolderId } = useEmails()
 
 const recipients = ref('')
@@ -13,6 +13,20 @@ const sending = ref(false)
 const error = ref('')
 const showCc = ref(false)
 const isTracked = ref(false)
+const draftId = ref<number | null>(null)
+const showDraftConfirm = ref(false)
+const savingDraft = ref(false)
+const defaultSignature = ref('')
+
+// 加载默认签名
+const loadDefaultSignature = async () => {
+  try {
+    const res = await getDefaultSignature()
+    defaultSignature.value = res.signature || ''
+  } catch (e) {
+    console.error('加载签名失败', e)
+  }
+}
 
 // 计算标题
 const modalTitle = computed(() => {
@@ -20,6 +34,7 @@ const modalTitle = computed(() => {
     case 'reply': return '回复'
     case 'replyAll': return '回复全部'
     case 'forward': return '转发'
+    case 'draft': return '编辑草稿'
     default: return '新邮件'
   }
 })
@@ -44,15 +59,21 @@ const extractEmail = (sender: string) => {
 }
 
 // 监听模式变化，预填内容
-watch(() => [isComposeOpen.value, composeState.value], () => {
+watch(() => [isComposeOpen.value, composeState.value], async () => {
   if (!isComposeOpen.value) return
+  
+  // 加载默认签名
+  if (!defaultSignature.value) {
+    await loadDefaultSignature()
+  }
   
   const { mode, originalEmail } = composeState.value
   if (!originalEmail || mode === 'compose') {
     recipients.value = ''
     ccRecipients.value = ''
     subject.value = ''
-    body.value = ''
+    // 新邮件自动附加签名
+    body.value = defaultSignature.value ? '\n\n' + defaultSignature.value : ''
     showCc.value = false
     return
   }
@@ -81,9 +102,10 @@ watch(() => [isComposeOpen.value, composeState.value], () => {
   const cleanSubject = originalEmail.subject.replace(/^(Re:|Fwd:)\s*/gi, '')
   subject.value = subjectPrefix + cleanSubject
 
-  // 正文引用
+  // 正文引用（带签名）
+  const sig = defaultSignature.value ? '\n\n' + defaultSignature.value : ''
   const quote = `\n\n-------- 原始邮件 --------\n发件人: ${originalEmail.sender}\n时间: ${formatTime(originalEmail.received_at)}\n主题: ${originalEmail.subject}\n\n${originalEmail.body_text || ''}`
-  body.value = mode === 'forward' ? quote : '\n' + quote
+  body.value = mode === 'forward' ? sig + quote : sig + quote
 }, { immediate: true })
 
 const handleSend = async () => {
@@ -104,13 +126,17 @@ const handleSend = async () => {
       reply_to_id: (mode === 'reply' || mode === 'replyAll') && originalEmail ? originalEmail.id : undefined,
       is_tracked: isTracked.value
     })
-    isComposeOpen.value = false
-    resetCompose()
-    recipients.value = ''
-    ccRecipients.value = ''
-    subject.value = ''
-    body.value = ''
-    isTracked.value = false
+    
+    // 如果是从草稿发送，删除草稿
+    if (draftId.value) {
+      try {
+        await deleteDraft(draftId.value)
+      } catch (e) {
+        console.error('删除草稿失败', e)
+      }
+    }
+    
+    closeAndReset()
     
     // 发送成功后，切换到已发送文件夹并刷新
     const sentFolder = folders.value.find(f => f.role === 'sent')
@@ -125,14 +151,112 @@ const handleSend = async () => {
   }
 }
 
-// 关闭时重置状态
-watch(isComposeOpen, (open) => {
-  if (!open) resetCompose()
+// 检查是否有内容
+const hasContent = computed(() => {
+  return recipients.value.trim() || subject.value.trim() || body.value.trim()
 })
+
+// 尝试关闭弹窗（返回 false 阻止关闭）
+const beforeClose = () => {
+  if (hasContent.value && !draftId.value) {
+    showDraftConfirm.value = true
+    return false
+  }
+  closeAndReset()
+  return true
+}
+
+// 保存草稿
+const handleSaveDraft = async () => {
+  savingDraft.value = true
+  try {
+    const data = {
+      to: recipients.value,
+      cc: ccRecipients.value,
+      subject: subject.value,
+      body_text: body.value
+    }
+    if (draftId.value) {
+      await updateDraft(draftId.value, data)
+    } else {
+      const res = await saveDraft(data)
+      draftId.value = res.data.id
+    }
+    showDraftConfirm.value = false
+    closeAndReset()
+    // 刷新草稿箱
+    const draftsFolder = folders.value.find(f => f.role === 'drafts')
+    if (draftsFolder && currentFolderId.value === draftsFolder.id) {
+      await loadEmails(draftsFolder.id)
+    }
+  } catch (e) {
+    console.error('保存草稿失败', e)
+  } finally {
+    savingDraft.value = false
+  }
+}
+
+// 不保存直接关闭
+const discardDraft = async () => {
+  if (draftId.value) {
+    try {
+      await deleteDraft(draftId.value)
+    } catch (e) {
+      console.error('删除草稿失败', e)
+    }
+  }
+  showDraftConfirm.value = false
+  closeAndReset()
+}
+
+// 关闭并重置
+const closeAndReset = () => {
+  isComposeOpen.value = false
+  resetCompose()
+  recipients.value = ''
+  ccRecipients.value = ''
+  subject.value = ''
+  body.value = ''
+  isTracked.value = false
+  draftId.value = null
+}
+
+// 从草稿打开时加载内容
+watch(() => composeState.value, (state) => {
+  if (state.mode === 'draft' && state.originalEmail) {
+    const email = state.originalEmail
+    draftId.value = email.id
+    subject.value = email.subject || ''
+    body.value = email.body_text || ''
+    // 解析收件人
+    try {
+      const r = JSON.parse(email.recipients || '{}')
+      recipients.value = (r.to || []).map((x: any) => x.email).join(', ')
+      ccRecipients.value = (r.cc || []).map((x: any) => x.email).join(', ')
+      showCc.value = ccRecipients.value.length > 0
+    } catch {
+      recipients.value = ''
+      ccRecipients.value = ''
+    }
+  }
+}, { immediate: true })
 </script>
 
 <template>
-  <CommonModal v-model="isComposeOpen" :title="modalTitle" widthClass="w-full max-w-3xl">
+  <!-- 草稿确认对话框 -->
+  <CommonModal v-model="showDraftConfirm" title="保存草稿？" widthClass="w-full max-w-sm">
+    <p class="text-gray-600 dark:text-gray-400">是否将当前内容保存为草稿？</p>
+    <template #footer>
+      <button @click="discardDraft" class="px-4 py-2 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200">
+        不保存
+      </button>
+      <button @click="handleSaveDraft" :disabled="savingDraft" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover disabled:opacity-50">
+        {{ savingDraft ? '保存中...' : '保存草稿' }}
+      </button>
+    </template>
+  </CommonModal>
+
+  <CommonModal v-model="isComposeOpen" :title="modalTitle" widthClass="w-full max-w-3xl" :beforeClose="beforeClose">
     <div class="space-y-3">
       <div v-if="error" class="text-red-500 text-sm">{{ error }}</div>
       <div class="flex items-center gap-2">

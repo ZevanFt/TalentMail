@@ -52,7 +52,7 @@ import { ShieldAlert, ImageOff, Lock, Plus } from 'lucide-vue-next'
                     <div class="text-sm text-gray-500">默认不加载邮件中的外部图片以保护隐私</div>
                 </div>
             </div>
-            <input type="checkbox" checked class="accent-primary w-5 h-5">
+            <CommonToggle :model-value="true" />
         </div>
     </div>
 </template>

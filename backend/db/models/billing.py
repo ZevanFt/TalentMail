@@ -67,7 +67,22 @@ class RedemptionCode(Base):
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True, comment="创建该码的管理员ID")
     used_by_id = Column(Integer, ForeignKey("users.id"), nullable=True, comment="使用该码的用户ID")
     used_at = Column(DateTime(timezone=True), nullable=True, comment="使用时间")
+    expires_at = Column(DateTime(timezone=True), nullable=True, comment="过期时间，null表示永不过期")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="创建时间")
     plan = relationship("Plan")
     created_by = relationship("User", foreign_keys=[created_by_id])
     used_by = relationship("User", foreign_keys=[used_by_id])
+
+
+class InviteCode(Base):
+    __tablename__ = "invite_codes"
+    __table_args__ = {'comment': '存储用于用户注册的邀请码'}
+    id = Column(Integer, primary_key=True, comment="邀请码唯一标识符")
+    code = Column(String, unique=True, index=True, nullable=False, comment="邀请码字符串")
+    max_uses = Column(Integer, default=1, comment="最大使用次数，0表示无限")
+    used_count = Column(Integer, default=0, comment="已使用次数")
+    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True, comment="创建该码的管理员ID")
+    expires_at = Column(DateTime(timezone=True), nullable=True, comment="过期时间，null表示永不过期")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="创建时间")
+    is_active = Column(Boolean, default=True, comment="是否激活")
+    created_by = relationship("User", foreign_keys=[created_by_id])

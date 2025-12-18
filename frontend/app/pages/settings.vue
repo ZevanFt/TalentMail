@@ -1,11 +1,20 @@
 <script setup lang="ts">
-import { User, Shield, Palette, LogOut, ArrowLeft, Mail, Bell, Lock, HardDrive, Users } from 'lucide-vue-next'
+import { User, Shield, Palette, LogOut, ArrowLeft, Mail, Bell, Lock, HardDrive, Users, Ticket, UserCog } from 'lucide-vue-next'
 const router = useRouter()
-const { logout } = useApi()
+const { logout, getMe } = useApi()
 
 const activeTab = ref('profile')
+const isAdmin = ref(false)
 
 definePageMeta({ layout: 'pool' })
+
+// 检查是否是管理员
+onMounted(async () => {
+  try {
+    const user = await getMe()
+    isAdmin.value = user.role === 'admin'
+  } catch (e) {}
+})
 
 const handleLogout = () => {
   logout()
@@ -71,6 +80,17 @@ const handleLogout = () => {
           </button>
         </div>
 
+        <!-- 分组：管理（仅管理员可见） -->
+        <div v-if="isAdmin" class="space-y-1">
+          <div class="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">管理</div>
+          <button @click="activeTab = 'invites'" :class="['tab-btn', activeTab === 'invites' ? 'active' : '']">
+            <Ticket class="w-4 h-4" /> 邀请码管理
+          </button>
+          <button @click="activeTab = 'user-mgmt'" :class="['tab-btn', activeTab === 'user-mgmt' ? 'active' : '']">
+            <UserCog class="w-4 h-4" /> 用户权限管理
+          </button>
+        </div>
+
       </nav>
 
       <!-- 底部退出 -->
@@ -83,21 +103,28 @@ const handleLogout = () => {
     </div>
 
     <!-- 2. 内容主区域 -->
-    <div class="flex-1 overflow-y-auto p-8 md:p-12 relative bg-gray-50 dark:bg-bg-dark">
-      <div class="max-w-4xl mx-auto min-h-[600px] pb-20">
-
-        <!-- 动态组件切换 -->
-        <Transition name="fade" mode="out-in">
-          <SettingsProfile v-if="activeTab === 'profile'" />
-          <SettingsAccounts v-else-if="activeTab === 'accounts'" />
-          <SettingsTheme v-else-if="activeTab === 'theme'" />
-          <SettingsMail v-else-if="activeTab === 'mail'" />
-          <SettingsNotifications v-else-if="activeTab === 'notifications'" />
-          <SettingsPrivacy v-else-if="activeTab === 'privacy'" />
-          <SettingsSecurity v-else-if="activeTab === 'security'" />
-          <SettingsStorage v-else-if="activeTab === 'storage'" />
-        </Transition>
-
+    <div class="flex-1 flex flex-col overflow-hidden bg-gray-50 dark:bg-bg-dark">
+      <!-- 用户权限管理使用全高度布局 -->
+      <div v-if="activeTab === 'user-mgmt'" class="flex-1 p-8 md:p-12 overflow-hidden">
+        <div class="max-w-5xl mx-auto h-full">
+          <SettingsUserManagement />
+        </div>
+      </div>
+      <!-- 其他页面使用滚动布局 -->
+      <div v-else class="flex-1 overflow-y-auto p-8 md:p-12">
+        <div class="max-w-4xl mx-auto min-h-[600px] pb-20">
+          <Transition name="fade" mode="out-in">
+            <SettingsProfile v-if="activeTab === 'profile'" />
+            <SettingsAccounts v-else-if="activeTab === 'accounts'" />
+            <SettingsTheme v-else-if="activeTab === 'theme'" />
+            <SettingsMail v-else-if="activeTab === 'mail'" />
+            <SettingsNotifications v-else-if="activeTab === 'notifications'" />
+            <SettingsPrivacy v-else-if="activeTab === 'privacy'" />
+            <SettingsSecurity v-else-if="activeTab === 'security'" />
+            <SettingsStorage v-else-if="activeTab === 'storage'" />
+            <SettingsInviteCodes v-else-if="activeTab === 'invites'" />
+          </Transition>
+        </div>
       </div>
     </div>
   </div>

@@ -3,9 +3,21 @@ import { Search, Moon, Sun, Settings, Mail, X } from 'lucide-vue-next'
 const router = useRouter()
 const { isDark, toggleTheme } = useTheme()
 const { search, clearSearch, searchQuery, isSearching } = useEmails()
+const { getMe } = useApi()
 
 const localQuery = ref('')
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
+
+// 用户信息
+const user = ref<{ email: string; display_name?: string } | null>(null)
+onMounted(async () => {
+  try {
+    user.value = await getMe()
+  } catch (e) {}
+})
+
+// 获取邮箱前缀
+const emailPrefix = computed(() => user.value?.email?.split('@')[0] || '')
 
 // 防抖搜索
 const handleInput = () => {
@@ -61,8 +73,11 @@ const handleEnter = () => {
                 class="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-gray-800">
                 <Settings class="w-4 h-4" />
             </button>
-            <div @click="router.push('/settings')"
-                class="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 ml-3 border border-gray-100 dark:border-gray-700 cursor-pointer shadow-sm hover:ring-2 hover:ring-primary/20 transition-all">
+            <div @click="router.push('/settings')" class="flex items-center gap-2 ml-3 cursor-pointer hover:opacity-80 transition-opacity">
+                <span v-if="emailPrefix" class="text-sm font-medium text-gray-700 dark:text-gray-300 hidden sm:block">{{ emailPrefix }}</span>
+                <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 border border-gray-100 dark:border-gray-700 shadow-sm hover:ring-2 hover:ring-primary/20 transition-all flex items-center justify-center text-white text-xs font-bold">
+                    {{ emailPrefix?.[0]?.toUpperCase() || '?' }}
+                </div>
             </div>
         </div>
     </header>

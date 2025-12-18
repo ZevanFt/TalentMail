@@ -14,25 +14,39 @@ from api import deps
 router = APIRouter()
 
 
-@router.post("/register") #, response_model=schemas.UserRead) # Temporarily remove response_model for debugging
+@router.post("/register")
 def register_user(user: UserCreate, db: Session = Depends(get_db)):
     """
-    Handles user registration.
+    Handles user registration with invite code validation.
     """
+    # 验证邀请码
+    invite = crud_user.validate_invite_code(db, user.invite_code)
+    if not invite:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="邀请码无效或已过期",
+        )
+    
+    # 检查邮箱是否已注册
     db_user = crud_user.get_user_by_email(db, email=user.email)
     if db_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered",
+            detail="该邮箱已被注册",
         )
-    # Here you might want to check the redemption_code validity
-    # For now, we proceed directly to user creation
-    new_user = crud_user.create_user(db=db, user=user)
+    
+    # 创建用户
+    new_user = crud_user.create_user(db=db, user=user, invite=invite)
     if not new_user:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create user in the database.",
+            detail="创建用户失败",
         )
+    
+    # 使用邀请码
+    crud_user.use_invite_code(db, invite)
+    db.commit()
+    
     return {"status": "success", "user_id": new_user.id, "email": new_user.email}
 
 

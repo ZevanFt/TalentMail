@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 import uuid
+import json
 from api import deps
 from db.database import SessionLocal
 from schemas import email as email_schema
@@ -15,6 +16,7 @@ from db.models.features import TrackingPixel
 from crud.folder import get_user_folder_by_role
 from core.config import settings
 import logging
+from datetime import datetime, timezone
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -617,3 +619,108 @@ def get_email(
             attachments=[]
         )
     )
+
+
+# --- 草稿 API ---
+
+@router.post("/drafts", response_model=email_schema.DraftResponse)
+def save_draft(
+    draft: email_schema.DraftCreate,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+):
+    """保存草稿"""
+    drafts_folder = get_user_folder_by_role(db, user_id=current_user.id, role="drafts")
+    if not drafts_folder:
+        raise HTTPException(status_code=404, detail="Drafts folder not found")
+    
+    # 构建收件人 JSON
+    recipients = {"to": [], "cc": [], "bcc": []}
+    if draft.to:
+        for email in draft.to.split(","):
+            email = email.strip()
+            if email:
+                recipients["to"].append({"email": email, "name": email.split("@")[0]})
+    if draft.cc:
+        for email in draft.cc.split(","):
+            email = email.strip()
+            if email:
+                recipients["cc"].append({"email": email, "name": email.split("@")[0]})
+    
+    db_draft = Email(
+        folder_id=drafts_folder.id,
+        subject=draft.subject or "",
+        sender=current_user.email,
+        recipients=json.dumps(recipients),
+        body_text=draft.body_text or "",
+        body_html=draft.body_html or "",
+        is_draft=True,
+        is_read=True,
+        received_at=datetime.now(timezone.utc),
+    )
+    db.add(db_draft)
+    db.commit()
+    db.refresh(db_draft)
+    
+    return {"status": "success", "data": {"id": db_draft.id}}
+
+
+@router.put("/drafts/{draft_id}", response_model=email_schema.DraftResponse)
+def update_draft(
+    draft_id: int,
+    draft: email_schema.DraftCreate,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+):
+    """更新草稿"""
+    db_draft = db.query(Email).join(Folder).filter(
+        Email.id == draft_id,
+        Folder.user_id == current_user.id,
+        Email.is_draft == True
+    ).first()
+    
+    if not db_draft:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    
+    # 更新收件人
+    recipients = {"to": [], "cc": [], "bcc": []}
+    if draft.to:
+        for email in draft.to.split(","):
+            email = email.strip()
+            if email:
+                recipients["to"].append({"email": email, "name": email.split("@")[0]})
+    if draft.cc:
+        for email in draft.cc.split(","):
+            email = email.strip()
+            if email:
+                recipients["cc"].append({"email": email, "name": email.split("@")[0]})
+    
+    db_draft.subject = draft.subject or ""
+    db_draft.recipients = json.dumps(recipients)
+    db_draft.body_text = draft.body_text or ""
+    db_draft.body_html = draft.body_html or ""
+    db.commit()
+    
+    return {"status": "success", "data": {"id": db_draft.id}}
+
+
+@router.delete("/drafts/{draft_id}")
+def delete_draft(
+    draft_id: int,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+):
+    """删除草稿"""
+    db_draft = db.query(Email).join(Folder).filter(
+        Email.id == draft_id,
+        Folder.user_id == current_user.id,
+        Email.is_draft == True
+    ).first()
+    
+    if not db_draft:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    
+    db.delete(db_draft)
+    db.commit()
+    
+    return {"status": "success", "data": {"id": draft_id}}

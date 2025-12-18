@@ -1,14 +1,21 @@
 <script setup lang="ts">
 import { X } from 'lucide-vue-next'
 
-defineProps<{
+const props = defineProps<{
   title?: string
   modelValue: boolean
   widthClass?: string // 允许自定义宽度，比如写信是大窗，生成是小窗
+  beforeClose?: () => boolean | void // 返回 false 阻止关闭
 }>()
 
 const emit = defineEmits(['update:modelValue'])
-const close = () => emit('update:modelValue', false)
+const close = () => {
+  if (props.beforeClose) {
+    const result = props.beforeClose()
+    if (result === false) return
+  }
+  emit('update:modelValue', false)
+}
 </script>
 
 <template>

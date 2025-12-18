@@ -98,3 +98,20 @@ class EmailDetailResponse(BaseModel):
     """邮件详情响应"""
     status: str = "success"
     data: EmailDetail
+
+
+# --- 草稿 Schemas ---
+class DraftCreate(BaseModel):
+    """创建/更新草稿"""
+    to: Optional[str] = ""
+    cc: Optional[str] = ""
+    subject: Optional[str] = ""
+    body_text: Optional[str] = ""
+    body_html: Optional[str] = ""
+    reply_to_id: Optional[int] = None
+
+
+class DraftResponse(BaseModel):
+    """草稿响应"""
+    status: str = "success"
+    data: dict

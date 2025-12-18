@@ -21,7 +21,7 @@ interface EmailDetail extends Email {
 }
 
 // 写邮件模式
-type ComposeMode = 'compose' | 'reply' | 'replyAll' | 'forward'
+type ComposeMode = 'compose' | 'reply' | 'replyAll' | 'forward' | 'draft'
 
 interface ComposeState {
   mode: ComposeMode
@@ -389,12 +389,17 @@ export const useEmails = () => {
     composeState.value = { mode: 'compose', originalEmail: null }
   }
 
+  // 编辑草稿
+  const editDraft = (email: EmailDetail) => {
+    composeState.value = { mode: 'draft', originalEmail: email }
+  }
+
   return {
     emails, folders, currentFolderId, selectedEmailId, selectedEmailDetail,
     loading, syncing, currentFilter, composeState, searchQuery, isSearching,
     loadFolders, loadEmails, loadEmailDetail, loadFilteredEmails, loadSnoozedEmails, loadAllEmails,
     sync, formatTime, toggleRead, toggleStar, snooze, removeEmail,
-    startReply, startReplyAll, startForward, resetCompose, search, clearSearch,
+    startReply, startReplyAll, startForward, editDraft, resetCompose, search, clearSearch,
     startAutoSync, stopAutoSync
   }
 }

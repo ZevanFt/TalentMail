@@ -34,6 +34,7 @@ class User(Base):
     enable_desktop_notifications = Column(Boolean, default=True, comment="是否启用桌面通知")
     enable_sound_notifications = Column(Boolean, default=True, comment="是否启用声音通知")
     enable_pool_notifications = Column(Boolean, default=False, comment="是否启用邮件池通知")
+    pool_enabled = Column(Boolean, default=False, comment="是否允许使用账号池功能")
     role = Column(String, default="user", comment="用户角色 ('admin' 或 'user')")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="用户账户创建时间")
 
@@ -47,3 +48,14 @@ class UserSession(Base):
     ip_address = Column(String, comment="登录IP地址")
     location = Column(String, nullable=True, comment="地理位置信息")
     user = relationship("User")
+
+
+class PoolActivityLog(Base):
+    __tablename__ = "pool_activity_logs"
+    __table_args__ = {'comment': '账号池操作日志'}
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    action = Column(String(50), nullable=False, comment="操作类型: create, delete")
+    mailbox_email = Column(String(255), nullable=False, comment="邮箱地址")
+    details = Column(Text, nullable=True, comment="详细信息")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

@@ -1,61 +1,70 @@
 <script setup lang="ts">
-import { User, Plus, MoreHorizontal, Copy } from 'lucide-vue-next'
+import { User, Plus, Lock } from 'lucide-vue-next'
+
+const { getMe } = useApi()
+
+const loading = ref(true)
+const user = ref<any>(null)
+
+const loadUser = async () => {
+    try {
+        user.value = await getMe()
+    } catch (e: any) {
+        console.error('加载用户信息失败', e)
+    } finally {
+        loading.value = false
+    }
+}
+
+const getInitial = () => {
+    if (user.value?.display_name) return user.value.display_name[0].toUpperCase()
+    if (user.value?.email) return user.value.email.split('@')[0][0].toUpperCase()
+    return 'U'
+}
+
+onMounted(loadUser)
 </script>
 
 <template>
     <div class="space-y-8">
         <div class="flex justify-between items-center">
             <h2 class="section-title mb-0">多账号管理</h2>
-            <button
-                class="bg-primary text-white px-4 py-2 rounded-lg text-sm hover:bg-primary-hover flex items-center gap-2">
+            <button disabled
+                class="bg-gray-300 dark:bg-gray-700 text-gray-500 px-4 py-2 rounded-lg text-sm cursor-not-allowed flex items-center gap-2">
                 <Plus class="w-4 h-4" /> 添加账号
             </button>
         </div>
 
-        <!-- 主账号 -->
-        <div class="card border-primary/30 relative overflow-hidden">
-            <div class="absolute top-0 right-0 bg-primary text-white text-xs px-2 py-1 rounded-bl-lg">当前</div>
-            <div class="flex items-center gap-4">
-                <div
-                    class="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white text-xl font-bold">
-                    T</div>
-                <div>
-                    <div class="font-bold text-gray-900 dark:text-white text-lg">Talent</div>
-                    <div class="text-gray-500">me@talenting.vip</div>
-                </div>
-            </div>
-        </div>
+        <div v-if="loading" class="text-gray-500">加载中...</div>
 
-        <!-- 别名管理 -->
-        <div class="card">
-            <h3 class="font-bold text-gray-900 dark:text-white mb-4">邮件别名 (Aliases)</h3>
-            <div class="space-y-3">
-                <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <div class="flex items-center gap-3">
-                        <span class="text-sm font-mono dark:text-gray-300">support@talenting.vip</span>
-                        <span
-                            class="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-[10px] px-1.5 py-0.5 rounded">工作</span>
+        <template v-else-if="user">
+            <!-- 主账号 -->
+            <div class="card border-primary/30 relative overflow-hidden">
+                <div class="absolute top-0 right-0 bg-primary text-white text-xs px-2 py-1 rounded-bl-lg">当前</div>
+                <div class="flex items-center gap-4">
+                    <div
+                        class="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white text-xl font-bold">
+                        {{ getInitial() }}</div>
+                    <div>
+                        <div class="font-bold text-gray-900 dark:text-white text-lg">{{ user.display_name || user.email.split('@')[0] }}</div>
+                        <div class="text-gray-500">{{ user.email }}</div>
                     </div>
-                    <button class="text-gray-400 hover:text-red-500">
-                        <MoreHorizontal class="w-4 h-4" />
-                    </button>
-                </div>
-                <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <div class="flex items-center gap-3">
-                        <span class="text-sm font-mono dark:text-gray-300">shop@talenting.vip</span>
-                        <span
-                            class="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-[10px] px-1.5 py-0.5 rounded">购物</span>
-                    </div>
-                    <button class="text-gray-400 hover:text-red-500">
-                        <MoreHorizontal class="w-4 h-4" />
-                    </button>
                 </div>
             </div>
-            <button
-                class="mt-4 w-full py-2 border border-dashed border-gray-300 dark:border-gray-600 text-gray-500 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-sm transition-colors">
-                + 添加新别名
-            </button>
-        </div>
+
+            <!-- 别名管理 -->
+            <div class="card">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold text-gray-900 dark:text-white">邮件别名 (Aliases)</h3>
+                    <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded flex items-center gap-1">
+                        <Lock class="w-3 h-3" /> 即将推出
+                    </span>
+                </div>
+                <div class="text-sm text-gray-500 italic p-4 bg-gray-50 dark:bg-gray-900 rounded-lg text-center">
+                    别名功能正在开发中，敬请期待...
+                </div>
+            </div>
+        </template>
     </div>
 </template>
 
