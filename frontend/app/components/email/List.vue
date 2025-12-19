@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Star, RefreshCw, Loader2, Circle, Clock, X, Send, CheckCircle, XCircle, Eye } from 'lucide-vue-next'
+import { Star, RefreshCw, Loader2, Circle, Clock, X, Send, CheckCircle, XCircle, Eye, Paperclip } from 'lucide-vue-next'
 
 const { emails, selectedEmailId, folders, currentFolderId, loading, syncing, loadFolders, loadEmails, loadEmailDetail, sync, formatTime, toggleRead, toggleStar, snooze, searchQuery, isSearching, clearSearch, startAutoSync, stopAutoSync, editDraft } = useEmails()
 const { isComposeOpen } = useGlobalModal()
@@ -212,10 +212,14 @@ onUnmounted(() => {
           </div>
         </div>
         
-        <!-- 第三行：摘要 + 投递状态/追踪 + 时间 -->
+        <!-- 第三行：摘要 + 附件/投递状态/追踪 + 时间 -->
         <div class="ml-[42px] mt-1 flex items-end justify-between gap-2">
           <p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 leading-relaxed flex-1">{{ email.snippet }}</p>
           <div class="flex items-center gap-1.5 shrink-0">
+            <!-- 附件图标 -->
+            <span v-if="email.has_attachments" class="text-gray-400" title="有附件">
+              <Paperclip class="w-3 h-3" />
+            </span>
             <!-- 已发送文件夹：显示投递状态 -->
             <template v-if="isSentFolder">
               <span v-if="email.delivery_status === 'pending'" class="text-gray-400" title="等待发送">

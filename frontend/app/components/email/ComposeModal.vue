@@ -1,9 +1,15 @@
 <script setup lang="ts">
-import { Paperclip, Send, Loader2, Eye } from 'lucide-vue-next'
+import { Paperclip, Send, Loader2, Eye, X } from 'lucide-vue-next'
 
 const { isComposeOpen } = useGlobalModal()
-const { sendEmail, saveDraft, updateDraft, deleteDraft, getDefaultSignature } = useApi()
+const { sendEmail, saveDraft, updateDraft, deleteDraft, getDefaultSignature, uploadAttachment, deleteAttachment } = useApi()
 const { composeState, resetCompose, formatTime, folders, loadEmails, currentFolderId } = useEmails()
+
+interface UploadedFile {
+  id: number
+  filename: string
+  size: number
+}
 
 const recipients = ref('')
 const ccRecipients = ref('')
@@ -17,6 +23,9 @@ const draftId = ref<number | null>(null)
 const showDraftConfirm = ref(false)
 const savingDraft = ref(false)
 const defaultSignature = ref('')
+const attachments = ref<UploadedFile[]>([])
+const uploading = ref(false)
+const fileInput = ref<HTMLInputElement | null>(null)
 
 // 加载默认签名
 const loadDefaultSignature = async () => {
@@ -108,6 +117,41 @@ watch(() => [isComposeOpen.value, composeState.value], async () => {
   body.value = mode === 'forward' ? sig + quote : sig + quote
 }, { immediate: true })
 
+// 附件上传
+const handleFileSelect = async (e: Event) => {
+  const input = e.target as HTMLInputElement
+  if (!input.files?.length) return
+  
+  uploading.value = true
+  try {
+    for (const file of input.files) {
+      const res = await uploadAttachment(file)
+      attachments.value.push({ id: res.id, filename: res.filename, size: res.size })
+    }
+  } catch (e) {
+    console.error('上传失败', e)
+    error.value = '附件上传失败'
+  } finally {
+    uploading.value = false
+    input.value = ''
+  }
+}
+
+const removeAttachment = async (att: UploadedFile) => {
+  try {
+    await deleteAttachment(att.id)
+    attachments.value = attachments.value.filter(a => a.id !== att.id)
+  } catch (e) {
+    console.error('删除附件失败', e)
+  }
+}
+
+const formatFileSize = (bytes: number) => {
+  if (bytes < 1024) return bytes + ' B'
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+}
+
 const handleSend = async () => {
   if (!recipients.value || !subject.value) {
     error.value = '请填写收件人和主题'
@@ -124,7 +168,8 @@ const handleSend = async () => {
       subject: subject.value,
       body_text: body.value,
       reply_to_id: (mode === 'reply' || mode === 'replyAll') && originalEmail ? originalEmail.id : undefined,
-      is_tracked: isTracked.value
+      is_tracked: isTracked.value,
+      attachment_ids: attachments.value.map(a => a.id)
     })
     
     // 如果是从草稿发送，删除草稿
@@ -151,14 +196,32 @@ const handleSend = async () => {
   }
 }
 
-// 检查是否有内容
+// 检查是否有内容（排除只有签名的情况）
 const hasContent = computed(() => {
-  return recipients.value.trim() || subject.value.trim() || body.value.trim()
+  // 移除签名后检查正文是否有内容
+  let bodyContent = body.value
+  if (defaultSignature.value) {
+    // 签名可能带有前导换行符，需要处理
+    const sigWithNewlines = '\n\n' + defaultSignature.value
+    bodyContent = bodyContent.replace(sigWithNewlines, '').replace(defaultSignature.value, '')
+  }
+  bodyContent = bodyContent.trim()
+  
+  const hasRecipients = recipients.value.trim().length > 0
+  const hasSubject = subject.value.trim().length > 0
+  const hasBody = bodyContent.length > 0
+  
+  return hasRecipients || hasSubject || hasBody
 })
 
 // 尝试关闭弹窗（返回 false 阻止关闭）
 const beforeClose = () => {
-  if (hasContent.value && !draftId.value) {
+  console.log('beforeClose called, hasContent:', hasContent.value)
+  console.log('recipients:', recipients.value)
+  console.log('subject:', subject.value)
+  console.log('body:', body.value)
+  
+  if (hasContent.value) {
     showDraftConfirm.value = true
     return false
   }
@@ -219,6 +282,7 @@ const closeAndReset = () => {
   body.value = ''
   isTracked.value = false
   draftId.value = null
+  attachments.value = []
 }
 
 // 从草稿打开时加载内容
@@ -256,7 +320,7 @@ watch(() => composeState.value, (state) => {
     </template>
   </CommonModal>
 
-  <CommonModal v-model="isComposeOpen" :title="modalTitle" widthClass="w-full max-w-3xl" :beforeClose="beforeClose">
+  <CommonModal v-model="isComposeOpen" :title="modalTitle" widthClass="w-full max-w-3xl" :before-close="beforeClose">
     <div class="space-y-3">
       <div v-if="error" class="text-red-500 text-sm">{{ error }}</div>
       <div class="flex items-center gap-2">
@@ -275,9 +339,19 @@ watch(() => composeState.value, (state) => {
     </div>
 
     <template #footer>
-      <button class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 mr-auto">
-        <Paperclip class="w-5 h-5" />
-      </button>
+      <div class="flex items-center gap-2 mr-auto">
+        <input ref="fileInput" type="file" multiple class="hidden" @change="handleFileSelect" />
+        <button @click="fileInput?.click()" :disabled="uploading" class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+          <Loader2 v-if="uploading" class="w-5 h-5 animate-spin" />
+          <Paperclip v-else class="w-5 h-5" />
+        </button>
+        <div v-if="attachments.length" class="flex flex-wrap gap-1">
+          <span v-for="att in attachments" :key="att.id" class="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs text-gray-600 dark:text-gray-400">
+            {{ att.filename }} ({{ formatFileSize(att.size) }})
+            <button @click="removeAttachment(att)" class="hover:text-red-500"><X class="w-3 h-3" /></button>
+          </span>
+        </div>
+      </div>
       <button @click="isTracked = !isTracked" class="flex items-center gap-2 text-sm mr-4 transition-colors" :class="isTracked ? 'text-primary' : 'text-gray-400'">
         <div class="relative w-9 h-5 rounded-full transition-colors" :class="isTracked ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'">
           <div class="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform" :class="isTracked ? 'translate-x-4' : 'translate-x-0.5'"></div>

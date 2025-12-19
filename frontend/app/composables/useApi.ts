@@ -53,7 +53,7 @@ export const useApi = () => {
 
   const getEmail = (id: number) => api<ApiResponse<any>>(`/emails/${id}`)
 
-  const sendEmail = (data: { to: string; cc?: string; subject: string; body_text?: string; body_html?: string; reply_to_id?: number; is_tracked?: boolean }) => {
+  const sendEmail = (data: { to: string; cc?: string; subject: string; body_text?: string; body_html?: string; reply_to_id?: number; is_tracked?: boolean; attachment_ids?: number[] }) => {
     // 将逗号分隔的收件人转换为 EmailRecipient 数组
     const toRecipients = data.to.split(',').filter(e => e.trim()).map(email => ({ email: email.trim() }))
     const ccRecipients = data.cc ? data.cc.split(',').filter(e => e.trim()).map(email => ({ email: email.trim() })) : []
@@ -64,7 +64,8 @@ export const useApi = () => {
       body_text: data.body_text,
       body_html: data.body_html || '',
       reply_to_id: data.reply_to_id,
-      is_tracked: data.is_tracked || false
+      is_tracked: data.is_tracked || false,
+      attachment_ids: data.attachment_ids || []
     })
   }
 
@@ -134,6 +135,9 @@ export const useApi = () => {
   
   const deleteInviteCode = (id: number) =>
     api<any>(`/invite/${id}`, 'DELETE')
+  
+  const getInviteCodeUsages = (id: number) =>
+    api<Array<{ id: number; user_email: string; used_at: string }>>(`/invite/${id}/usages`)
 
   // Admin User APIs
   const getUsers = (q?: string, page = 1, limit = 20) => {
@@ -142,8 +146,14 @@ export const useApi = () => {
     return api<{ items: any[]; total: number }>(url)
   }
   
-  const updateUserPermissions = (userId: number, data: { role?: string; pool_enabled?: boolean }) =>
+  const updateUserPermissions = (userId: number, data: { role?: string; pool_enabled?: boolean; plan_id?: number; subscription_days?: number }) =>
     api<any>(`/users/admin/${userId}/permissions`, 'PATCH', data)
+  
+  const adminCreateUser = (data: { email_prefix: string; password: string; display_name?: string; role?: string; pool_enabled?: boolean; plan_id?: number; subscription_days?: number }) =>
+    api<{ status: string; user: any }>('/users/admin/create', 'POST', data)
+  
+  const adminDeleteUser = (userId: number) =>
+    api<any>(`/users/admin/${userId}`, 'DELETE')
 
   // Pool APIs (临时邮箱)
   const getPoolMailboxes = (page = 1, limit = 20) =>
@@ -186,5 +196,118 @@ export const useApi = () => {
   const deleteSignature = (id: number) => api<any>(`/signatures/${id}`, 'DELETE')
   const getDefaultSignature = () => api<{ signature: string | null }>('/signatures/default')
 
-  return { login, logout, getFolders, getEmails, getEmail, sendEmail, syncEmails, markEmailRead, deleteEmail, markEmailStarred, snoozeEmail, getAllEmails, getSnoozedEmails, searchEmails, getTrackingStats, resendEmail, getMe, updateMe, changePassword, getStorageStats, getInviteCodes, createInviteCode, deleteInviteCode, getUsers, updateUserPermissions, getPoolMailboxes, createPoolMailbox, deletePoolMailbox, getPoolMailboxEmails, getPoolStats, getPoolActivityLogs, markPoolEmailRead, saveDraft, updateDraft, deleteDraft, getSignatures, createSignature, updateSignature, deleteSignature, getDefaultSignature, token }
+  // Attachment APIs
+  const uploadAttachment = async (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return await $fetch<{ id: number; filename: string; content_type: string; size: number }>(`${API_BASE}/attachments/upload`, {
+      method: 'POST',
+      headers: token.value ? { Authorization: `Bearer ${token.value}` } : {},
+      body: formData
+    })
+  }
+  const deleteAttachment = (id: number) => api<any>(`/attachments/${id}`, 'DELETE')
+  const downloadAttachmentUrl = (id: number) => `${API_BASE}/attachments/${id}/download`
+
+  // Billing APIs (会员订阅)
+  const getPlans = () => api<any[]>('/billing/plans')
+  const createPlan = (data: any) => api<any>('/billing/plans', 'POST', data)
+  const updatePlan = (id: number, data: any) => api<any>(`/billing/plans/${id}`, 'PUT', data)
+  const deletePlan = (id: number) => api<any>(`/billing/plans/${id}`, 'DELETE')
+  
+  const getRedemptionCodes = (status?: string, planId?: number, page = 1, limit = 50) => {
+    let url = `/billing/codes?page=${page}&limit=${limit}`
+    if (status) url += `&status=${status}`
+    if (planId) url += `&plan_id=${planId}`
+    return api<any[]>(url)
+  }
+  const generateRedemptionCodes = (data: { plan_id: number; duration_days: number; count: number; prefix?: string }) =>
+    api<{ codes: string[]; count: number }>('/billing/codes', 'POST', data)
+  const getRedemptionCodeStats = () => api<{ total: number; unused: number; used: number; expired: number }>('/billing/codes/stats')
+  const revokeRedemptionCode = (id: number) => api<any>(`/billing/codes/${id}`, 'DELETE')
+  
+  const getSubscriptionStatus = () => api<any>('/billing/subscription')
+  const redeemCode = (code: string) => api<any>('/billing/redeem', 'POST', { code })
+  const getRedemptionHistory = () => api<any[]>('/billing/history')
+
+  // Login Sessions APIs (登录会话)
+  interface LoginSession {
+    id: number
+    device_info: string | null
+    browser: string | null
+    os: string | null
+    ip_address: string | null
+    location: string | null
+    is_active: boolean
+    created_at: string | null
+    last_active_at: string | null
+    is_current: boolean
+  }
+  const getLoginSessions = (limit = 10) => api<LoginSession[]>(`/users/me/sessions?limit=${limit}`)
+  const revokeSession = (sessionId: number) => api<any>(`/users/me/sessions/${sessionId}`, 'DELETE')
+  const revokeAllSessions = () => api<any>('/users/me/sessions', 'DELETE')
+
+  // Reserved Prefixes APIs (保留前缀)
+  interface ReservedPrefix {
+    id: number
+    prefix: string
+    category: string
+    description: string | null
+    is_active: boolean
+    created_at: string | null
+    updated_at: string | null
+  }
+  const getReservedPrefixes = (category?: string, isActive?: boolean, q?: string, page = 1, limit = 50) => {
+    let url = `/prefixes/?page=${page}&limit=${limit}`
+    if (category) url += `&category=${category}`
+    if (isActive !== undefined) url += `&is_active=${isActive}`
+    if (q) url += `&q=${encodeURIComponent(q)}`
+    return api<{ items: ReservedPrefix[]; total: number }>(url)
+  }
+  const createReservedPrefix = (data: { prefix: string; category?: string; description?: string }) =>
+    api<ReservedPrefix>('/prefixes/', 'POST', data)
+  const updateReservedPrefix = (id: number, data: { prefix?: string; category?: string; description?: string; is_active?: boolean }) =>
+    api<ReservedPrefix>(`/prefixes/${id}`, 'PUT', data)
+  const deleteReservedPrefix = (id: number) => api<any>(`/prefixes/${id}`, 'DELETE')
+  const getReservedPrefixCategories = () => api<string[]>('/prefixes/categories')
+  const checkPrefixAvailability = (prefix: string) => api<{ available: boolean; reason: string | null; message: string }>(`/prefixes/check/${prefix}`)
+
+  // Verification Code APIs (验证码)
+  const sendVerificationCode = (email: string, purpose: string = 'register') =>
+    api<{ status: string; message: string }>('/auth/send-verification-code', 'POST', { email, purpose })
+  const verifyCode = (email: string, code: string, purpose: string = 'register') =>
+    api<{ status: string; message: string }>('/auth/verify-code', 'POST', { email, code, purpose })
+  const registerWithVerification = (data: { email: string; password: string; invite_code: string; verification_email: string; verification_code: string }) =>
+    api<{ status: string; user_id: number; email: string }>('/auth/register-with-verification', 'POST', data)
+
+  // Email Templates APIs (邮件模板管理)
+  interface EmailTemplate {
+    id: number
+    code: string
+    name: string
+    category: string
+    description: string | null
+    subject: string
+    body_html: string
+    body_text: string | null
+    variables: string[] | null
+    is_active: boolean
+    created_at: string
+    updated_at: string
+  }
+  const getEmailTemplates = (category?: string) => {
+    let url = '/email-templates/'
+    if (category) url += `?category=${category}`
+    return api<EmailTemplate[]>(url)
+  }
+  const getEmailTemplate = (id: number) => api<EmailTemplate>(`/email-templates/${id}`)
+  const createEmailTemplate = (data: { code: string; name: string; category: string; description?: string; subject: string; body_html: string; body_text?: string; variables?: string[]; is_active?: boolean }) =>
+    api<EmailTemplate>('/email-templates/', 'POST', data)
+  const updateEmailTemplate = (id: number, data: { name?: string; category?: string; description?: string; subject?: string; body_html?: string; body_text?: string; variables?: string[]; is_active?: boolean }) =>
+    api<EmailTemplate>(`/email-templates/${id}`, 'PUT', data)
+  const deleteEmailTemplate = (id: number) => api<any>(`/email-templates/${id}`, 'DELETE')
+  const previewEmailTemplate = (id: number, variables: Record<string, string>) =>
+    api<{ subject: string; body_html: string; body_text: string }>(`/email-templates/${id}/preview`, 'POST', variables)
+
+  return { login, logout, getFolders, getEmails, getEmail, sendEmail, syncEmails, markEmailRead, deleteEmail, markEmailStarred, snoozeEmail, getAllEmails, getSnoozedEmails, searchEmails, getTrackingStats, resendEmail, getMe, updateMe, changePassword, getStorageStats, getInviteCodes, createInviteCode, deleteInviteCode, getInviteCodeUsages, getUsers, updateUserPermissions, adminCreateUser, adminDeleteUser, getPoolMailboxes, createPoolMailbox, deletePoolMailbox, getPoolMailboxEmails, getPoolStats, getPoolActivityLogs, markPoolEmailRead, saveDraft, updateDraft, deleteDraft, getSignatures, createSignature, updateSignature, deleteSignature, getDefaultSignature, uploadAttachment, deleteAttachment, downloadAttachmentUrl, getPlans, createPlan, updatePlan, deletePlan, getRedemptionCodes, generateRedemptionCodes, getRedemptionCodeStats, revokeRedemptionCode, getSubscriptionStatus, redeemCode, getRedemptionHistory, getLoginSessions, revokeSession, revokeAllSessions, getReservedPrefixes, createReservedPrefix, updateReservedPrefix, deleteReservedPrefix, getReservedPrefixCategories, checkPrefixAvailability, sendVerificationCode, verifyCode, registerWithVerification, getEmailTemplates, getEmailTemplate, createEmailTemplate, updateEmailTemplate, deleteEmailTemplate, previewEmailTemplate, token }
 }

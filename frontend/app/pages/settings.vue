@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { User, Shield, Palette, LogOut, ArrowLeft, Mail, Bell, Lock, HardDrive, Users, Ticket, UserCog } from 'lucide-vue-next'
+import { User, Shield, Palette, LogOut, ArrowLeft, Mail, Bell, Lock, HardDrive, Users, Ticket, UserCog, CreditCard, AtSign, FileText } from 'lucide-vue-next'
 const router = useRouter()
 const { logout, getMe } = useApi()
 
@@ -83,8 +83,17 @@ const handleLogout = () => {
         <!-- 分组：管理（仅管理员可见） -->
         <div v-if="isAdmin" class="space-y-1">
           <div class="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">管理</div>
+          <button @click="activeTab = 'billing'" :class="['tab-btn', activeTab === 'billing' ? 'active' : '']">
+            <CreditCard class="w-4 h-4" /> 会员订阅管理
+          </button>
           <button @click="activeTab = 'invites'" :class="['tab-btn', activeTab === 'invites' ? 'active' : '']">
             <Ticket class="w-4 h-4" /> 邀请码管理
+          </button>
+          <button @click="activeTab = 'prefixes'" :class="['tab-btn', activeTab === 'prefixes' ? 'active' : '']">
+            <AtSign class="w-4 h-4" /> 保留前缀管理
+          </button>
+          <button @click="activeTab = 'email-templates'" :class="['tab-btn', activeTab === 'email-templates' ? 'active' : '']">
+            <FileText class="w-4 h-4" /> 邮件模板管理
           </button>
           <button @click="activeTab = 'user-mgmt'" :class="['tab-btn', activeTab === 'user-mgmt' ? 'active' : '']">
             <UserCog class="w-4 h-4" /> 用户权限管理
@@ -122,7 +131,10 @@ const handleLogout = () => {
             <SettingsPrivacy v-else-if="activeTab === 'privacy'" />
             <SettingsSecurity v-else-if="activeTab === 'security'" />
             <SettingsStorage v-else-if="activeTab === 'storage'" />
+            <SettingsBilling v-else-if="activeTab === 'billing'" />
             <SettingsInviteCodes v-else-if="activeTab === 'invites'" />
+            <SettingsReservedPrefixes v-else-if="activeTab === 'prefixes'" />
+            <SettingsEmailTemplates v-else-if="activeTab === 'email-templates'" />
           </Transition>
         </div>
       </div>

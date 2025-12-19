@@ -2,6 +2,7 @@
 import { Shuffle } from 'lucide-vue-next'
 const { isGenerateOpen } = useGlobalModal()
 const { createPoolMailbox } = useApi()
+const { baseDomain } = useConfig()
 
 const emit = defineEmits(['created'])
 
@@ -65,7 +66,7 @@ const handleClose = () => {
                         <Shuffle class="w-4 h-4" />
                     </button>
                 </div>
-                <p class="text-xs text-gray-400">将自动生成如: {{ prefix || 'random123' }}@talenting.test</p>
+                <p class="text-xs text-gray-400">将自动生成如: {{ prefix || 'random123' }}@{{ baseDomain }}</p>
             </div>
 
             <!-- 用途标签 -->

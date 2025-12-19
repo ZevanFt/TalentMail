@@ -61,12 +61,16 @@ class Attachment(Base):
     __tablename__ = "attachments"
     __table_args__ = {'comment': '存储邮件附件的信息'}
     id = Column(Integer, primary_key=True, comment="附件唯一标识符")
-    email_id = Column(Integer, ForeignKey("emails.id"), nullable=False, comment="所属邮件的ID")
+    email_id = Column(Integer, ForeignKey("emails.id"), nullable=True, comment="所属邮件的ID")
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="上传用户ID")
     filename = Column(String, comment="附件原始文件名")
     content_type = Column(String, comment="附件的MIME类型")
+    size = Column(Integer, default=0, comment="文件大小(字节)")
     file_path = Column(String, nullable=True, comment="附件在存储系统中的路径")
     attached_email_id = Column(Integer, ForeignKey("emails.id"), nullable=True, comment="如果附件本身是一封邮件(eml)，则关联其ID")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="上传时间")
     email = relationship("Email", foreign_keys=[email_id])
+    user = relationship("User")
 
 
 class Signature(Base):

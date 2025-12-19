@@ -24,10 +24,19 @@ def validate_invite_code(db: Session, code: str) -> Optional[models.InviteCode]:
     return invite
 
 
-def use_invite_code(db: Session, invite: models.InviteCode):
-    """使用邀请码（增加使用次数）"""
+def use_invite_code(db: Session, invite: models.InviteCode, user_id: int = None):
+    """使用邀请码（增加使用次数并记录使用者）"""
     invite.used_count += 1
     db.add(invite)
+    
+    # 记录使用者
+    if user_id:
+        from db.models.billing import InviteCodeUsage
+        usage = InviteCodeUsage(
+            invite_code_id=invite.id,
+            user_id=user_id
+        )
+        db.add(usage)
 
 def get_user_by_email(db: Session, email: str):
     """

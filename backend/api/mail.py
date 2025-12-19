@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from sqlalchemy.orm import Session
-from typing import Optional
+from sqlalchemy import func
+from typing import Optional, Dict
 import uuid
 import json
 from api import deps
@@ -11,7 +12,7 @@ from crud import email as email_crud
 from core.mail import send_email as core_send_email
 from core.mail_sync import sync_user_mailbox, sync_all_mailboxes
 from db.models import User
-from db.models.email import Email, Folder
+from db.models.email import Email, Folder, Attachment
 from db.models.features import TrackingPixel
 from crud.folder import get_user_folder_by_role
 from core.config import settings
@@ -75,6 +76,15 @@ async def send_email_endpoint(
         db.commit()
         logger.info(f"成功在数据库中创建邮件记录, ID: {db_email.id}。")
 
+        # 1.2 关联附件
+        if email_in.attachment_ids:
+            db.query(Attachment).filter(
+                Attachment.id.in_(email_in.attachment_ids),
+                Attachment.user_id == current_user.id,
+                Attachment.email_id.is_(None)
+            ).update({"email_id": db_email.id}, synchronize_session=False)
+            db.commit()
+
         # 1.5 如果启用追踪，创建追踪像素并插入邮件 HTML
         tracking_pixel_html = ""
         if email_in.is_tracked:
@@ -95,14 +105,19 @@ async def send_email_endpoint(
         async def send_email_task():
             email_id = db_email.id
             try:
-                # 更新状态为发送中
+                # 获取附件信息
+                attachments_data = []
                 with SessionLocal() as db_bg:
                     email_to_update = db_bg.query(models.Email).filter(models.Email.id == email_id).first()
                     if email_to_update:
                         email_to_update.delivery_status = "sending"
                         db_bg.commit()
+                    
+                    # 查询附件
+                    atts = db_bg.query(Attachment).filter(Attachment.email_id == email_id).all()
+                    attachments_data = [{"filename": a.filename, "content_type": a.content_type, "file_path": a.file_path} for a in atts]
                 
-                logger.info(f"后台任务开始: 发送邮件 (DB ID: {email_id})。")
+                logger.info(f"后台任务开始: 发送邮件 (DB ID: {email_id})，附件数: {len(attachments_data)}。")
                 # 如果有追踪像素，修改邮件内容
                 email_to_send = email_in
                 if tracking_pixel_html:
@@ -111,6 +126,7 @@ async def send_email_endpoint(
                 message_id = await core_send_email(
                     email_data=email_to_send,
                     sender_email=current_user.email,
+                    attachments=attachments_data if attachments_data else None,
                 )
                 # 更新状态为已发送
                 with SessionLocal() as db_bg:
@@ -210,6 +226,15 @@ def search_emails(
     offset = (page - 1) * limit
     emails = query.order_by(Email.received_at.desc()).offset(offset).limit(limit).all()
     
+    # 批量查询附件数量
+    email_ids = [e.id for e in emails]
+    attachment_counts: Dict[int, int] = {}
+    if email_ids:
+        counts = db.query(Attachment.email_id, func.count(Attachment.id)).filter(
+            Attachment.email_id.in_(email_ids)
+        ).group_by(Attachment.email_id).all()
+        attachment_counts = {email_id: count for email_id, count in counts}
+    
     items = []
     for e in emails:
         items.append(email_schema.EmailListItem(
@@ -220,7 +245,7 @@ def search_emails(
             received_at=e.received_at,
             is_read=e.is_read,
             is_starred=e.is_starred,
-            has_attachments=False,
+            has_attachments=attachment_counts.get(e.id, 0) > 0,
             is_tracked=e.is_tracked or False,
             delivery_status=e.delivery_status,
         ))
@@ -256,6 +281,15 @@ def list_snoozed_emails(
     offset = (page - 1) * limit
     emails = query.order_by(Email.snoozed_until.asc()).offset(offset).limit(limit).all()
     
+    # 批量查询附件数量
+    email_ids = [e.id for e in emails]
+    attachment_counts: Dict[int, int] = {}
+    if email_ids:
+        counts = db.query(Attachment.email_id, func.count(Attachment.id)).filter(
+            Attachment.email_id.in_(email_ids)
+        ).group_by(Attachment.email_id).all()
+        attachment_counts = {email_id: count for email_id, count in counts}
+    
     items = []
     for e in emails:
         items.append(email_schema.EmailListItem(
@@ -266,7 +300,7 @@ def list_snoozed_emails(
             received_at=e.received_at,
             is_read=e.is_read,
             is_starred=e.is_starred,
-            has_attachments=False,
+            has_attachments=attachment_counts.get(e.id, 0) > 0,
             is_tracked=e.is_tracked or False,
             delivery_status=e.delivery_status,
         ))
@@ -318,6 +352,15 @@ def list_all_emails(
     offset = (page - 1) * limit
     emails = query.order_by(Email.received_at.desc()).offset(offset).limit(limit).all()
     
+    # 批量查询附件数量
+    email_ids = [e.id for e in emails]
+    attachment_counts: Dict[int, int] = {}
+    if email_ids:
+        counts = db.query(Attachment.email_id, func.count(Attachment.id)).filter(
+            Attachment.email_id.in_(email_ids)
+        ).group_by(Attachment.email_id).all()
+        attachment_counts = {email_id: count for email_id, count in counts}
+    
     items = []
     for e in emails:
         items.append(email_schema.EmailListItem(
@@ -328,7 +371,7 @@ def list_all_emails(
             received_at=e.received_at,
             is_read=e.is_read,
             is_starred=e.is_starred,
-            has_attachments=False,
+            has_attachments=attachment_counts.get(e.id, 0) > 0,
             is_tracked=e.is_tracked or False,
             delivery_status=e.delivery_status,
         ))
@@ -376,6 +419,15 @@ def list_emails(
     offset = (page - 1) * limit
     emails = query.order_by(Email.received_at.desc()).offset(offset).limit(limit).all()
     
+    # 批量查询附件数量
+    email_ids = [e.id for e in emails]
+    attachment_counts: Dict[int, int] = {}
+    if email_ids:
+        counts = db.query(Attachment.email_id, func.count(Attachment.id)).filter(
+            Attachment.email_id.in_(email_ids)
+        ).group_by(Attachment.email_id).all()
+        attachment_counts = {email_id: count for email_id, count in counts}
+    
     # 转换为响应格式
     items = []
     for e in emails:
@@ -387,7 +439,7 @@ def list_emails(
             received_at=e.received_at,
             is_read=e.is_read,
             is_starred=e.is_starred,
-            has_attachments=False,
+            has_attachments=attachment_counts.get(e.id, 0) > 0,
             is_tracked=e.is_tracked or False,
             delivery_status=e.delivery_status,
         ))
@@ -530,6 +582,7 @@ async def resend_email(
     # 后台任务重新发送
     async def resend_task():
         try:
+            attachments_data = []
             with SessionLocal() as db_bg:
                 email_to_send = db_bg.query(models.Email).filter(models.Email.id == email_id).first()
                 if not email_to_send:
@@ -537,9 +590,12 @@ async def resend_email(
                 
                 email_to_send.delivery_status = "sending"
                 db_bg.commit()
+                
+                # 查询附件
+                atts = db_bg.query(Attachment).filter(Attachment.email_id == email_id).all()
+                attachments_data = [{"filename": a.filename, "content_type": a.content_type, "file_path": a.file_path} for a in atts]
             
             # 解析收件人
-            import json
             recipients_data = json.loads(email.recipients)
             to_list = [email_schema.EmailRecipient(email=r['email'], name=r.get('name')) for r in recipients_data.get('to', [])]
             cc_list = [email_schema.EmailRecipient(email=r['email'], name=r.get('name')) for r in recipients_data.get('cc', [])]
@@ -556,6 +612,7 @@ async def resend_email(
             message_id = await core_send_email(
                 email_data=email_create,
                 sender_email=email.sender,
+                attachments=attachments_data if attachments_data else None,
             )
             
             with SessionLocal() as db_bg:
@@ -601,6 +658,17 @@ def get_email(
         email.is_read = True
         db.commit()
     
+    # 获取附件
+    attachments = db.query(Attachment).filter(Attachment.email_id == email_id).all()
+    attachment_list = [
+        email_schema.AttachmentInfo(
+            id=a.id,
+            filename=a.filename or "unnamed",
+            content_type=a.content_type or "application/octet-stream",
+            size=a.size or 0
+        ) for a in attachments
+    ]
+    
     return email_schema.EmailDetailResponse(
         status="success",
         data=email_schema.EmailDetail(
@@ -616,7 +684,7 @@ def get_email(
             is_tracked=email.is_tracked or False,
             delivery_status=email.delivery_status,
             delivery_error=email.delivery_error,
-            attachments=[]
+            attachments=attachment_list
         )
     )
 

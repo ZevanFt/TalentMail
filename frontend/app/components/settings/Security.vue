@@ -1,18 +1,97 @@
 <script setup lang="ts">
-import { KeyRound, Smartphone, ShieldCheck, History, Laptop, Globe, X } from 'lucide-vue-next'
+import { KeyRound, Smartphone, ShieldCheck, History, Laptop, Globe, X, Monitor, Trash2, LogOut } from 'lucide-vue-next'
 
-const { changePassword } = useApi()
+const { changePassword, getLoginSessions, revokeSession, revokeAllSessions } = useApi()
 
 const showPasswordModal = ref(false)
 const saving = ref(false)
 const message = ref('')
 const messageType = ref<'success' | 'error'>('success')
 
+// 登录会话
+interface LoginSession {
+    id: number
+    device_info: string | null
+    browser: string | null
+    os: string | null
+    ip_address: string | null
+    location: string | null
+    is_active: boolean
+    created_at: string | null
+    last_active_at: string | null
+    is_current: boolean
+}
+
+const sessions = ref<LoginSession[]>([])
+const loadingSessions = ref(true)
+const revokingSession = ref<number | null>(null)
+
 const passwordForm = reactive({
     current: '',
     new: '',
     confirm: ''
 })
+
+// 加载登录会话
+const loadSessions = async () => {
+    loadingSessions.value = true
+    try {
+        sessions.value = await getLoginSessions(10)
+    } catch (e) {
+        console.error('加载登录会话失败', e)
+    } finally {
+        loadingSessions.value = false
+    }
+}
+
+// 格式化时间
+const formatTime = (dateStr: string | null) => {
+    if (!dateStr) return '未知'
+    const date = new Date(dateStr)
+    const now = new Date()
+    const diff = now.getTime() - date.getTime()
+    
+    if (diff < 60000) return '刚刚'
+    if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`
+    if (diff < 604800000) return `${Math.floor(diff / 86400000)} 天前`
+    
+    return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+// 获取设备图标
+const getDeviceIcon = (os: string | null) => {
+    if (!os) return Monitor
+    const osLower = os.toLowerCase()
+    if (osLower.includes('windows') || osLower.includes('mac') || osLower.includes('linux')) return Laptop
+    if (osLower.includes('android') || osLower.includes('ios') || osLower.includes('iphone')) return Smartphone
+    return Monitor
+}
+
+// 撤销单个会话
+const handleRevokeSession = async (sessionId: number) => {
+    if (!confirm('确定要撤销此登录会话吗？')) return
+    revokingSession.value = sessionId
+    try {
+        await revokeSession(sessionId)
+        sessions.value = sessions.value.filter(s => s.id !== sessionId)
+    } catch (e) {
+        console.error('撤销会话失败', e)
+    } finally {
+        revokingSession.value = null
+    }
+}
+
+// 撤销所有会话
+const handleRevokeAll = async () => {
+    if (!confirm('确定要撤销所有登录会话吗？这将使所有设备退出登录。')) return
+    try {
+        await revokeAllSessions()
+        await loadSessions()
+    } catch (e) {
+        console.error('撤销所有会话失败', e)
+    }
+}
 
 const openPasswordModal = () => {
     passwordForm.current = ''
@@ -52,6 +131,8 @@ const handleChangePassword = async () => {
         saving.value = false
     }
 }
+
+onMounted(loadSessions)
 </script>
 
 <template>
@@ -106,30 +187,67 @@ const handleChangePassword = async () => {
 
         <!-- 2. 最近活动设备 -->
         <div class="space-y-4">
-            <h3 class="font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                <History class="w-5 h-5 text-gray-500" />
-                最近登录设备
-            </h3>
+            <div class="flex items-center justify-between">
+                <h3 class="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <History class="w-5 h-5 text-gray-500" />
+                    最近登录设备
+                </h3>
+                <button v-if="sessions.length > 1" @click="handleRevokeAll" class="text-sm text-red-500 hover:text-red-600 flex items-center gap-1">
+                    <LogOut class="w-4 h-4" />
+                    退出所有设备
+                </button>
+            </div>
 
             <div class="card p-0 overflow-hidden">
-                <!-- 当前设备 -->
-                <div
-                    class="p-4 flex items-center justify-between bg-green-50/50 dark:bg-green-900/10 border-b border-gray-100 dark:border-gray-800">
-                    <div class="flex items-center gap-4">
-                        <Laptop class="w-8 h-8 text-green-600 dark:text-green-400" />
-                        <div>
-                            <div class="font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                当前浏览器
-                                <span
-                                    class="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] rounded-full">当前设备</span>
-                            </div>
-                            <div class="text-xs text-gray-500 mt-0.5 flex items-center gap-2">
-                                <Globe class="w-3 h-3" /> 刚刚
+                <!-- 加载中 -->
+                <div v-if="loadingSessions" class="p-8 text-center text-gray-500">
+                    加载中...
+                </div>
+                
+                <!-- 无数据 -->
+                <div v-else-if="sessions.length === 0" class="p-8 text-center text-gray-500">
+                    暂无登录记录
+                </div>
+                
+                <!-- 会话列表 -->
+                <template v-else>
+                    <div v-for="(session, index) in sessions" :key="session.id"
+                        class="p-4 flex items-center justify-between border-b border-gray-100 dark:border-gray-800 last:border-b-0"
+                        :class="index === 0 ? 'bg-green-50/50 dark:bg-green-900/10' : ''">
+                        <div class="flex items-center gap-4">
+                            <component :is="getDeviceIcon(session.os)"
+                                class="w-8 h-8"
+                                :class="index === 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-400'" />
+                            <div>
+                                <div class="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                    {{ session.browser || session.device_info || '未知设备' }}
+                                    <span v-if="index === 0" class="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] rounded-full">当前设备</span>
+                                    <span v-if="!session.is_active" class="px-2 py-0.5 bg-gray-100 text-gray-500 text-[10px] rounded-full">已失效</span>
+                                </div>
+                                <div class="text-xs text-gray-500 mt-0.5 flex items-center gap-3">
+                                    <span class="flex items-center gap-1">
+                                        <Globe class="w-3 h-3" />
+                                        {{ session.ip_address || '未知IP' }}
+                                    </span>
+                                    <span>{{ session.os || '未知系统' }}</span>
+                                    <span>{{ formatTime(session.created_at) }}</span>
+                                </div>
                             </div>
                         </div>
+                        <button v-if="index !== 0 && session.is_active"
+                            @click="handleRevokeSession(session.id)"
+                            :disabled="revokingSession === session.id"
+                            class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                            title="撤销此会话">
+                            <Trash2 class="w-4 h-4" />
+                        </button>
                     </div>
-                </div>
+                </template>
             </div>
+            
+            <p class="text-xs text-gray-400">
+                显示最近 10 条登录记录。如发现异常登录，请立即修改密码。
+            </p>
         </div>
 
         <!-- 修改密码弹窗 -->

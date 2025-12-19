@@ -20,6 +20,7 @@ class EmailCreate(BaseModel):
     body_text: Optional[str] = None
     reply_to_id: Optional[int] = None  # 回复的邮件ID
     is_tracked: bool = False  # 是否启用追踪
+    attachment_ids: Optional[List[int]] = []  # 附件ID列表
 
 class EmailRead(BaseModel):
     """Schema for reading email data (output)."""
@@ -74,7 +75,8 @@ class AttachmentInfo(BaseModel):
     """附件信息"""
     id: int
     filename: str
-    size_bytes: int = 0
+    content_type: str = "application/octet-stream"
+    size: int = 0
 
 
 class EmailDetail(BaseModel):

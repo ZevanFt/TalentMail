@@ -9,11 +9,23 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits(['update:modelValue'])
-const close = () => {
+
+// 处理关闭逻辑
+const handleClose = () => {
+  console.log('Modal handleClose called')
+  console.log('beforeClose prop:', props.beforeClose)
+  console.log('beforeClose type:', typeof props.beforeClose)
+  
   if (props.beforeClose) {
+    console.log('Calling beforeClose...')
     const result = props.beforeClose()
-    if (result === false) return
+    console.log('beforeClose returned:', result)
+    if (result === false) {
+      console.log('Close prevented by beforeClose')
+      return
+    }
   }
+  console.log('Emitting update:modelValue false')
   emit('update:modelValue', false)
 }
 </script>
@@ -29,7 +41,7 @@ const close = () => {
       leave-to-class="opacity-0"
     >
       <!-- 遮罩层 -->
-      <div v-if="modelValue" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="close">
+      <div v-if="modelValue" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="handleClose">
         
         <!-- 弹窗主体 -->
         <div 
@@ -39,7 +51,7 @@ const close = () => {
           <!-- 头部 -->
           <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700">
             <h3 class="text-lg font-bold text-gray-900 dark:text-white">{{ title }}</h3>
-            <button @click="close" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+            <button @click="handleClose" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
               <X class="w-5 h-5" />
             </button>
           </div>

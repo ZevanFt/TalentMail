@@ -11,18 +11,23 @@ import email
 from email.header import decode_header
 from email.utils import parsedate_to_datetime
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List, Tuple
 import asyncio
+import os
+import uuid
 from aiosmtpd.controller import Controller
 from aiosmtpd.lmtp import LMTP
 from sqlalchemy.orm import Session
 from db.database import SessionLocal
-from db.models.email import Email, Folder, TempMailbox
+from db.models.email import Email, Folder, TempMailbox, Attachment
 from db.models.user import User
 from core import websocket as ws_manager
 import logging
 
 logger = logging.getLogger(__name__)
+
+UPLOAD_DIR = "/app/uploads/attachments"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 def decode_mime_header(header: Optional[str]) -> str:
@@ -38,17 +43,31 @@ def decode_mime_header(header: Optional[str]) -> str:
     return ''.join(decoded_parts)
 
 
-def get_email_body(msg: email.message.Message) -> tuple[str, str]:
-    """提取邮件正文 (HTML 和纯文本)"""
+def get_email_body_and_attachments(msg: email.message.Message) -> Tuple[str, str, List[dict]]:
+    """提取邮件正文 (HTML 和纯文本) 和附件"""
     body_html = ""
     body_text = ""
+    attachments = []
     
     if msg.is_multipart():
         for part in msg.walk():
             content_type = part.get_content_type()
             content_disposition = str(part.get("Content-Disposition", ""))
+            filename = part.get_filename()
             
-            if "attachment" in content_disposition:
+            # 解码文件名
+            if filename:
+                filename = decode_mime_header(filename)
+            
+            # 附件处理
+            if "attachment" in content_disposition or (filename and content_type not in ["text/plain", "text/html"]):
+                payload = part.get_payload(decode=True)
+                if payload and filename:
+                    attachments.append({
+                        "filename": filename,
+                        "content_type": content_type,
+                        "data": payload
+                    })
                 continue
                 
             if content_type == "text/html":
@@ -70,7 +89,7 @@ def get_email_body(msg: email.message.Message) -> tuple[str, str]:
         else:
             body_text = content
     
-    return body_html, body_text
+    return body_html, body_text, attachments
 
 
 def extract_email_address(addr: str) -> str:
@@ -135,7 +154,7 @@ class LMTPHandler:
                 except Exception:
                     pass
             
-            body_html, body_text = get_email_body(msg)
+            body_html, body_text, attachments = get_email_body_and_attachments(msg)
             
             # 为每个收件人创建邮件记录
             db: Session = SessionLocal()
@@ -197,7 +216,27 @@ class LMTPHandler:
                         is_draft=False,
                     )
                     db.add(db_email)
-                    logger.info(f"LMTP: 邮件已存入数据库 to={rcpt_email} subject={subject[:50]}")
+                    db.flush()  # 获取 email id
+                    
+                    # 保存附件
+                    for att in attachments:
+                        ext = os.path.splitext(att["filename"])[1] if att["filename"] else ""
+                        unique_name = f"{uuid.uuid4()}{ext}"
+                        file_path = os.path.join(UPLOAD_DIR, unique_name)
+                        with open(file_path, "wb") as f:
+                            f.write(att["data"])
+                        
+                        db_attachment = Attachment(
+                            email_id=db_email.id,
+                            user_id=user.id,
+                            filename=att["filename"],
+                            content_type=att["content_type"],
+                            size=len(att["data"]),
+                            file_path=file_path
+                        )
+                        db.add(db_attachment)
+                    
+                    logger.info(f"LMTP: 邮件已存入数据库 to={rcpt_email} subject={subject[:50]} attachments={len(attachments)}")
                     
                     # 通知用户有新邮件
                     try:

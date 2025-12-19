@@ -27,6 +27,8 @@ class Plan(Base):
     max_domains = Column(Integer, default=0, comment="允许绑定的最大域名数量")
     max_aliases = Column(Integer, default=5, comment="允许创建的最大别名数量")
     allow_temp_mail = Column(Boolean, default=True, comment="是否允许使用临时邮箱功能")
+    max_temp_mailboxes = Column(Integer, default=3, comment="允许创建的最大临时邮箱数量")
+    is_default = Column(Boolean, default=False, comment="是否为默认套餐（新用户自动获得）")
 
 
 class Subscription(Base):
@@ -85,4 +87,34 @@ class InviteCode(Base):
     expires_at = Column(DateTime(timezone=True), nullable=True, comment="过期时间，null表示永不过期")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="创建时间")
     is_active = Column(Boolean, default=True, comment="是否激活")
+    deleted_at = Column(DateTime(timezone=True), nullable=True, comment="软删除时间，null表示未删除")
     created_by = relationship("User", foreign_keys=[created_by_id])
+    usages = relationship("InviteCodeUsage", back_populates="invite_code")
+
+
+class InviteCodeUsage(Base):
+    __tablename__ = "invite_code_usages"
+    __table_args__ = {'comment': '记录邀请码的使用情况'}
+    id = Column(Integer, primary_key=True, comment="使用记录唯一标识符")
+    invite_code_id = Column(Integer, ForeignKey("invite_codes.id", ondelete="CASCADE"), nullable=False, comment="邀请码ID")
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, comment="使用者用户ID")
+    used_at = Column(DateTime(timezone=True), server_default=func.now(), comment="使用时间")
+    invite_code = relationship("InviteCode", back_populates="usages")
+    user = relationship("User")
+
+
+class SubscriptionHistory(Base):
+    __tablename__ = "subscription_history"
+    __table_args__ = {'comment': '记录用户订阅变更历史'}
+    id = Column(Integer, primary_key=True, comment="记录唯一标识符")
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, comment="用户ID")
+    plan_id = Column(Integer, ForeignKey("plans.id", ondelete="SET NULL"), nullable=True, comment="套餐ID")
+    action = Column(String(50), nullable=False, comment="操作类型: redeem(兑换), admin_grant(管理员赠送), admin_modify(管理员修改), expire(过期)")
+    duration_days = Column(Integer, nullable=True, comment="增加的天数")
+    redemption_code = Column(String(100), nullable=True, comment="使用的兑换码（如果是兑换）")
+    operator_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, comment="操作者ID（管理员或自己）")
+    note = Column(String(500), nullable=True, comment="备注")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="操作时间")
+    user = relationship("User", foreign_keys=[user_id])
+    plan = relationship("Plan")
+    operator = relationship("User", foreign_keys=[operator_id])

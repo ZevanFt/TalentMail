@@ -43,10 +43,16 @@ class UserSession(Base):
     __tablename__ = "user_sessions"
     __table_args__ = {'comment': '记录用户的活跃会话，用于安全审计和设备管理'}
     id = Column(Integer, primary_key=True, comment="用户会话唯一标识符")
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="所属用户的ID")
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, comment="所属用户的ID")
+    token_hash = Column(String(64), nullable=True, index=True, comment="Token哈希值，用于识别会话")
     device_info = Column(String, comment="设备信息 (e.g., 'Chrome on Windows')")
-    ip_address = Column(String, comment="登录IP地址")
+    browser = Column(String(100), nullable=True, comment="浏览器名称")
+    os = Column(String(100), nullable=True, comment="操作系统")
+    ip_address = Column(String(45), comment="登录IP地址")
     location = Column(String, nullable=True, comment="地理位置信息")
+    is_active = Column(Boolean, default=True, comment="会话是否有效")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="登录时间")
+    last_active_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), comment="最后活跃时间")
     user = relationship("User")
 
 

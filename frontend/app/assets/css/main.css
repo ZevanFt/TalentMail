@@ -28,3 +28,25 @@
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-gray-400 dark:bg-zinc-600;
 }
+
+/* 美化 number input 的 spinner 按钮 (暗色模式) */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+
+/* Firefox */
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* 自定义 number input 样式 - 隐藏原生 spinner */
+.input-field[type="number"],
+input[type="number"].input-field {
+  -webkit-appearance: textfield;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}

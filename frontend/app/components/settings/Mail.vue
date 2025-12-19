@@ -2,6 +2,10 @@
 import { PenTool, Calendar, Server, Plus, Trash2, Check } from 'lucide-vue-next'
 
 const { getMe, updateMe, getSignatures, createSignature, updateSignature, deleteSignature } = useApi()
+const { baseDomain } = useConfig()
+
+// 邮件服务器配置
+const mailServer = computed(() => `mail.${baseDomain}`)
 
 interface Signature {
     id: number
@@ -238,8 +242,8 @@ onMounted(loadSettings)
                         <div class="text-green-500 text-sm font-bold">已开启</div>
                     </div>
                     <div class="text-xs text-gray-500 font-mono bg-gray-100 dark:bg-gray-900 p-3 rounded select-all">
-                        IMAP Server: mail.talenting.vip (Port: 993)<br>
-                        SMTP Server: mail.talenting.vip (Port: 465)
+                        IMAP Server: {{ mailServer }} (Port: 993)<br>
+                        SMTP Server: {{ mailServer }} (Port: 465)
                     </div>
                 </div>
             </section>

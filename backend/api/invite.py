@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 
 from db import models
+from db.models.billing import InviteCodeUsage
 from api import deps
 
 logger = logging.getLogger(__name__)
@@ -18,6 +19,15 @@ class InviteCodeCreate(BaseModel):
     expires_days: Optional[int] = None  # None 表示永不过期
 
 
+class InviteCodeUsageResponse(BaseModel):
+    id: int
+    user_email: str
+    used_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 class InviteCodeResponse(BaseModel):
     id: int
     code: str
@@ -26,6 +36,7 @@ class InviteCodeResponse(BaseModel):
     expires_at: Optional[datetime]
     created_at: datetime
     is_active: bool
+    deleted_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -60,13 +71,18 @@ def create_invite_code(
 
 @router.get("/", response_model=List[InviteCodeResponse])
 def list_invite_codes(
+    include_deleted: bool = False,
     db: Session = Depends(deps.get_db),
     current_user: models.User = Depends(deps.get_current_active_user)
 ):
-    """获取邀请码列表（仅管理员）"""
+    """获取邀请码列表（仅管理员）
+    
+    默认显示所有邀请码（包括已删除的），以便查看历史使用记录
+    """
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="仅管理员可查看邀请码")
     
+    # 默认显示所有邀请码（包括已删除的）
     return db.query(models.InviteCode).order_by(models.InviteCode.created_at.desc()).all()
 
 
@@ -76,7 +92,10 @@ def delete_invite_code(
     db: Session = Depends(deps.get_db),
     current_user: models.User = Depends(deps.get_current_active_user)
 ):
-    """删除邀请码（仅管理员）"""
+    """软删除邀请码（仅管理员）
+    
+    不会真正删除，只是标记为已删除，以保留历史使用记录
+    """
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="仅管理员可删除邀请码")
     
@@ -84,6 +103,39 @@ def delete_invite_code(
     if not invite:
         raise HTTPException(status_code=404, detail="邀请码不存在")
     
-    db.delete(invite)
+    if invite.deleted_at:
+        raise HTTPException(status_code=400, detail="邀请码已被删除")
+    
+    # 软删除：设置 deleted_at 和 is_active
+    invite.deleted_at = datetime.now(timezone.utc)
+    invite.is_active = False
     db.commit()
-    return {"status": "success"}
+    return {"status": "success", "message": "邀请码已删除"}
+
+
+@router.get("/{code_id}/usages", response_model=List[InviteCodeUsageResponse])
+def get_invite_code_usages(
+    code_id: int,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_active_user)
+):
+    """获取邀请码使用记录（仅管理员）"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="仅管理员可查看")
+    
+    invite = db.query(models.InviteCode).filter(models.InviteCode.id == code_id).first()
+    if not invite:
+        raise HTTPException(status_code=404, detail="邀请码不存在")
+    
+    usages = db.query(InviteCodeUsage).filter(InviteCodeUsage.invite_code_id == code_id).order_by(InviteCodeUsage.used_at.desc()).all()
+    
+    result = []
+    for usage in usages:
+        user = db.query(models.User).filter(models.User.id == usage.user_id).first()
+        result.append({
+            "id": usage.id,
+            "user_email": user.email if user else "未知用户",
+            "used_at": usage.used_at
+        })
+    
+    return result

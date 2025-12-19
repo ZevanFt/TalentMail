@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ArrowLeft, Trash2, Archive, Star, Reply, Forward, MoreHorizontal, Mail, MailOpen, ReplyAll, Eye, Send, CheckCircle, XCircle, Loader2, RefreshCw } from 'lucide-vue-next'
+import { ArrowLeft, Trash2, Archive, Star, Reply, Forward, MoreHorizontal, Mail, MailOpen, ReplyAll, Eye, Send, CheckCircle, XCircle, Loader2, RefreshCw, Paperclip, Download } from 'lucide-vue-next'
 const { selectedEmailDetail, formatTime, toggleRead, removeEmail, startReply, startReplyAll, startForward, folders, currentFolderId, loadEmails } = useEmails()
 const { isComposeOpen } = useGlobalModal()
-const { getTrackingStats, resendEmail } = useApi()
+const { getTrackingStats, resendEmail, downloadAttachmentUrl, token } = useApi()
 
 // 追踪统计
 const trackingStats = ref<any>(null)
@@ -152,6 +152,20 @@ const hasRealHtmlContent = computed(() => {
   const withoutTracker = html.replace(/<img[^>]*track\/open[^>]*>/gi, '').trim()
   return withoutTracker.length > 0
 })
+
+// 附件
+const attachments = computed(() => selectedEmailDetail.value?.attachments || [])
+
+const formatFileSize = (bytes: number) => {
+  if (bytes < 1024) return bytes + ' B'
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+}
+
+const downloadAttachment = (id: number) => {
+  const url = downloadAttachmentUrl(id)
+  window.open(`${url}?token=${token.value}`, '_blank')
+}
 </script>
 
 <template>
@@ -231,6 +245,22 @@ const hasRealHtmlContent = computed(() => {
                   </span>
                 </template>
               </div>
+            </div>
+          </div>
+
+          <!-- 附件列表 -->
+          <div v-if="attachments.length" class="mb-6 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+            <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-3">
+              <Paperclip class="w-4 h-4" />
+              <span>{{ attachments.length }} 个附件</span>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button v-for="att in attachments" :key="att.id" @click="downloadAttachment(att.id)"
+                class="flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors text-sm">
+                <Download class="w-4 h-4 text-gray-500" />
+                <span class="text-gray-700 dark:text-gray-300">{{ att.filename }}</span>
+                <span class="text-gray-400 text-xs">({{ formatFileSize(att.size) }})</span>
+              </button>
             </div>
           </div>
 

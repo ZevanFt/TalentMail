@@ -5,10 +5,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 
 from db import models
+from db.models.billing import Plan, Subscription
 from api import deps
 from core.mailserver_sync import create_mail_user, get_docker_client, MAILSERVER_CONTAINER_NAME
 
@@ -86,6 +87,38 @@ def list_temp_mailboxes(
     return {"items": items, "total": total}
 
 
+def get_user_temp_mailbox_limit(db: Session, user: models.User) -> int:
+    """获取用户的临时邮箱配额限制
+    
+    返回值:
+        -1: 无限制（管理员）
+        >0: 具体限制数量
+    """
+    # 管理员无限制
+    if user.role == "admin":
+        return -1
+    
+    # 查找用户的活跃订阅
+    subscription = db.query(Subscription).filter(
+        Subscription.user_id == user.id,
+        Subscription.status == "active"
+    ).first()
+    
+    if subscription and subscription.current_period_end:
+        if subscription.current_period_end > datetime.now(timezone.utc):
+            plan = db.query(Plan).filter(Plan.id == subscription.plan_id).first()
+            if plan:
+                return plan.max_temp_mailboxes
+    
+    # 使用默认套餐
+    default_plan = db.query(Plan).filter(Plan.is_default == True).first()
+    if default_plan:
+        return default_plan.max_temp_mailboxes
+    
+    # 没有套餐时的默认值
+    return 3
+
+
 @router.post("/", response_model=TempMailboxRead)
 def create_temp_mailbox(
     data: TempMailboxCreate,
@@ -96,6 +129,19 @@ def create_temp_mailbox(
     # 检查用户是否有账号池权限
     if not current_user.pool_enabled and current_user.role != "admin":
         raise HTTPException(status_code=403, detail="您没有账号池功能权限")
+    
+    # 检查临时邮箱配额
+    limit = get_user_temp_mailbox_limit(db, current_user)
+    if limit != -1:  # -1 表示无限制
+        current_count = db.query(models.TempMailbox).filter(
+            models.TempMailbox.owner_id == current_user.id,
+            models.TempMailbox.is_active == True
+        ).count()
+        if current_count >= limit:
+            raise HTTPException(
+                status_code=403,
+                detail=f"已达到临时邮箱数量上限 ({limit} 个)，请升级套餐或删除不需要的邮箱"
+            )
     
     # 生成邮箱地址
     prefix = data.prefix.strip().lower() if data.prefix else generate_random_prefix()

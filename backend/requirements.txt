@@ -34,3 +34,4 @@ psycopg2-binary
 python-dotenv
 docker>=7.0.0
 aiosmtpd>=1.4.4
+user-agents>=2.2.0

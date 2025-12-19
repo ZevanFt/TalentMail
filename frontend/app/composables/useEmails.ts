@@ -11,6 +11,13 @@ interface Email {
   delivery_status?: string  // pending/sending/sent/delivered/failed
 }
 
+interface AttachmentInfo {
+  id: number
+  filename: string
+  content_type: string
+  size: number
+}
+
 interface EmailDetail extends Email {
   recipients: string
   body_html: string | null
@@ -18,6 +25,7 @@ interface EmailDetail extends Email {
   is_tracked?: boolean
   delivery_status?: string
   delivery_error?: string
+  attachments?: AttachmentInfo[]
 }
 
 // 写邮件模式
