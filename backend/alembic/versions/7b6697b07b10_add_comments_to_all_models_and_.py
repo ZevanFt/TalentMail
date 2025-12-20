@@ -160,8 +160,13 @@ def upgrade() -> None:
                existing_type=sa.INTEGER(),
                comment='标签ID',
                existing_nullable=False)
-    op.add_column('emails', sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True, comment='软删除时间戳，非空表示已移入回收站'))
-    op.add_column('emails', sa.Column('is_purged', sa.Boolean(), nullable=True, comment='是否已从回收站彻底清除'))
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    columns = [c['name'] for c in inspector.get_columns('emails')]
+    if 'deleted_at' not in columns:
+        op.add_column('emails', sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True, comment='软删除时间戳，非空表示已移入回收站'))
+    if 'is_purged' not in columns:
+        op.add_column('emails', sa.Column('is_purged', sa.Boolean(), nullable=True, comment='是否已从回收站彻底清除'))
     op.alter_column('emails', 'id',
                existing_type=sa.INTEGER(),
                comment='邮件唯一标识符',
@@ -1069,8 +1074,13 @@ def downgrade() -> None:
                existing_comment='邮件唯一标识符',
                existing_nullable=False,
                autoincrement=True)
-    op.drop_column('emails', 'is_purged')
-    op.drop_column('emails', 'deleted_at')
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    columns = [c['name'] for c in inspector.get_columns('emails')]
+    if 'is_purged' in columns:
+        op.drop_column('emails', 'is_purged')
+    if 'deleted_at' in columns:
+        op.drop_column('emails', 'deleted_at')
     op.alter_column('email_tags', 'tag_id',
                existing_type=sa.INTEGER(),
                comment=None,
