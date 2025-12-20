@@ -27,13 +27,13 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.prod
     ports:
       - "3000:3000"
     env_file:
       - .env
-    # 生产环境构建并启动
-    command: /bin/sh -c "npm run build && npm run start"
+    # 生产环境直接启动构建好的应用 (由 Dockerfile.prod 处理)
+    # command: /bin/sh -c "npm run build && npm run start"
 
   # --- 数据库服务 (PostgreSQL) ---
   db:
@@ -56,8 +56,8 @@ services:
     build:
       context: ./config/mail
       dockerfile: Dockerfile
-    container_name: talentmail-mailserver-1
-    hostname: mail.talenting.vip
+    container_name: ${MAILSERVER_CONTAINER_NAME:-talentmail-mailserver-1}
+    hostname: ${MAIL_SERVER}
     env_file: ./config/mail/production/mailserver.env
     environment:
       - PERMIT_DOCKER=network
