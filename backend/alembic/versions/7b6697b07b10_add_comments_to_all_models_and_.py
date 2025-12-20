@@ -241,7 +241,10 @@ def upgrade() -> None:
                existing_type=sa.BOOLEAN(),
                comment='是否启用邮件追踪',
                existing_nullable=True)
-    op.create_index(op.f('ix_emails_thread_id'), 'emails', ['thread_id'], unique=False)
+    inspector = sa.inspect(op.get_bind())
+    indexes = [index['name'] for index in inspector.get_indexes('emails')]
+    if 'ix_emails_thread_id' not in indexes:
+        op.create_index(op.f('ix_emails_thread_id'), 'emails', ['thread_id'], unique=False)
     op.alter_column('filters', 'id',
                existing_type=sa.INTEGER(),
                comment='过滤器唯一标识符',
@@ -981,7 +984,10 @@ def downgrade() -> None:
                existing_comment='过滤器唯一标识符',
                existing_nullable=False,
                autoincrement=True)
-    op.drop_index(op.f('ix_emails_thread_id'), table_name='emails')
+    inspector = sa.inspect(op.get_bind())
+    indexes = [index['name'] for index in inspector.get_indexes('emails')]
+    if 'ix_emails_thread_id' in indexes:
+        op.drop_index(op.f('ix_emails_thread_id'), table_name='emails')
     op.alter_column('emails', 'is_tracked',
                existing_type=sa.BOOLEAN(),
                comment=None,
