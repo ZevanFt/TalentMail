@@ -256,12 +256,12 @@ async def send_verification_code_email(
     msg = MIMEMultipart('alternative')
     
     # 使用系统邮箱发送
-    sender_email = f"noreply@{settings.MAIL_DOMAIN}"
+    sender_email = f"noreply@{settings.BASE_DOMAIN}"
     msg['From'] = formataddr((str(Header("TalentMail", 'utf-8')), sender_email))
     msg['To'] = to_email
     msg['Subject'] = Header(subject, 'utf-8')
     msg['Date'] = formatdate(localtime=True)
-    msg['Message-ID'] = make_msgid(domain=settings.MAIL_DOMAIN)
+    msg['Message-ID'] = make_msgid(domain=settings.BASE_DOMAIN)
     
     msg.attach(MIMEText(body_text, 'plain', 'utf-8'))
     msg.attach(MIMEText(body_html, 'html', 'utf-8'))
@@ -325,12 +325,12 @@ async def send_system_email(
     msg = MIMEMultipart('alternative')
     
     # 使用系统邮箱发送
-    sender_email = f"noreply@{settings.MAIL_DOMAIN}"
+    sender_email = f"noreply@{settings.BASE_DOMAIN}"
     msg['From'] = formataddr((str(Header("TalentMail", 'utf-8')), sender_email))
     msg['To'] = to_email
     msg['Subject'] = Header(subject, 'utf-8')
     msg['Date'] = formatdate(localtime=True)
-    msg['Message-ID'] = make_msgid(domain=settings.MAIL_DOMAIN)
+    msg['Message-ID'] = make_msgid(domain=settings.BASE_DOMAIN)
     
     msg.attach(MIMEText(body_text, 'plain', 'utf-8'))
     msg.attach(MIMEText(body_html, 'html', 'utf-8'))

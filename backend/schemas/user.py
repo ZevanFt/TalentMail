@@ -23,6 +23,7 @@ class UserRead(BaseModel):
     storage_used_bytes: int
     role: str  # 用户角色
     pool_enabled: bool = False
+    recovery_email: Optional[str] = None  # 安全辅助邮箱
     # 通知设置
     enable_desktop_notifications: bool = True
     enable_sound_notifications: bool = True
@@ -32,6 +33,9 @@ class UserRead(BaseModel):
     auto_reply_start_date: Optional[date] = None
     auto_reply_end_date: Optional[date] = None
     auto_reply_message: Optional[str] = None
+    # 隐私设置
+    spam_filter_level: str = "standard"
+    block_external_images: bool = True
     created_at: datetime
 
     class Config:
@@ -61,6 +65,9 @@ class UserUpdate(BaseModel):
     auto_reply_start_date: Optional[str] = None
     auto_reply_end_date: Optional[str] = None
     auto_reply_message: Optional[str] = None
+    # 隐私设置
+    spam_filter_level: Optional[str] = None
+    block_external_images: Optional[bool] = None
 
 
 # Schema for changing password

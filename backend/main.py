@@ -4,8 +4,9 @@ from contextlib import asynccontextmanager
 import asyncio
 from db.database import engine, SessionLocal
 from db import models  # 确保导入 models 以注册表
-from api import auth, mail, users, folders, tracking, invite, pool, signatures, attachments, billing, reserved_prefixes, email_templates
+from api import auth, mail, users, folders, tracking, invite, pool, signatures, attachments, billing, reserved_prefixes, email_templates, totp
 from api.deps import get_current_user_from_token
+from api.auth import cleanup_old_sessions
 from initial import initial_data
 from core.mailserver_sync import sync_users_to_mailserver
 from core.lmtp_server import start_lmtp_server, stop_lmtp_server
@@ -44,13 +45,34 @@ app.include_router(attachments.router, prefix="/api/attachments", tags=["Attachm
 app.include_router(billing.router, prefix="/api/billing", tags=["Billing"])
 app.include_router(reserved_prefixes.router, prefix="/api/prefixes", tags=["Reserved Prefixes"])
 app.include_router(email_templates.router, prefix="/api/email-templates", tags=["Email Templates"])
+app.include_router(totp.router, prefix="/api/2fa", tags=["Two-Factor Authentication"])
 
-# 定时同步任务
+# 定时任务
 sync_task = None
+cleanup_task = None
+
+
+async def periodic_session_cleanup(interval: int = 86400):
+    """
+    定期清理旧会话的任务
+    默认每24小时执行一次，清理30天未活动的会话
+    """
+    while True:
+        await asyncio.sleep(interval)  # 等待指定间隔
+        try:
+            db = SessionLocal()
+            try:
+                deleted_count = cleanup_old_sessions(db, days=30)
+                if deleted_count > 0:
+                    logger.info(f"已清理 {deleted_count} 个过期会话记录")
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"清理会话记录失败: {e}")
 
 @app.on_event("startup")
 async def on_startup():
-    global sync_task
+    global sync_task, cleanup_task
     # Initialize the database and create the initial admin user
     initial_data.init_db()
     
@@ -73,17 +95,39 @@ async def on_startup():
     # 启动定时邮件同步任务（每5分钟）
     logger.info("启动定时邮件同步任务（间隔5分钟）...")
     sync_task = asyncio.create_task(periodic_sync(interval=300))
+    
+    # 启动定时会话清理任务（每24小时）
+    logger.info("启动定时会话清理任务（间隔24小时）...")
+    cleanup_task = asyncio.create_task(periodic_session_cleanup(interval=86400))
+    
+    # 启动时先执行一次清理
+    try:
+        db = SessionLocal()
+        try:
+            deleted_count = cleanup_old_sessions(db, days=30)
+            if deleted_count > 0:
+                logger.info(f"启动时清理了 {deleted_count} 个过期会话记录")
+        finally:
+            db.close()
+    except Exception as e:
+        logger.error(f"启动时清理会话记录失败: {e}")
 
 
 @app.on_event("shutdown")
 async def on_shutdown():
-    global sync_task
+    global sync_task, cleanup_task
     logger.info("停止 LMTP 服务...")
     stop_lmtp_server()
     if sync_task:
         sync_task.cancel()
         try:
             await sync_task
+        except asyncio.CancelledError:
+            pass
+    if cleanup_task:
+        cleanup_task.cancel()
+        try:
+            await cleanup_task
         except asyncio.CancelledError:
             pass
 

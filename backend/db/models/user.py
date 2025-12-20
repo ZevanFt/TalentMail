@@ -26,6 +26,7 @@ class User(Base):
     theme = Column(String, default="system", comment="用户界面主题 (e.g., 'light', 'dark', 'system')")
     recovery_email = Column(String, nullable=True, comment="备用恢复邮箱")
     two_factor_enabled = Column(Boolean, default=False, comment="是否启用双因素认证")
+    totp_secret = Column(String(32), nullable=True, comment="TOTP密钥，用于双因素认证")
     storage_used_bytes = Column(BigInteger, default=0, comment="已使用的存储空间（字节）")
     auto_reply_enabled = Column(Boolean, default=False, comment="是否启用自动回复")
     auto_reply_start_date = Column(Date, nullable=True, comment="自动回复开始日期")
@@ -35,6 +36,8 @@ class User(Base):
     enable_sound_notifications = Column(Boolean, default=True, comment="是否启用声音通知")
     enable_pool_notifications = Column(Boolean, default=False, comment="是否启用邮件池通知")
     pool_enabled = Column(Boolean, default=False, comment="是否允许使用账号池功能")
+    spam_filter_level = Column(String, default="standard", comment="垃圾邮件过滤级别 ('standard' 或 'strict')")
+    block_external_images = Column(Boolean, default=True, comment="是否阻止外部图片加载")
     role = Column(String, default="user", comment="用户角色 ('admin' 或 'user')")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="用户账户创建时间")
 

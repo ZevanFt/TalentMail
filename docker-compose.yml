@@ -1,0 +1,103 @@
+services:
+  # --- 后端服务 (FastAPI 应用) ---
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+      - "24:24"
+    volumes:
+      # 生产环境不需要挂载代码目录，但可能需要挂载持久化数据（如上传文件）
+      - ./backend/uploads:/app/uploads
+      - ./config.json:/app/config.json
+      - ./scripts:/scripts
+      - /var/run/docker.sock:/var/run/docker.sock
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      mailserver:
+        condition: service_started
+    # 生产环境使用 gunicorn 或 uvicorn 生产模式
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+
+  # --- 前端服务 (Nuxt.js 应用) ---
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    # 生产环境构建并启动
+    command: /bin/sh -c "npm run build && npm run start"
+
+  # --- 数据库服务 (PostgreSQL) ---
+  db:
+    image: postgres:15
+    env_file:
+      - .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # --- 邮件服务器 (docker-mailserver) ---
+  mailserver:
+    build:
+      context: ./config/mail
+      dockerfile: Dockerfile
+    container_name: talentmail-mailserver-1
+    hostname: mail.talenting.vip
+    env_file: ./config/mail/production/mailserver.env
+    environment:
+      - PERMIT_DOCKER=network
+    ports:
+      - "25:25"    # SMTP
+      - "143:143"  # IMAP
+      - "587:587"  # SMTP (submission)
+      - "993:993"  # IMAPS
+    volumes:
+      - ./data/mailserver/mail-data/:/var/mail/
+      - ./data/mailserver/mail-state/:/var/mail-state/
+      - ./data/mailserver/mail-logs/:/var/log/mail/
+      - ./data/mailserver/config/:/tmp/docker-mailserver/
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./config/mail/dovecot-sql.conf.ext:/etc/dovecot/dovecot-sql.conf.ext:ro
+      - ./config/mail/dovecot/10-auth.conf:/etc/dovecot/conf.d/10-auth.conf:ro
+      - ./config/mail/fail2ban-jail.local:/etc/fail2ban/jail.local:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: always
+    stop_grace_period: 1m
+    cap_add:
+      - NET_ADMIN
+
+  # --- Caddy 网关服务 (生产环境) ---
+  caddy:
+    image: caddy:alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config/caddy/Caddyfile.prod:/etc/caddy/Caddyfile
+      - caddy_data:/data
+    depends_on:
+      - backend
+      - frontend
+
+volumes:
+  postgres_data:
+  caddy_data:

@@ -1,8 +1,62 @@
 <script setup lang="ts">
-import { ArrowLeft, Trash2, Archive, Star, Reply, Forward, MoreHorizontal, Mail, MailOpen, ReplyAll, Eye, Send, CheckCircle, XCircle, Loader2, RefreshCw, Paperclip, Download } from 'lucide-vue-next'
+import { ArrowLeft, Trash2, Archive, Star, Reply, Forward, MoreHorizontal, Mail, MailOpen, ReplyAll, Eye, Send, CheckCircle, XCircle, Loader2, RefreshCw, Paperclip, Download, Copy, Check } from 'lucide-vue-next'
 const { selectedEmailDetail, formatTime, toggleRead, removeEmail, startReply, startReplyAll, startForward, folders, currentFolderId, loadEmails } = useEmails()
 const { isComposeOpen } = useGlobalModal()
 const { getTrackingStats, resendEmail, downloadAttachmentUrl, token } = useApi()
+
+// 验证码检测和复制
+const detectedCode = ref<string | null>(null)
+const codeCopied = ref(false)
+
+// 检测邮件中的验证码（6位数字）
+const detectVerificationCode = (email: any) => {
+  if (!email) {
+    detectedCode.value = null
+    return
+  }
+  
+  // 从邮件内容中提取验证码
+  const content = email.body_text || email.body_html || ''
+  
+  // 匹配6位数字验证码（通常在特定上下文中）
+  // 优先匹配：验证码是/为/：后面的6位数字
+  const patterns = [
+    /验证码[是为：:\s]*(\d{6})/,
+    /code[:\s]*(\d{6})/i,
+    /(\d{6})/  // 最后尝试匹配任意6位数字
+  ]
+  
+  for (const pattern of patterns) {
+    const match = content.match(pattern)
+    if (match) {
+      detectedCode.value = match[1]
+      return
+    }
+  }
+  
+  detectedCode.value = null
+}
+
+// 复制验证码
+const copyCode = async () => {
+  if (!detectedCode.value) return
+  
+  try {
+    await navigator.clipboard.writeText(detectedCode.value)
+    codeCopied.value = true
+    setTimeout(() => {
+      codeCopied.value = false
+    }, 2000)
+  } catch (err) {
+    console.error('复制失败:', err)
+  }
+}
+
+// 监听邮件变化，检测验证码
+watch(() => selectedEmailDetail.value, (email) => {
+  detectVerificationCode(email)
+  codeCopied.value = false
+}, { immediate: true })
 
 // 追踪统计
 const trackingStats = ref<any>(null)
@@ -286,6 +340,22 @@ const downloadAttachment = (id: number) => {
         </div>
       </div>
 
+      <!-- 验证码快速复制按钮 -->
+      <Transition name="slide-up">
+        <div v-if="detectedCode" class="absolute bottom-6 left-8 z-20">
+          <button @click="copyCode"
+            class="flex items-center gap-2 px-4 py-2 rounded-full shadow-lg transition-all text-sm font-medium"
+            :class="codeCopied
+              ? 'bg-green-500 text-white shadow-green-500/30'
+              : 'bg-gradient-to-r from-primary to-purple-500 text-white shadow-primary/30 hover:shadow-primary/50 hover:-translate-y-0.5'">
+            <Check v-if="codeCopied" class="w-4 h-4" />
+            <Copy v-else class="w-4 h-4" />
+            <span class="font-mono tracking-wider">{{ detectedCode }}</span>
+            <span class="text-white/80">{{ codeCopied ? '已复制' : '点击复制' }}</span>
+          </button>
+        </div>
+      </Transition>
+
       <!-- 底部浮动栏 -->
       <div class="absolute bottom-6 right-8 flex gap-3 z-20">
         <button @click="handleForward" class="flex items-center gap-2 px-5 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-50 dark:hover:bg-gray-700 transition-all text-sm font-medium border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md">
@@ -333,5 +403,17 @@ const downloadAttachment = (id: number) => {
 
 .btn-secondary {
   @apply flex items-center gap-2 px-6 py-2.5 bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors font-medium;
+}
+
+/* 验证码按钮滑入动画 */
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translateY(20px);
 }
 </style>

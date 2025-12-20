@@ -192,6 +192,24 @@ const categoryNames: Record<string, string> = {
 // 格式化变量显示
 const formatVariable = (v: string) => `\{\{${v}\}\}`
 
+// 快速切换模板启用状态
+const togglingTemplates = ref<Set<number>>(new Set())
+
+const toggleTemplateActive = async (template: EmailTemplate) => {
+  if (togglingTemplates.value.has(template.id)) return
+  
+  togglingTemplates.value.add(template.id)
+  try {
+    await updateEmailTemplate(template.id, { is_active: !template.is_active })
+    // 更新本地状态
+    template.is_active = !template.is_active
+  } catch (e: any) {
+    error.value = e.data?.detail || '更新失败'
+  } finally {
+    togglingTemplates.value.delete(template.id)
+  }
+}
+
 onMounted(() => {
   loadTemplates()
 })
@@ -247,34 +265,35 @@ watch(selectedCategory, () => {
       <div
         v-for="template in templates"
         :key="template.id"
-        class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4"
+        :class="[
+          'bg-white dark:bg-gray-800 border rounded-xl p-4 transition-all',
+          template.is_active
+            ? 'border-gray-200 dark:border-gray-700'
+            : 'border-gray-200 dark:border-gray-700 opacity-60'
+        ]"
       >
         <div class="flex items-start justify-between">
           <div class="flex-1">
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-3">
+              <!-- Toggle 开关 -->
+              <Toggle
+                :model-value="template.is_active"
+                @update:model-value="toggleTemplateActive(template)"
+                :disabled="togglingTemplates.has(template.id)"
+              />
               <h3 class="font-medium text-gray-900 dark:text-white">{{ template.name }}</h3>
-              <span
-                :class="[
-                  'px-2 py-0.5 text-xs rounded-full',
-                  template.is_active
-                    ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-500'
-                ]"
-              >
-                {{ template.is_active ? '启用' : '禁用' }}
-              </span>
               <span class="px-2 py-0.5 text-xs rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
                 {{ categoryNames[template.category] || template.category }}
               </span>
             </div>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-2 ml-12">
               <code class="text-xs bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded">{{ template.code }}</code>
               <span v-if="template.description" class="ml-2">{{ template.description }}</span>
             </p>
-            <p class="text-sm text-gray-600 dark:text-gray-300 mt-2">
+            <p class="text-sm text-gray-600 dark:text-gray-300 mt-2 ml-12">
               <strong>主题：</strong>{{ template.subject }}
             </p>
-            <div v-if="template.variables && template.variables.length > 0" class="mt-2 flex items-center gap-1 flex-wrap">
+            <div v-if="template.variables && template.variables.length > 0" class="mt-2 ml-12 flex items-center gap-1 flex-wrap">
               <span class="text-xs text-gray-500">变量：</span>
               <span
                 v-for="v in template.variables"

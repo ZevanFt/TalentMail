@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Plus, Trash2, Copy, Check, Users, AlertTriangle } from 'lucide-vue-next'
+import { Plus, Trash2, Copy, Check, Users, AlertTriangle, RefreshCw } from 'lucide-vue-next'
 
 const { getInviteCodes, createInviteCode, deleteInviteCode, getInviteCodeUsages } = useApi()
 
@@ -160,7 +160,14 @@ onMounted(loadCodes)
                         <th class="th">邀请码</th>
                         <th class="th">使用情况</th>
                         <th class="th">过期时间</th>
-                        <th class="th">操作</th>
+                        <th class="th">
+                            <div class="flex items-center justify-between">
+                                <span>操作</span>
+                                <button @click="loadCodes" :disabled="loading" class="icon-btn" title="刷新列表">
+                                    <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': loading }" />
+                                </button>
+                            </div>
+                        </th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-800">

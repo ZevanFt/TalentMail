@@ -95,6 +95,11 @@ def update_users_me(
         current_user.auto_reply_end_date = datetime.strptime(user_update.auto_reply_end_date, "%Y-%m-%d").date() if user_update.auto_reply_end_date else None
     if user_update.auto_reply_message is not None:
         current_user.auto_reply_message = user_update.auto_reply_message
+    # 隐私设置
+    if user_update.spam_filter_level is not None:
+        current_user.spam_filter_level = user_update.spam_filter_level
+    if user_update.block_external_images is not None:
+        current_user.block_external_images = user_update.block_external_images
     
     db.add(current_user)
     db.commit()

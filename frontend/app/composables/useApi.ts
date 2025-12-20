@@ -22,15 +22,39 @@ export const useApi = () => {
   }
 
   // Auth
-  const login = async (email: string, password: string) => {
+  interface LoginResponse {
+    access_token?: string
+    refresh_token?: string
+    token_type?: string
+    requires_2fa?: boolean
+    temp_token?: string
+    message?: string
+  }
+  
+  const login = async (email: string, password: string): Promise<LoginResponse> => {
     const formData = new URLSearchParams()
     formData.append('username', email)
     formData.append('password', password)
     
-    const res = await $fetch<{ access_token: string }>(`${API_BASE}/auth/login`, {
+    const res = await $fetch<LoginResponse>(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: formData.toString()
+    })
+    
+    // 如果不需要 2FA，直接保存 token
+    if (res.access_token && !res.requires_2fa) {
+      token.value = res.access_token
+    }
+    
+    return res
+  }
+  
+  const login2FA = async (tempToken: string, code: string) => {
+    const res = await $fetch<{ access_token: string; refresh_token: string; token_type: string }>(`${API_BASE}/auth/login-2fa`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ temp_token: tempToken, code })
     })
     token.value = res.access_token
     return res
@@ -119,6 +143,8 @@ export const useApi = () => {
     auto_reply_start_date?: string | null
     auto_reply_end_date?: string | null
     auto_reply_message?: string | null
+    spam_filter_level?: string
+    block_external_images?: boolean
   }) => api<any>('/users/me', 'PATCH', data)
   
   const changePassword = (currentPassword: string, newPassword: string) =>
@@ -280,6 +306,18 @@ export const useApi = () => {
   const registerWithVerification = (data: { email: string; password: string; invite_code: string; verification_email: string; verification_code: string }) =>
     api<{ status: string; user_id: number; email: string }>('/auth/register-with-verification', 'POST', data)
 
+  // Password Reset APIs (密码重置)
+  const forgotPassword = (email: string) =>
+    api<{ status: string; message: string }>('/auth/forgot-password', 'POST', { email })
+  const resetPassword = (email: string, code: string, newPassword: string) =>
+    api<{ status: string; message: string }>('/auth/reset-password', 'POST', { email, code, new_password: newPassword })
+
+  // Recovery Email APIs (辅助邮箱)
+  const sendRecoveryEmailCode = (email: string) =>
+    api<{ status: string; message: string }>('/auth/send-recovery-email-code', 'POST', { email, purpose: 'update_recovery_email' })
+  const updateRecoveryEmail = (newEmail: string, code: string) =>
+    api<{ status: string; message: string; recovery_email: string }>('/auth/update-recovery-email', 'POST', { new_email: newEmail, code })
+
   // Email Templates APIs (邮件模板管理)
   interface EmailTemplate {
     id: number
@@ -309,5 +347,21 @@ export const useApi = () => {
   const previewEmailTemplate = (id: number, variables: Record<string, string>) =>
     api<{ subject: string; body_html: string; body_text: string }>(`/email-templates/${id}/preview`, 'POST', variables)
 
-  return { login, logout, getFolders, getEmails, getEmail, sendEmail, syncEmails, markEmailRead, deleteEmail, markEmailStarred, snoozeEmail, getAllEmails, getSnoozedEmails, searchEmails, getTrackingStats, resendEmail, getMe, updateMe, changePassword, getStorageStats, getInviteCodes, createInviteCode, deleteInviteCode, getInviteCodeUsages, getUsers, updateUserPermissions, adminCreateUser, adminDeleteUser, getPoolMailboxes, createPoolMailbox, deletePoolMailbox, getPoolMailboxEmails, getPoolStats, getPoolActivityLogs, markPoolEmailRead, saveDraft, updateDraft, deleteDraft, getSignatures, createSignature, updateSignature, deleteSignature, getDefaultSignature, uploadAttachment, deleteAttachment, downloadAttachmentUrl, getPlans, createPlan, updatePlan, deletePlan, getRedemptionCodes, generateRedemptionCodes, getRedemptionCodeStats, revokeRedemptionCode, getSubscriptionStatus, redeemCode, getRedemptionHistory, getLoginSessions, revokeSession, revokeAllSessions, getReservedPrefixes, createReservedPrefix, updateReservedPrefix, deleteReservedPrefix, getReservedPrefixCategories, checkPrefixAvailability, sendVerificationCode, verifyCode, registerWithVerification, getEmailTemplates, getEmailTemplate, createEmailTemplate, updateEmailTemplate, deleteEmailTemplate, previewEmailTemplate, token }
+  // 2FA APIs (两步验证)
+  interface TwoFactorStatus {
+    enabled: boolean
+    has_secret: boolean
+  }
+  interface TwoFactorSetupResponse {
+    secret: string
+    qr_code: string
+    provisioning_uri: string
+  }
+  const get2FAStatus = () => api<TwoFactorStatus>('/2fa/status')
+  const setup2FA = () => api<TwoFactorSetupResponse>('/2fa/setup', 'POST')
+  const enable2FA = (code: string) => api<{ status: string; message: string }>('/2fa/enable', 'POST', { code })
+  const disable2FA = (code: string, password: string) => api<{ status: string; message: string }>('/2fa/disable', 'POST', { code, password })
+  const verify2FA = (code: string) => api<{ status: string; message: string }>('/2fa/verify', 'POST', { code })
+
+  return { login, login2FA, logout, getFolders, getEmails, getEmail, sendEmail, syncEmails, markEmailRead, deleteEmail, markEmailStarred, snoozeEmail, getAllEmails, getSnoozedEmails, searchEmails, getTrackingStats, resendEmail, getMe, updateMe, changePassword, getStorageStats, getInviteCodes, createInviteCode, deleteInviteCode, getInviteCodeUsages, getUsers, updateUserPermissions, adminCreateUser, adminDeleteUser, getPoolMailboxes, createPoolMailbox, deletePoolMailbox, getPoolMailboxEmails, getPoolStats, getPoolActivityLogs, markPoolEmailRead, saveDraft, updateDraft, deleteDraft, getSignatures, createSignature, updateSignature, deleteSignature, getDefaultSignature, uploadAttachment, deleteAttachment, downloadAttachmentUrl, getPlans, createPlan, updatePlan, deletePlan, getRedemptionCodes, generateRedemptionCodes, getRedemptionCodeStats, revokeRedemptionCode, getSubscriptionStatus, redeemCode, getRedemptionHistory, getLoginSessions, revokeSession, revokeAllSessions, getReservedPrefixes, createReservedPrefix, updateReservedPrefix, deleteReservedPrefix, getReservedPrefixCategories, checkPrefixAvailability, sendVerificationCode, verifyCode, registerWithVerification, forgotPassword, resetPassword, sendRecoveryEmailCode, updateRecoveryEmail, getEmailTemplates, getEmailTemplate, createEmailTemplate, updateEmailTemplate, deleteEmailTemplate, previewEmailTemplate, get2FAStatus, setup2FA, enable2FA, disable2FA, verify2FA, token }
 }
