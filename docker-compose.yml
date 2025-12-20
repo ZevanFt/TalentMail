@@ -57,7 +57,7 @@ services:
       context: ./config/mail
       dockerfile: Dockerfile
     container_name: ${MAILSERVER_CONTAINER_NAME:-talentmail-mailserver-1}
-    hostname: ${MAIL_SERVER_HOSTNAME}
+    hostname: ${MAIL_SERVER}
     env_file:
       - ./config/mail/production/mailserver.env
       - .env
@@ -103,6 +103,9 @@ services:
     env_file:
       - .env
       - .env.domains
+    environment:
+      - WEB_DOMAIN=${WEB_DOMAIN}
+      - MAIL_SERVER=${MAIL_SERVER}
 
 volumes:
   postgres_data:
