@@ -29,13 +29,13 @@ def generate_domain_env():
             exit(1)
 
         web_domain = f"{web_prefix}.{base_domain}"
-        mail_server_hostname = f"{mail_server_prefix}.{base_domain}"
+        mail_server = f"{mail_server_prefix}.{base_domain}"
 
         env_content = (
             f"# 此文件由 scripts/generate_domains.py 自动生成，定义了由架构决定的域名。\n"
             f"# 请勿手动修改。\n\n"
             f"WEB_DOMAIN={web_domain}\n"
-            f"MAIL_SERVER_HOSTNAME={mail_server_hostname}\n"
+            f"MAIL_SERVER={mail_server}\n"
         )
 
         with open(output_path, 'w') as f:
@@ -43,7 +43,7 @@ def generate_domain_env():
 
         print(f"✅ 成功生成域名配置文件：.env.domains")
         print(f"   - WEB_DOMAIN={web_domain}")
-        print(f"   - MAIL_SERVER_HOSTNAME={mail_server_hostname}")
+        print(f"   - MAIL_SERVER={mail_server}")
 
     except Exception as e:
         print(f"❌ 生成 .env.domains 文件时发生未知错误: {e}")
