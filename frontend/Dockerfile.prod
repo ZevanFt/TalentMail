@@ -3,14 +3,17 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# 复制依赖文件
-COPY package*.json ./
+# 复制依赖文件 (注意：由于上下文是根目录，路径需要调整)
+COPY frontend/package*.json ./
 
-# 安装所有依赖 (包括 devDependencies，因为构建需要)
+# 安装所有依赖
 RUN npm install
 
 # 复制源代码
-COPY . .
+COPY frontend/ .
+
+# 复制根目录的 config.json 到容器的上一级目录，以匹配 nuxt.config.ts 中的 ../config.json
+COPY config.json ../config.json
 
 # 执行构建
 RUN npm run build
@@ -20,7 +23,7 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-# 从构建阶段复制构建产物 (.output 目录)
+# 从构建阶段复制构建产物
 COPY --from=builder /app/.output ./.output
 
 # 暴露端口

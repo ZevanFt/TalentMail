@@ -26,8 +26,8 @@ services:
   # --- 前端服务 (Nuxt.js 应用) ---
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile.prod
+      context: .
+      dockerfile: frontend/Dockerfile.prod
     ports:
       - "3000:3000"
     env_file:
