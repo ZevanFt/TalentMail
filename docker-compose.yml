@@ -57,8 +57,11 @@ services:
       context: ./config/mail
       dockerfile: Dockerfile
     container_name: ${MAILSERVER_CONTAINER_NAME:-talentmail-mailserver-1}
-    hostname: ${MAIL_SERVER}
-    env_file: ./config/mail/production/mailserver.env
+    hostname: ${MAIL_SERVER_HOSTNAME}
+    env_file:
+      - ./config/mail/production/mailserver.env
+      - .env
+      - .env.domains
     environment:
       - PERMIT_DOCKER=network
     ports:
@@ -97,6 +100,9 @@ services:
     depends_on:
       - backend
       - frontend
+    env_file:
+      - .env
+      - .env.domains
 
 volumes:
   postgres_data:

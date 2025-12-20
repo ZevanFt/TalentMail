@@ -8,8 +8,17 @@ echo "🚀 开始部署 TalentMail..."
 echo "🛑 停止现有服务..."
 docker compose down
 
-# 2. 构建镜像
-echo "🏗️ 构建 Docker 镜像..."
+# 2. 根据 config.json 生成生产环境配置
+echo "⚙️  根据 config.json 生成域名配置文件 (.env.domains)..."
+python3 scripts/generate_domains.py
+if [ $? -ne 0 ]; then
+    echo "🛑 错误：生成 .env.domains 文件失败，请检查错误信息。"
+    exit 1
+fi
+echo ""
+
+# 3. 构建镜像
+echo "🏗️  构建 Docker 镜像..."
 # 在构建前检查必需的 .env 变量，避免容器内进程（如 alembic/pydantic）因缺失配置而崩溃
 REQUIRED_VARS=(
 	DATABASE_URL_DOCKER
@@ -21,7 +30,6 @@ REQUIRED_VARS=(
 	POSTGRES_USER
 	POSTGRES_DB
 	DOMAIN
-	MAIL_SERVER
 )
 
 missing=()

@@ -4,22 +4,17 @@
 
 # 你的主应用域名
 # Caddy 会自动为此域名申请 Let's Encrypt 的 HTTPS 证书
-{$DOMAIN} {
-    # 开启 gzip 和 zstd 压缩，并将其应用到代理和文件服务
+{$WEB_DOMAIN} {
+    # 开启 gzip 和 zstd 压缩
+    encode gzip zstd
 
     # 将 API 请求代理到后端服务
     # 'backend' 是你在 docker-compose.yml 中定义的服务名
-    reverse_proxy /api/* backend:8000 {
-        # 对 API 响应启用压缩
-        encode gzip zstd
-    }
+    reverse_proxy /api/* backend:8000
 
     # 将其他所有请求代理到前端服务
     # 'frontend' 是你在 docker-compose.yml 中定义的服务名
-    reverse_proxy /* frontend:3000 {
-        # 对前端资源启用压缩
-        encode gzip zstd
-    }
+    reverse_proxy /* frontend:3000
 }
 
 # 你的邮件服务器管理界面域名
