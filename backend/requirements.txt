@@ -12,7 +12,7 @@ greenlet==3.2.4
 h11==0.16.0
 idna==3.11
 passlib==1.7.4
-psycopg2-binary==2.9.11
+psycopg[binary]
 pyasn1==0.6.1
 pycparser==2.23
 pydantic==2.12.5
@@ -30,7 +30,6 @@ uvicorn==0.38.0
 pyhumps>=3.0.2
 python-multipart
 alembic
-psycopg2-binary
 python-dotenv
 docker>=7.0.0
 aiosmtpd>=1.4.4
