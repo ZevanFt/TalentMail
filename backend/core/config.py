@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 from pydantic import EmailStr
 from pydantic_settings import BaseSettings
@@ -49,17 +50,23 @@ def load_config() -> Settings:
     with open(config_path, "r") as f:
         config_json = json.load(f)
 
-    env_name = config_json.get("currentEnvironment", "development")
+    # 优先使用环境变量中的 CURRENT_ENVIRONMENT，否则使用 config.json 中的配置
+    env_name = os.getenv("CURRENT_ENVIRONMENT", config_json.get("currentEnvironment", "development"))
     env_settings = config_json.get("environments", {}).get(env_name, {})
 
     settings.APP_NAME = config_json.get("appName", settings.APP_NAME)
     settings.CURRENT_ENVIRONMENT = env_name
     
     for key, value in env_settings.items():
-        # 强制用 config.json 的值覆盖，确保单一事实来源
+        # 强制用 config.json 的值覆盖
         snake_case_key = ''.join(['_'+c.lower() if c.isupper() else c for c in key]).lstrip('_').upper()
         if hasattr(settings, snake_case_key):
             setattr(settings, snake_case_key, value)
+
+    # 允许环境变量 DOMAIN 覆盖 BASE_DOMAIN (这对 Docker 部署至关重要)
+    env_domain = os.getenv("DOMAIN")
+    if env_domain:
+        settings.BASE_DOMAIN = env_domain
 
     settings.DOMAIN = f"{settings.WEB_PREFIX}.{settings.BASE_DOMAIN}"
     settings.API_BASE_URL = f"https://{settings.DOMAIN}/api"

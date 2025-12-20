@@ -34,100 +34,84 @@ sudo docker --version
 sudo docker compose version
 ```
 
-## 二、获取代码
+## 二、Cloudflare DNS 配置 (关键！)
+
+在部署之前，请登录 Cloudflare 后台添加以下 DNS 记录。
+假设您的域名是 `talenting.vip`，服务器 IP 是 `1.2.3.4`。
+
+| 类型 | 名称 | 内容 | 代理状态 (Proxy Status) | 说明 |
+|---|---|---|---|---|
+| **A** | `@` | `1.2.3.4` | ✅ **已代理 (橙色)** | 主网站访问 |
+| **A** | `maillink` | `1.2.3.4` | ✅ **已代理 (橙色)** | 邮件后台管理 |
+| **A** | `mail` | `1.2.3.4` | ❌ **仅 DNS (灰色)** | **必须关闭代理！** 用于邮件收发 |
+| **MX** | `@` | `mail.talenting.vip` | - | 优先级设为 10 |
+| **TXT** | `@` | `v=spf1 mx ~all` | - | SPF 记录 |
+
+> **特别提醒**：`mail` 子域名必须是 **灰色云朵 (DNS Only)**，否则邮件发不出去也收不到！
+
+## 三、获取代码与配置
 
 ### 1. 拉取代码
-选择一个目录（例如 `/opt` 或用户主目录），克隆项目代码：
-
 ```bash
 cd ~
 git clone https://github.com/your-repo/talentmail.git
 cd talentmail
 ```
-*(注：请将 `https://github.com/your-repo/talentmail.git` 替换为您的实际仓库地址)*
 
-## 三、配置环境
-
-### 1. 创建生产环境配置文件
-复制示例配置文件：
-
+### 2. 创建配置文件
 ```bash
-cp .env .env.prod
+cp .env.example .env
 ```
 
-### 2. 修改配置
-使用编辑器（如 `nano` 或 `vim`）修改 `.env.prod` 文件：
-
+### 3. 编辑配置文件
 ```bash
-nano .env.prod
+nano .env
 ```
 
-**必须修改的关键项：**
+**必填项说明：**
 
-*   `DOMAIN`: 您的主域名 (例如 `talenting.vip`)
-*   `MAIL_SERVER`: 您的邮件服务器域名 (例如 `mail.talenting.vip`)
-*   `SECRET_KEY`: 生成一个新的强随机字符串 (可以使用 `openssl rand -hex 32` 生成)
-*   `ADMIN_PASSWORD`: 设置初始管理员密码
-*   `POSTGRES_PASSWORD`: 设置数据库密码
+*   `CURRENT_ENVIRONMENT`: 设为 `production`
+*   `DOMAIN`: 填入您的主域名 (如 `talenting.vip`)
+*   `MAIL_SERVER`: 填入邮件服务器域名 (如 `mail.talenting.vip`)
+*   `SECRET_KEY`: 随便乱打一串字符 (越长越乱越好)
+*   `POSTGRES_PASSWORD`: 设置一个数据库密码
+*   `ADMIN_EMAIL`: **必须是完整邮箱** (如 `admin@talenting.vip`)
+*   `ADMIN_PASSWORD`: 设置管理员登录密码
 
-**保存并退出**: `Ctrl+O` -> `Enter` -> `Ctrl+X`
-
-### 3. 重命名配置文件
-为了让 Docker Compose 自动识别，将 `.env.prod` 重命名为 `.env`：
-
-```bash
-mv .env.prod .env
-```
+**保存退出**: 按 `Ctrl+O` 回车保存，按 `Ctrl+X` 退出。
 
 ## 四、一键部署
 
-我们提供了一个部署脚本来自动化构建和启动过程。
-
-### 1. 运行部署脚本
 ```bash
 chmod +x deploy.sh
 ./deploy.sh
 ```
 
-### 2. 脚本执行过程
-脚本会自动执行以下操作：
-1.  停止旧的容器（如果有）。
-2.  构建后端和前端的 Docker 镜像。
-3.  启动所有服务（数据库、后端、前端、邮件服务器、Caddy 网关）。
-4.  等待数据库启动。
-5.  自动运行数据库迁移（更新表结构）。
-6.  **自动初始化数据**：后端启动时会自动创建数据库表、默认管理员账户、默认套餐等。
+脚本会自动构建镜像、启动服务并初始化数据库。
 
-## 五、验证部署
+## 五、常见问题 (FAQ)
 
-### 1. 检查服务状态
-```bash
-sudo docker compose ps
-```
-所有服务状态应为 `Up`。
+### Q: 部署过程中断了怎么办？(例如按了 Ctrl+C 或网络断开)
+**A: 不需要担心，直接重新运行 `./deploy.sh` 即可。**
+Docker 的构建和启动过程是“幂等”的，重新运行会自动跳过已完成的步骤，并继续完成剩下的工作。
 
-### 2. 访问网站
-在浏览器访问您的域名 (例如 `https://talenting.vip`)。
-*   使用默认管理员账号登录：
-    *   邮箱: `admin@您的域名` (例如 `admin@talenting.vip`)
-    *   密码: 您在 `.env` 中设置的 `ADMIN_PASSWORD`
+### Q: 我更新了代码 (git pull)，重新运行脚本会生效吗？
+**A: 会的，一定会生效！**
+`deploy.sh` 脚本中包含 `docker compose build` 命令。Docker 非常智能，它会检测文件是否发生了变化：
+*   **如果代码变了**：Docker 会自动重新构建镜像，包含最新的代码。
+*   **如果代码没变**：Docker 会使用缓存，跳过构建以节省时间。
+所以，每次更新代码后，直接运行 `./deploy.sh` 是最安全、最正确的方法。
 
-### 3. 检查邮件服务
-确保您的 DNS 解析已正确配置：
-*   `A` 记录: `mail.talenting.vip` -> 服务器 IP
-*   `MX` 记录: `@` -> `mail.talenting.vip` (优先级 10)
+### Q: 数据库初始化需要手动操作吗？
+**A: 不需要。**
+后端服务启动时会自动检测并创建所有必要的数据库表、默认管理员账号、默认套餐等。
 
-## 六、常见问题与维护
-
-### 数据库初始化需要手动操作吗？
-**不需要**。后端服务在启动时会检查数据库，如果表不存在会自动创建，并初始化默认数据（管理员、套餐、模板等）。`deploy.sh` 脚本还会额外运行 `alembic upgrade head` 以确保数据库结构是最新的。
-
-### 如何查看日志？
+### Q: 如何查看日志？
 *   查看所有日志: `sudo docker compose logs -f`
 *   查看后端日志: `sudo docker compose logs -f backend`
 *   查看邮件服务日志: `sudo docker compose logs -f mailserver`
 
-### 如何更新代码？
+### Q: 如何更新代码？
 ```bash
 git pull
 ./deploy.sh
