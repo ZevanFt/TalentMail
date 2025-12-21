@@ -34,6 +34,7 @@ def generate_domain_env():
         env_content = (
             f"# 此文件由 scripts/generate_domains.py 自动生成，定义了由架构决定的域名。\n"
             f"# 请勿手动修改。\n\n"
+            f"DOMAIN={base_domain}\n"
             f"WEB_DOMAIN={web_domain}\n"
             f"MAIL_SERVER={mail_server}\n"
         )
@@ -42,6 +43,7 @@ def generate_domain_env():
             f.write(env_content)
 
         print(f"✅ 成功生成域名配置文件：.env.domains")
+        print(f"   - DOMAIN={base_domain}")
         print(f"   - WEB_DOMAIN={web_domain}")
         print(f"   - MAIL_SERVER={mail_server}")
 
