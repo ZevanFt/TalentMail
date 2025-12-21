@@ -37,17 +37,20 @@ sudo docker compose version
 ## 二、Cloudflare DNS 配置 (关键！)
 
 在部署之前，请登录 Cloudflare 后台添加以下 DNS 记录。
-假设您的域名是 `talenting.vip`，服务器 IP 是 `1.2.3.4`。
+假设您的域名是 `example.com`，服务器 IP 是 `1.2.3.4`。
+
+**域名架构说明** (由 config.json 定义):
+- `mail.example.com` - Web 应用 (webPrefix)
+- `maillink.example.com` - 邮件服务器 (mailServerPrefix)
 
 | 类型 | 名称 | 内容 | 代理状态 (Proxy Status) | 说明 |
 |---|---|---|---|---|
-| **A** | `@` | `1.2.3.4` | ✅ **已代理 (橙色)** | 主网站访问 |
-| **A** | `maillink` | `1.2.3.4` | ✅ **已代理 (橙色)** | 邮件后台管理 |
-| **A** | `mail` | `1.2.3.4` | ❌ **仅 DNS (灰色)** | **必须关闭代理！** 用于邮件收发 |
-| **MX** | `@` | `mail.talenting.vip` | - | 优先级设为 10 |
+| **A** | `mail` | `1.2.3.4` | ✅ **已代理 (橙色)** | Web 应用访问 |
+| **A** | `maillink` | `1.2.3.4` | ❌ **仅 DNS (灰色)** | **必须关闭代理！** 邮件服务器 |
+| **MX** | `@` | `maillink.example.com` | - | 优先级设为 10 |
 | **TXT** | `@` | `v=spf1 mx ~all` | - | SPF 记录 |
 
-> **特别提醒**：`mail` 子域名必须是 **灰色云朵 (DNS Only)**，否则邮件发不出去也收不到！
+> **特别提醒**：`maillink` 子域名必须是 **灰色云朵 (DNS Only)**，否则邮件发不出去也收不到！
 
 ## 三、获取代码与配置
 
@@ -89,7 +92,38 @@ chmod +x deploy.sh
 
 脚本会自动构建镜像、启动服务并初始化数据库。
 
-## 五、常见问题 (FAQ)
+## 五、配置邮件客户端 SSL 证书 (可选)
+
+首次部署时，邮件服务器使用自签名证书。如果您需要使用邮件客户端 (如 Outlook、Thunderbird) 连接，建议配置 Let's Encrypt 证书：
+
+### 1. 等待 Caddy 获取证书
+部署完成后，Caddy 会自动为您的域名申请 Let's Encrypt 证书。等待几分钟后，运行：
+
+```bash
+# 检查 Caddy 是否已获取证书
+docker compose logs caddy | grep -i "certificate"
+```
+
+### 2. 同步证书到邮件服务器
+```bash
+chmod +x scripts/sync_mail_certs.sh
+./scripts/sync_mail_certs.sh
+```
+
+脚本会自动：
+- 从 Caddy 复制 Let's Encrypt 证书
+- 更新邮件服务器配置
+- 重启邮件服务器
+
+### 3. 邮件客户端配置
+配置完成后，使用以下设置连接邮件客户端：
+
+| 协议 | 服务器 | 端口 | 加密方式 |
+|---|---|---|---|
+| IMAP | maillink.example.com | 993 | SSL/TLS |
+| SMTP | maillink.example.com | 587 | STARTTLS |
+
+## 六、常见问题 (FAQ)
 
 ### Q: 部署过程中断了怎么办？(例如按了 Ctrl+C 或网络断开)
 **A: 不需要担心，直接重新运行 `./deploy.sh` 即可。**
@@ -115,3 +149,16 @@ Docker 的构建和启动过程是“幂等”的，重新运行会自动跳过�
 ```bash
 git pull
 ./deploy.sh
+```
+
+### Q: 邮件客户端提示证书不受信任？
+**A: 这是因为邮件服务器使用的是自签名证书。**
+请按照上面"配置邮件客户端 SSL 证书"章节的步骤，同步 Let's Encrypt 证书到邮件服务器。
+
+### Q: 如何查看邮件服务器状态？
+```bash
+# 查看邮件服务器日志
+docker compose logs -f mailserver
+
+# 检查邮件队列
+docker compose exec mailserver postqueue -p

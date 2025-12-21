@@ -1,28 +1,42 @@
-# ===================================
-# Caddyfile for Production Environment
-# ===================================
+# =============================================================================
+# TalentMail 生产环境 Caddy 配置
+# =============================================================================
+# Caddy 会自动为配置的域名申请 Let's Encrypt 证书
+# 环境变量由 docker-compose.yml 从 .env 和 .env.domains 注入
+#
+# 域名架构 (由 config.json 定义):
+#   - WEB_DOMAIN: Web 应用域名 (前缀 webPrefix, 如 mail.example.com)
+#   - MAIL_SERVER: 邮件服务器域名 (前缀 mailServerPrefix, 如 maillink.example.com)
+#
+# 这两个域名是不同的！Web 应用和邮件服务器使用不同的子域名前缀。
+# =============================================================================
 
-# 你的主应用域名
-# Caddy 会自动为此域名申请 Let's Encrypt 的 HTTPS 证书
+# Web 应用域名
+# Caddy 会自动为此域名申请 Let's Encrypt 证书
 {$WEB_DOMAIN} {
-    # 开启 gzip 和 zstd 压缩
+    # 开启压缩
     encode gzip zstd
 
-    # 将 API 请求代理到后端服务
-    # 'backend' 是你在 docker-compose.yml 中定义的服务名
+    # WebSocket 支持 (用于实时通知)
+    @websocket {
+        header Connection *Upgrade*
+        header Upgrade websocket
+    }
+    reverse_proxy @websocket backend:8000
+
+    # API 请求代理到后端
     reverse_proxy /api/* backend:8000
 
-    # 将其他所有请求代理到前端服务
-    # 'frontend' 是你在 docker-compose.yml 中定义的服务名
+    # 其他请求代理到前端
     reverse_proxy /* frontend:3000
 }
 
-# 你的邮件服务器管理界面域名
-# Caddy 同样会自动为其申请 HTTPS 证书
-# 注意：这个域名需要和你邮件服务器(Poste.io)的配置匹配
+# 邮件服务器域名 (如 maillink.example.com)
+# 这里主要是为了让 Caddy 为邮件服务器域名也获取 SSL 证书
+# 证书会存储在 /data/caddy/certificates/ 目录下
+# 邮件客户端连接时需要这个证书 (SMTP: 587, IMAP: 993)
 {$MAIL_SERVER} {
-    # 将请求代理到邮件服务器
-    # 'mailserver' 是你在 docker-compose.yml 中定义的服务名
-    # 8080 是 Poste.io 暴露的 HTTP 端口，Caddy 会在前面加上 HTTPS
-    reverse_proxy mailserver:8080
+    # 返回一个简单的响应，表示这是邮件服务器
+    # 实际的邮件服务通过 SMTP/IMAP 端口访问，不是 HTTP
+    respond "TalentMail Server - Use SMTP/IMAP to connect" 200
 }

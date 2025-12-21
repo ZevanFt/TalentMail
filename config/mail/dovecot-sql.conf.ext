@@ -6,7 +6,10 @@ driver = pgsql
 
 # 数据库连接字符串
 # 注意：在 Docker 网络中，db 是数据库容器的主机名
-connect = host=db dbname=talentmail user=user password=password
+# 重要：这些值需要与 .env 文件中的 POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB 保持一致
+# 开发环境默认值：user=talentmail password=talentmail dbname=talentmail
+# 生产环境请确保修改为实际的数据库凭据
+connect = host=db dbname=talentmail user=talentmail password=talentmail
 
 # 默认密码方案 - bcrypt (我们的数据库使用 $2b$ 格式)
 default_pass_scheme = BLF-CRYPT

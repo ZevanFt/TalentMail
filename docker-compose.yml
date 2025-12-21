@@ -1,3 +1,14 @@
+# =============================================================================
+# TalentMail 生产环境 Docker Compose 配置
+# =============================================================================
+# 配置来源：
+#   - .env          : 敏感配置（密码、密钥、基础域名）
+#   - .env.domains  : 由 deploy.sh 从 config.json 自动生成的域名配置
+#   - config.json   : 应用配置（域名前缀、功能开关等）- 由 backend 读取
+#
+# 部署前请运行: ./deploy.sh
+# =============================================================================
+
 services:
   # --- 后端服务 (FastAPI 应用) ---
   backend:
@@ -8,7 +19,6 @@ services:
       - "8000:8000"
       - "24:24"
     volumes:
-      # 生产环境不需要挂载代码目录，但可能需要挂载持久化数据（如上传文件）
       - ./backend/uploads:/app/uploads
       - ./config.json:/app/config.json
       - ./scripts:/scripts
@@ -20,7 +30,6 @@ services:
         condition: service_healthy
       mailserver:
         condition: service_started
-    # 生产环境使用 gunicorn 或 uvicorn 生产模式
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 
   # --- 前端服务 (Nuxt.js 应用) ---
@@ -32,10 +41,9 @@ services:
       - "3000:3000"
     env_file:
       - .env
+      - .env.domains
     environment:
       - NUXT_PUBLIC_BASE_DOMAIN=${DOMAIN}
-    # 生产环境直接启动构建好的应用 (由 Dockerfile.prod 处理)
-    # command: /bin/sh -c "npm run build && npm run start"
 
   # --- 数据库服务 (PostgreSQL) ---
   db:
@@ -54,32 +62,46 @@ services:
       start_period: 10s
 
   # --- 邮件服务器 (docker-mailserver) ---
+  # SSL 证书说明：
+  #   - 首次部署使用自签名证书 (SSL_TYPE=self-signed)
+  #   - Caddy 获取 Let's Encrypt 证书后，运行 scripts/sync_mail_certs.sh 同步证书
+  #   - 同步后修改 mailserver.env 中的 SSL_TYPE=manual 并重启 mailserver
   mailserver:
     build:
       context: ./config/mail
       dockerfile: Dockerfile
     container_name: ${MAILSERVER_CONTAINER_NAME:-talentmail-mailserver-1}
+    # hostname 使用 .env.domains 中的 MAIL_SERVER
     hostname: ${MAIL_SERVER}
+    domainname: ${DOMAIN}
     env_file:
       - ./config/mail/production/mailserver.env
       - .env
       - .env.domains
     environment:
+      # 允许 Docker 网络内的连接
       - PERMIT_DOCKER=network
+      # 覆盖 mailserver.env 中的域名配置
+      - OVERRIDE_HOSTNAME=${MAIL_SERVER}
     ports:
-      - "25:25"    # SMTP
-      - "143:143"  # IMAP
-      - "587:587"  # SMTP (submission)
-      - "993:993"  # IMAPS
+      - "25:25"    # SMTP (接收外部邮件)
+      - "143:143"  # IMAP (明文，内网使用)
+      - "587:587"  # SMTP Submission (发送邮件)
+      - "993:993"  # IMAPS (加密)
     volumes:
+      # 邮件数据持久化
       - ./data/mailserver/mail-data/:/var/mail/
       - ./data/mailserver/mail-state/:/var/mail-state/
       - ./data/mailserver/mail-logs/:/var/log/mail/
       - ./data/mailserver/config/:/tmp/docker-mailserver/
+      # 时区
       - /etc/localtime:/etc/localtime:ro
+      # Docker socket (用于某些功能)
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Dovecot SQL 认证配置
       - ./config/mail/dovecot-sql.conf.ext:/etc/dovecot/dovecot-sql.conf.ext:ro
       - ./config/mail/dovecot/10-auth.conf:/etc/dovecot/conf.d/10-auth.conf:ro
+      # Fail2Ban 配置
       - ./config/mail/fail2ban-jail.local:/etc/fail2ban/jail.local:ro
     depends_on:
       db:
@@ -99,12 +121,12 @@ services:
     volumes:
       - ./config/caddy/Caddyfile.prod:/etc/caddy/Caddyfile
       - caddy_data:/data
-    depends_on:
-      - backend
-      - frontend
     env_file:
       - .env
       - .env.domains
+    depends_on:
+      - backend
+      - frontend
 
 volumes:
   postgres_data:
