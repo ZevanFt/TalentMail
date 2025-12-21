@@ -25,6 +25,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     env_file:
       - .env
+      - .env.domains
     depends_on:
       db:
         condition: service_healthy
@@ -42,14 +43,13 @@ services:
     env_file:
       - .env
       - .env.domains
-    environment:
-      - NUXT_PUBLIC_BASE_DOMAIN=${DOMAIN}
 
   # --- 数据库服务 (PostgreSQL) ---
   db:
     image: postgres:15
     env_file:
       - .env
+      - .env.domains
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
