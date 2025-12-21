@@ -77,7 +77,8 @@ def load_config() -> Settings:
         else:
             raise ValueError("Mail server is not configured in config.json for the current environment")
 
-    settings.ADMIN_EMAIL = f"admin@{settings.BASE_DOMAIN}"
+    # 优先使用环境变量中的 ADMIN_EMAIL，如果不存在，则使用默认格式
+    settings.ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", f"admin@{settings.BASE_DOMAIN}")
     
     # --- Configure mail credentials dynamically ---
     # The username is always the admin of the current domain.
