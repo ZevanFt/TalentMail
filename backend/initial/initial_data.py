@@ -1,7 +1,7 @@
 import logging
 from sqlalchemy.orm import Session
 from crud import user as crud_user
-from schemas import schemas
+from schemas.user import UserCreate
 from core.config import settings
 from db.database import engine, SessionLocal
 from db import models
@@ -46,12 +46,12 @@ def _create_initial_admin(db: Session) -> None:
 
     user = crud_user.get_user_by_email(db, email=admin_email)
     if not user:
-        user_in = schemas.UserCreate(
+        user_in = UserCreate(
             email=admin_email,
             password=admin_password,
             display_name="Admin",
             phone=None,
-            redemption_code="ADMIN_CODE"
+            invite_code="ADMIN_CODE"  # Fix: Use invite_code instead of redemption_code
         )
         user = crud_user.create_user(db, user=user_in)
         if user:
