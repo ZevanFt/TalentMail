@@ -20,6 +20,7 @@ echo ""
 # 3. 构建镜像
 echo "🏗️  构建 Docker 镜像..."
 # 在构建前检查必需的 .env 变量，避免容器内进程（如 alembic/pydantic）因缺失配置而崩溃
+# 注意：DOMAIN 由 generate_domains.py 从 config.json 自动生成到 .env.domains
 REQUIRED_VARS=(
 	DATABASE_URL_DOCKER
 	REFRESH_TOKEN_EXPIRE_DAYS
@@ -30,7 +31,6 @@ REQUIRED_VARS=(
 	POSTGRES_PASSWORD
 	POSTGRES_USER
 	POSTGRES_DB
-	DOMAIN
 )
 
 missing=()
