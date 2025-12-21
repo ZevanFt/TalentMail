@@ -37,6 +37,8 @@ def generate_domain_env():
             f"DOMAIN={base_domain}\n"
             f"WEB_DOMAIN={web_domain}\n"
             f"MAIL_SERVER={mail_server}\n"
+            f"# docker-mailserver 主机名配置\n"
+            f"OVERRIDE_HOSTNAME={mail_server}\n"
         )
 
         with open(output_path, 'w') as f:

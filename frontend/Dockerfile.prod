@@ -26,6 +26,9 @@ WORKDIR /app
 # 从构建阶段复制构建产物
 COPY --from=builder /app/.output ./.output
 
+# 复制 config.json 供运行时读取
+COPY config.json ./config.json
+
 # 暴露端口
 EXPOSE 3000
 

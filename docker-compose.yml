@@ -71,9 +71,6 @@ services:
       context: ./config/mail
       dockerfile: Dockerfile
     container_name: ${MAILSERVER_CONTAINER_NAME:-talentmail-mailserver-1}
-    # hostname 使用 .env.domains 中的 MAIL_SERVER
-    hostname: ${MAIL_SERVER}
-    domainname: ${DOMAIN}
     env_file:
       - ./config/mail/production/mailserver.env
       - .env
@@ -81,8 +78,6 @@ services:
     environment:
       # 允许 Docker 网络内的连接
       - PERMIT_DOCKER=network
-      # 覆盖 mailserver.env 中的域名配置
-      - OVERRIDE_HOSTNAME=${MAIL_SERVER}
     ports:
       - "25:25"    # SMTP (接收外部邮件)
       - "143:143"  # IMAP (明文，内网使用)
