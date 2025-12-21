@@ -103,9 +103,6 @@ services:
     env_file:
       - .env
       - .env.domains
-    environment:
-      - WEB_DOMAIN=${WEB_DOMAIN}
-      - MAIL_SERVER=${MAIL_SERVER}
 
 volumes:
   postgres_data:
