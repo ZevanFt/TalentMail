@@ -32,6 +32,8 @@ services:
       - "3000:3000"
     env_file:
       - .env
+    environment:
+      - NUXT_PUBLIC_BASE_DOMAIN=${DOMAIN}
     # 生产环境直接启动构建好的应用 (由 Dockerfile.prod 处理)
     # command: /bin/sh -c "npm run build && npm run start"
 
