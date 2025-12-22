@@ -9,8 +9,8 @@ driver = pgsql
 
 # 数据库连接字符串
 # 注意：在 Docker 网络中，db 是数据库容器的主机名
-# user, password, talentmail 会被脚本替换为实际值
-connect = host=db dbname=talentmail user=user password=password
+# __POSTGRES_USER__, __POSTGRES_PASSWORD__, __POSTGRES_DB__ 会被脚本替换为实际值
+connect = host=db dbname=__POSTGRES_DB__ user=__POSTGRES_USER__ password=__POSTGRES_PASSWORD__
 
 # 默认密码方案 - bcrypt (我们的数据库使用 $2b$ 格式)
 default_pass_scheme = BLF-CRYPT

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, field_serializer
+from pydantic import BaseModel, EmailStr, field_serializer, field_validator
 from typing import Optional
 from datetime import datetime, date
 from .common import CustomEmailStr
@@ -40,6 +40,16 @@ class UserRead(BaseModel):
 
     class Config:
         from_attributes = True
+    
+    @field_validator('spam_filter_level', mode='before')
+    @classmethod
+    def default_spam_filter_level(cls, v):
+        return v if v is not None else "standard"
+    
+    @field_validator('block_external_images', mode='before')
+    @classmethod
+    def default_block_external_images(cls, v):
+        return v if v is not None else True
     
     @field_serializer('auto_reply_start_date', 'auto_reply_end_date')
     def serialize_date(self, v: Optional[date]) -> Optional[str]:

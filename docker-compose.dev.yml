@@ -50,6 +50,9 @@ services:
       # 这是一个匿名卷，用来防止主机上的 node_modules 覆盖容器内的 node_modules
       # 这是一个常见的优化技巧，可以避免因操作系统不同导致的依赖问题
       - /app/node_modules
+    # 从 .env.caddy 加载 WEB_DOMAIN 环境变量 (与 Caddy 保持一致)
+    env_file:
+      - .env.caddy
     # 启动 Nuxt.js 的开发服务器
     command: npm run dev
 
