@@ -100,6 +100,11 @@ def update_users_me(
         current_user.spam_filter_level = user_update.spam_filter_level
     if user_update.block_external_images is not None:
         current_user.block_external_images = user_update.block_external_images
+    # 自动清理设置
+    if user_update.auto_clean_trash is not None:
+        current_user.auto_clean_trash = user_update.auto_clean_trash
+    if user_update.auto_archive_old is not None:
+        current_user.auto_archive_old = user_update.auto_archive_old
     
     db.add(current_user)
     db.commit()

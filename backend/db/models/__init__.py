@@ -2,7 +2,7 @@
 from db.database import Base
 
 # Import all models to make them accessible via this package.
-from .user import User, UserSession, PoolActivityLog
+from .user import User, UserSession, PoolActivityLog, BlockedSender
 from .email import Folder, Email, Attachment, Signature, Alias, TempMailbox, Domain
 from .billing import Plan, Subscription, Transaction, RedemptionCode, InviteCode, InviteCodeUsage, SubscriptionHistory
 from .features import Contact, Filter, Template, Tag, EmailTag, TrackingPixel, TrackingEvent
@@ -15,6 +15,7 @@ __all__ = [
     "User",
     "UserSession",
     "PoolActivityLog",
+    "BlockedSender",
     "Folder",
     "Email",
     "Attachment",

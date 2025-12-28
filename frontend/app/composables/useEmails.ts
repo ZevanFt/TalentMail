@@ -18,6 +18,12 @@ interface AttachmentInfo {
   size: number
 }
 
+interface TagInfo {
+  id: number
+  name: string
+  color: string
+}
+
 interface EmailDetail extends Email {
   recipients: string
   body_html: string | null
@@ -26,6 +32,7 @@ interface EmailDetail extends Email {
   delivery_status?: string
   delivery_error?: string
   attachments?: AttachmentInfo[]
+  tags?: TagInfo[]
 }
 
 // 写邮件模式
@@ -54,9 +61,10 @@ const DEFAULT_FOLDERS: Folder[] = [
 ]
 
 export const useEmails = () => {
-  const { getEmails, getEmail, getFolders, syncEmails, markEmailRead, deleteEmail, markEmailStarred, snoozeEmail, getAllEmails, getSnoozedEmails, searchEmails } = useApi()
+  const { getEmails, getEmail, getFolders, syncEmails, markEmailRead, deleteEmail, markEmailStarred, snoozeEmail, getAllEmails, getSnoozedEmails, searchEmails, getEmailsByTag, getTags, addTagToEmail, removeTagFromEmail } = useApi()
   
   const emails = useState<Email[]>('emails', () => [])
+  const tags = useState<any[]>('tags', () => [])
   // 使用默认文件夹初始化，后端返回后会更新 id 和 unread_count
   const folders = useState<Folder[]>('folders', () => [...DEFAULT_FOLDERS])
   const currentFolderId = useState<number | null>('currentFolderId', () => null)
@@ -82,6 +90,16 @@ export const useEmails = () => {
       }
     } catch (e) {
       console.error('加载文件夹失败:', e)
+    }
+  }
+
+  // 加载标签列表
+  const loadTags = async () => {
+    try {
+      const res = await getTags()
+      tags.value = res
+    } catch (e) {
+      console.error('加载标签失败:', e)
     }
   }
 
@@ -337,6 +355,56 @@ export const useEmails = () => {
     }
   }
 
+  // 加载标签下的邮件
+  const loadEmailsByTag = async (tagId: number) => {
+    selectedEmailId.value = null
+    selectedEmailDetail.value = null
+    loading.value = true
+    try {
+      const res = await getEmailsByTag(tagId)
+      emails.value = res.items
+    } catch (e) {
+      console.error('加载标签邮件失败:', e)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // 给邮件添加标签
+  const addTag = async (emailId: number, tagId: number) => {
+    try {
+      await addTagToEmail(emailId, tagId)
+      // 更新当前选中邮件的详情
+      if (selectedEmailDetail.value?.id === emailId) {
+        const tag = tags.value.find(t => t.id === tagId)
+        if (tag) {
+          if (!selectedEmailDetail.value.tags) {
+            selectedEmailDetail.value.tags = []
+          }
+          // 避免重复添加
+          if (!selectedEmailDetail.value.tags.some((t: any) => t.id === tagId)) {
+            selectedEmailDetail.value.tags.push(tag)
+          }
+        }
+      }
+    } catch (e) {
+      console.error('添加标签失败:', e)
+    }
+  }
+
+  // 移除邮件标签
+  const removeTag = async (emailId: number, tagId: number) => {
+    try {
+      await removeTagFromEmail(emailId, tagId)
+      // 更新当前选中邮件的详情
+      if (selectedEmailDetail.value?.id === emailId && selectedEmailDetail.value.tags) {
+        selectedEmailDetail.value.tags = selectedEmailDetail.value.tags.filter((t: any) => t.id !== tagId)
+      }
+    } catch (e) {
+      console.error('移除标签失败:', e)
+    }
+  }
+
   // 搜索状态
   const searchQuery = useState<string>('searchQuery', () => '')
   const isSearching = useState<boolean>('isSearching', () => false)
@@ -403,10 +471,10 @@ export const useEmails = () => {
   }
 
   return {
-    emails, folders, currentFolderId, selectedEmailId, selectedEmailDetail,
+    emails, folders, tags, currentFolderId, selectedEmailId, selectedEmailDetail,
     loading, syncing, currentFilter, composeState, searchQuery, isSearching,
-    loadFolders, loadEmails, loadEmailDetail, loadFilteredEmails, loadSnoozedEmails, loadAllEmails,
-    sync, formatTime, toggleRead, toggleStar, snooze, removeEmail,
+    loadFolders, loadTags, loadEmails, loadEmailDetail, loadFilteredEmails, loadSnoozedEmails, loadAllEmails, loadEmailsByTag,
+    sync, formatTime, toggleRead, toggleStar, snooze, removeEmail, addTag, removeTag,
     startReply, startReplyAll, startForward, editDraft, resetCompose, search, clearSearch,
     startAutoSync, stopAutoSync
   }

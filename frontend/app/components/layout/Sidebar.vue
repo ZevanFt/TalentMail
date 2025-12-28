@@ -3,16 +3,53 @@ import {
   Mail, Star, Send, File, Trash2, Plus, Box,
   Archive, AlertOctagon, CircleDot,
   ChevronRight, ChevronDown, RotateCw,
-  FolderOpen, Tag, Clock, Paperclip, Users, Cloud, PlusCircle
+  FolderOpen, Tag, Clock, Paperclip, Users, Cloud, PlusCircle, X, Check, Pencil
 } from 'lucide-vue-next'
 
 const { isComposeOpen } = useGlobalModal()
 const { folders, currentFolderId, loadEmails, loadFolders, loadFilteredEmails, loadSnoozedEmails, loadAllEmails, currentFilter } = useEmails()
-const { token } = useApi()
+const { token, getTags, createTag, updateTag, deleteTag } = useApi()
 const route = useRoute()
 
 const isOpen = reactive({ more: false, tags: true, center: true, tools: true })
 const toggle = (key: keyof typeof isOpen) => { isOpen[key] = !isOpen[key] }
+
+// 标签管理
+interface TagItem { id: number; name: string; color: string; email_count: number }
+const tags = ref<TagItem[]>([])
+const showTagModal = ref(false)
+const editingTag = ref<TagItem | null>(null)
+const tagForm = reactive({ name: '', color: '#3B82F6' })
+const tagColors = ['#3B82F6', '#EF4444', '#F59E0B', '#10B981', '#8B5CF6', '#EC4899', '#6B7280']
+
+const loadTags = async () => {
+  try { tags.value = await getTags() } catch {}
+}
+
+const openTagModal = (tag?: TagItem) => {
+  editingTag.value = tag || null
+  tagForm.name = tag?.name || ''
+  tagForm.color = tag?.color || '#3B82F6'
+  showTagModal.value = true
+}
+
+const saveTag = async () => {
+  if (!tagForm.name.trim()) return
+  try {
+    if (editingTag.value) {
+      await updateTag(editingTag.value.id, { name: tagForm.name, color: tagForm.color })
+    } else {
+      await createTag(tagForm.name, tagForm.color)
+    }
+    showTagModal.value = false
+    await loadTags()
+  } catch {}
+}
+
+const removeTag = async (id: number) => {
+  if (!confirm('确定删除此标签？')) return
+  try { await deleteTag(id); await loadTags() } catch {}
+}
 
 // 文件夹角色 -> 中文名称 & 图标映射
 const folderConfig: Record<string, { name: string; icon: any; iconClass?: string }> = {
@@ -69,9 +106,12 @@ const moreFolders = computed(() => [
 
 // 当前选中的虚拟文件夹 ID
 const selectedVirtualId = useState<string | null>('selectedVirtualId', () => null)
+const selectedTagId = useState<number | null>('selectedTagId', () => null)
 
 // 切换文件夹
 const selectFolder = (folder: any) => {
+  selectedTagId.value = null // 清除标签选中状态
+  
   if (folder.id === 'snoozed') {
     // 待办邮件
     selectedVirtualId.value = folder.id
@@ -91,8 +131,17 @@ const selectFolder = (folder: any) => {
   }
 }
 
+// 切换标签
+const { loadEmailsByTag } = useEmails()
+const selectTag = (tag: TagItem) => {
+  selectedVirtualId.value = null
+  selectedTagId.value = tag.id
+  loadEmailsByTag(tag.id)
+}
+
 // 判断是否选中
 const isSelected = (folder: any) => {
+  if (selectedTagId.value) return false
   if (folder.filter || folder.virtual) {
     return selectedVirtualId.value === folder.id
   }
@@ -104,13 +153,8 @@ onMounted(async () => {
   if (token.value && folders.value.length === 0) {
     await loadFolders()
   }
+  if (token.value) await loadTags()
 })
-
-const tags = ref([
-  { id: 1, name: '工作', color: 'bg-blue-500' },
-  { id: 2, name: '财务', color: 'bg-yellow-500' },
-  { id: 3, name: '紧急', color: 'bg-red-500' },
-])
 
 const tools = [
   { name: '附件中心', icon: Paperclip, to: '/attachments' },
@@ -179,10 +223,24 @@ const isActive = (path: string) => route.path === path
 
         <Transition name="slide">
           <div v-if="isOpen.tags" class="overflow-hidden space-y-0.5">
-            <a v-for="tag in tags" :key="tag.id" href="#" class="sub-item group">
-              <div :class="`w-3 h-3 rounded-sm ${tag.color} shrink-0`"></div>
+            <button v-for="tag in tags" :key="tag.id"
+              @click="selectTag(tag)"
+              @contextmenu.prevent="openTagModal(tag)"
+              class="sub-item group w-full text-left"
+              :class="{ active: selectedTagId === tag.id }">
+              <div class="w-3 h-3 rounded-sm shrink-0" :style="{ backgroundColor: tag.color }"></div>
               <span class="flex-1 truncate">{{ tag.name }}</span>
-            </a>
+              <span class="text-xs text-gray-400">{{ tag.email_count }}</span>
+              
+              <!-- 悬停显示编辑按钮 -->
+              <div class="opacity-0 group-hover:opacity-100 absolute right-2 bg-gray-100 dark:bg-gray-800 rounded p-0.5" @click.stop="openTagModal(tag)">
+                <Pencil class="w-3 h-3 text-gray-500" />
+              </div>
+            </button>
+            <button @click="openTagModal()" class="sub-item text-gray-500 hover:text-primary">
+              <PlusCircle class="w-4 h-4 shrink-0" />
+              <span class="truncate">添加标签</span>
+            </button>
           </div>
         </Transition>
       </div>
@@ -249,6 +307,28 @@ const isActive = (path: string) => route.path === path
       </NuxtLink>
     </div>
   </aside>
+
+  <!-- 标签编辑弹窗 -->
+  <Teleport to="body">
+    <div v-if="showTagModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showTagModal = false">
+      <div class="bg-white dark:bg-gray-800 rounded-lg p-4 w-80 shadow-xl">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="font-bold">{{ editingTag ? '编辑标签' : '新建标签' }}</h3>
+          <button @click="showTagModal = false"><X class="w-4 h-4" /></button>
+        </div>
+        <input v-model="tagForm.name" placeholder="标签名称" class="w-full px-3 py-2 border rounded-lg mb-3 dark:bg-gray-700 dark:border-gray-600" />
+        <div class="flex gap-2 mb-4">
+          <button v-for="c in tagColors" :key="c" @click="tagForm.color = c" class="w-6 h-6 rounded-full" :style="{ backgroundColor: c }" :class="tagForm.color === c ? 'ring-2 ring-offset-2 ring-primary' : ''"></button>
+        </div>
+        <div class="flex gap-2">
+          <button v-if="editingTag" @click="removeTag(editingTag.id)" class="px-3 py-1.5 text-red-500 hover:bg-red-50 rounded-lg text-sm">删除</button>
+          <div class="flex-1"></div>
+          <button @click="showTagModal = false" class="px-3 py-1.5 text-gray-500 hover:bg-gray-100 rounded-lg text-sm">取消</button>
+          <button @click="saveTag" class="px-3 py-1.5 bg-primary text-white rounded-lg text-sm">保存</button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>

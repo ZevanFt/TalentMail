@@ -36,6 +36,9 @@ class UserRead(BaseModel):
     # 隐私设置
     spam_filter_level: str = "standard"
     block_external_images: bool = True
+    # 自动清理设置
+    auto_clean_trash: bool = True
+    auto_archive_old: bool = False
     created_at: datetime
 
     class Config:
@@ -78,6 +81,9 @@ class UserUpdate(BaseModel):
     # 隐私设置
     spam_filter_level: Optional[str] = None
     block_external_images: Optional[bool] = None
+    # 自动清理设置
+    auto_clean_trash: Optional[bool] = None
+    auto_archive_old: Optional[bool] = None
 
 
 # Schema for changing password

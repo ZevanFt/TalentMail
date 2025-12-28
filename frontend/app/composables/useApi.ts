@@ -145,6 +145,8 @@ export const useApi = () => {
     auto_reply_message?: string | null
     spam_filter_level?: string
     block_external_images?: boolean
+    auto_clean_trash?: boolean
+    auto_archive_old?: boolean
   }) => api<any>('/users/me', 'PATCH', data)
   
   const changePassword = (currentPassword: string, newPassword: string) =>
@@ -363,5 +365,56 @@ export const useApi = () => {
   const disable2FA = (code: string, password: string) => api<{ status: string; message: string }>('/2fa/disable', 'POST', { code, password })
   const verify2FA = (code: string) => api<{ status: string; message: string }>('/2fa/verify', 'POST', { code })
 
-  return { login, login2FA, logout, getFolders, getEmails, getEmail, sendEmail, syncEmails, markEmailRead, deleteEmail, markEmailStarred, snoozeEmail, getAllEmails, getSnoozedEmails, searchEmails, getTrackingStats, resendEmail, getMe, updateMe, changePassword, getStorageStats, getInviteCodes, createInviteCode, deleteInviteCode, getInviteCodeUsages, getUsers, updateUserPermissions, adminCreateUser, adminDeleteUser, getPoolMailboxes, createPoolMailbox, deletePoolMailbox, getPoolMailboxEmails, getPoolStats, getPoolActivityLogs, markPoolEmailRead, saveDraft, updateDraft, deleteDraft, getSignatures, createSignature, updateSignature, deleteSignature, getDefaultSignature, uploadAttachment, deleteAttachment, downloadAttachmentUrl, getPlans, createPlan, updatePlan, deletePlan, getRedemptionCodes, generateRedemptionCodes, getRedemptionCodeStats, revokeRedemptionCode, getSubscriptionStatus, redeemCode, getRedemptionHistory, getLoginSessions, revokeSession, revokeAllSessions, getReservedPrefixes, createReservedPrefix, updateReservedPrefix, deleteReservedPrefix, getReservedPrefixCategories, checkPrefixAvailability, sendVerificationCode, verifyCode, registerWithVerification, forgotPassword, resetPassword, sendRecoveryEmailCode, updateRecoveryEmail, getEmailTemplates, getEmailTemplate, createEmailTemplate, updateEmailTemplate, deleteEmailTemplate, previewEmailTemplate, get2FAStatus, setup2FA, enable2FA, disable2FA, verify2FA, token }
+  // Blocklist APIs (黑名单)
+  interface BlockedSender {
+    id: number
+    email: string
+    reason: string | null
+    created_at: string | null
+  }
+  const getBlockedSenders = () => api<BlockedSender[]>('/blocklist/')
+  const addBlockedSender = (email: string, reason?: string) => api<BlockedSender>('/blocklist/', 'POST', { email, reason })
+  const removeBlockedSender = (id: number) => api<any>(`/blocklist/${id}`, 'DELETE')
+
+  // Aliases APIs (邮件别名)
+  interface EmailAlias {
+    id: number
+    alias_email: string
+    name: string | null
+    is_active: boolean
+  }
+  const getAliases = () => api<EmailAlias[]>('/aliases/')
+  const createAlias = (alias_prefix: string, name?: string) => api<EmailAlias>('/aliases/', 'POST', { alias_prefix, name })
+  const updateAlias = (id: number, data: { name?: string; is_active?: boolean }) => api<EmailAlias>(`/aliases/${id}`, 'PUT', data)
+  const deleteAlias = (id: number) => api<any>(`/aliases/${id}`, 'DELETE')
+
+  // Tags APIs (邮件标签)
+  interface Tag {
+    id: number
+    name: string
+    color: string
+    email_count: number
+  }
+  const getTags = () => api<Tag[]>('/tags')
+  const createTag = (name: string, color: string = '#3B82F6') => api<Tag>('/tags', 'POST', { name, color })
+  const updateTag = (id: number, data: { name?: string; color?: string }) => api<Tag>(`/tags/${id}`, 'PUT', data)
+  const deleteTag = (id: number) => api<any>(`/tags/${id}`, 'DELETE')
+  const addTagToEmail = (emailId: number, tagId: number) => api<any>(`/tags/email/${emailId}/tag/${tagId}`, 'POST')
+  const removeTagFromEmail = (emailId: number, tagId: number) => api<any>(`/tags/email/${emailId}/tag/${tagId}`, 'DELETE')
+  const getEmailsByTag = (tagId: number, page = 1, limit = 50) => api<{ items: any[]; total: number }>(`/tags/${tagId}/emails?page=${page}&limit=${limit}`)
+
+  // Contacts APIs (通讯录)
+  interface Contact {
+    id: number
+    name: string | null
+    email: string | null
+    phone: string | null
+    notes: string | null
+  }
+  const getContacts = (q?: string) => api<Contact[]>(`/contacts${q ? `?q=${encodeURIComponent(q)}` : ''}`)
+  const createContact = (data: { name: string; email: string; phone?: string; notes?: string }) => api<Contact>('/contacts', 'POST', data)
+  const updateContact = (id: number, data: { name?: string; email?: string; phone?: string; notes?: string }) => api<Contact>(`/contacts/${id}`, 'PUT', data)
+  const deleteContact = (id: number) => api<any>(`/contacts/${id}`, 'DELETE')
+
+  return { login, login2FA, logout, getFolders, getEmails, getEmail, sendEmail, syncEmails, markEmailRead, deleteEmail, markEmailStarred, snoozeEmail, getAllEmails, getSnoozedEmails, searchEmails, getTrackingStats, resendEmail, getMe, updateMe, changePassword, getStorageStats, getInviteCodes, createInviteCode, deleteInviteCode, getInviteCodeUsages, getUsers, updateUserPermissions, adminCreateUser, adminDeleteUser, getPoolMailboxes, createPoolMailbox, deletePoolMailbox, getPoolMailboxEmails, getPoolStats, getPoolActivityLogs, markPoolEmailRead, saveDraft, updateDraft, deleteDraft, getSignatures, createSignature, updateSignature, deleteSignature, getDefaultSignature, uploadAttachment, deleteAttachment, downloadAttachmentUrl, getPlans, createPlan, updatePlan, deletePlan, getRedemptionCodes, generateRedemptionCodes, getRedemptionCodeStats, revokeRedemptionCode, getSubscriptionStatus, redeemCode, getRedemptionHistory, getLoginSessions, revokeSession, revokeAllSessions, getReservedPrefixes, createReservedPrefix, updateReservedPrefix, deleteReservedPrefix, getReservedPrefixCategories, checkPrefixAvailability, sendVerificationCode, verifyCode, registerWithVerification, forgotPassword, resetPassword, sendRecoveryEmailCode, updateRecoveryEmail, getEmailTemplates, getEmailTemplate, createEmailTemplate, updateEmailTemplate, deleteEmailTemplate, previewEmailTemplate, get2FAStatus, setup2FA, enable2FA, disable2FA, verify2FA, getBlockedSenders, addBlockedSender, removeBlockedSender, getAliases, createAlias, updateAlias, deleteAlias, getTags, createTag, updateTag, deleteTag, addTagToEmail, removeTagFromEmail, getEmailsByTag, getContacts, createContact, updateContact, deleteContact, token }
 }

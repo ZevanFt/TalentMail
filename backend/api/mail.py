@@ -669,6 +669,17 @@ def get_email(
         ) for a in attachments
     ]
     
+    # 获取标签
+    tags_list = []
+    if email.tags:
+        tags_list = [
+            email_schema.TagInfo(
+                id=tag.id,
+                name=tag.name,
+                color=tag.color
+            ) for tag in email.tags
+        ]
+    
     return email_schema.EmailDetailResponse(
         status="success",
         data=email_schema.EmailDetail(
@@ -684,7 +695,8 @@ def get_email(
             is_tracked=email.is_tracked or False,
             delivery_status=email.delivery_status,
             delivery_error=email.delivery_error,
-            attachments=attachment_list
+            attachments=attachment_list,
+            tags=tags_list
         )
     )
 

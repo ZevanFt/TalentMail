@@ -79,6 +79,13 @@ class AttachmentInfo(BaseModel):
     size: int = 0
 
 
+class TagInfo(BaseModel):
+    """标签信息"""
+    id: int
+    name: str
+    color: str
+
+
 class EmailDetail(BaseModel):
     """邮件详情"""
     id: int
@@ -94,6 +101,7 @@ class EmailDetail(BaseModel):
     delivery_status: Optional[str] = None
     delivery_error: Optional[str] = None
     attachments: List[AttachmentInfo] = []
+    tags: List[TagInfo] = []
 
 
 class EmailDetailResponse(BaseModel):

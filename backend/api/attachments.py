@@ -21,6 +21,7 @@ class AttachmentRead(BaseModel):
     filename: str
     content_type: str
     size: int
+    email_id: int | None = None
 
     class Config:
         from_attributes = True
@@ -133,4 +134,14 @@ def get_email_attachments(
         raise HTTPException(status_code=404, detail="邮件不存在")
     
     attachments = db.query(Attachment).filter(Attachment.email_id == email_id).all()
+    return attachments
+
+
+@router.get("/list", response_model=List[AttachmentRead])
+def list_user_attachments(
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_active_user)
+):
+    """获取用户所有附件"""
+    attachments = db.query(Attachment).filter(Attachment.user_id == current_user.id).order_by(Attachment.id.desc()).all()
     return attachments

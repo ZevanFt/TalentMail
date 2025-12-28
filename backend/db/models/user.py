@@ -38,6 +38,8 @@ class User(Base):
     pool_enabled = Column(Boolean, default=False, comment="是否允许使用账号池功能")
     spam_filter_level = Column(String, default="standard", comment="垃圾邮件过滤级别 ('standard' 或 'strict')")
     block_external_images = Column(Boolean, default=True, comment="是否阻止外部图片加载")
+    auto_clean_trash = Column(Boolean, default=True, comment="是否自动清空垃圾箱（30天）")
+    auto_archive_old = Column(Boolean, default=False, comment="是否自动归档旧邮件（1年）")
     role = Column(String, default="user", comment="用户角色 ('admin' 或 'user')")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="用户账户创建时间")
 
@@ -68,3 +70,14 @@ class PoolActivityLog(Base):
     mailbox_email = Column(String(255), nullable=False, comment="邮箱地址")
     details = Column(Text, nullable=True, comment="详细信息")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class BlockedSender(Base):
+    __tablename__ = "blocked_senders"
+    __table_args__ = {'comment': '用户屏蔽的发件人黑名单'}
+    id = Column(Integer, primary_key=True, comment="黑名单记录ID")
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, comment="所属用户ID")
+    email = Column(String(255), nullable=False, comment="被屏蔽的邮箱地址")
+    reason = Column(String(255), nullable=True, comment="屏蔽原因")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="添加时间")
+    user = relationship("User")

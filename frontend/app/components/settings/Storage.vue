@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { HardDrive, Archive, Trash2, AlertTriangle, Mail, Crown, Ticket, Clock, Infinity } from 'lucide-vue-next'
 
-const { getStorageStats, getSubscriptionStatus, redeemCode, getRedemptionHistory } = useApi()
+const { getStorageStats, getSubscriptionStatus, redeemCode, getRedemptionHistory, getMe, updateMe } = useApi()
 
 const loading = ref(true)
 const stats = ref({
@@ -19,6 +19,9 @@ const redeemError = ref('')
 const redeemSuccess = ref('')
 const history = ref<any[]>([])
 const showHistory = ref(false)
+
+// 自动清理设置
+const user = ref<any>(null)
 
 const loadStats = async () => {
     try {
@@ -38,11 +41,31 @@ const loadSubscription = async () => {
     }
 }
 
+const loadUser = async () => {
+    try {
+        user.value = await getMe()
+    } catch (e) {
+        console.error('加载用户信息失败', e)
+    }
+}
+
 const loadHistory = async () => {
     try {
         history.value = await getRedemptionHistory()
     } catch (e) {
         console.error('加载兑换历史失败', e)
+    }
+}
+
+const updateCleanSetting = async (key: string, value: boolean) => {
+    if (!user.value) return
+    const oldValue = user.value[key]
+    user.value[key] = value
+    try {
+        await updateMe({ [key]: value })
+    } catch (e) {
+        console.error('更新设置失败', e)
+        user.value[key] = oldValue
     }
 }
 
@@ -87,7 +110,7 @@ const formatDate = (date: string | null) => {
 }
 
 onMounted(async () => {
-    await Promise.all([loadStats(), loadSubscription(), loadHistory()])
+    await Promise.all([loadStats(), loadSubscription(), loadHistory(), loadUser()])
 })
 </script>
 
@@ -257,7 +280,10 @@ onMounted(async () => {
                         <div class="text-sm text-gray-500">永久删除超过 30 天的垃圾邮件</div>
                     </div>
                 </div>
-                <CommonToggle :model-value="true" />
+                <CommonToggle
+                    :model-value="user?.auto_clean_trash ?? true"
+                    @update:model-value="updateCleanSetting('auto_clean_trash', $event)"
+                />
             </div>
 
             <!-- 邮件归档 -->
@@ -272,7 +298,10 @@ onMounted(async () => {
                         <div class="text-sm text-gray-500">自动归档 1 年前的旧邮件以节省收件箱空间</div>
                     </div>
                 </div>
-                <CommonToggle :model-value="false" />
+                <CommonToggle
+                    :model-value="user?.auto_archive_old ?? false"
+                    @update:model-value="updateCleanSetting('auto_archive_old', $event)"
+                />
             </div>
         </div>
 

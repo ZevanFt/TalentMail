@@ -55,6 +55,7 @@ class Email(Base):
     deleted_at = Column(DateTime(timezone=True), nullable=True, comment="软删除时间戳，非空表示已移入回收站")
     is_purged = Column(Boolean, default=False, comment="是否已从回收站彻底清除")
     folder = relationship("Folder")
+    tags = relationship("Tag", secondary="email_tags", backref="emails")
 
 
 class Attachment(Base):

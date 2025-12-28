@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { ArrowLeft, Trash2, Archive, Star, Reply, Forward, MoreHorizontal, Mail, MailOpen, ReplyAll, Eye, Send, CheckCircle, XCircle, Loader2, RefreshCw, Paperclip, Download, Copy, Check } from 'lucide-vue-next'
-const { selectedEmailDetail, formatTime, toggleRead, removeEmail, startReply, startReplyAll, startForward, folders, currentFolderId, loadEmails } = useEmails()
+import { ArrowLeft, Trash2, Archive, Star, Reply, Forward, MoreHorizontal, Mail, MailOpen, ReplyAll, Eye, Send, CheckCircle, XCircle, Loader2, RefreshCw, Paperclip, Download, Copy, Check, Tag, Plus, X } from 'lucide-vue-next'
+import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
+
+const { selectedEmailDetail, formatTime, toggleRead, removeEmail, startReply, startReplyAll, startForward, folders, currentFolderId, loadEmails, tags, loadTags, addTag, removeTag } = useEmails()
 const { isComposeOpen } = useGlobalModal()
 const { getTrackingStats, resendEmail, downloadAttachmentUrl, token } = useApi()
 
@@ -57,6 +59,32 @@ watch(() => selectedEmailDetail.value, (email) => {
   detectVerificationCode(email)
   codeCopied.value = false
 }, { immediate: true })
+
+// 加载标签
+onMounted(() => {
+  loadTags()
+})
+
+// 处理添加标签
+const handleAddTag = async (tagId: number) => {
+  if (selectedEmailDetail.value) {
+    await addTag(selectedEmailDetail.value.id, tagId)
+  }
+}
+
+// 处理移除标签
+const handleRemoveTag = async (tagId: number) => {
+  if (selectedEmailDetail.value) {
+    await removeTag(selectedEmailDetail.value.id, tagId)
+  }
+}
+
+// 获取未使用的标签
+const availableTags = computed(() => {
+  if (!selectedEmailDetail.value?.tags) return tags.value
+  const usedTagIds = selectedEmailDetail.value.tags.map((t: any) => t.id)
+  return tags.value.filter(t => !usedTagIds.includes(t.id))
+})
 
 // 追踪统计
 const trackingStats = ref<any>(null)
@@ -252,9 +280,61 @@ const downloadAttachment = (id: number) => {
       <div class="flex-1 overflow-y-auto p-8 custom-scrollbar">
         <div class="max-w-4xl mx-auto">
           <!-- 邮件标题 -->
-          <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 leading-tight">
-            {{ selectedEmailDetail.subject }}
-          </h1>
+          <div class="flex items-start justify-between gap-4 mb-6">
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white leading-tight flex-1">
+              {{ selectedEmailDetail.subject }}
+            </h1>
+            
+            <!-- 标签管理 -->
+            <div class="flex items-center gap-2 shrink-0">
+              <!-- 已有标签 -->
+              <div v-for="tag in selectedEmailDetail.tags" :key="tag.id"
+                class="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border"
+                :style="{
+                  backgroundColor: tag.color + '20',
+                  color: tag.color,
+                  borderColor: tag.color + '40'
+                }">
+                <span class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: tag.color }"></span>
+                {{ tag.name }}
+                <button @click="handleRemoveTag(tag.id)" class="hover:bg-black/10 rounded-full p-0.5 transition-colors">
+                  <X class="w-3 h-3" />
+                </button>
+              </div>
+
+              <!-- 添加标签按钮 -->
+              <Menu as="div" class="relative">
+                <MenuButton class="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                  <Plus class="w-3 h-3" />
+                  标签
+                </MenuButton>
+                <transition
+                  enter-active-class="transition duration-100 ease-out"
+                  enter-from-class="transform scale-95 opacity-0"
+                  enter-to-class="transform scale-100 opacity-100"
+                  leave-active-class="transition duration-75 ease-in"
+                  leave-from-class="transform scale-100 opacity-100"
+                  leave-to-class="transform scale-95 opacity-0"
+                >
+                  <MenuItems class="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50 focus:outline-none">
+                    <div v-if="availableTags.length === 0" class="px-4 py-2 text-xs text-gray-500 text-center">
+                      无可用标签
+                    </div>
+                    <MenuItem v-for="tag in availableTags" :key="tag.id" v-slot="{ active }">
+                      <button
+                        @click="handleAddTag(tag.id)"
+                        class="w-full text-left px-4 py-2 text-sm flex items-center gap-2"
+                        :class="active ? 'bg-gray-50 dark:bg-gray-700' : ''"
+                      >
+                        <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: tag.color }"></span>
+                        <span class="text-gray-700 dark:text-gray-200">{{ tag.name }}</span>
+                      </button>
+                    </MenuItem>
+                  </MenuItems>
+                </transition>
+              </Menu>
+            </div>
+          </div>
 
           <!-- 发件人卡片 -->
           <div class="flex items-start gap-4 mb-8">
