@@ -1,12 +1,17 @@
 <script setup lang="ts">
 import { Sun, Moon, Monitor, CheckCircle2 } from 'lucide-vue-next'
-const { isDark, toggleTheme } = useTheme()
+const { isDark, themeMode, setTheme } = useTheme()
 
-// 这里为了演示，我们假设还有一个 'system' 模式，
-// 但实际 toggleTheme 目前只切换 true/false，所以这里主要处理 UI 交互
 const selectMode = (mode: 'light' | 'dark') => {
-    if ((mode === 'dark' && !isDark.value) || (mode === 'light' && isDark.value)) {
-        toggleTheme()
+    setTheme(mode)
+}
+
+const toggleSystemMode = (enabled: boolean) => {
+    if (enabled) {
+        setTheme('system')
+    } else {
+        // 如果关闭跟随系统，则保持当前视觉上的主题，但切换为固定模式
+        setTheme(isDark.value ? 'dark' : 'light')
     }
 }
 </script>
@@ -20,7 +25,7 @@ const selectMode = (mode: 'light' | 'dark') => {
             <!-- 浅色模式卡片 -->
             <div @click="selectMode('light')" class="group relative cursor-pointer">
                 <div class="aspect-video rounded-xl border-2 transition-all overflow-hidden relative mb-3 bg-gray-100 flex items-center justify-center"
-                    :class="!isDark ? 'border-primary ring-4 ring-primary/10' : 'border-gray-200 dark:border-gray-700 hover:border-primary/50'">
+                    :class="themeMode === 'light' ? 'border-primary ring-4 ring-primary/10' : 'border-gray-200 dark:border-gray-700 hover:border-primary/50'">
                     <!-- 模拟浅色 UI -->
                     <div class="w-3/4 h-3/4 bg-white rounded-lg shadow-sm flex flex-col p-2 gap-2">
                         <div class="w-1/3 h-2 bg-gray-100 rounded"></div>
@@ -31,7 +36,7 @@ const selectMode = (mode: 'light' | 'dark') => {
                     </div>
 
                     <!-- 选中角标 -->
-                    <div v-if="!isDark" class="absolute top-3 right-3 text-primary">
+                    <div v-if="themeMode === 'light'" class="absolute top-3 right-3 text-primary">
                         <CheckCircle2 class="w-6 h-6 fill-white" />
                     </div>
                 </div>
@@ -44,7 +49,7 @@ const selectMode = (mode: 'light' | 'dark') => {
             <!-- 深色模式卡片 -->
             <div @click="selectMode('dark')" class="group relative cursor-pointer">
                 <div class="aspect-video rounded-xl border-2 transition-all overflow-hidden relative mb-3 bg-gray-900 flex items-center justify-center"
-                    :class="isDark ? 'border-primary ring-4 ring-primary/10' : 'border-gray-200 dark:border-gray-700 hover:border-primary/50'">
+                    :class="themeMode === 'dark' ? 'border-primary ring-4 ring-primary/10' : 'border-gray-200 dark:border-gray-700 hover:border-primary/50'">
                     <!-- 模拟深色 UI -->
                     <div
                         class="w-3/4 h-3/4 bg-gray-800 rounded-lg shadow-inner flex flex-col p-2 gap-2 border border-gray-700">
@@ -56,7 +61,7 @@ const selectMode = (mode: 'light' | 'dark') => {
                     </div>
 
                     <!-- 选中角标 -->
-                    <div v-if="isDark" class="absolute top-3 right-3 text-primary">
+                    <div v-if="themeMode === 'dark'" class="absolute top-3 right-3 text-primary">
                         <CheckCircle2 class="w-6 h-6 fill-gray-900" />
                     </div>
                 </div>
@@ -69,8 +74,7 @@ const selectMode = (mode: 'light' | 'dark') => {
         </div>
 
         <!-- 更多选项 (跟随系统) -->
-        <div class="p-4 rounded-xl bg-gray-50 dark:bg-bg-panelDark border border-gray-100 dark:border-gray-800 flex items-center justify-between opacity-50 cursor-not-allowed"
-            title="暂未开发">
+        <div class="p-4 rounded-xl bg-gray-50 dark:bg-bg-panelDark border border-gray-100 dark:border-gray-800 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div class="p-2 bg-gray-200 dark:bg-gray-700 rounded-lg">
                     <Monitor class="w-5 h-5 text-gray-500 dark:text-gray-300" />
@@ -80,7 +84,7 @@ const selectMode = (mode: 'light' | 'dark') => {
                     <div class="text-xs text-gray-500">自动根据操作系统外观切换</div>
                 </div>
             </div>
-            <input type="checkbox" disabled class="toggle-checkbox">
+            <CommonToggle :model-value="themeMode === 'system'" @update:model-value="toggleSystemMode" />
         </div>
 
     </div>

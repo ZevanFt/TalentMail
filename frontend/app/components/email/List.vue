@@ -5,8 +5,9 @@ const { emails, selectedEmailId, folders, currentFolderId, loading, syncing, loa
 const { isComposeOpen } = useGlobalModal()
 const { getEmail } = useApi()
 
-// 获取 Sidebar 中选中的虚拟文件夹 ID
+// 获取 Sidebar 中选中的虚拟文件夹 ID 和标签 ID
 const selectedVirtualId = useState<string | null>('selectedVirtualId', () => null)
+const selectedTagId = useState<number | null>('selectedTagId', () => null)
 
 // 待办对话框
 const showSnoozeModal = ref(false)
@@ -74,8 +75,13 @@ const virtualFolderNames: Record<string, string> = {
 }
 
 // 当前文件夹名称
+const { currentTagName } = useEmails()
 const currentFolderName = computed(() => {
   if (isSearching.value) return `搜索: ${searchQuery.value}`
+  // 标签
+  if (selectedTagId.value && currentTagName.value) {
+    return `标签: ${currentTagName.value}`
+  }
   // 虚拟文件夹
   if (selectedVirtualId.value) {
     return virtualFolderNames[selectedVirtualId.value] || selectedVirtualId.value

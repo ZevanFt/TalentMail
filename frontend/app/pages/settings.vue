@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { User, Shield, Palette, LogOut, ArrowLeft, Mail, Bell, Lock, HardDrive, Users, Ticket, UserCog, CreditCard, AtSign, FileText, Info } from 'lucide-vue-next'
+import { User, Shield, Palette, LogOut, ArrowLeft, Mail, Bell, Lock, HardDrive, Users, Ticket, UserCog, CreditCard, AtSign, FileText, Info, Zap } from 'lucide-vue-next'
 const router = useRouter()
 const { logout, getMe } = useApi()
 
@@ -59,6 +59,9 @@ const handleLogout = () => {
           <div class="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">邮件服务</div>
           <button @click="activeTab = 'mail'" :class="['tab-btn', activeTab === 'mail' ? 'active' : '']">
             <Mail class="w-4 h-4" /> 邮件设置
+          </button>
+          <button @click="activeTab = 'automation'" :class="['tab-btn', activeTab === 'automation' ? 'active' : '']">
+            <Zap class="w-4 h-4" /> 自动化规则
           </button>
           <button @click="activeTab = 'notifications'"
             :class="['tab-btn', activeTab === 'notifications' ? 'active' : '']">
@@ -135,6 +138,7 @@ const handleLogout = () => {
             <SettingsAccounts v-else-if="activeTab === 'accounts'" />
             <SettingsTheme v-else-if="activeTab === 'theme'" />
             <SettingsMail v-else-if="activeTab === 'mail'" />
+            <SettingsAutomationRules v-else-if="activeTab === 'automation'" />
             <SettingsNotifications v-else-if="activeTab === 'notifications'" />
             <SettingsPrivacy v-else-if="activeTab === 'privacy'" />
             <SettingsSecurity v-else-if="activeTab === 'security'" />

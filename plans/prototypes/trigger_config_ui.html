@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模板触发配置界面原型 - TalentMail</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 模拟暗色主题 */
+        :root {
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #1f2937;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    
+    <!-- ===== 页面一：模板列表页面（带触发状态） ===== -->
+    <div class="p-8">
+        <h1 class="text-2xl font-bold mb-2">📧 邮件模板管理</h1>
+        <p class="text-gray-400 mb-6">管理系统邮件模板，配置触发条件</p>
+        
+        <!-- 工具栏 -->
+        <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center gap-4">
+                <select class="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm">
+                    <option>全部分类</option>
+                    <option>认证相关</option>
+                    <option>系统通知</option>
+                    <option>协作分享</option>
+                    <option>财务通知</option>
+                    <option>人事通知</option>
+                </select>
+                <select class="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm">
+                    <option>全部状态</option>
+                    <option>✅ 已配置触发</option>
+                    <option>⚠️ 未配置触发</option>
+                </select>
+            </div>
+            <div class="flex items-center gap-3">
+                <button class="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition">
+                    ⚙️ 全局变量
+                </button>
+                <button class="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition">
+                    ➕ 新建模板
+                </button>
+            </div>
+        </div>
+        
+        <!-- 模板列表 -->
+        <div class="space-y-4">
+            
+            <!-- 模板卡片 1：已配置触发 -->
+            <div class="bg-gray-800 border border-gray-700 rounded-xl p-5 hover:border-gray-600 transition">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-3 mb-2">
+                            <!-- 开关 -->
+                            <div class="relative w-10 h-5 bg-green-600 rounded-full cursor-pointer">
+                                <div class="absolute top-0.5 right-0.5 w-4 h-4 bg-white rounded-full shadow"></div>
+                            </div>
+                            <h3 class="text-lg font-semibold">欢迎新用户</h3>
+                            <span class="px-2 py-0.5 text-xs bg-blue-900/50 text-blue-400 rounded-full">认证相关</span>
+                            <span class="px-2 py-0.5 text-xs bg-purple-900/50 text-purple-400 rounded-full">系统模板</span>
+                        </div>
+                        
+                        <div class="ml-12 space-y-2">
+                            <p class="text-sm text-gray-400">
+                                <code class="bg-gray-700 px-1.5 py-0.5 rounded text-xs">welcome_email</code>
+                                <span class="ml-2">用户注册成功后发送的欢迎邮件</span>
+                            </p>
+                            
+                            <!-- 触发状态 -->
+                            <div class="flex items-center gap-6 text-sm">
+                                <div class="flex items-center gap-2 text-green-400">
+                                    <span>⚡</span>
+                                    <span>触发方式：系统事件 - 用户注册成功</span>
+                                </div>
+                                <div class="flex items-center gap-2 text-gray-400">
+                                    <span>📮</span>
+                                    <span>发送给：触发用户本人</span>
+                                </div>
+                                <div class="flex items-center gap-2 text-gray-400">
+                                    <span>📊</span>
+                                    <span>已发送 128 次</span>
+                                </div>
+                            </div>
+                            
+                            <!-- 可用变量 -->
+                            <div class="flex items-center gap-2 mt-3">
+                                <span class="text-xs text-gray-500">可用变量：</span>
+                                <span class="px-2 py-0.5 text-xs bg-gray-700 text-gray-300 rounded cursor-help" title="用户名">{{user_name}}</span>
+                                <span class="px-2 py-0.5 text-xs bg-gray-700 text-gray-300 rounded cursor-help" title="用户邮箱">{{user_email}}</span>
+                                <span class="px-2 py-0.5 text-xs bg-gray-700 text-gray-300 rounded cursor-help" title="登录链接">{{login_url}}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 操作按钮 -->
+                    <div class="flex items-center gap-2 ml-4">
+                        <button class="p-2 text-gray-400 hover:text-blue-400 hover:bg-gray-700 rounded-lg transition" title="预览">👁️</button>
+                        <button class="p-2 text-gray-400 hover:text-blue-400 hover:bg-gray-700 rounded-lg transition" title="编辑内容">✏️</button>
+                        <button class="p-2 text-gray-400 hover:text-green-400 hover:bg-gray-700 rounded-lg transition" title="触发设置" onclick="openTriggerModal()">⚙️</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 模板卡片 2：定时触发 -->
+            <div class="bg-gray-800 border border-gray-700 rounded-xl p-5 hover:border-gray-600 transition">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-3 mb-2">
+                            <div class="relative w-10 h-5 bg-green-600 rounded-full cursor-pointer">
+                                <div class="absolute top-0.5 right-0.5 w-4 h-4 bg-white rounded-full shadow"></div>
+                            </div>
+                            <h3 class="text-lg font-semibold">存储空间警告</h3>
+                            <span class="px-2 py-0.5 text-xs bg-blue-900/50 text-blue-400 rounded-full">系统通知</span>
+                            <span class="px-2 py-0.5 text-xs bg-purple-900/50 text-purple-400 rounded-full">系统模板</span>
+                        </div>
+                        
+                        <div class="ml-12 space-y-2">
+                            <p class="text-sm text-gray-400">
+                                <code class="bg-gray-700 px-1.5 py-0.5 rounded text-xs">storage_warning</code>
+                                <span class="ml-2">用户存储空间即将用尽时发送的警告</span>
+                            </p>
+                            
+                            <div class="flex items-center gap-6 text-sm">
+                                <div class="flex items-center gap-2 text-amber-400">
+                                    <span>⏰</span>
+                                    <span>触发方式：定时检查 - 每天 09:00</span>
+                                </div>
+                                <div class="flex items-center gap-2 text-amber-400">
+                                    <span>📋</span>
+                                    <span>条件：存储使用 > 80%</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-6 text-sm">
+                                <div class="flex items-center gap-2 text-gray-400">
+                                    <span>📮</span>
+                                    <span>发送给：触发用户本人</span>
+                                </div>
+                                <div class="flex items-center gap-2 text-gray-400">
+                                    <span>🔄</span>
+                                    <span>冷却时间：24小时</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-2 ml-4">
+                        <button class="p-2 text-gray-400 hover:text-blue-400 hover:bg-gray-700 rounded-lg transition">👁️</button>
+                        <button class="p-2 text-gray-400 hover:text-blue-400 hover:bg-gray-700 rounded-lg transition">✏️</button>
+                        <button class="p-2 text-gray-400 hover:text-green-400 hover:bg-gray-700 rounded-lg transition" onclick="openScheduleModal()">⚙️</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 模板卡片 3：未配置触发 -->
+            <div class="bg-gray-800 border border-gray-700 rounded-xl p-5 opacity-70 hover:opacity-100 hover:border-gray-600 transition">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-3 mb-2">
+                            <div class="relative w-10 h-5 bg-gray-600 rounded-full cursor-pointer">
+                                <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow"></div>
+                            </div>
+                            <h3 class="text-lg font-semibold">发票开具通知</h3>
+                            <span class="px-2 py-0.5 text-xs bg-green-900/50 text-green-400 rounded-full">财务通知</span>
+                            <span class="px-2 py-0.5 text-xs bg-cyan-900/50 text-cyan-400 rounded-full">业务模板</span>
+                        </div>
+                        
+                        <div class="ml-12 space-y-2">
+                            <p class="text-sm text-gray-400">
+                                <code class="bg-gray-700 px-1.5 py-0.5 rounded text-xs">invoice_notification</code>
+                                <span class="ml-2">通知客户发票已开具</span>
+                            </p>
+                            
+                            <div class="flex items-center gap-6 text-sm">
+                                <div class="flex items-center gap-2 text-gray-500">
+                                    <span>✋</span>
+                                    <span>触发方式：手动使用</span>
+                                </div>
+                                <div class="flex items-center gap-2 text-yellow-500">
+                                    <span>⚠️</span>
+                                    <span>未启用 - 点击设置启用</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-2 ml-4">
+                        <button class="p-2 text-gray-400 hover:text-blue-400 hover:bg-gray-700 rounded-lg transition">👁️</button>
+                        <button class="p-2 text-gray-400 hover:text-blue-400 hover:bg-gray-700 rounded-lg transition">✏️</button>
+                        <button class="p-2 text-yellow-400 hover:text-yellow-300 hover:bg-gray-700 rounded-lg transition animate-pulse" onclick="openManualModal()">⚙️</button>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+    
+    <!-- ===== 触发配置弹窗：系统事件触发 ===== -->
+    <div id="triggerModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 hidden">
+        <div class="bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+            <!-- 标题栏 -->
+            <div class="flex items-center justify-between p-5 border-b border-gray-700">
+                <h3 class="text-xl font-semibold">⚙️ 触发设置 - 欢迎新用户</h3>
+                <button onclick="closeTriggerModal()" class="p-2 hover:bg-gray-700 rounded-lg transition">✕</button>
+            </div>
+            
+            <!-- 内容区 -->
+            <div class="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar">
+                
+                <!-- 启用状态 -->
+                <div class="bg-gray-900/50 rounded-xl p-4">
+                    <label class="flex items-center justify-between cursor-pointer">
+                        <div>
+                            <span class="font-medium">启用自动触发</span>
+                            <p class="text-sm text-gray-400 mt-1">开启后，当触发条件满足时将自动发送邮件</p>
+                        </div>
+                        <div class="relative w-12 h-6 bg-green-600 rounded-full">
+                            <div class="absolute top-1 right-1 w-4 h-4 bg-white rounded-full shadow"></div>
+                        </div>
+                    </label>
+                </div>
+                
+                <!-- 触发方式选择 -->
+                <div>
+                    <h4 class="font-medium mb-3">触发方式</h4>
+                    <div class="space-y-3">
+                        <!-- 系统事件 -->
+                        <label class="flex items-start gap-3 p-4 bg-blue-900/20 border-2 border-blue-500 rounded-xl cursor-pointer">
+                            <input type="radio" name="trigger_type" checked class="mt-1">
+                            <div class="flex-1">
+                                <span class="font-medium text-blue-400">⚡ 系统事件触发</span>
+                                <p class="text-sm text-gray-400 mt-1">当系统发生特定事件时自动发送邮件</p>
+                                
+                                <!-- 事件选择器 -->
+                                <div class="mt-4 p-3 bg-gray-800 rounded-lg">
+                                    <label class="text-sm text-gray-400 mb-2 block">选择触发事件：</label>
+                                    <div class="space-y-2">
+                                        <div class="text-xs text-gray-500 font-medium mt-2">👤 用户事件</div>
+                                        <label class="flex items-center gap-2 pl-4 py-1 hover:bg-gray-700 rounded cursor-pointer">
+                                            <input type="radio" name="event" checked>
+                                            <span class="text-green-400">●</span>
+                                            <span>用户注册成功</span>
+                                            <span class="text-xs text-gray-500 ml-auto">user.register_success</span>
+                                        </label>
+                                        <label class="flex items-center gap-2 pl-4 py-1 hover:bg-gray-700 rounded cursor-pointer">
+                                            <input type="radio" name="event">
+                                            <span class="text-gray-400">○</span>
+                                            <span>新设备登录</span>
+                                            <span class="text-xs text-gray-500 ml-auto">user.login_new_device</span>
+                                        </label>
+                                        <label class="flex items-center gap-2 pl-4 py-1 hover:bg-gray-700 rounded cursor-pointer">
+                                            <input type="radio" name="event">
+                                            <span class="text-gray-400">○</span>
+                                            <span>密码修改成功</span>
+                                            <span class="text-xs text-gray-500 ml-auto">user.password_changed</span>
+                                        </label>
+                                        
+                                        <div class="text-xs text-gray-500 font-medium mt-3">📧 邮件事件</div>
+                                        <label class="flex items-center gap-2 pl-4 py-1 hover:bg-gray-700 rounded cursor-pointer">
+                                            <input type="radio" name="event">
+                                            <span class="text-gray-400">○</span>
+                                            <span>收到新邮件</span>
+                                            <span class="text-xs text-gray-500 ml-auto">email.received</span>
+                                        </label>
+                                        
+                                        <div class="text-xs text-gray-500 font-medium mt-3">📁 文件事件</div>
+                                        <label class="flex items-center gap-2 pl-4 py-1 hover:bg-gray-700 rounded cursor-pointer">
+                                            <input type="radio" name="event">
+                                            <span class="text-gray-400">○</span>
+                                            <span>文件被分享</span>
+                                            <span class="text-xs text-gray-500 ml-auto">drive.file_shared</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </label>
+                        
+                        <!-- 定时触发 -->
+                        <label class="flex items-start gap-3 p-4 bg-gray-700/30 border-2 border-gray-700 rounded-xl cursor-pointer hover:border-gray-600">
+                            <input type="radio" name="trigger_type" class="mt-1">
+                            <div>
+                                <span class="font-medium">⏰ 定时触发</span>
+                                <p class="text-sm text-gray-400 mt-1">按照设定的时间周期自动检查并发送</p>
+                            </div>
+                        </label>
+                        
+                        <!-- 手动触发 -->
+                        <label class="flex items-start gap-3 p-4 bg-gray-700/30 border-2 border-gray-700 rounded-xl cursor-pointer hover:border-gray-600">
+                            <input type="radio" name="trigger_type" class="mt-1">
+                            <div>
+                                <span class="font-medium">✋ 手动使用</span>
+                                <p class="text-sm text-gray-400 mt-1">用户在撰写邮件时选择此模板发送</p>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- 发送给谁 -->
+                <div>
+                    <h4 class="font-medium mb-3">发送给谁</h4>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-3 p-3 bg-gray-900/50 rounded-lg cursor-pointer hover:bg-gray-700/50">
+                            <input type="radio" name="send_to" checked>
+                            <div>
+                                <span class="font-medium">触发事件的用户本人</span>
+                                <p class="text-xs text-gray-400">邮件将发送到触发此事件的用户邮箱</p>
+                            </div>
+                        </label>
+                        <label class="flex items-center gap-3 p-3 bg-gray-900/50 rounded-lg cursor-pointer hover:bg-gray-700/50">
+                            <input type="radio" name="send_to">
+                            <div class="flex-1">
+                                <span class="font-medium">指定邮箱</span>
+                                <input type="email" placeholder="admin@example.com" class="mt-2 w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-sm" disabled>
+                            </div>
+                        </label>
+                        <label class="flex items-center gap-3 p-3 bg-gray-900/50 rounded-lg cursor-pointer hover:bg-gray-700/50">
+                            <input type="radio" name="send_to">
+                            <span class="font-medium">系统管理员</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- 高级设置 -->
+                <details class="group">
+                    <summary class="font-medium cursor-pointer flex items-center gap-2">
+                        <span class="group-open:rotate-90 transition-transform">▶</span>
+                        高级设置
+                    </summary>
+                    <div class="mt-3 p-4 bg-gray-900/50 rounded-xl space-y-4">
+                        <label class="flex items-center gap-3">
+                            <input type="checkbox">
+                            <div>
+                                <span>设置冷却时间（避免重复发送）</span>
+                                <div class="flex items-center gap-2 mt-2">
+                                    <span class="text-sm text-gray-400">冷却时间：</span>
+                                    <input type="number" value="24" class="w-20 px-3 py-1 bg-gray-800 border border-gray-600 rounded text-sm">
+                                    <span class="text-sm text-gray-400">小时</span>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                </details>
+                
+                <!-- 可用变量预览 -->
+                <div class="p-4 bg-green-900/20 border border-green-800/50 rounded-xl">
+                    <h4 class="font-medium text-green-400 mb-3">📌 此事件触发时可用的变量：</h4>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div class="flex items-center gap-2">
+                            <code class="bg-gray-800 px-2 py-1 rounded">{{user_name}}</code>
+                            <span class="text-gray-400">用户名</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <code class="bg-gray-800 px-2 py-1 rounded">{{user_email}}</code>
+                            <span class="text-gray-400">用户邮箱</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <code class="bg-gray-800 px-2 py-1 rounded">{{register_time}}</code>
+                            <span class="text-gray-400">注册时间</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <code class="bg-gray-800 px-2 py-1 rounded">{{login_url}}</code>
+                            <span class="text-gray-400">登录链接</span>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+            
+            <!-- 底部按钮 -->
+            <div class="flex items-center justify-end gap-3 p-5 border-t border-gray-700">
+                <button onclick="closeTriggerModal()" class="px-5 py-2 text-gray-400 hover:text-gray-200 transition">取消</button>
+                <button class="px-5 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition font-medium">保存设置</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ===== 触发配置弹窗：定时触发 ===== -->
+    <div id="scheduleModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 hidden">
+        <div class="bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="flex items-center justify-between p-5 border-b border-gray-700">
+                <h3 class="text-xl font-semibold">⚙️ 触发设置 - 存储空间警告</h3>
+                <button onclick="closeScheduleModal()" class="p-2 hover:bg-gray-700 rounded-lg transition">✕</button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar">
+                
+                <!-- 启用状态 -->
+                <div class="bg-gray-900/50 rounded-xl p-4">
+                    <label class="flex items-center justify-between cursor-pointer">
+                        <div>
+                            <span class="font-medium">启用自动触发</span>
+                            <p class="text-sm text-gray-400 mt-1">开启后，系统将按设定周期检查并发送邮件</p>
+                        </div>
+                        <div class="relative w-12 h-6 bg-green-600 rounded-full">
+                            <div class="absolute top-1 right-1 w-4 h-4 bg-white rounded-full shadow"></div>
+                        </div>
+                    </label>
+                </div>
+                
+                <!-- 触发方式：定时 -->
+                <div>
+                    <h4 class="font-medium mb-3">触发方式</h4>
+                    <div class="p-4 bg-amber-900/20 border-2 border-amber-500/50 rounded-xl">
+                        <div class="flex items-center gap-2 text-amber-400 font-medium mb-3">
+                            <span>⏰</span>
+                            <span>定时触发</span>
+                        </div>
+                        
+                        <!-- 执行周期 -->
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-sm text-gray-400 mb-2 block">执行周期：</label>
+                                <div class="flex gap-2">
+                                    <label class="flex-1 flex items-center justify-center gap-2 p-3 bg-amber-600/20 border border-amber-500/50 rounded-lg cursor-pointer">
+                                        <input type="radio" name="schedule" checked>
+                                        <span>每天</span>
+                                    </label>
+                                    <label class="flex-1 flex items-center justify-center gap-2 p-3 bg-gray-700/50 border border-gray-600 rounded-lg cursor-pointer hover:border-gray-500">
+                                        <input type="radio" name="schedule">
+                                        <span>每周</span>
+                                    </label>
+                                    <label class="flex-1 flex items-center justify-center gap-2 p-3 bg-gray-700/50 border border-gray-600 rounded-lg cursor-pointer hover:border-gray-500">
+                                        <input type="radio" name="schedule">
+                                        <span>每月</span>
+                                    </label>
+                                    <label class="flex-1 flex items-center justify-center gap-2 p-3 bg-gray-700/50 border border-gray-600 rounded-lg cursor-pointer hover:border-gray-500">
+                                        <input type="radio" name="schedule">
+                                        <span>间隔</span>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="text-sm text-gray-400 mb-2 block">执行时间：</label>
+                                <input type="time" value="09:00" class="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 触发条件 -->
+                <div>
+                    <h4 class="font-medium mb-3">触发条件（满足条件才发送）</h4>
+                    <div class="p-4 bg-gray-900/50 rounded-xl space-y-3">
+                        <div class="flex items-center gap-3">
+                            <select class="px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-sm">
+                                <option>存储使用百分比</option>
+                                <option>邮件数量</option>
+                                <option>最后登录时间</option>
+                            </select>
+                            <select class="px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-sm">
+                                <option>大于</option>
+                                <option>小于</option>
+                                <option>等于</option>
+                            </select>
+                            <input type="number" value="80" class="w-24 px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-sm">
+                            <span class="text-gray-400">%</span>
+                            <button class="p-2 text-red-400 hover:bg-gray-700 rounded">🗑️</button>
+                        </div>
+                        <button class="text-sm text-blue-400 hover:text-blue-300">+ 添加条件</button>
+                    </div>
+                </div>
+                
+                <!-- 发送给谁 -->
+                <div>
+                    <h4 class="font-medium mb-3">发送给谁</h4>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-3 p-3 bg-blue-900/20 border border-blue-500/50 rounded-lg cursor-pointer">
+                            <input type="radio" name="send_to_schedule" checked>
+                            <div>
+                                <span class="font-medium">满足条件的每个用户</span>
+                                <p class="text-xs text-gray-400">系统将检查所有用户，对满足条件的用户发送邮件</p>
+                            </div>
+                        </label>
+                        <label class="flex items-center gap-3 p-3 bg-gray-900/50 rounded-lg cursor-pointer hover:bg-gray-700/50">
+                            <input type="radio" name="send_to_schedule">
+                            <span class="font-medium">系统管理员</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- 冷却时间 -->
+                <div class="p-4 bg-gray-900/50 rounded-xl">
+                    <label class="flex items-center gap-3">
+                        <input type="checkbox" checked>
+                        <div>
+                            <span>设置冷却时间（同一用户在冷却期内不重复发送）</span>
+                            <div class="flex items-center gap-2 mt-2">
+                                <span class="text-sm text-gray-400">冷却时间：</span>
+                                <input type="number" value="24" class="w-20 px-3 py-1 bg-gray-800 border border-gray-600 rounded text-sm">
+                                <span class="text-sm text-gray-400">小时</span>
+                            </div>
+                        </div>
+                    </label>
+                </div>
+                
+            </div>
+            
+            <div class="flex items-center justify-end gap-3 p-5 border-t border-gray-700">
+                <button onclick="closeScheduleModal()" class="px-5 py-2 text-gray-400 hover:text-gray-200 transition">取消</button>
+                <button class="px-5 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition font-medium">保存设置</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ===== 页面二：ComposeModal 模板选择 ===== -->
+    <div class="p-8 mt-8 border-t border-gray-700">
+        <h2 class="text-xl font-bold mb-6">📝 撰写邮件（带模板选择）</h2>
+        
+        <div class="bg-gray-800 rounded-2xl shadow-xl max-w-3xl">
+            <!-- 标题栏 -->
+            <div class="flex items-center justify-between p-4 border-b border-gray-700">
+                <h3 class="font-semibold">新邮件</h3>
+                <button class="p-2 hover:bg-gray-700 rounded-lg">✕</button>
+            </div>
+            
+            <!-- 内容区 -->
+            <div class="p-4 space-y-4">
+                
+                <!-- 模板选择器 -->
+                <div class="relative">
+                    <button id="templateBtn" onclick="toggleTemplateDropdown()" class="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition text-sm">
+                        📋 使用模板
+                        <span>▼</span>
+                    </button>
+                    
+                    <!-- 下拉菜单 -->
+                    <div id="templateDropdown" class="hidden absolute top-full left-0 mt-2 w-80 bg-gray-700 border border-gray-600 rounded-xl shadow-xl z-10">
+                        <div class="p-2 border-b border-gray-600">
+                            <input type="text" placeholder="搜索模板..." class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-sm">
+                        </div>
+                        <div class="max-h-64 overflow-y-auto custom-scrollbar p-2">
+                            <!-- 财务通知 -->
+                            <div class="mb-2">
+                                <div class="px-3 py-1 text-xs text-gray-400 font-medium">📄 财务通知</div>
+                                <button onclick="selectTemplate('invoice')" class="w-full text-left px-3 py-2 hover:bg-gray-600 rounded-lg text-sm">
+                                    📧 发票开具通知
+                                </button>
+                                <button class="w-full text-left px-3 py-2 hover:bg-gray-600 rounded-lg text-sm">
+                                    📧 付款到账通知
+                                </button>
+                            </div>
+                            <!-- 人事通知 -->
+                            <div class="mb-2">
+                                <div class="px-3 py-1 text-xs text-gray-400 font-medium">👥 人事通知</div>
+                                <button class="w-full text-left px-3 py-2 hover:bg-gray-600 rounded-lg text-sm">
+                                    📧 新员工入职欢迎
+                                </button>
+                                <button class="w-full text-left px-3 py-2 hover:bg-gray-600 rounded-lg text-sm">
+                                    📧 假期审批通知
+                                </button>
+                            </div>
+                            <!-- 营销推广 -->
+                            <div>
+                                <div class="px-3 py-1 text-xs text-gray-400 font-medium">📢 营销推广</div>
+                                <button class="w-full text-left px-3 py-2 hover:bg-gray-600 rounded-lg text-sm">
+                                    📧 新品发布通知
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 收件人 -->
+                <div class="flex items-center gap-2">
+                    <span class="text-sm text-gray-400 w-16">收件人</span>
+                    <input type="email" id="toEmail" placeholder="customer@example.com" class="flex-1 px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                </div>
+                
+                <!-- 主题 -->
+                <div class="flex items-center gap-2">
+                    <span class="text-sm text-gray-400 w-16">主题</span>
+                    <input type="text" id="subject" value="您的发票已开具 - {{invoice_number}}" class="flex-1 px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                </div>
+                
+                <!-- 变量填写区（选择模板后显示） -->
+                <div id="variableForm" class="p-4 bg-blue-900/20 border border-blue-500/30 rounded-xl">
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="text-blue-400 font-medium">📝 填写模板变量</span>
+                        <button class="ml-auto text-sm text-gray-400 hover:text-gray-200">清空模板</button>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-sm text-gray-400 mb-1 block">
+                                客户名称 <span class="text-red-400">*</span>
+                            </label>
+                            <input type="text" placeholder="如：张三" class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-sm">
+                        </div>
+                        <div>
+                            <label class="text-sm text-gray-400 mb-1 block">
+                                发票号码 <span class="text-red-400">*</span>
+                            </label>
+                            <input type="text" placeholder="如：FP-2024-001234" class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-sm">
+                        </div>
+                        <div>
+                            <label class="text-sm text-gray-400 mb-1 block">
+                                发票金额 <span class="text-red-400">*</span>
+                            </label>
+                            <input type="number" placeholder="如：12800.00" class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-sm">
+                        </div>
+                        <div>
+                            <label class="text-sm text-gray-400 mb-1 block">
+                                开票日期 <span class="text-red-400">*</span>
+                            </label>
+                            <input type="date" class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-sm">
+                        </div>
+                        <div class="col-span-2">
+                            <label class="text-sm text-gray-400 mb-1 block">
+                                下载链接 <span class="text-red-400">*</span>
+                            </label>
+                            <input type="url" placeholder="https://..." class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-sm">
+                        </div>
+                        <div class="col-span-2">
+                            <label class="text-sm text-gray-400 mb-1 block">备注</label>
+                            <input type="text" placeholder="可选" class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-sm">
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 flex justify-center">
+                        <button class="px-4 py-2 text-sm text-blue-400 hover:text-blue-300 border border-blue-500/50 rounded-lg hover:bg-blue-900/30 transition">
+                            👁️ 预览效果
+                        </button>
+                    </div>
+                </div>
+                
+            </div>
+            
+            <!-- 底部工具栏 -->
+            <div class="flex items-center justify-between p-4 border-t border-gray-700">
+                <div class="flex items-center gap-2">
+                    <button class="p-2 text-gray-400 hover:text-gray-200 hover:bg-gray-700 rounded-lg">📎</button>
+                </div>
+                <button class="flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition">
+                    ✈️ 发送
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 模板下拉菜单
+        function toggleTemplateDropdown() {
+            document.getElementById('templateDropdown').classList.toggle('hidden');
+        }
+        
+        function selectTemplate(type) {
+            document.getElementById('templateDropdown').classList.add('hidden');
+            document.getElementById('variableForm').classList.remove('hidden');
+            if (type === 'invoice') {
+                document.getElementById('subject').value = '您的发票已开具 - {{invoice_number}}';
+            }
+        }
+        
+        // 触发配置弹窗
+        function openTriggerModal() {
+            document.getElementById('triggerModal').classList.remove('hidden');
+        }
+        function closeTriggerModal() {
+            document.getElementById('triggerModal').classList.add('hidden');
+        }
+        
+        // 定时触发弹窗
+        function openScheduleModal() {
+            document.getElementById('scheduleModal').classList.remove('hidden');
+        }
+        function closeScheduleModal() {
+            document.getElementById('scheduleModal').classList.add('hidden');
+        }
+        
+        // 手动触发弹窗
+        function openManualModal() {
+            alert('手动触发模板设置：\n- 允许用户在撰写邮件时选择此模板\n- 需要填写变量后发送');
+        }
+    </script>
+    
+</body>
+</html>

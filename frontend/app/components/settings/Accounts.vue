@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { User, Plus, Trash2, ToggleLeft, ToggleRight } from 'lucide-vue-next'
+import { User, Plus, Trash2, ToggleLeft, ToggleRight, Mail, RefreshCw, Settings } from 'lucide-vue-next'
 
-const { getMe, getAliases, createAlias, updateAlias, deleteAlias, getSubscriptionStatus } = useApi()
+const { getMe, getAliases, createAlias, updateAlias, deleteAlias, getSubscriptionStatus, getExternalAccounts, createExternalAccount, deleteExternalAccount, testExternalAccount, getProviderPresets } = useApi()
 const config = useConfig()
 
 const loading = ref(true)
@@ -10,12 +10,26 @@ const aliases = ref<Array<{ id: number; alias_email: string; name: string | null
 const loadingAliases = ref(false)
 const subscription = ref<any>(null)
 
+// 外部账号
+const externalAccounts = ref<any[]>([])
+const loadingExternal = ref(false)
+const providers = ref<Record<string, any>>({})
+
 // 添加别名弹窗
 const showAddModal = ref(false)
 const newAliasPrefix = ref('')
 const newAliasName = ref('')
 const addingAlias = ref(false)
 const addError = ref('')
+
+// 添加外部账号弹窗
+const showAddAccountModal = ref(false)
+const newAccount = ref<any>({ email: '', password: '', provider: 'gmail', imap_host: '', imap_port: 993, smtp_host: '', smtp_port: 587 })
+const addingAccount = ref(false)
+const accountError = ref('')
+const testingAccount = ref<number | null>(null)
+
+const isCustomProvider = computed(() => newAccount.value.provider === 'custom')
 
 const loadUser = async () => {
     try {
@@ -43,6 +57,25 @@ const loadSubscription = async () => {
         subscription.value = await getSubscriptionStatus()
     } catch (e) {
         console.error('加载订阅状态失败', e)
+    }
+}
+
+const loadExternalAccounts = async () => {
+    loadingExternal.value = true
+    try {
+        externalAccounts.value = await getExternalAccounts()
+    } catch (e) {
+        console.error('加载外部账号失败', e)
+    } finally {
+        loadingExternal.value = false
+    }
+}
+
+const loadProviders = async () => {
+    try {
+        providers.value = await getProviderPresets()
+    } catch (e) {
+        console.error('加载服务商失败', e)
     }
 }
 
@@ -95,10 +128,62 @@ const canAddAlias = computed(() => {
     return aliases.value.length < limit
 })
 
+const handleAddAccount = async () => {
+    if (!newAccount.value.email || !newAccount.value.password) return
+    if (isCustomProvider.value && (!newAccount.value.imap_host || !newAccount.value.smtp_host)) return
+    addingAccount.value = true
+    accountError.value = ''
+    try {
+        const data: any = { email: newAccount.value.email, password: newAccount.value.password, provider: newAccount.value.provider, username: newAccount.value.email }
+        if (isCustomProvider.value) {
+            data.imap_host = newAccount.value.imap_host
+            data.imap_port = newAccount.value.imap_port
+            data.smtp_host = newAccount.value.smtp_host
+            data.smtp_port = newAccount.value.smtp_port
+        }
+        const result = await createExternalAccount(data)
+        externalAccounts.value.push(result)
+        showAddAccountModal.value = false
+        newAccount.value = { email: '', password: '', provider: 'gmail', imap_host: '', imap_port: 993, smtp_host: '', smtp_port: 587 }
+    } catch (e: any) {
+        accountError.value = e.data?.detail || '添加失败'
+    } finally {
+        addingAccount.value = false
+    }
+}
+
+const handleDeleteAccount = async (id: number) => {
+    try {
+        await deleteExternalAccount(id)
+        externalAccounts.value = externalAccounts.value.filter(a => a.id !== id)
+    } catch (e) {
+        console.error('删除失败', e)
+    }
+}
+
+const handleTestAccount = async (id: number) => {
+    testingAccount.value = id
+    try {
+        const result = await testExternalAccount(id)
+        alert(result.success ? '连接成功！' : `连接失败: ${result.message}`)
+    } catch (e: any) {
+        alert('测试失败: ' + (e.data?.detail || '未知错误'))
+    } finally {
+        testingAccount.value = null
+    }
+}
+
+const getProviderName = (provider: string) => {
+    const names: Record<string, string> = { gmail: 'Gmail', outlook: 'Outlook', icloud: 'iCloud', yahoo: 'Yahoo', qq: 'QQ邮箱', '163': '163邮箱', '126': '126邮箱', yeah: 'Yeah.net', sina: '新浪', aliyun: '阿里云', zoho: 'Zoho', custom: '自定义' }
+    return names[provider] || provider
+}
+
 onMounted(() => {
     loadUser()
     loadAliases()
     loadSubscription()
+    loadExternalAccounts()
+    loadProviders()
 })
 </script>
 
@@ -106,8 +191,8 @@ onMounted(() => {
     <div class="space-y-8">
         <div class="flex justify-between items-center">
             <h2 class="section-title mb-0">多账号管理</h2>
-            <button disabled
-                class="bg-gray-300 dark:bg-gray-700 text-gray-500 px-4 py-2 rounded-lg text-sm cursor-not-allowed flex items-center gap-2">
+            <button @click="showAddAccountModal = true"
+                class="bg-primary text-white px-4 py-2 rounded-lg text-sm hover:bg-primary-hover flex items-center gap-2">
                 <Plus class="w-4 h-4" /> 添加账号
             </button>
         </div>
@@ -125,6 +210,37 @@ onMounted(() => {
                     <div>
                         <div class="font-bold text-gray-900 dark:text-white text-lg">{{ user.display_name || user.email.split('@')[0] }}</div>
                         <div class="text-gray-500">{{ user.email }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 外部邮箱账号 -->
+            <div class="card">
+                <h3 class="font-bold text-gray-900 dark:text-white mb-4">外部邮箱账号</h3>
+                <div v-if="loadingExternal" class="text-sm text-gray-500 p-4 text-center">加载中...</div>
+                <div v-else-if="externalAccounts.length === 0" class="text-sm text-gray-500 italic p-4 bg-gray-50 dark:bg-gray-900 rounded-lg text-center">
+                    暂未添加外部邮箱账号
+                </div>
+                <div v-else class="space-y-2">
+                    <div v-for="account in externalAccounts" :key="account.id"
+                        class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <div class="flex items-center gap-3">
+                            <Mail class="w-5 h-5 text-gray-400" />
+                            <div>
+                                <div class="font-medium text-gray-900 dark:text-white text-sm">{{ account.email }}</div>
+                                <div class="text-xs text-gray-500">{{ getProviderName(account.provider) }}</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button @click="handleTestAccount(account.id)" :disabled="testingAccount === account.id"
+                                class="text-gray-400 hover:text-primary transition-colors p-1" title="测试连接">
+                                <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': testingAccount === account.id }" />
+                            </button>
+                            <button @click="handleDeleteAccount(account.id)"
+                                class="text-gray-400 hover:text-red-500 transition-colors p-1">
+                                <Trash2 class="w-4 h-4" />
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -204,6 +320,80 @@ onMounted(() => {
                     <button @click="handleAddAlias" :disabled="addingAlias || !newAliasPrefix.trim()"
                         class="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary-hover disabled:opacity-50">
                         {{ addingAlias ? '创建中...' : '创建' }}
+                    </button>
+                </div>
+            </div>
+        </CommonModal>
+
+        <!-- 添加外部账号弹窗 -->
+        <CommonModal v-model="showAddAccountModal" title="添加外部邮箱账号">
+            <div class="space-y-4 max-h-96 overflow-y-auto">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">邮箱服务商</label>
+                    <select v-model="newAccount.provider"
+                        class="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none">
+                        <optgroup label="国际邮箱">
+                            <option value="gmail">Gmail</option>
+                            <option value="outlook">Outlook / Hotmail</option>
+                            <option value="icloud">iCloud</option>
+                            <option value="yahoo">Yahoo Mail</option>
+                            <option value="zoho">Zoho Mail</option>
+                        </optgroup>
+                        <optgroup label="国内邮箱">
+                            <option value="qq">QQ 邮箱</option>
+                            <option value="163">网易 163 邮箱</option>
+                            <option value="126">网易 126 邮箱</option>
+                            <option value="yeah">Yeah.net 邮箱</option>
+                            <option value="sina">新浪邮箱</option>
+                            <option value="aliyun">阿里云邮箱</option>
+                        </optgroup>
+                        <optgroup label="其他">
+                            <option value="custom">自定义 IMAP/SMTP</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">邮箱地址</label>
+                    <input v-model="newAccount.email" type="email"
+                        class="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                        placeholder="your@email.com">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">密码/应用专用密码</label>
+                    <input v-model="newAccount.password" type="password"
+                        class="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                        placeholder="请输入密码或应用专用密码">
+                    <p class="text-xs text-gray-500 mt-1">Gmail/Outlook/iCloud 需使用应用专用密码</p>
+                </div>
+                <!-- 自定义服务器配置 -->
+                <template v-if="isCustomProvider">
+                    <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">IMAP 收件服务器</label>
+                        <div class="flex gap-2">
+                            <input v-model="newAccount.imap_host" type="text" placeholder="imap.example.com"
+                                class="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm">
+                            <input v-model.number="newAccount.imap_port" type="number" placeholder="993"
+                                class="w-20 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">SMTP 发件服务器</label>
+                        <div class="flex gap-2">
+                            <input v-model="newAccount.smtp_host" type="text" placeholder="smtp.example.com"
+                                class="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm">
+                            <input v-model.number="newAccount.smtp_port" type="number" placeholder="587"
+                                class="w-20 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm">
+                        </div>
+                    </div>
+                </template>
+                <div v-if="accountError" class="text-red-500 text-sm">{{ accountError }}</div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button @click="showAddAccountModal = false" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm">
+                        取消
+                    </button>
+                    <button @click="handleAddAccount" :disabled="addingAccount || !newAccount.email || !newAccount.password || (isCustomProvider && (!newAccount.imap_host || !newAccount.smtp_host))"
+                        class="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary-hover disabled:opacity-50">
+                        {{ addingAccount ? '添加中...' : '添加' }}
                     </button>
                 </div>
             </div>

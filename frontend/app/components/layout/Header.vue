@@ -1,23 +1,50 @@
 <script setup lang="ts">
-import { Search, Moon, Sun, Settings, Mail, X } from 'lucide-vue-next'
+import { Search, Moon, Sun, Settings, Mail, X, LogOut, Crown, HardDrive } from 'lucide-vue-next'
 const router = useRouter()
 const { isDark, toggleTheme } = useTheme()
 const { search, clearSearch, searchQuery, isSearching } = useEmails()
-const { getMe } = useApi()
+const { getMe, getStorageStats, getSubscriptionStatus, logout } = useApi()
 
 const localQuery = ref('')
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
 // 用户信息
 const user = ref<{ email: string; display_name?: string } | null>(null)
+const storage = ref<{ storage_used_bytes: number; storage_limit_bytes: number } | null>(null)
+const subscription = ref<{ plan_name: string; expires_at: string | null; is_active: boolean; status: string } | null>(null)
+
 onMounted(async () => {
   try {
     user.value = await getMe()
+    storage.value = await getStorageStats()
+    subscription.value = await getSubscriptionStatus()
   } catch (e) {}
 })
 
 // 获取邮箱前缀
 const emailPrefix = computed(() => user.value?.email?.split('@')[0] || '')
+
+// 存储使用百分比
+const storagePercent = computed(() => {
+  if (!storage.value) return 0
+  // 管理员或无限配额
+  if (subscription.value?.status === 'admin' || storage.value.storage_limit_bytes === -1) return 0
+  return Math.round((storage.value.storage_used_bytes / storage.value.storage_limit_bytes) * 100)
+})
+
+// 格式化存储大小
+const formatStorage = (bytes: number) => {
+  if (bytes === -1) return '无限'
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+  if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+  return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB'
+}
+
+// 退出登录
+const handleLogout = () => {
+  logout()
+  router.push('/login')
+}
 
 // 防抖搜索
 const handleInput = () => {
@@ -73,10 +100,79 @@ const handleEnter = () => {
                 class="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-gray-800">
                 <Settings class="w-4 h-4" />
             </button>
-            <div @click="router.push('/settings')" class="flex items-center gap-2 ml-3 cursor-pointer hover:opacity-80 transition-opacity">
-                <span v-if="emailPrefix" class="text-sm font-medium text-gray-700 dark:text-gray-300 hidden sm:block">{{ emailPrefix }}</span>
-                <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 border border-gray-100 dark:border-gray-700 shadow-sm hover:ring-2 hover:ring-primary/20 transition-all flex items-center justify-center text-white text-xs font-bold">
-                    {{ emailPrefix?.[0]?.toUpperCase() || '?' }}
+            
+            <!-- 用户头像 + Hover 下拉卡片 -->
+            <div class="relative group ml-3">
+                <div class="flex items-center gap-2 cursor-pointer">
+                    <span v-if="emailPrefix" class="text-sm font-medium text-gray-700 dark:text-gray-300 hidden sm:block">{{ emailPrefix }}</span>
+                    <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 border border-gray-100 dark:border-gray-700 shadow-sm group-hover:ring-2 group-hover:ring-primary/20 transition-all flex items-center justify-center text-white text-xs font-bold">
+                        {{ emailPrefix?.[0]?.toUpperCase() || '?' }}
+                    </div>
+                </div>
+                
+                <!-- Hover 下拉卡片 -->
+                <div class="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                    <!-- 用户信息 -->
+                    <div class="p-4 border-b border-gray-100 dark:border-gray-700">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-white text-lg font-bold shadow-md">
+                                {{ emailPrefix?.[0]?.toUpperCase() || '?' }}
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="font-bold text-gray-900 dark:text-white truncate">{{ user?.display_name || emailPrefix }}</div>
+                                <div class="text-xs text-gray-500 truncate">{{ user?.email }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 会员状态 -->
+                    <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+                        <div class="flex items-center gap-2 mb-2">
+                            <Crown class="w-4 h-4 text-yellow-500" />
+                            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                {{ subscription?.status === 'admin' ? '管理员无限版' : (subscription?.plan_name || '免费版') }}
+                            </span>
+                            <span v-if="subscription?.status === 'admin'" class="text-[10px] px-1.5 py-0.5 bg-purple-100 text-purple-600 rounded">永久</span>
+                            <span v-else-if="subscription?.is_active" class="text-[10px] px-1.5 py-0.5 bg-green-100 text-green-600 rounded">有效</span>
+                        </div>
+                        <div v-if="subscription?.expires_at" class="text-xs text-gray-500">
+                            到期时间: {{ new Date(subscription.expires_at).toLocaleDateString('zh-CN') }}
+                        </div>
+                        <div v-else-if="subscription?.status === 'admin'" class="text-xs text-gray-500">
+                            尊贵的管理员，您拥有无限资源
+                        </div>
+                    </div>
+                    
+                    <!-- 存储空间 -->
+                    <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center gap-2">
+                                <HardDrive class="w-4 h-4 text-gray-400" />
+                                <span class="text-sm text-gray-600 dark:text-gray-400">存储空间</span>
+                            </div>
+                            <span class="text-xs text-gray-500">
+                                {{ subscription?.status === 'admin' ? '无限' : storagePercent + '%' }}
+                            </span>
+                        </div>
+                        <div v-if="subscription?.status !== 'admin'" class="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                            <div class="h-full bg-primary rounded-full transition-all" :style="{ width: storagePercent + '%' }"></div>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1">
+                            {{ formatStorage(storage?.storage_used_bytes || 0) }} / {{ subscription?.status === 'admin' ? '无限' : formatStorage(storage?.storage_limit_bytes || 0) }}
+                        </div>
+                    </div>
+                    
+                    <!-- 操作按钮 -->
+                    <div class="p-2">
+                        <button @click="router.push('/settings')" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                            <Settings class="w-4 h-4" />
+                            设置
+                        </button>
+                        <button @click="handleLogout" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
+                            <LogOut class="w-4 h-4" />
+                            退出登录
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

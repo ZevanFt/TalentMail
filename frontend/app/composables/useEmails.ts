@@ -355,11 +355,17 @@ export const useEmails = () => {
     }
   }
 
+  // 当前选中的标签名称
+  const currentTagName = useState<string | null>('currentTagName', () => null)
+
   // 加载标签下的邮件
   const loadEmailsByTag = async (tagId: number) => {
     selectedEmailId.value = null
     selectedEmailDetail.value = null
     loading.value = true
+    // 设置当前标签名称
+    const tag = tags.value.find(t => t.id === tagId)
+    currentTagName.value = tag?.name || null
     try {
       const res = await getEmailsByTag(tagId)
       emails.value = res.items
@@ -472,7 +478,7 @@ export const useEmails = () => {
 
   return {
     emails, folders, tags, currentFolderId, selectedEmailId, selectedEmailDetail,
-    loading, syncing, currentFilter, composeState, searchQuery, isSearching,
+    loading, syncing, currentFilter, composeState, searchQuery, isSearching, currentTagName,
     loadFolders, loadTags, loadEmails, loadEmailDetail, loadFilteredEmails, loadSnoozedEmails, loadAllEmails, loadEmailsByTag,
     sync, formatTime, toggleRead, toggleStar, snooze, removeEmail, addTag, removeTag,
     startReply, startReplyAll, startForward, editDraft, resetCompose, search, clearSearch,

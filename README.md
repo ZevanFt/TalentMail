@@ -228,35 +228,152 @@ talentmail/
 
 ## 🔧 常用命令
 
+### 开发环境
+
 ```bash
-# 开发环境
-./dev.sh                                    # 启动开发环境
-docker compose -f docker-compose.dev.yml logs -f backend  # 查看后端日志
-docker compose -f docker-compose.dev.yml down             # 停止服务
+# 启动开发环境 (推荐)
+./dev.sh
 
-# 生产环境
-./deploy.sh                                 # 部署/更新
-docker compose logs -f                      # 查看所有日志
-docker compose logs -f mailserver           # 查看邮件服务日志
+# 手动启动
+docker compose -f docker-compose.dev.yml up -d --build
 
-# 数据库
-docker compose exec backend alembic upgrade head          # 运行迁移
-docker compose exec backend python -m initial.initial_data  # 初始化数据
+# 查看服务状态
+docker compose -f docker-compose.dev.yml ps
+
+# 查看日志
+docker compose -f docker-compose.dev.yml logs -f           # 所有服务
+docker compose -f docker-compose.dev.yml logs -f backend   # 后端日志
+docker compose -f docker-compose.dev.yml logs -f frontend  # 前端日志
+docker compose -f docker-compose.dev.yml logs -f db        # 数据库日志
+
+# 重启单个服务
+docker compose -f docker-compose.dev.yml restart backend
+docker compose -f docker-compose.dev.yml restart frontend
+
+# 停止服务
+docker compose -f docker-compose.dev.yml down
+
+# 停止并删除数据卷 (清空数据库)
+docker compose -f docker-compose.dev.yml down -v
+```
+
+### 生产环境
+
+```bash
+# 部署/更新
+./deploy.sh
+
+# 查看日志
+docker compose logs -f                      # 所有日志
+docker compose logs -f mailserver           # 邮件服务日志
+
+# 重启服务
+docker compose restart backend
+```
+
+### 数据库管理
+
+```bash
+# 运行数据库迁移
+docker compose -f docker-compose.dev.yml exec backend alembic upgrade head
+
+# 初始化数据 (首次部署后执行)
+docker compose -f docker-compose.dev.yml exec backend python -m initial.initial_data
+
+# 初始化模板数据
+docker compose -f docker-compose.dev.yml exec backend python -c "from db.database import SessionLocal; from initial.init_template_data import init_template_data; db = SessionLocal(); init_template_data(db); db.close()"
+```
+
+### 清理空间
+
+```bash
+# 清理 Docker 缓存 (释放磁盘空间)
+docker system prune -af --volumes
+docker builder prune -af
+```
+
+---
+
+## 🚨 故障排除
+
+### 数据库连接失败 / 登录失败
+
+1. **检查服务状态**
+   ```bash
+   docker compose -f docker-compose.dev.yml ps
+   ```
+   确保 db 服务显示 `healthy`。
+
+2. **如果数据库显示 `unhealthy`**，可能是磁盘空间不足：
+   ```bash
+   # 检查磁盘空间
+   df -h /
+   
+   # 清理 Docker 缓存
+   docker system prune -af --volumes
+   docker builder prune -af
+   
+   # 重启数据库
+   docker compose -f docker-compose.dev.yml restart db
+   
+   # 等待几秒后重启后端
+   sleep 5 && docker compose -f docker-compose.dev.yml restart backend
+   ```
+
+3. **查看数据库日志**
+   ```bash
+   docker compose -f docker-compose.dev.yml logs db --tail 50
+   ```
+
+### 邮件模板加载失败
+
+如果管理员页面显示"加载失败"，运行模板初始化：
+```bash
+docker compose -f docker-compose.dev.yml exec backend python -c "
+from db.database import SessionLocal
+from initial.init_template_data import init_template_data
+db = SessionLocal()
+init_template_data(db)
+db.close()
+print('模板数据初始化完成')
+"
+```
+
+### 前端页面无法访问
+
+```bash
+# 检查前端服务
+docker compose -f docker-compose.dev.yml logs frontend --tail 20
+
+# 重新构建前端
+docker compose -f docker-compose.dev.yml up -d --build frontend
 ```
 
 ---
 
 ## 📊 功能完成度
 
-| 模块 | 状态 |
-|------|------|
-| 核心邮件功能 | ✅ 100% |
-| 高级邮件功能 | ✅ 100% |
-| 附件功能 | ✅ 100% |
-| 会员订阅 | ✅ 100% |
-| 用户系统 | ✅ 83% |
-| 账号池 | ✅ 100% |
-| 设置页面 | 🔄 70% |
+| 模块 | 状态 | 说明 |
+|------|------|------|
+| 核心邮件功能 | ✅ 100% | SMTP/IMAP 收发、附件、搜索 |
+| 高级邮件功能 | ✅ 100% | 邮件追踪、草稿、回复转发 |
+| 附件功能 | ✅ 100% | 上传、下载、预览 |
+| 会员订阅 | ✅ 100% | 套餐管理、兑换码 |
+| 用户系统 | ✅ 90% | 登录、注册、2FA、设备管理 |
+| 账号池 | ✅ 100% | 临时邮箱、验证码识别 |
+| 邮件模板系统 | ✅ 100% | 可视化编辑、变量插入、测试发送 |
+| 自动化规则 | ✅ 100% | 规则引擎、条件匹配、动作执行 |
+| 设置页面 | 🔄 80% | 部分功能待完善 |
+
+### 待完善功能
+
+| 功能 | 优先级 | 说明 |
+|------|--------|------|
+| 多账号管理 | 🔴 高 | 集成外部 IMAP/SMTP 账号 |
+| 邮件别名 | 🔴 高 | 创建和管理邮件别名 |
+| 黑名单管理 | 🟡 中 | 屏蔽发件人完整实现 |
+| 自动清理策略 | 🟡 中 | 后端 API 持久化 |
+| 角色权限系统 | 🟢 低 | 阶段三规划 |
 
 ---
 

@@ -34,16 +34,18 @@ const techStack = [
       </div>
     </div>
 
-    <!-- Logo 和版本信息 -->
+    <!-- 产品信息 -->
     <div class="bg-white dark:bg-bg-panelDark rounded-2xl border border-gray-100 dark:border-border-dark p-8">
-      <div class="flex flex-col items-center text-center">
-        <img src="/logo.png" alt="Talenting Logo" class="h-16 mb-4" />
-        <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">TalentMail</h3>
-        <p class="text-gray-500 dark:text-gray-400 mb-4">一个功能完整、安全可靠的企业级邮件解决方案</p>
-        <div class="flex items-center gap-4 text-sm text-gray-400">
-          <span>版本 {{ version }}</span>
-          <span>•</span>
-          <span>© {{ buildDate }} Talenting</span>
+      <div class="flex items-center gap-6">
+        <img src="/logo.png" alt="Talenting Logo" class="h-24 shrink-0" />
+        <div>
+          <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-1">TalentMail</h3>
+          <p class="text-gray-500 dark:text-gray-400 mb-3">一个功能完整、安全可靠的企业级邮件解决方案</p>
+          <div class="flex items-center gap-4 text-sm text-gray-400">
+            <span>版本 {{ version }}</span>
+            <span>•</span>
+            <span>© {{ buildDate }} Talenting</span>
+          </div>
         </div>
       </div>
     </div>

@@ -8,8 +8,9 @@ import {
 
 const { isComposeOpen } = useGlobalModal()
 const { folders, currentFolderId, loadEmails, loadFolders, loadFilteredEmails, loadSnoozedEmails, loadAllEmails, currentFilter } = useEmails()
-const { token, getTags, createTag, updateTag, deleteTag } = useApi()
+const { token, getTags, createTag, updateTag, deleteTag, getExternalAccounts, createExternalAccount } = useApi()
 const route = useRoute()
+const router = useRouter()
 
 const isOpen = reactive({ more: false, tags: true, center: true, tools: true })
 const toggle = (key: keyof typeof isOpen) => { isOpen[key] = !isOpen[key] }
@@ -24,6 +25,44 @@ const tagColors = ['#3B82F6', '#EF4444', '#F59E0B', '#10B981', '#8B5CF6', '#EC48
 
 const loadTags = async () => {
   try { tags.value = await getTags() } catch {}
+}
+
+// 外部邮箱账号
+const externalAccounts = ref<any[]>([])
+const loadExternalAccounts = async () => {
+  try { externalAccounts.value = await getExternalAccounts() } catch {}
+}
+
+// 添加外部账号弹窗
+const showAddAccountModal = ref(false)
+const newAccount = ref<any>({ email: '', password: '', provider: 'gmail', imap_host: '', imap_port: 993, smtp_host: '', smtp_port: 587 })
+const addingAccount = ref(false)
+const accountError = ref('')
+
+const isCustomProvider = computed(() => newAccount.value.provider === 'custom')
+
+const handleAddAccount = async () => {
+  if (!newAccount.value.email || !newAccount.value.password) return
+  if (isCustomProvider.value && (!newAccount.value.imap_host || !newAccount.value.smtp_host)) return
+  addingAccount.value = true
+  accountError.value = ''
+  try {
+    const data: any = { email: newAccount.value.email, password: newAccount.value.password, provider: newAccount.value.provider, username: newAccount.value.email }
+    if (isCustomProvider.value) {
+      data.imap_host = newAccount.value.imap_host
+      data.imap_port = newAccount.value.imap_port
+      data.smtp_host = newAccount.value.smtp_host
+      data.smtp_port = newAccount.value.smtp_port
+    }
+    const result = await createExternalAccount(data)
+    externalAccounts.value.push(result)
+    showAddAccountModal.value = false
+    newAccount.value = { email: '', password: '', provider: 'gmail', imap_host: '', imap_port: 993, smtp_host: '', smtp_port: 587 }
+  } catch (e: any) {
+    accountError.value = e.data?.detail || '添加失败'
+  } finally {
+    addingAccount.value = false
+  }
 }
 
 const openTagModal = (tag?: TagItem) => {
@@ -109,8 +148,13 @@ const selectedVirtualId = useState<string | null>('selectedVirtualId', () => nul
 const selectedTagId = useState<number | null>('selectedTagId', () => null)
 
 // 切换文件夹
-const selectFolder = (folder: any) => {
+const selectFolder = async (folder: any) => {
   selectedTagId.value = null // 清除标签选中状态
+  
+  // 如果不在首页，先导航回首页
+  if (route.path !== '/') {
+    await router.push('/')
+  }
   
   if (folder.id === 'snoozed') {
     // 待办邮件
@@ -133,7 +177,11 @@ const selectFolder = (folder: any) => {
 
 // 切换标签
 const { loadEmailsByTag } = useEmails()
-const selectTag = (tag: TagItem) => {
+const selectTag = async (tag: TagItem) => {
+  // 如果不在首页，先导航回首页
+  if (route.path !== '/') {
+    await router.push('/')
+  }
   selectedVirtualId.value = null
   selectedTagId.value = tag.id
   loadEmailsByTag(tag.id)
@@ -153,7 +201,10 @@ onMounted(async () => {
   if (token.value && folders.value.length === 0) {
     await loadFolders()
   }
-  if (token.value) await loadTags()
+  if (token.value) {
+    await loadTags()
+    await loadExternalAccounts()
+  }
 })
 
 const tools = [
@@ -254,21 +305,21 @@ const isActive = (path: string) => route.path === path
 
         <Transition name="slide">
           <div v-if="isOpen.center" class="overflow-hidden pt-1 space-y-0.5">
-            <div
+            <div v-for="account in externalAccounts" :key="account.id"
               class="ml-9 mr-2 bg-blue-50/60 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800 rounded-lg p-2.5 mb-1 group cursor-pointer hover:border-blue-300 dark:hover:border-blue-700 transition-colors min-w-0">
               <div class="flex items-center justify-between mb-1">
-                <span class="text-[10px] text-gray-500 font-medium">代收中</span>
-                <RotateCw class="w-3 h-3 text-blue-500 animate-spin-slow shrink-0" />
+                <span class="text-[10px] text-gray-500 font-medium">{{ account.is_active ? '代收中' : '已停用' }}</span>
+                <RotateCw v-if="account.is_active" class="w-3 h-3 text-blue-500 animate-spin-slow shrink-0" />
               </div>
               <div class="flex items-center gap-2">
-                <div class="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0"></div>
-                <div class="text-xs font-bold text-gray-700 dark:text-gray-200 truncate" title="my.gmail@gmail.com">
-                  my.gmail@...
+                <div class="w-1.5 h-1.5 rounded-full shrink-0" :class="account.is_active ? 'bg-green-500' : 'bg-gray-400'"></div>
+                <div class="text-xs font-bold text-gray-700 dark:text-gray-200 truncate" :title="account.email">
+                  {{ account.email.length > 15 ? account.email.slice(0, 12) + '...' : account.email }}
                 </div>
               </div>
             </div>
 
-            <button class="sub-item text-gray-500 hover:text-primary">
+            <button @click="showAddAccountModal = true" class="sub-item text-gray-500 hover:text-primary">
               <PlusCircle class="w-4 h-4 shrink-0" />
               <span class="truncate">添加其他邮箱</span>
             </button>
@@ -325,6 +376,77 @@ const isActive = (path: string) => route.path === path
           <div class="flex-1"></div>
           <button @click="showTagModal = false" class="px-3 py-1.5 text-gray-500 hover:bg-gray-100 rounded-lg text-sm">取消</button>
           <button @click="saveTag" class="px-3 py-1.5 bg-primary text-white rounded-lg text-sm">保存</button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
+  <!-- 添加外部账号弹窗 -->
+  <Teleport to="body">
+    <div v-if="showAddAccountModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showAddAccountModal = false">
+      <div class="bg-white dark:bg-gray-800 rounded-lg p-5 w-96 shadow-xl">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="font-bold text-gray-900 dark:text-white">添加外部邮箱</h3>
+          <button @click="showAddAccountModal = false"><X class="w-4 h-4" /></button>
+        </div>
+        <div class="space-y-3 max-h-80 overflow-y-auto">
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">邮箱服务商</label>
+            <select v-model="newAccount.provider" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm">
+              <optgroup label="国际邮箱">
+                <option value="gmail">Gmail</option>
+                <option value="outlook">Outlook / Hotmail</option>
+                <option value="icloud">iCloud</option>
+                <option value="yahoo">Yahoo Mail</option>
+                <option value="zoho">Zoho Mail</option>
+              </optgroup>
+              <optgroup label="国内邮箱">
+                <option value="qq">QQ 邮箱</option>
+                <option value="163">网易 163 邮箱</option>
+                <option value="126">网易 126 邮箱</option>
+                <option value="yeah">Yeah.net 邮箱</option>
+                <option value="sina">新浪邮箱</option>
+                <option value="aliyun">阿里云邮箱</option>
+              </optgroup>
+              <optgroup label="其他">
+                <option value="custom">自定义 IMAP/SMTP</option>
+              </optgroup>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">邮箱地址</label>
+            <input v-model="newAccount.email" type="email" placeholder="your@email.com" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">密码/应用专用密码</label>
+            <input v-model="newAccount.password" type="password" placeholder="请输入密码" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm" />
+            <p class="text-[10px] text-gray-400 mt-1">Gmail/Outlook/iCloud 需使用应用专用密码</p>
+          </div>
+          <!-- 自定义服务器配置 -->
+          <template v-if="isCustomProvider">
+            <div class="border-t pt-3 mt-2">
+              <p class="text-xs text-gray-500 mb-2 font-medium">IMAP 收件服务器</p>
+              <div class="flex gap-2">
+                <input v-model="newAccount.imap_host" type="text" placeholder="imap.example.com" class="flex-1 px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm" />
+                <input v-model.number="newAccount.imap_port" type="number" placeholder="993" class="w-20 px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm" />
+              </div>
+            </div>
+            <div>
+              <p class="text-xs text-gray-500 mb-2 font-medium">SMTP 发件服务器</p>
+              <div class="flex gap-2">
+                <input v-model="newAccount.smtp_host" type="text" placeholder="smtp.example.com" class="flex-1 px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm" />
+                <input v-model.number="newAccount.smtp_port" type="number" placeholder="587" class="w-20 px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm" />
+              </div>
+            </div>
+          </template>
+          <div v-if="accountError" class="text-red-500 text-xs">{{ accountError }}</div>
+        </div>
+        <div class="flex gap-2 mt-4">
+          <div class="flex-1"></div>
+          <button @click="showAddAccountModal = false" class="px-3 py-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-sm">取消</button>
+          <button @click="handleAddAccount" :disabled="addingAccount || !newAccount.email || !newAccount.password || (isCustomProvider && (!newAccount.imap_host || !newAccount.smtp_host))" class="px-3 py-1.5 bg-primary text-white rounded-lg text-sm disabled:opacity-50">
+            {{ addingAccount ? '添加中...' : '添加' }}
+          </button>
         </div>
       </div>
     </div>

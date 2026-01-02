@@ -285,8 +285,18 @@ const downloadAttachment = (id: number) => {
               {{ selectedEmailDetail.subject }}
             </h1>
             
-            <!-- 标签管理 -->
+            <!-- 验证码快速复制 + 标签管理 -->
             <div class="flex items-center gap-2 shrink-0">
+              <!-- 验证码复制按钮 -->
+              <button v-if="detectedCode" @click="copyCode"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+                :class="codeCopied
+                  ? 'bg-green-500 text-white'
+                  : 'bg-gradient-to-r from-primary to-purple-500 text-white hover:shadow-md'">
+                <Check v-if="codeCopied" class="w-3.5 h-3.5" />
+                <Copy v-else class="w-3.5 h-3.5" />
+                <span class="font-mono tracking-wider">{{ detectedCode }}</span>
+              </button>
               <!-- 已有标签 -->
               <div v-for="tag in selectedEmailDetail.tags" :key="tag.id"
                 class="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border"
@@ -419,22 +429,6 @@ const downloadAttachment = (id: number) => {
           </template>
         </div>
       </div>
-
-      <!-- 验证码快速复制按钮 -->
-      <Transition name="slide-up">
-        <div v-if="detectedCode" class="absolute bottom-6 left-8 z-20">
-          <button @click="copyCode"
-            class="flex items-center gap-2 px-4 py-2 rounded-full shadow-lg transition-all text-sm font-medium"
-            :class="codeCopied
-              ? 'bg-green-500 text-white shadow-green-500/30'
-              : 'bg-gradient-to-r from-primary to-purple-500 text-white shadow-primary/30 hover:shadow-primary/50 hover:-translate-y-0.5'">
-            <Check v-if="codeCopied" class="w-4 h-4" />
-            <Copy v-else class="w-4 h-4" />
-            <span class="font-mono tracking-wider">{{ detectedCode }}</span>
-            <span class="text-white/80">{{ codeCopied ? '已复制' : '点击复制' }}</span>
-          </button>
-        </div>
-      </Transition>
 
       <!-- 底部浮动栏 -->
       <div class="absolute bottom-6 right-8 flex gap-3 z-20">

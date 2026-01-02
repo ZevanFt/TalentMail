@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Paperclip, Send, Loader2, Eye, X } from 'lucide-vue-next'
+import { Paperclip, Send, Loader2, Eye, X, FileText } from 'lucide-vue-next'
+import TemplateSelector from './TemplateSelector.vue'
 
 const { isComposeOpen } = useGlobalModal()
 const { sendEmail, saveDraft, updateDraft, deleteDraft, getDefaultSignature, uploadAttachment, deleteAttachment } = useApi()
@@ -26,6 +27,10 @@ const defaultSignature = ref('')
 const attachments = ref<UploadedFile[]>([])
 const uploading = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
+
+// 模板选择状态
+const showTemplateSelector = ref(false)
+const appliedTemplate = ref<any>(null)
 
 // 加载默认签名
 const loadDefaultSignature = async () => {
@@ -304,6 +309,33 @@ watch(() => composeState.value, (state) => {
     }
   }
 }, { immediate: true })
+
+// 处理模板选择
+const handleTemplateSelect = (data: {
+  template: any
+  metadata: any
+  variables: Record<string, string>
+  renderedSubject: string
+  renderedBody: string
+}) => {
+  // 应用模板到邮件
+  subject.value = data.renderedSubject
+  // 保留签名，在模板内容后追加
+  const sig = defaultSignature.value ? '\n\n' + defaultSignature.value : ''
+  // 将 HTML 转换为纯文本（简单处理）
+  const plainText = data.renderedBody
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<[^>]+>/g, '')
+    .trim()
+  body.value = plainText + sig
+  appliedTemplate.value = data.template
+  showTemplateSelector.value = false
+}
+
+const handleTemplateClear = () => {
+  appliedTemplate.value = null
+}
 </script>
 
 <template>
@@ -322,6 +354,18 @@ watch(() => composeState.value, (state) => {
 
   <CommonModal v-model="isComposeOpen" :title="modalTitle" widthClass="w-full max-w-3xl" :before-close="beforeClose">
     <div class="space-y-3">
+      <!-- 模板选择区 -->
+      <div class="flex items-center gap-4 pb-3 border-b border-gray-200 dark:border-gray-700">
+        <TemplateSelector
+          @select="handleTemplateSelect"
+          @clear="handleTemplateClear"
+        />
+        <div v-if="appliedTemplate" class="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
+          <FileText class="w-4 h-4" />
+          <span>已应用: {{ appliedTemplate.name }}</span>
+        </div>
+      </div>
+      
       <div v-if="error" class="text-red-500 text-sm">{{ error }}</div>
       <div class="flex items-center gap-2">
         <input v-model="recipients" type="text" placeholder="收件人 (多个用逗号分隔)" class="flex-1 px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">

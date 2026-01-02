@@ -238,8 +238,14 @@ onMounted(loadSettings)
                 </div>
                 <div class="mt-4 space-y-4">
                     <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                        <div class="text-sm font-medium dark:text-white">启用 IMAP 服务</div>
-                        <div class="text-green-500 text-sm font-bold">已开启</div>
+                        <div>
+                            <div class="text-sm font-medium dark:text-white">IMAP / SMTP 服务</div>
+                            <div class="text-xs text-gray-500 mt-0.5">系统默认开启，支持所有标准邮件客户端</div>
+                        </div>
+                        <div class="flex items-center gap-2 text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400 px-3 py-1 rounded-full text-xs font-medium">
+                            <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                            运行中
+                        </div>
                     </div>
                     <div class="text-xs text-gray-500 font-mono bg-gray-100 dark:bg-gray-900 p-3 rounded select-all">
                         IMAP Server: {{ mailServer }} (Port: 993)<br>

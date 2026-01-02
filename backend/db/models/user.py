@@ -42,6 +42,9 @@ class User(Base):
     auto_archive_old = Column(Boolean, default=False, comment="是否自动归档旧邮件（1年）")
     role = Column(String, default="user", comment="用户角色 ('admin' 或 'user')")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="用户账户创建时间")
+    
+    # 关系
+    automation_rules = relationship("AutomationRule", back_populates="owner", cascade="all, delete-orphan")
 
 
 class UserSession(Base):

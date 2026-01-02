@@ -348,6 +348,87 @@ export const useApi = () => {
   const deleteEmailTemplate = (id: number) => api<any>(`/email-templates/${id}`, 'DELETE')
   const previewEmailTemplate = (id: number, variables: Record<string, string>) =>
     api<{ subject: string; body_html: string; body_text: string }>(`/email-templates/${id}/preview`, 'POST', variables)
+  const sendTestEmail = (id: number, toEmail: string, variables: Record<string, string>) =>
+    api<{ status: string; message: string }>(`/email-templates/${id}/test`, 'POST', { to_email: toEmail, variables })
+
+  // Template Metadata APIs (模板元数据)
+  interface TemplateVariable {
+    key: string
+    label: string
+    type: string
+    example: string
+    required: boolean
+  }
+  interface TemplateMetadata {
+    id: number
+    code: string
+    name: string
+    category: string
+    description: string | null
+    trigger_description: string | null
+    variables: TemplateVariable[]
+    default_subject: string
+    default_body_html: string
+    default_body_text: string | null
+    is_system: boolean
+    sort_order: number
+  }
+  interface GlobalVariable {
+    id: number
+    key: string
+    label: string
+    value: string
+    value_type: string
+    description: string | null
+  }
+  const getTemplateMetadataList = (category?: string) => {
+    let url = '/email-templates/metadata'
+    if (category) url += `?category=${category}`
+    return api<TemplateMetadata[]>(url)
+  }
+  const getTemplateMetadata = (code: string) => api<TemplateMetadata>(`/email-templates/metadata/${code}`)
+  const getGlobalVariables = () => api<GlobalVariable[]>('/email-templates/global-variables')
+  const updateGlobalVariable = (id: number, value: string) => api<GlobalVariable>(`/email-templates/global-variables/${id}`, 'PUT', { value })
+  const resetTemplateToDefault = (id: number) => api<EmailTemplate>(`/email-templates/${id}/reset`, 'POST')
+  
+  // 模板手动发送
+  const sendTemplateEmail = (id: number, data: { to: string; cc?: string; variables: Record<string, any> }) =>
+    api<{ success: boolean; message: string; template_code: string; recipient: string }>(`/email-templates/${id}/send`, 'POST', data)
+  
+  // 模板触发规则管理
+  interface SystemEvent {
+    value: string
+    label: string
+    category: string
+    category_label: string
+    description: string
+    variables: string[]
+  }
+  interface TemplateTriggerRule {
+    id: number
+    name: string
+    trigger_type: string
+    trigger_config: Record<string, any>
+    conditions: Array<Record<string, any>> | null
+    actions: Array<Record<string, any>>
+    is_active: boolean
+    execution_count: number
+    created_at: string
+  }
+  const getAvailableEvents = () => api<SystemEvent[]>('/email-templates/events/available')
+  const getTemplateTriggerRules = (templateCode: string) => api<TemplateTriggerRule[]>(`/email-templates/by-code/${templateCode}/rules`)
+  const createTemplateTriggerRule = (templateCode: string, data: {
+    trigger_type: string
+    trigger_event?: string
+    trigger_config?: Record<string, any>
+    conditions?: Array<Record<string, any>>
+    send_to_type: string
+    send_to_email?: string
+    cooldown_hours?: number
+    is_enabled?: boolean
+  }) => api<TemplateTriggerRule>(`/email-templates/by-code/${templateCode}/rules`, 'POST', data)
+  const deleteTemplateTriggerRule = (ruleId: number) => api<{ success: boolean; message: string }>(`/email-templates/rules/${ruleId}`, 'DELETE')
+  const toggleTemplateTriggerRule = (ruleId: number) => api<{ success: boolean; is_active: boolean; message: string }>(`/email-templates/rules/${ruleId}/toggle`, 'PUT')
 
   // 2FA APIs (两步验证)
   interface TwoFactorStatus {
@@ -416,5 +497,67 @@ export const useApi = () => {
   const updateContact = (id: number, data: { name?: string; email?: string; phone?: string; notes?: string }) => api<Contact>(`/contacts/${id}`, 'PUT', data)
   const deleteContact = (id: number) => api<any>(`/contacts/${id}`, 'DELETE')
 
-  return { login, login2FA, logout, getFolders, getEmails, getEmail, sendEmail, syncEmails, markEmailRead, deleteEmail, markEmailStarred, snoozeEmail, getAllEmails, getSnoozedEmails, searchEmails, getTrackingStats, resendEmail, getMe, updateMe, changePassword, getStorageStats, getInviteCodes, createInviteCode, deleteInviteCode, getInviteCodeUsages, getUsers, updateUserPermissions, adminCreateUser, adminDeleteUser, getPoolMailboxes, createPoolMailbox, deletePoolMailbox, getPoolMailboxEmails, getPoolStats, getPoolActivityLogs, markPoolEmailRead, saveDraft, updateDraft, deleteDraft, getSignatures, createSignature, updateSignature, deleteSignature, getDefaultSignature, uploadAttachment, deleteAttachment, downloadAttachmentUrl, getPlans, createPlan, updatePlan, deletePlan, getRedemptionCodes, generateRedemptionCodes, getRedemptionCodeStats, revokeRedemptionCode, getSubscriptionStatus, redeemCode, getRedemptionHistory, getLoginSessions, revokeSession, revokeAllSessions, getReservedPrefixes, createReservedPrefix, updateReservedPrefix, deleteReservedPrefix, getReservedPrefixCategories, checkPrefixAvailability, sendVerificationCode, verifyCode, registerWithVerification, forgotPassword, resetPassword, sendRecoveryEmailCode, updateRecoveryEmail, getEmailTemplates, getEmailTemplate, createEmailTemplate, updateEmailTemplate, deleteEmailTemplate, previewEmailTemplate, get2FAStatus, setup2FA, enable2FA, disable2FA, verify2FA, getBlockedSenders, addBlockedSender, removeBlockedSender, getAliases, createAlias, updateAlias, deleteAlias, getTags, createTag, updateTag, deleteTag, addTagToEmail, removeTagFromEmail, getEmailsByTag, getContacts, createContact, updateContact, deleteContact, token }
+  // External Accounts APIs (外部邮箱账号)
+  interface ExternalAccount {
+    id: number
+    email: string
+    provider: string
+    imap_host: string
+    imap_port: number
+    smtp_host: string
+    smtp_port: number
+    is_active: boolean
+    last_sync_at: string | null
+  }
+  interface ProviderPreset {
+    name: string
+    imap_host: string
+    imap_port: number
+    imap_ssl: boolean
+    smtp_host: string
+    smtp_port: number
+    smtp_ssl: boolean
+    smtp_starttls: boolean
+  }
+  const getExternalAccounts = () => api<ExternalAccount[]>('/external-accounts/')
+  const createExternalAccount = (data: { email: string; password: string; provider?: string; imap_host?: string; imap_port?: number; imap_ssl?: boolean; smtp_host?: string; smtp_port?: number; smtp_ssl?: boolean; smtp_starttls?: boolean }) =>
+    api<ExternalAccount>('/external-accounts/', 'POST', data)
+  const updateExternalAccount = (id: number, data: { password?: string; is_active?: boolean }) =>
+    api<ExternalAccount>(`/external-accounts/${id}`, 'PUT', data)
+  const deleteExternalAccount = (id: number) => api<any>(`/external-accounts/${id}`, 'DELETE')
+  const testExternalAccount = (id: number) => api<{ success: boolean; message: string }>(`/external-accounts/${id}/test`, 'POST')
+  const getProviderPresets = () => api<Record<string, ProviderPreset>>('/external-accounts/providers')
+
+  // Drive APIs (文件中转站)
+  interface DriveFile {
+    id: number
+    filename: string
+    original_filename: string
+    content_type: string | null
+    size: number
+    share_code: string | null
+    is_public: boolean
+    download_count: number
+    share_expires_at: string | null
+    created_at: string
+  }
+  const getDriveFiles = () => api<DriveFile[]>('/drive')
+  const uploadDriveFile = async (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return await $fetch<DriveFile>(`${API_BASE}/drive/upload`, {
+      method: 'POST',
+      headers: token.value ? { Authorization: `Bearer ${token.value}` } : {},
+      body: formData
+    })
+  }
+  const deleteDriveFile = (id: number) => api<any>(`/drive/${id}`, 'DELETE')
+  const createDriveShare = (id: number, data: { is_public?: boolean; password?: string; expires_days?: number }) =>
+    api<DriveFile>(`/drive/${id}/share`, 'POST', data)
+  const removeDriveShare = (id: number) => api<any>(`/drive/${id}/share`, 'DELETE')
+  const downloadDriveFileUrl = (id: number) => `${API_BASE}/drive/${id}/download`
+  const getShareInfo = (shareCode: string, password?: string) => api<{ original_filename: string; size: number; content_type: string; has_password: boolean; download_count: number }>(`/drive/share/${shareCode}${password ? `?password=${encodeURIComponent(password)}` : ''}`)
+  const downloadSharedFileUrl = (shareCode: string, password?: string) => `${API_BASE}/drive/share/${shareCode}/download${password ? `?password=${encodeURIComponent(password)}` : ''}`
+
+  return { login, login2FA, logout, getFolders, getEmails, getEmail, sendEmail, syncEmails, markEmailRead, deleteEmail, markEmailStarred, snoozeEmail, getAllEmails, getSnoozedEmails, searchEmails, getTrackingStats, resendEmail, getMe, updateMe, changePassword, getStorageStats, getInviteCodes, createInviteCode, deleteInviteCode, getInviteCodeUsages, getUsers, updateUserPermissions, adminCreateUser, adminDeleteUser, getPoolMailboxes, createPoolMailbox, deletePoolMailbox, getPoolMailboxEmails, getPoolStats, getPoolActivityLogs, markPoolEmailRead, saveDraft, updateDraft, deleteDraft, getSignatures, createSignature, updateSignature, deleteSignature, getDefaultSignature, uploadAttachment, deleteAttachment, downloadAttachmentUrl, getPlans, createPlan, updatePlan, deletePlan, getRedemptionCodes, generateRedemptionCodes, getRedemptionCodeStats, revokeRedemptionCode, getSubscriptionStatus, redeemCode, getRedemptionHistory, getLoginSessions, revokeSession, revokeAllSessions, getReservedPrefixes, createReservedPrefix, updateReservedPrefix, deleteReservedPrefix, getReservedPrefixCategories, checkPrefixAvailability, sendVerificationCode, verifyCode, registerWithVerification, forgotPassword, resetPassword, sendRecoveryEmailCode, updateRecoveryEmail, getEmailTemplates, getEmailTemplate, createEmailTemplate, updateEmailTemplate, deleteEmailTemplate, previewEmailTemplate, sendTestEmail, getTemplateMetadataList, getTemplateMetadata, getGlobalVariables, updateGlobalVariable, resetTemplateToDefault, sendTemplateEmail, getAvailableEvents, getTemplateTriggerRules, createTemplateTriggerRule, deleteTemplateTriggerRule, toggleTemplateTriggerRule, get2FAStatus, setup2FA, enable2FA, disable2FA, verify2FA, getBlockedSenders, addBlockedSender, removeBlockedSender, getAliases, createAlias, updateAlias, deleteAlias, getTags, createTag, updateTag, deleteTag, addTagToEmail, removeTagFromEmail, getEmailsByTag, getContacts, createContact, updateContact, deleteContact, getExternalAccounts, createExternalAccount, updateExternalAccount, deleteExternalAccount, testExternalAccount, getProviderPresets, getDriveFiles, uploadDriveFile, deleteDriveFile, createDriveShare, removeDriveShare, downloadDriveFileUrl, getShareInfo, downloadSharedFileUrl, token }
 }

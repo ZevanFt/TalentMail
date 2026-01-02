@@ -48,3 +48,18 @@ def get_current_user_from_token(db: Session, token: str) -> models.User | None:
     if not token_data:
         return None
     return crud_user.get_user_by_email(db, email=token_data.sub)
+
+
+def get_current_admin_user(
+    current_user: models.User = Depends(get_current_user),
+) -> models.User:
+    """
+    Dependency to get the current admin user.
+    Raises 403 if user is not an admin.
+    """
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required"
+        )
+    return current_user
