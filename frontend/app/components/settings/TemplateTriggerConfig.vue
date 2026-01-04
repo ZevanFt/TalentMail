@@ -11,10 +11,18 @@ const { getAvailableEvents, getTemplateTriggerRules, createTemplateTriggerRule, 
 const props = defineProps<{
   modelValue: boolean
   template: {
+    id?: number
     code: string
     name: string
     category: string
-    variables?: Array<{ key: string; label: string; type: string }> | string[] | null
+    description?: string | null
+    subject?: string
+    body_html?: string
+    body_text?: string | null
+    variables?: Array<{ key: string; label: string; type: string; example?: string; required?: boolean } | string> | null
+    is_active?: boolean
+    created_at?: string
+    updated_at?: string
   } | null
 }>()
 

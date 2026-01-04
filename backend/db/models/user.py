@@ -45,6 +45,7 @@ class User(Base):
     
     # 关系
     automation_rules = relationship("AutomationRule", back_populates="owner", cascade="all, delete-orphan")
+    workflows = relationship("Workflow", back_populates="owner", cascade="all, delete-orphan")
 
 
 class UserSession(Base):

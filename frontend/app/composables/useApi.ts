@@ -559,5 +559,169 @@ export const useApi = () => {
   const getShareInfo = (shareCode: string, password?: string) => api<{ original_filename: string; size: number; content_type: string; has_password: boolean; download_count: number }>(`/drive/share/${shareCode}${password ? `?password=${encodeURIComponent(password)}` : ''}`)
   const downloadSharedFileUrl = (shareCode: string, password?: string) => `${API_BASE}/drive/share/${shareCode}/download${password ? `?password=${encodeURIComponent(password)}` : ''}`
 
-  return { login, login2FA, logout, getFolders, getEmails, getEmail, sendEmail, syncEmails, markEmailRead, deleteEmail, markEmailStarred, snoozeEmail, getAllEmails, getSnoozedEmails, searchEmails, getTrackingStats, resendEmail, getMe, updateMe, changePassword, getStorageStats, getInviteCodes, createInviteCode, deleteInviteCode, getInviteCodeUsages, getUsers, updateUserPermissions, adminCreateUser, adminDeleteUser, getPoolMailboxes, createPoolMailbox, deletePoolMailbox, getPoolMailboxEmails, getPoolStats, getPoolActivityLogs, markPoolEmailRead, saveDraft, updateDraft, deleteDraft, getSignatures, createSignature, updateSignature, deleteSignature, getDefaultSignature, uploadAttachment, deleteAttachment, downloadAttachmentUrl, getPlans, createPlan, updatePlan, deletePlan, getRedemptionCodes, generateRedemptionCodes, getRedemptionCodeStats, revokeRedemptionCode, getSubscriptionStatus, redeemCode, getRedemptionHistory, getLoginSessions, revokeSession, revokeAllSessions, getReservedPrefixes, createReservedPrefix, updateReservedPrefix, deleteReservedPrefix, getReservedPrefixCategories, checkPrefixAvailability, sendVerificationCode, verifyCode, registerWithVerification, forgotPassword, resetPassword, sendRecoveryEmailCode, updateRecoveryEmail, getEmailTemplates, getEmailTemplate, createEmailTemplate, updateEmailTemplate, deleteEmailTemplate, previewEmailTemplate, sendTestEmail, getTemplateMetadataList, getTemplateMetadata, getGlobalVariables, updateGlobalVariable, resetTemplateToDefault, sendTemplateEmail, getAvailableEvents, getTemplateTriggerRules, createTemplateTriggerRule, deleteTemplateTriggerRule, toggleTemplateTriggerRule, get2FAStatus, setup2FA, enable2FA, disable2FA, verify2FA, getBlockedSenders, addBlockedSender, removeBlockedSender, getAliases, createAlias, updateAlias, deleteAlias, getTags, createTag, updateTag, deleteTag, addTagToEmail, removeTagFromEmail, getEmailsByTag, getContacts, createContact, updateContact, deleteContact, getExternalAccounts, createExternalAccount, updateExternalAccount, deleteExternalAccount, testExternalAccount, getProviderPresets, getDriveFiles, uploadDriveFile, deleteDriveFile, createDriveShare, removeDriveShare, downloadDriveFileUrl, getShareInfo, downloadSharedFileUrl, token }
+  // Workflow APIs (工作流)
+  interface SystemWorkflow {
+    id: number
+    code: string
+    name: string
+    name_en: string | null
+    description: string | null
+    category: string
+    nodes: any[]
+    edges: any[]
+    config_schema: any
+    default_config: any
+    version: number
+    is_active: boolean
+  }
+  interface WorkflowExecution {
+    id: number
+    workflow_type: string
+    workflow_id: number
+    workflow_version: number | null
+    user_id: number | null
+    trigger_type: string | null
+    status: string
+    started_at: string | null
+    finished_at: string | null
+    result: any
+    error_message: string | null
+  }
+  const getSystemWorkflows = (category?: string) => {
+    let url = '/workflows/system'
+    if (category) url += `?category=${category}`
+    return api<SystemWorkflow[]>(url)
+  }
+  const getSystemWorkflow = (code: string) => api<SystemWorkflow>(`/workflows/system/${code}`)
+  const getSystemWorkflowConfig = (code: string) => api<{ workflow_id: number; workflow_code: string; config_schema: any; default_config: any; custom_config: any; effective_config: any }>(`/workflows/system/${code}/config`)
+  const updateSystemWorkflowConfig = (code: string, config: any, nodeConfigs?: any) => api<any>(`/workflows/system/${code}/config`, 'PUT', { config, node_configs: nodeConfigs })
+  const executeSystemWorkflow = (code: string, triggerData: any) => api<{ success: boolean; result: any }>(`/workflows/system/${code}/execute`, 'POST', { trigger_data: triggerData })
+  const getWorkflowExecutions = (workflowType?: string, workflowId?: number, status?: string, limit = 50) => {
+    let url = `/workflows/executions?limit=${limit}`
+    if (workflowType) url += `&workflow_type=${workflowType}`
+    if (workflowId) url += `&workflow_id=${workflowId}`
+    if (status) url += `&status=${status}`
+    return api<WorkflowExecution[]>(url)
+  }
+  const getWorkflowExecutionDetail = (executionId: number) => api<{ execution: WorkflowExecution; node_executions: any[] }>(`/workflows/executions/${executionId}`)
+  const getNodeTypes = (category?: string) => {
+    let url = '/workflows/node-types'
+    if (category) url += `?category=${category}`
+    return api<any[]>(url)
+  }
+
+  // Custom Workflow APIs (自定义工作流)
+  interface CustomWorkflow {
+    id: number
+    name: string
+    description: string | null
+    owner_id: number | null
+    scope: string
+    category: string | null
+    status: string
+    is_active: boolean
+    version: number
+    execution_count: number
+  }
+  interface WorkflowDetail {
+    workflow: CustomWorkflow
+    nodes: Array<{
+      node_id: string
+      node_type: string
+      node_subtype: string
+      name: string | null
+      position_x: number
+      position_y: number
+      config: any
+    }>
+    edges: Array<{
+      edge_id: string
+      source_node_id: string
+      target_node_id: string
+      source_handle: string | null
+      target_handle: string | null
+      label: string | null
+    }>
+  }
+  const getWorkflows = (scope?: string, status?: string) => {
+    let url = '/workflows/'
+    const params: string[] = []
+    if (scope) params.push(`scope=${scope}`)
+    if (status) params.push(`status=${status}`)
+    if (params.length > 0) url += '?' + params.join('&')
+    return api<CustomWorkflow[]>(url)
+  }
+  const createWorkflow = (data: { name: string; description?: string; category?: string }) =>
+    api<CustomWorkflow>('/workflows/', 'POST', data)
+  const getWorkflow = (id: number) => api<WorkflowDetail>(`/workflows/${id}`)
+  const updateWorkflow = (id: number, data: { name?: string; description?: string; category?: string; is_active?: boolean }) =>
+    api<CustomWorkflow>(`/workflows/${id}`, 'PUT', data)
+  const saveWorkflowCanvas = (id: number, nodes: any[], edges: any[]) =>
+    api<{ success: boolean; version: number; nodes_count: number; edges_count: number }>(`/workflows/${id}/canvas`, 'PUT', { nodes, edges })
+  const publishWorkflow = (id: number) => api<CustomWorkflow>(`/workflows/${id}/publish`, 'POST')
+  const deleteWorkflow = (id: number) => api<{ success: boolean }>(`/workflows/${id}`, 'DELETE')
+
+  // Workflow Template APIs (工作流模板)
+  interface WorkflowTemplateListItem {
+    id: number
+    name: string
+    name_en: string | null
+    description: string | null
+    category: string
+    source_type: string
+    author_name: string | null
+    preview_image: string | null
+    thumbnail: string | null
+    use_count: number
+    favorite_count: number
+    is_featured: boolean
+    tags: string[]
+    is_favorited: boolean
+    node_count: number
+  }
+  interface WorkflowTemplate extends WorkflowTemplateListItem {
+    description_en: string | null
+    author_id: number | null
+    nodes: any[]
+    edges: any[]
+    default_config: any
+    review_status: string
+    version: string
+    is_active: boolean
+    created_at: string
+    updated_at: string
+  }
+  const getWorkflowTemplates = (options?: { category?: string; source_type?: string; tag?: string; q?: string; featured_only?: boolean; favorites_only?: boolean; page?: number; limit?: number }) => {
+    let url = '/workflow-templates/'
+    const params: string[] = []
+    if (options?.category) params.push(`category=${options.category}`)
+    if (options?.source_type) params.push(`source_type=${options.source_type}`)
+    if (options?.tag) params.push(`tag=${encodeURIComponent(options.tag)}`)
+    if (options?.q) params.push(`q=${encodeURIComponent(options.q)}`)
+    if (options?.featured_only) params.push('featured_only=true')
+    if (options?.favorites_only) params.push('favorites_only=true')
+    if (options?.page) params.push(`page=${options.page}`)
+    if (options?.limit) params.push(`limit=${options.limit}`)
+    if (params.length > 0) url += '?' + params.join('&')
+    return api<WorkflowTemplateListItem[]>(url)
+  }
+  const getWorkflowTemplateCategories = () => api<Array<{ value: string; label: string; count: number }>>('/workflow-templates/categories')
+  const getWorkflowTemplateTags = () => api<Array<{ tag: string; count: number }>>('/workflow-templates/tags')
+  const getWorkflowTemplate = (id: number) => api<WorkflowTemplate>(`/workflow-templates/${id}`)
+  const useWorkflowTemplate = (id: number, data?: { name?: string; description?: string }) =>
+    api<{ success: boolean; workflow_id: number; message: string }>(`/workflow-templates/${id}/use`, 'POST', data || {})
+  const toggleWorkflowTemplateFavorite = (id: number) =>
+    api<{ success: boolean; is_favorited: boolean; favorite_count: number; message: string }>(`/workflow-templates/${id}/favorite`, 'POST')
+  // Admin APIs
+  const createWorkflowTemplate = (data: { name: string; name_en?: string; description?: string; description_en?: string; category?: string; nodes: any[]; edges: any[]; default_config?: any; tags?: string[] }) =>
+    api<WorkflowTemplate>('/workflow-templates/', 'POST', data)
+  const updateWorkflowTemplate = (id: number, data: { name?: string; name_en?: string; description?: string; description_en?: string; category?: string; nodes?: any[]; edges?: any[]; default_config?: any; is_active?: boolean; is_featured?: boolean; tags?: string[] }) =>
+    api<WorkflowTemplate>(`/workflow-templates/${id}`, 'PUT', data)
+  const deleteWorkflowTemplate = (id: number) => api<{ success: boolean; message: string }>(`/workflow-templates/${id}`, 'DELETE')
+  const getPendingWorkflowTemplates = (page = 1, limit = 20) =>
+    api<WorkflowTemplateListItem[]>(`/workflow-templates/admin/pending?page=${page}&limit=${limit}`)
+  const reviewWorkflowTemplate = (id: number, action: 'approve' | 'reject') =>
+    api<{ success: boolean; message: string }>(`/workflow-templates/${id}/review?action=${action}`, 'POST')
+
+  return { login, login2FA, logout, getFolders, getEmails, getEmail, sendEmail, syncEmails, markEmailRead, deleteEmail, markEmailStarred, snoozeEmail, getAllEmails, getSnoozedEmails, searchEmails, getTrackingStats, resendEmail, getMe, updateMe, changePassword, getStorageStats, getInviteCodes, createInviteCode, deleteInviteCode, getInviteCodeUsages, getUsers, updateUserPermissions, adminCreateUser, adminDeleteUser, getPoolMailboxes, createPoolMailbox, deletePoolMailbox, getPoolMailboxEmails, getPoolStats, getPoolActivityLogs, markPoolEmailRead, saveDraft, updateDraft, deleteDraft, getSignatures, createSignature, updateSignature, deleteSignature, getDefaultSignature, uploadAttachment, deleteAttachment, downloadAttachmentUrl, getPlans, createPlan, updatePlan, deletePlan, getRedemptionCodes, generateRedemptionCodes, getRedemptionCodeStats, revokeRedemptionCode, getSubscriptionStatus, redeemCode, getRedemptionHistory, getLoginSessions, revokeSession, revokeAllSessions, getReservedPrefixes, createReservedPrefix, updateReservedPrefix, deleteReservedPrefix, getReservedPrefixCategories, checkPrefixAvailability, sendVerificationCode, verifyCode, registerWithVerification, forgotPassword, resetPassword, sendRecoveryEmailCode, updateRecoveryEmail, getEmailTemplates, getEmailTemplate, createEmailTemplate, updateEmailTemplate, deleteEmailTemplate, previewEmailTemplate, sendTestEmail, getTemplateMetadataList, getTemplateMetadata, getGlobalVariables, updateGlobalVariable, resetTemplateToDefault, sendTemplateEmail, getAvailableEvents, getTemplateTriggerRules, createTemplateTriggerRule, deleteTemplateTriggerRule, toggleTemplateTriggerRule, get2FAStatus, setup2FA, enable2FA, disable2FA, verify2FA, getBlockedSenders, addBlockedSender, removeBlockedSender, getAliases, createAlias, updateAlias, deleteAlias, getTags, createTag, updateTag, deleteTag, addTagToEmail, removeTagFromEmail, getEmailsByTag, getContacts, createContact, updateContact, deleteContact, getExternalAccounts, createExternalAccount, updateExternalAccount, deleteExternalAccount, testExternalAccount, getProviderPresets, getDriveFiles, uploadDriveFile, deleteDriveFile, createDriveShare, removeDriveShare, downloadDriveFileUrl, getShareInfo, downloadSharedFileUrl, getSystemWorkflows, getSystemWorkflow, getSystemWorkflowConfig, updateSystemWorkflowConfig, executeSystemWorkflow, getWorkflowExecutions, getWorkflowExecutionDetail, getNodeTypes, getWorkflows, createWorkflow, getWorkflow, updateWorkflow, saveWorkflowCanvas, publishWorkflow, deleteWorkflow, getWorkflowTemplates, getWorkflowTemplateCategories, getWorkflowTemplateTags, getWorkflowTemplate, useWorkflowTemplate, toggleWorkflowTemplateFavorite, createWorkflowTemplate, updateWorkflowTemplate, deleteWorkflowTemplate, getPendingWorkflowTemplates, reviewWorkflowTemplate, token }
 }

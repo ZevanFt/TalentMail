@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { User, Shield, Palette, LogOut, ArrowLeft, Mail, Bell, Lock, HardDrive, Users, Ticket, UserCog, CreditCard, AtSign, FileText, Info, Zap } from 'lucide-vue-next'
+import { User, Shield, Palette, LogOut, ArrowLeft, Mail, Bell, Lock, HardDrive, Users, Ticket, UserCog, CreditCard, AtSign, FileText, Info, Zap, Workflow } from 'lucide-vue-next'
 const router = useRouter()
+const route = useRoute()
 const { logout, getMe } = useApi()
 
 const activeTab = ref('profile')
@@ -8,12 +9,40 @@ const isAdmin = ref(false)
 
 definePageMeta({ layout: 'pool' })
 
+// 从 URL 参数读取 tab
+const initTabFromQuery = () => {
+  const tabFromQuery = route.query.tab as string
+  if (tabFromQuery) {
+    activeTab.value = tabFromQuery
+  }
+}
+
+// 切换 tab 并更新 URL
+const setTab = (tab: string) => {
+  activeTab.value = tab
+  // 更新 URL query 参数，不触发页面刷新
+  // 默认 tab (profile) 不需要带参数，保持 URL 干净
+  if (tab === 'profile') {
+    router.replace({ path: '/settings' })
+  } else {
+    router.replace({ path: '/settings', query: { tab } })
+  }
+}
+
 // 检查是否是管理员
 onMounted(async () => {
+  initTabFromQuery()
   try {
     const user = await getMe()
     isAdmin.value = user.role === 'admin'
   } catch (e) {}
+})
+
+// 监听路由变化（用于浏览器前进/后退）
+watch(() => route.query.tab, (newTab) => {
+  if (newTab && typeof newTab === 'string' && newTab !== activeTab.value) {
+    activeTab.value = newTab
+  }
 })
 
 const handleLogout = () => {
@@ -43,13 +72,13 @@ const handleLogout = () => {
         <!-- 分组：通用 -->
         <div class="space-y-1">
           <div class="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">通用</div>
-          <button @click="activeTab = 'profile'" :class="['tab-btn', activeTab === 'profile' ? 'active' : '']">
+          <button @click="setTab('profile')" :class="['tab-btn', activeTab === 'profile' ? 'active' : '']">
             <User class="w-4 h-4" /> 账号信息
           </button>
-          <button @click="activeTab = 'accounts'" :class="['tab-btn', activeTab === 'accounts' ? 'active' : '']">
+          <button @click="setTab('accounts')" :class="['tab-btn', activeTab === 'accounts' ? 'active' : '']">
             <Users class="w-4 h-4" /> 多账号管理
           </button>
-          <button @click="activeTab = 'theme'" :class="['tab-btn', activeTab === 'theme' ? 'active' : '']">
+          <button @click="setTab('theme')" :class="['tab-btn', activeTab === 'theme' ? 'active' : '']">
             <Palette class="w-4 h-4" /> 外观主题
           </button>
         </div>
@@ -57,17 +86,17 @@ const handleLogout = () => {
         <!-- 分组：邮件 -->
         <div class="space-y-1">
           <div class="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">邮件服务</div>
-          <button @click="activeTab = 'mail'" :class="['tab-btn', activeTab === 'mail' ? 'active' : '']">
+          <button @click="setTab('mail')" :class="['tab-btn', activeTab === 'mail' ? 'active' : '']">
             <Mail class="w-4 h-4" /> 邮件设置
           </button>
-          <button @click="activeTab = 'automation'" :class="['tab-btn', activeTab === 'automation' ? 'active' : '']">
-            <Zap class="w-4 h-4" /> 自动化规则
+          <button @click="setTab('my-workflows')" :class="['tab-btn', activeTab === 'my-workflows' ? 'active' : '']">
+            <Workflow class="w-4 h-4" /> 我的工作流
           </button>
-          <button @click="activeTab = 'notifications'"
+          <button @click="setTab('notifications')"
             :class="['tab-btn', activeTab === 'notifications' ? 'active' : '']">
             <Bell class="w-4 h-4" /> 通知偏好
           </button>
-          <button @click="activeTab = 'privacy'" :class="['tab-btn', activeTab === 'privacy' ? 'active' : '']">
+          <button @click="setTab('privacy')" :class="['tab-btn', activeTab === 'privacy' ? 'active' : '']">
             <Lock class="w-4 h-4" /> 隐私与安全
           </button>
         </div>
@@ -75,10 +104,10 @@ const handleLogout = () => {
         <!-- 分组：数据 -->
         <div class="space-y-1">
           <div class="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">数据</div>
-          <button @click="activeTab = 'security'" :class="['tab-btn', activeTab === 'security' ? 'active' : '']">
+          <button @click="setTab('security')" :class="['tab-btn', activeTab === 'security' ? 'active' : '']">
             <Shield class="w-4 h-4" /> 登录与安全
           </button>
-          <button @click="activeTab = 'storage'" :class="['tab-btn', activeTab === 'storage' ? 'active' : '']">
+          <button @click="setTab('storage')" :class="['tab-btn', activeTab === 'storage' ? 'active' : '']">
             <HardDrive class="w-4 h-4" /> 存储与配额
           </button>
         </div>
@@ -86,7 +115,7 @@ const handleLogout = () => {
         <!-- 分组：其他 -->
         <div class="space-y-1">
           <div class="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">其他</div>
-          <button @click="activeTab = 'about'" :class="['tab-btn', activeTab === 'about' ? 'active' : '']">
+          <button @click="setTab('about')" :class="['tab-btn', activeTab === 'about' ? 'active' : '']">
             <Info class="w-4 h-4" /> 关于
           </button>
         </div>
@@ -94,19 +123,22 @@ const handleLogout = () => {
         <!-- 分组：管理（仅管理员可见） -->
         <div v-if="isAdmin" class="space-y-1">
           <div class="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">管理</div>
-          <button @click="activeTab = 'billing'" :class="['tab-btn', activeTab === 'billing' ? 'active' : '']">
+          <button @click="setTab('billing')" :class="['tab-btn', activeTab === 'billing' ? 'active' : '']">
             <CreditCard class="w-4 h-4" /> 会员订阅管理
           </button>
-          <button @click="activeTab = 'invites'" :class="['tab-btn', activeTab === 'invites' ? 'active' : '']">
+          <button @click="setTab('invites')" :class="['tab-btn', activeTab === 'invites' ? 'active' : '']">
             <Ticket class="w-4 h-4" /> 邀请码管理
           </button>
-          <button @click="activeTab = 'prefixes'" :class="['tab-btn', activeTab === 'prefixes' ? 'active' : '']">
+          <button @click="setTab('prefixes')" :class="['tab-btn', activeTab === 'prefixes' ? 'active' : '']">
             <AtSign class="w-4 h-4" /> 保留前缀管理
           </button>
-          <button @click="activeTab = 'email-templates'" :class="['tab-btn', activeTab === 'email-templates' ? 'active' : '']">
+          <button @click="setTab('email-templates')" :class="['tab-btn', activeTab === 'email-templates' ? 'active' : '']">
             <FileText class="w-4 h-4" /> 邮件模板管理
           </button>
-          <button @click="activeTab = 'user-mgmt'" :class="['tab-btn', activeTab === 'user-mgmt' ? 'active' : '']">
+          <button @click="setTab('system-workflows')" :class="['tab-btn', activeTab === 'system-workflows' ? 'active' : '']">
+            <Workflow class="w-4 h-4" /> 系统工作流
+          </button>
+          <button @click="setTab('user-mgmt')" :class="['tab-btn', activeTab === 'user-mgmt' ? 'active' : '']">
             <UserCog class="w-4 h-4" /> 用户权限管理
           </button>
         </div>
@@ -138,7 +170,7 @@ const handleLogout = () => {
             <SettingsAccounts v-else-if="activeTab === 'accounts'" />
             <SettingsTheme v-else-if="activeTab === 'theme'" />
             <SettingsMail v-else-if="activeTab === 'mail'" />
-            <SettingsAutomationRules v-else-if="activeTab === 'automation'" />
+            <SettingsMyWorkflows v-else-if="activeTab === 'my-workflows'" />
             <SettingsNotifications v-else-if="activeTab === 'notifications'" />
             <SettingsPrivacy v-else-if="activeTab === 'privacy'" />
             <SettingsSecurity v-else-if="activeTab === 'security'" />
@@ -147,6 +179,7 @@ const handleLogout = () => {
             <SettingsInviteCodes v-else-if="activeTab === 'invites'" />
             <SettingsReservedPrefixes v-else-if="activeTab === 'prefixes'" />
             <SettingsEmailTemplates v-else-if="activeTab === 'email-templates'" />
+            <SettingsSystemWorkflows v-else-if="activeTab === 'system-workflows'" />
             <SettingsAbout v-else-if="activeTab === 'about'" />
           </Transition>
         </div>

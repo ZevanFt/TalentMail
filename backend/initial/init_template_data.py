@@ -313,5 +313,57 @@ def init_template_data(db: Session):
             db.add(template)
             logger.info(f"Created system email template: {meta_data['code']}")
     
+    # 4. 数据完整性保障：检查 system_email_templates 中是否有未同步到 template_metadata 的记录
+    logger.info("Checking for orphaned templates (missing metadata)...")
+    all_templates = db.query(SystemEmailTemplate).all()
+    
+    for template in all_templates:
+        metadata_exists = db.query(TemplateMetadata).filter(
+            TemplateMetadata.code == template.code
+        ).first()
+        
+        if not metadata_exists:
+            logger.warning(f"Found orphaned template without metadata: {template.code}")
+            
+            # 从模板的 variables 字段构建变量定义
+            variables_for_metadata = []
+            if template.variables:
+                for v in template.variables:
+                    if isinstance(v, str):
+                        # 旧格式：纯字符串
+                        variables_for_metadata.append({
+                            "key": v,
+                            "label": v,
+                            "type": "string",
+                            "example": "",
+                            "required": False
+                        })
+                    elif isinstance(v, dict):
+                        # 新格式：完整对象
+                        variables_for_metadata.append({
+                            "key": v.get("key", ""),
+                            "label": v.get("label", v.get("key", "")),
+                            "type": v.get("type", "string"),
+                            "example": v.get("example", ""),
+                            "required": v.get("required", False)
+                        })
+            
+            # 创建缺失的元数据记录
+            new_metadata = TemplateMetadata(
+                code=template.code,
+                name=template.name,
+                category=template.category,
+                description=template.description,
+                trigger_description=None,  # 用户创建的模板没有触发描述
+                variables=variables_for_metadata,
+                default_subject=template.subject,
+                default_body_html=template.body_html,
+                default_body_text=template.body_text,
+                is_system=False,  # 不是系统预设的模板
+                sort_order=100  # 排在系统模板后面
+            )
+            db.add(new_metadata)
+            logger.info(f"Created missing metadata for template: {template.code}")
+    
     db.commit()
     logger.info("Template data initialization completed.")

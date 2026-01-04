@@ -42,7 +42,7 @@ interface EmailTemplate {
   subject: string
   body_html: string
   body_text: string | null
-  variables: string[] | null
+  variables: (string | TemplateVariable)[] | null
   is_active: boolean
   created_at: string
   updated_at: string
@@ -161,7 +161,8 @@ const openSendModal = async (template: EmailTemplate) => {
     // 使用模板自带的变量列表
     if (template.variables) {
       template.variables.forEach(v => {
-        sendForm.variables[v] = ''
+        const key = typeof v === 'object' ? v.key : v
+        sendForm.variables[key] = ''
       })
     }
   }
@@ -248,12 +249,28 @@ const saveTemplate = async () => {
   saving.value = true
   error.value = ''
   try {
-    const variables = editForm.variables.split(',').map(v => v.trim()).filter(v => v)
+    // 优先使用 customVariables (包含完整元数据)，如果为空则尝试从字符串解析
+    let variables_payload: any[] = []
+    
+    if (customVariables.value.length > 0) {
+      variables_payload = customVariables.value
+    } else {
+      // 兼容手动输入逗号分隔的情况
+      const rawVars = editForm.variables.split(',').map(v => v.trim()).filter(v => v)
+      variables_payload = rawVars.map(v => ({
+        key: v,
+        label: v, // 默认中文名为变量名
+        type: 'string',
+        required: false
+      }))
+    }
+    
     const data = {
       code: editForm.code, name: editForm.name, category: editForm.category,
       description: editForm.description || undefined, subject: editForm.subject,
       body_html: editForm.body_html, body_text: editForm.body_text || undefined,
-      variables: variables.length > 0 ? variables : undefined, is_active: editForm.is_active
+      variables: variables_payload.length > 0 ? variables_payload : undefined,
+      is_active: editForm.is_active
     }
     if (editingTemplate.value) {
       await updateEmailTemplate(editingTemplate.value.id, data)
@@ -298,7 +315,10 @@ const openPreviewModal = async (template: EmailTemplate) => {
   if (metadata?.variables) {
     metadata.variables.forEach(v => { previewVariables.value[v.key] = v.example || `[${v.key}]` })
   } else if (template.variables) {
-    template.variables.forEach(v => { previewVariables.value[v] = `[${v}]` })
+    template.variables.forEach(v => {
+      const key = typeof v === 'object' ? v.key : v
+      previewVariables.value[key] = `[${key}]`
+    })
   }
   
   try { const user = await getMe(); testEmailTo.value = user.email } catch (e) {}
@@ -454,10 +474,11 @@ const initEditorContent = () => {
   })
 }
 
-// 监听弹窗打开，初始化编辑器内容
+// 监听弹窗打开，初始化编辑器内容和自定义变量
 watch(() => showEditModal.value, (val) => {
   if (val) {
     initEditorContent()
+    initCustomVariables()
     // 备用方案：如果第一次没生效，300ms后再试一次
     setTimeout(initEditorContent, 300)
   }
@@ -471,14 +492,96 @@ watch(() => editForm.body_html, (newVal) => {
   }
 }, { immediate: false })
 
+// 自定义变量列表（用于新建模板时）
+const customVariables = ref<TemplateVariable[]>([])
+
+// 添加新变量的表单
+const newVariable = reactive({
+  key: '',
+  label: '',
+  type: 'string',
+  example: '',
+  required: false
+})
+
+const showAddVariableModal = ref(false)
+
+const addVariable = () => {
+  if (!newVariable.key || !newVariable.label) return
+  
+  // 检查是否已存在
+  const exists = customVariables.value.some(v => v.key === newVariable.key)
+  if (exists) {
+    error.value = '变量名已存在'
+    return
+  }
+  
+  customVariables.value.push({
+    key: newVariable.key,
+    label: newVariable.label,
+    type: newVariable.type,
+    example: newVariable.example,
+    required: newVariable.required
+  })
+  
+  // 更新 editForm.variables
+  syncVariablesToForm()
+  
+  // 重置表单
+  newVariable.key = ''
+  newVariable.label = ''
+  newVariable.type = 'string'
+  newVariable.example = ''
+  newVariable.required = false
+  showAddVariableModal.value = false
+}
+
+const removeVariable = (key: string) => {
+  customVariables.value = customVariables.value.filter(v => v.key !== key)
+  syncVariablesToForm()
+}
+
+const syncVariablesToForm = () => {
+  editForm.variables = customVariables.value.map(v => v.key).join(', ')
+}
+
+// 初始化自定义变量（编辑时从模板加载）
+const initCustomVariables = () => {
+  if (editingMetadata.value?.variables?.length) {
+    // 系统模板，使用元数据变量
+    customVariables.value = [...editingMetadata.value.variables]
+  } else if (editingTemplate.value?.variables?.length) {
+    // 已有模板，从变量列表恢复
+    // 兼容旧数据（字符串数组）和新数据（对象数组）
+    customVariables.value = editingTemplate.value.variables.map(v => {
+      if (typeof v === 'string') {
+        return {
+          key: v,
+          label: v,
+          type: 'string',
+          example: '',
+          required: false
+        }
+      } else {
+        return v as TemplateVariable
+      }
+    })
+    
+    // 同步到表单字符串显示（用于快速查看）
+    editForm.variables = customVariables.value.map(v => v.key).join(', ')
+  } else {
+    customVariables.value = []
+    editForm.variables = ''
+  }
+}
+
 const availableVariables = computed(() => {
   // 优先使用元数据定义的变量
   if (editingMetadata.value?.variables?.length) return editingMetadata.value.variables
   
-  // 其次使用用户手动输入的变量列表
-  const manualVars = editForm.variables.split(',').map(v => v.trim()).filter(v => v)
-  if (manualVars.length > 0) {
-    return manualVars.map(v => ({ key: v, label: v, type: 'string', example: '', required: false }))
+  // 使用自定义变量列表
+  if (customVariables.value.length > 0) {
+    return customVariables.value
   }
   
   // 最后尝试从正文中自动提取变量
@@ -565,7 +668,9 @@ const getVariableTypeIcon = (type: string) => {
             </div>
             <div v-else-if="template.variables && template.variables.length > 0" class="mt-2 ml-12 flex items-center gap-1 flex-wrap">
               <span class="text-xs text-gray-500">变量：</span>
-              <span v-for="v in template.variables" :key="v" class="px-2 py-0.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded">{{ formatVariable(v) }}</span>
+              <span v-for="(v, idx) in template.variables" :key="idx" class="px-2 py-0.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded" :title="typeof v === 'object' ? v.label : v">
+                {{ formatVariable(typeof v === 'object' ? v.key : v) }}
+              </span>
             </div>
           </div>
           <div class="flex items-center gap-2">
@@ -623,8 +728,27 @@ const getVariableTypeIcon = (type: string) => {
                 </select>
               </div>
               <div v-if="!editingMetadata">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">变量（逗号分隔）</label>
-                <input v-model="editForm.variables" type="text" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm" placeholder="如 code, expires_minutes">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">模板变量</label>
+                <div class="space-y-2">
+                  <!-- 已添加的变量 -->
+                  <div v-if="customVariables.length > 0" class="flex flex-wrap gap-2 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
+                    <div v-for="v in customVariables" :key="v.key" class="flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg text-sm group">
+                      <span class="font-medium">{{ v.label }}</span>
+                      <code class="text-xs opacity-70">({{ v.key }})</code>
+                      <button @click="removeVariable(v.key)" class="ml-1 opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity">
+                        <X class="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                  <div v-else class="text-sm text-gray-400 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
+                    暂无变量，点击下方按钮添加
+                  </div>
+                  <!-- 添加变量按钮 -->
+                  <button @click="showAddVariableModal = true" type="button" class="flex items-center gap-1 px-3 py-1.5 text-sm text-primary hover:bg-primary/10 rounded-lg transition-colors">
+                    <Plus class="w-4 h-4" />
+                    <span>添加变量</span>
+                  </button>
+                </div>
               </div>
             </div>
             <div>
@@ -647,8 +771,17 @@ const getVariableTypeIcon = (type: string) => {
                 <button @click="execCommand('removeFormat')" class="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded" title="清除格式"><Eraser class="w-4 h-4" /></button>
                 <div class="ml-auto flex items-center gap-2">
                   <span class="text-xs text-gray-500">插入变量:</span>
-                  <div class="flex gap-1 flex-wrap">
-                    <button v-for="v in availableVariables" :key="v.key" @click="insertVariable(v.key)" class="px-2 py-0.5 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors">{{ v.key }}</button>
+                  <div class="flex gap-1 flex-wrap max-w-md">
+                    <button
+                      v-for="v in availableVariables"
+                      :key="v.key"
+                      @click="insertVariable(v.key)"
+                      class="group relative px-2 py-0.5 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
+                      :title="`${v.label} (${v.key})`"
+                    >
+                      <span class="font-medium">{{ v.label }}</span>
+                      <span v-if="v.label !== v.key" class="opacity-60 ml-0.5">({{ v.key }})</span>
+                    </button>
                     <span v-if="availableVariables.length === 0" class="text-xs text-gray-400">请先定义变量</span>
                   </div>
                 </div>
@@ -987,9 +1120,17 @@ const getVariableTypeIcon = (type: string) => {
                   </div>
                 </template>
                 <template v-else-if="sendingTemplate?.variables?.length">
-                  <div v-for="v in sendingTemplate.variables" :key="v">
-                    <label class="text-xs text-gray-500 dark:text-gray-400 mb-1 block">{{ v }}</label>
-                    <input v-model="sendForm.variables[v]" type="text" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm" :placeholder="`输入 ${v}`">
+                  <div v-for="(v, idx) in sendingTemplate.variables" :key="idx">
+                    <label class="text-xs text-gray-500 dark:text-gray-400 mb-1 block">
+                      {{ typeof v === 'object' ? v.label : v }}
+                      <code class="ml-1 text-xs bg-gray-100 dark:bg-gray-700 px-1 rounded">{{ typeof v === 'object' ? v.key : v }}</code>
+                    </label>
+                    <input
+                      v-model="sendForm.variables[typeof v === 'object' ? v.key : v]"
+                      type="text"
+                      class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm"
+                      :placeholder="typeof v === 'object' ? v.example : `输入 ${v}`"
+                    >
                   </div>
                 </template>
               </div>
@@ -1006,6 +1147,107 @@ const getVariableTypeIcon = (type: string) => {
               <Loader2 v-if="sending" class="w-4 h-4 animate-spin" />
               <Send v-else class="w-4 h-4" />
               <span>{{ sending ? '发送中...' : '发送' }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- 添加变量弹窗 -->
+    <Teleport to="body">
+      <div v-if="showAddVariableModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">添加模板变量</h3>
+            <button @click="showAddVariableModal = false" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+              <X class="w-5 h-5" />
+            </button>
+          </div>
+          
+          <div class="space-y-4">
+            <!-- 变量名（英文） -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                变量名 <span class="text-red-500">*</span>
+                <span class="text-xs text-gray-400 ml-2">用于模板中引用，如 <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">&lbrace;&lbrace;variable&rbrace;&rbrace;</code></span>
+              </label>
+              <input
+                v-model="newVariable.key"
+                type="text"
+                class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm"
+                placeholder="如 user_name, email_code"
+                pattern="[a-zA-Z_][a-zA-Z0-9_]*"
+              >
+            </div>
+            
+            <!-- 中文名称 -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                中文名称 <span class="text-red-500">*</span>
+                <span class="text-xs text-gray-400 ml-2">显示给用户看的名称</span>
+              </label>
+              <input
+                v-model="newVariable.label"
+                type="text"
+                class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm"
+                placeholder="如 用户名, 验证码"
+              >
+            </div>
+            
+            <!-- 变量类型 -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">变量类型</label>
+              <select
+                v-model="newVariable.type"
+                class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm"
+              >
+                <option value="string">📝 文本</option>
+                <option value="number">🔢 数字</option>
+                <option value="url">🔗 链接</option>
+                <option value="datetime">📅 日期时间</option>
+              </select>
+            </div>
+            
+            <!-- 示例值 -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                示例值
+                <span class="text-xs text-gray-400 ml-2">用于预览和发送测试时的默认值</span>
+              </label>
+              <input
+                v-model="newVariable.example"
+                type="text"
+                class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm"
+                placeholder="如 张三, 123456"
+              >
+            </div>
+            
+            <!-- 是否必填 -->
+            <div class="flex items-center gap-2">
+              <input
+                v-model="newVariable.required"
+                type="checkbox"
+                id="var_required"
+                class="w-4 h-4 text-primary rounded"
+              >
+              <label for="var_required" class="text-sm text-gray-700 dark:text-gray-300">必填变量</label>
+            </div>
+          </div>
+          
+          <div class="flex items-center justify-end gap-3 mt-6">
+            <button
+              @click="showAddVariableModal = false"
+              class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              取消
+            </button>
+            <button
+              @click="addVariable"
+              :disabled="!newVariable.key || !newVariable.label"
+              class="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg transition-colors disabled:opacity-50"
+            >
+              <Plus class="w-4 h-4" />
+              <span>添加</span>
             </button>
           </div>
         </div>

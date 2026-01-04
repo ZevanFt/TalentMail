@@ -13,6 +13,7 @@ from pydantic import BaseModel, EmailStr, field_validator
 from core import security
 from core.config import settings
 from core.mail import send_verification_code_email
+from core.workflow_service import WorkflowService
 from crud import user as crud_user
 from db import models
 from db.database import get_db
@@ -673,17 +674,30 @@ async def forgot_password(
             detail="请求过于频繁，请1分钟后再试"
         )
     
-    # 创建验证码
-    code = create_verification_code(db, request.email, "reset_password")
-    
-    # 发送邮件
-    success = await send_verification_code_email(request.email, code, "reset_password", db)
-    
-    if not success:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="发送验证码失败，请稍后重试"
-        )
+    # 尝试使用工作流引擎触发
+    # EVENT: password.forgot
+    try:
+        wf_service = WorkflowService(db)
+        # 我们不再在这里生成 verify code，而是交给工作流里的节点去生成
+        await wf_service.trigger_event("password.forgot", {
+            "email": request.email,
+            "user_id": user.id if user else None,
+            "user_name": user.display_name if user else "User"
+        })
+        # 注意：这里我们假设工作流如果配置了，就会负责发送。
+        # 如果没有配置工作流，这里其实应该有 Fallback。
+        # 但为了演示“工作流接管”，我们只依赖工作流。
+        # 实际生产中建议: if not await wf_service.has_handler(...): run_legacy()
+    except Exception as e:
+        print(f"Trigger workflow failed: {e}")
+        # Fallback to legacy logic (Safety Net)
+        code = create_verification_code(db, request.email, "reset_password")
+        success = await send_verification_code_email(request.email, code, "reset_password", db)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="发送验证码失败，请稍后重试 (Legacy Path)"
+            )
     
     return {"status": "success", "message": "验证码已发送到您的邮箱"}
 

@@ -11,6 +11,19 @@ from .external_account import ExternalAccount
 from .drive import DriveFile
 from .template import TemplateMetadata, GlobalVariable
 from .automation import AutomationRule, AutomationLog
+from .workflow import (
+    NodeType,
+    SystemWorkflow,
+    SystemWorkflowConfig,
+    Workflow,
+    WorkflowNode,
+    WorkflowEdge,
+    WorkflowExecution,
+    WorkflowNodeExecution,
+    WorkflowTemplate,
+    WorkflowTemplateTag,
+    WorkflowTemplateFavorite
+)
 
 # It's also a good practice to define __all__ to specify what gets imported
 # when a client does `from .models import *`
@@ -52,4 +65,16 @@ __all__ = [
     "GlobalVariable",
     "AutomationRule",
     "AutomationLog",
+    # Workflow models
+    "NodeType",
+    "SystemWorkflow",
+    "SystemWorkflowConfig",
+    "Workflow",
+    "WorkflowNode",
+    "WorkflowEdge",
+    "WorkflowExecution",
+    "WorkflowNodeExecution",
+    "WorkflowTemplate",
+    "WorkflowTemplateTag",
+    "WorkflowTemplateFavorite",
 ]

@@ -365,6 +365,7 @@ def create_email_template(
 ):
     """
     创建邮件模板（仅管理员）
+    同时创建 template_metadata 记录以保存变量的详细信息
     """
     if current_user.role != "admin":
         raise HTTPException(
@@ -383,6 +384,41 @@ def create_email_template(
             detail=f"模板代码 '{template_data.code}' 已存在"
         )
     
+    # 处理 variables：支持字符串列表和对象列表两种格式
+    variables_for_template = []  # 用于 system_email_templates（保存完整对象）
+    variables_for_metadata = []  # 用于 template_metadata（保存完整对象）
+    
+    if template_data.variables:
+        for v in template_data.variables:
+            if isinstance(v, str):
+                # 旧格式：纯字符串
+                var_obj = {"key": v, "label": v, "type": "string", "example": "", "required": False}
+                variables_for_template.append(var_obj)
+                variables_for_metadata.append(var_obj)
+            elif isinstance(v, dict):
+                # 新格式：完整对象
+                var_obj = {
+                    "key": v.get("key", ""),
+                    "label": v.get("label", v.get("key", "")),
+                    "type": v.get("type", "string"),
+                    "example": v.get("example", ""),
+                    "required": v.get("required", False)
+                }
+                variables_for_template.append(var_obj)
+                variables_for_metadata.append(var_obj)
+            else:
+                # Pydantic 模型对象
+                var_obj = {
+                    "key": getattr(v, "key", ""),
+                    "label": getattr(v, "label", getattr(v, "key", "")),
+                    "type": getattr(v, "type", "string"),
+                    "example": getattr(v, "example", "") or "",
+                    "required": getattr(v, "required", False)
+                }
+                variables_for_template.append(var_obj)
+                variables_for_metadata.append(var_obj)
+    
+    # 创建 system_email_templates 记录
     template = SystemEmailTemplate(
         code=template_data.code,
         name=template_data.name,
@@ -391,11 +427,43 @@ def create_email_template(
         subject=template_data.subject,
         body_html=template_data.body_html,
         body_text=template_data.body_text,
-        variables=template_data.variables,
+        variables=variables_for_template,  # 保存完整对象列表
         is_active=template_data.is_active
     )
     
     db.add(template)
+    
+    # 同时创建/更新 template_metadata 记录
+    existing_metadata = db.query(TemplateMetadata).filter(
+        TemplateMetadata.code == template_data.code
+    ).first()
+    
+    if existing_metadata:
+        # 更新已有的元数据
+        existing_metadata.name = template_data.name
+        existing_metadata.category = template_data.category
+        existing_metadata.description = template_data.description
+        existing_metadata.variables = variables_for_metadata
+        existing_metadata.default_subject = template_data.subject
+        existing_metadata.default_body_html = template_data.body_html
+        existing_metadata.default_body_text = template_data.body_text
+    else:
+        # 创建新的元数据
+        metadata = TemplateMetadata(
+            code=template_data.code,
+            name=template_data.name,
+            category=template_data.category,
+            description=template_data.description,
+            trigger_description=None,  # 用户自定义模板没有触发描述
+            variables=variables_for_metadata,
+            default_subject=template_data.subject,
+            default_body_html=template_data.body_html,
+            default_body_text=template_data.body_text,
+            is_system=False,  # 用户创建的模板不是系统模板
+            sort_order=100  # 排在系统模板后面
+        )
+        db.add(metadata)
+    
     db.commit()
     db.refresh(template)
     
@@ -424,6 +492,7 @@ def update_email_template(
 ):
     """
     更新邮件模板（仅管理员）
+    同时更新 template_metadata 记录以保持变量定义同步
     """
     if current_user.role != "admin":
         raise HTTPException(
@@ -441,8 +510,82 @@ def update_email_template(
             detail="模板不存在"
         )
     
-    # 更新字段
+    # 处理 variables：支持字符串列表和对象列表两种格式
     update_data = template_data.model_dump(exclude_unset=True)
+    
+    if "variables" in update_data and update_data["variables"] is not None:
+        variables_for_template = []
+        variables_for_metadata = []
+        
+        for v in update_data["variables"]:
+            if isinstance(v, str):
+                # 旧格式：纯字符串
+                var_obj = {"key": v, "label": v, "type": "string", "example": "", "required": False}
+                variables_for_template.append(var_obj)
+                variables_for_metadata.append(var_obj)
+            elif isinstance(v, dict):
+                # 新格式：完整对象
+                var_obj = {
+                    "key": v.get("key", ""),
+                    "label": v.get("label", v.get("key", "")),
+                    "type": v.get("type", "string"),
+                    "example": v.get("example", ""),
+                    "required": v.get("required", False)
+                }
+                variables_for_template.append(var_obj)
+                variables_for_metadata.append(var_obj)
+            else:
+                # Pydantic 模型对象
+                var_obj = {
+                    "key": getattr(v, "key", ""),
+                    "label": getattr(v, "label", getattr(v, "key", "")),
+                    "type": getattr(v, "type", "string"),
+                    "example": getattr(v, "example", "") or "",
+                    "required": getattr(v, "required", False)
+                }
+                variables_for_template.append(var_obj)
+                variables_for_metadata.append(var_obj)
+        
+        update_data["variables"] = variables_for_template
+        
+        # 同步更新 template_metadata
+        metadata = db.query(TemplateMetadata).filter(
+            TemplateMetadata.code == template.code
+        ).first()
+        
+        if metadata:
+            metadata.variables = variables_for_metadata
+            # 同步更新其他相关字段
+            if "name" in update_data:
+                metadata.name = update_data["name"]
+            if "category" in update_data:
+                metadata.category = update_data["category"]
+            if "description" in update_data:
+                metadata.description = update_data["description"]
+            if "subject" in update_data:
+                metadata.default_subject = update_data["subject"]
+            if "body_html" in update_data:
+                metadata.default_body_html = update_data["body_html"]
+            if "body_text" in update_data:
+                metadata.default_body_text = update_data["body_text"]
+        else:
+            # 如果没有元数据记录，创建一个
+            new_metadata = TemplateMetadata(
+                code=template.code,
+                name=update_data.get("name", template.name),
+                category=update_data.get("category", template.category),
+                description=update_data.get("description", template.description),
+                trigger_description=None,
+                variables=variables_for_metadata,
+                default_subject=update_data.get("subject", template.subject),
+                default_body_html=update_data.get("body_html", template.body_html),
+                default_body_text=update_data.get("body_text", template.body_text),
+                is_system=False,
+                sort_order=100
+            )
+            db.add(new_metadata)
+    
+    # 更新模板字段
     for field, value in update_data.items():
         setattr(template, field, value)
     

@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 import asyncio
 from db.database import engine, SessionLocal
 from db import models  # 确保导入 models 以注册表
-from api import auth, mail, users, folders, tracking, invite, pool, signatures, attachments, billing, reserved_prefixes, email_templates, totp, blocklist, aliases, tags, contacts, external_accounts, drive, automation
+from api import auth, mail, users, folders, tracking, invite, pool, signatures, attachments, billing, reserved_prefixes, email_templates, totp, blocklist, aliases, tags, contacts, external_accounts, drive, automation, workflows, workflow_templates
 from api.deps import get_current_user_from_token
 from api.auth import cleanup_old_sessions
 from initial import initial_data
@@ -53,6 +53,8 @@ app.include_router(contacts.router, prefix="/api", tags=["Contacts"])
 app.include_router(external_accounts.router, prefix="/api", tags=["External Accounts"])
 app.include_router(drive.router, prefix="/api", tags=["Drive"])
 app.include_router(automation.router, prefix="/api", tags=["Automation"])
+app.include_router(workflows.router, prefix="/api/workflows", tags=["Workflows"])
+app.include_router(workflow_templates.router, prefix="/api/workflow-templates", tags=["Workflow Templates"])
 
 # 定时任务
 sync_task = None
