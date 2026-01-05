@@ -23,6 +23,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
+    "@vite-pwa/nuxt": "^1.1.0",
     "dotenv-cli": "^11.0.0"
   }
 }

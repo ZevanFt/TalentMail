@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Search, Moon, Sun, Settings, Mail, X, LogOut, Crown, HardDrive } from 'lucide-vue-next'
+import { Search, Moon, Sun, Settings, Mail, X, LogOut, Crown, HardDrive, Copy, Check } from 'lucide-vue-next'
 const router = useRouter()
 const { isDark, toggleTheme } = useTheme()
 const { search, clearSearch, searchQuery, isSearching } = useEmails()
@@ -65,6 +65,19 @@ const handleEnter = () => {
   if (debounceTimer) clearTimeout(debounceTimer)
   search(localQuery.value)
 }
+
+// 复制邮箱
+const copied = ref(false)
+const copyEmail = async () => {
+  if (!user.value?.email) return
+  try {
+    await navigator.clipboard.writeText(user.value.email)
+    copied.value = true
+    setTimeout(() => { copied.value = false }, 2000)
+  } catch (e) {
+    console.error('复制失败:', e)
+  }
+}
 </script>
 
 <template>
@@ -120,7 +133,17 @@ const handleEnter = () => {
                             </div>
                             <div class="flex-1 min-w-0">
                                 <div class="font-bold text-gray-900 dark:text-white truncate">{{ user?.display_name || emailPrefix }}</div>
-                                <div class="text-xs text-gray-500 truncate">{{ user?.email }}</div>
+                                <div class="flex items-center gap-1.5 group/email">
+                                    <div class="text-xs text-gray-500 truncate">{{ user?.email }}</div>
+                                    <button
+                                        @click.stop="copyEmail"
+                                        class="p-0.5 rounded opacity-0 group-hover/email:opacity-100 transition-opacity hover:bg-gray-100 dark:hover:bg-gray-700"
+                                        :title="copied ? '已复制!' : '复制邮箱'"
+                                    >
+                                        <Check v-if="copied" class="w-3 h-3 text-green-500" />
+                                        <Copy v-else class="w-3 h-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
