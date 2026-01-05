@@ -652,6 +652,7 @@ onMounted(() => {
     <!-- 工作流模板选择弹窗 -->
     <WorkflowTemplateSelector
       v-model="showTemplateSelector"
+      scope="system"
       @use="onTemplateUsed"
       @create-blank="createBlankSystemWorkflow"
     />

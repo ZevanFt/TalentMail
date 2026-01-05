@@ -708,8 +708,8 @@ export const useApi = () => {
   const getWorkflowTemplateCategories = () => api<Array<{ value: string; label: string; count: number }>>('/workflow-templates/categories')
   const getWorkflowTemplateTags = () => api<Array<{ tag: string; count: number }>>('/workflow-templates/tags')
   const getWorkflowTemplate = (id: number) => api<WorkflowTemplate>(`/workflow-templates/${id}`)
-  const useWorkflowTemplate = (id: number, data?: { name?: string; description?: string }) =>
-    api<{ success: boolean; workflow_id: number; message: string }>(`/workflow-templates/${id}/use`, 'POST', data || {})
+  const useWorkflowTemplate = (id: number, data?: { name?: string; description?: string; scope?: string }) =>
+    api<{ success: boolean; workflow_id: number; scope: string; message: string }>(`/workflow-templates/${id}/use`, 'POST', data || {})
   const toggleWorkflowTemplateFavorite = (id: number) =>
     api<{ success: boolean; is_favorited: boolean; favorite_count: number; message: string }>(`/workflow-templates/${id}/favorite`, 'POST')
   // Admin APIs

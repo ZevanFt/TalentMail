@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { Plus, Workflow, Play, Edit, Trash2, RefreshCw, Clock, CheckCircle, Send, MoreVertical, Eye, X, Copy, BookOpen } from 'lucide-vue-next'
+import { Plus, Workflow, Play, Edit, Trash2, RefreshCw, Clock, CheckCircle, Send, MoreVertical, Eye, X, Copy, BookOpen, Settings, Power } from 'lucide-vue-next'
 import { VueFlow, MarkerType } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
 
 const router = useRouter()
-const { getWorkflows, getWorkflow, deleteWorkflow: deleteWorkflowApi, getNodeTypes } = useApi()
+const { getWorkflows, getWorkflow, updateWorkflow, deleteWorkflow: deleteWorkflowApi, getNodeTypes, publishWorkflow } = useApi()
 
 const loading = ref(false)
 const workflows = ref<any[]>([])
@@ -70,6 +70,27 @@ const deleteWorkflow = async (id: number) => {
     alert('删除失败')
   } finally {
     deleting.value = null
+  }
+}
+
+// 切换工作流启用状态
+const togglingActive = ref<number | null>(null)
+const toggleWorkflowActive = async (workflow: any) => {
+  togglingActive.value = workflow.id
+  try {
+    const newState = !workflow.is_active
+    await updateWorkflow(workflow.id, { is_active: newState })
+    workflow.is_active = newState
+    // 如果要启用但还是草稿状态，自动发布
+    if (newState && workflow.status === 'draft') {
+      await publishWorkflow(workflow.id)
+      workflow.status = 'published'
+    }
+  } catch (e: any) {
+    console.error('切换状态失败:', e)
+    alert('操作失败：' + (e.data?.detail || e.message || '未知错误'))
+  } finally {
+    togglingActive.value = null
   }
 }
 
@@ -218,65 +239,97 @@ onMounted(() => {
     </div>
 
     <!-- 工作流列表 -->
-    <div v-else-if="workflows.length > 0" class="space-y-3">
+    <div v-else-if="workflows.length > 0" class="grid gap-4">
       <div
         v-for="workflow in workflows"
         :key="workflow.id"
-        class="bg-white dark:bg-bg-panelDark rounded-xl border border-gray-200 dark:border-border-dark p-4 hover:shadow-md transition-shadow"
+        class="bg-white dark:bg-bg-panelDark rounded-xl border border-gray-200 dark:border-border-dark p-5 hover:shadow-lg transition-all"
       >
-        <div class="flex items-center justify-between">
+        <div class="flex items-start justify-between gap-4">
           <!-- 左侧信息 -->
-          <div class="flex items-center gap-4 flex-1">
-            <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <Workflow class="w-5 h-5 text-primary" />
+          <div class="flex items-start gap-4 flex-1 min-w-0">
+            <!-- 图标 + 开关 -->
+            <div class="flex flex-col items-center gap-2">
+              <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center shrink-0">
+                <Workflow class="w-6 h-6 text-primary" />
+              </div>
+              <!-- 启用/禁用开关 -->
+              <button
+                @click="toggleWorkflowActive(workflow)"
+                :disabled="togglingActive === workflow.id"
+                :class="[
+                  'relative w-10 h-5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50',
+                  workflow.is_active ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                ]"
+                :title="workflow.is_active ? '点击禁用' : '点击启用'"
+              >
+                <span
+                  :class="[
+                    'absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform shadow',
+                    workflow.is_active ? 'translate-x-5' : 'translate-x-0'
+                  ]"
+                />
+                <RefreshCw v-if="togglingActive === workflow.id" class="absolute inset-0 m-auto w-3 h-3 text-white animate-spin" />
+              </button>
             </div>
+            
+            <!-- 名称和描述 -->
             <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2">
-                <h3 class="font-semibold text-gray-900 dark:text-white truncate">
+              <div class="flex items-center gap-2 mb-1">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white truncate">
                   {{ workflow.name }}
                 </h3>
                 <span :class="['px-2 py-0.5 text-xs font-medium rounded-full shrink-0', getStatusColor(workflow.status)]">
                   {{ getStatusLabel(workflow.status) }}
                 </span>
+                <span v-if="workflow.is_active" class="flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                  <Power class="w-3 h-3" />
+                  运行中
+                </span>
               </div>
-              <p class="text-sm text-gray-500 dark:text-gray-400 truncate">
-                {{ workflow.description || '暂无描述' }}
+              <p class="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mb-3">
+                {{ workflow.description || '暂无描述，点击编辑添加描述' }}
               </p>
+              
+              <!-- 统计信息 -->
+              <div class="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+                <span class="flex items-center gap-1">
+                  <Play class="w-3.5 h-3.5" />
+                  执行 {{ workflow.execution_count || 0 }} 次
+                </span>
+                <span class="flex items-center gap-1">
+                  v{{ workflow.version }}
+                </span>
+                <span v-if="workflow.category" class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-gray-600 dark:text-gray-400">
+                  {{ workflow.category }}
+                </span>
+              </div>
             </div>
           </div>
 
-          <!-- 统计 -->
-          <div class="hidden md:flex items-center gap-6 text-sm text-gray-500 dark:text-gray-400 mx-4">
-            <span class="flex items-center gap-1">
-              <Play class="w-4 h-4" />
-              {{ workflow.execution_count || 0 }}
-            </span>
-            <span class="flex items-center gap-1">
-              v{{ workflow.version }}
-            </span>
-          </div>
-
-          <!-- 操作按钮 -->
-          <div class="flex items-center gap-2">
+          <!-- 右侧操作按钮 -->
+          <div class="flex items-center gap-2 shrink-0">
             <button
               @click="openPreviewModal(workflow)"
-              class="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
               title="预览流程图"
             >
               <Eye class="w-4 h-4" />
-              预览
+              <span class="hidden sm:inline">预览</span>
             </button>
             <button
               @click="editWorkflow(workflow.id)"
-              class="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              class="flex items-center gap-1.5 px-3 py-2 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg transition-colors"
+              title="编辑工作流"
             >
               <Edit class="w-4 h-4" />
-              编辑
+              <span class="hidden sm:inline">编辑</span>
             </button>
             <button
               @click="deleteWorkflow(workflow.id)"
               :disabled="deleting === workflow.id"
-              class="flex items-center justify-center w-8 h-8 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
+              class="flex items-center justify-center w-9 h-9 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
+              title="删除工作流"
             >
               <Trash2 v-if="deleting !== workflow.id" class="w-4 h-4" />
               <RefreshCw v-else class="w-4 h-4 animate-spin" />

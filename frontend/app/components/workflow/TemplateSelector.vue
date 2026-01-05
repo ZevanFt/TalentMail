@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { Search, Star, Bookmark, Filter, X, ChevronRight, Workflow, Plus, Heart, Tag, Package } from 'lucide-vue-next'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   modelValue: boolean
-}>()
+  scope?: 'personal' | 'system'  // 新增：创建工作流的范围
+}>(), {
+  scope: 'personal'
+})
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
@@ -124,7 +127,7 @@ const previewTemplate = (template: any) => {
 const useTemplate = async (template: any) => {
   usingTemplate.value = true
   try {
-    const result = await useWorkflowTemplate(template.id)
+    const result = await useWorkflowTemplate(template.id, { scope: props.scope })
     if (result.success) {
       emit('use', template)
       emit('update:modelValue', false)

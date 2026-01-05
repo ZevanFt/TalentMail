@@ -103,11 +103,6 @@ class WorkflowTemplateListItem(BaseModel):
         from_attributes = True
 
 
-class UseTemplateRequest(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-
-
 # ==================== 模板列表和详情 API ====================
 
 @router.get("/", response_model=List[WorkflowTemplateListItem])
@@ -298,6 +293,12 @@ async def get_template(
 
 # ==================== 使用模板 API ====================
 
+class UseTemplateRequest(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    scope: Optional[str] = 'personal'  # 新增：支持 'personal' 或 'system'
+
+
 @router.post("/{template_id}/use")
 async def use_template(
     template_id: int,
@@ -315,12 +316,17 @@ async def use_template(
     if not template:
         raise HTTPException(status_code=404, detail="Template not found")
     
+    # 如果是创建系统工作流，需要管理员权限
+    if data.scope == 'system':
+        if not current_user.role == 'admin':
+            raise HTTPException(status_code=403, detail="Only admin can create system workflows")
+    
     # 创建工作流
     workflow = Workflow(
         name=data.name or f"{template.name} (副本)",
         description=data.description or template.description,
         owner_id=current_user.id,
-        scope='personal',
+        scope=data.scope or 'personal',
         category=template.category,
         status='draft',
         version=1
@@ -364,7 +370,8 @@ async def use_template(
     return {
         'success': True,
         'workflow_id': workflow.id,
-        'message': f'已从模板 "{template.name}" 创建工作流'
+        'scope': workflow.scope,
+        'message': f'已从模板 "{template.name}" 创建{"系统" if workflow.scope == "system" else "个人"}工作流'
     }
 
 
