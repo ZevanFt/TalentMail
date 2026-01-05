@@ -723,5 +723,51 @@ export const useApi = () => {
   const reviewWorkflowTemplate = (id: number, action: 'approve' | 'reject') =>
     api<{ success: boolean; message: string }>(`/workflow-templates/${id}/review?action=${action}`, 'POST')
 
-  return { login, login2FA, logout, getFolders, getEmails, getEmail, sendEmail, syncEmails, markEmailRead, deleteEmail, markEmailStarred, snoozeEmail, getAllEmails, getSnoozedEmails, searchEmails, getTrackingStats, resendEmail, getMe, updateMe, changePassword, getStorageStats, getInviteCodes, createInviteCode, deleteInviteCode, getInviteCodeUsages, getUsers, updateUserPermissions, adminCreateUser, adminDeleteUser, getPoolMailboxes, createPoolMailbox, deletePoolMailbox, getPoolMailboxEmails, getPoolStats, getPoolActivityLogs, markPoolEmailRead, saveDraft, updateDraft, deleteDraft, getSignatures, createSignature, updateSignature, deleteSignature, getDefaultSignature, uploadAttachment, deleteAttachment, downloadAttachmentUrl, getPlans, createPlan, updatePlan, deletePlan, getRedemptionCodes, generateRedemptionCodes, getRedemptionCodeStats, revokeRedemptionCode, getSubscriptionStatus, redeemCode, getRedemptionHistory, getLoginSessions, revokeSession, revokeAllSessions, getReservedPrefixes, createReservedPrefix, updateReservedPrefix, deleteReservedPrefix, getReservedPrefixCategories, checkPrefixAvailability, sendVerificationCode, verifyCode, registerWithVerification, forgotPassword, resetPassword, sendRecoveryEmailCode, updateRecoveryEmail, getEmailTemplates, getEmailTemplate, createEmailTemplate, updateEmailTemplate, deleteEmailTemplate, previewEmailTemplate, sendTestEmail, getTemplateMetadataList, getTemplateMetadata, getGlobalVariables, updateGlobalVariable, resetTemplateToDefault, sendTemplateEmail, getAvailableEvents, getTemplateTriggerRules, createTemplateTriggerRule, deleteTemplateTriggerRule, toggleTemplateTriggerRule, get2FAStatus, setup2FA, enable2FA, disable2FA, verify2FA, getBlockedSenders, addBlockedSender, removeBlockedSender, getAliases, createAlias, updateAlias, deleteAlias, getTags, createTag, updateTag, deleteTag, addTagToEmail, removeTagFromEmail, getEmailsByTag, getContacts, createContact, updateContact, deleteContact, getExternalAccounts, createExternalAccount, updateExternalAccount, deleteExternalAccount, testExternalAccount, getProviderPresets, getDriveFiles, uploadDriveFile, deleteDriveFile, createDriveShare, removeDriveShare, downloadDriveFileUrl, getShareInfo, downloadSharedFileUrl, getSystemWorkflows, getSystemWorkflow, getSystemWorkflowConfig, updateSystemWorkflowConfig, executeSystemWorkflow, getWorkflowExecutions, getWorkflowExecutionDetail, getNodeTypes, getWorkflows, createWorkflow, getWorkflow, updateWorkflow, saveWorkflowCanvas, publishWorkflow, deleteWorkflow, getWorkflowTemplates, getWorkflowTemplateCategories, getWorkflowTemplateTags, getWorkflowTemplate, useWorkflowTemplate, toggleWorkflowTemplateFavorite, createWorkflowTemplate, updateWorkflowTemplate, deleteWorkflowTemplate, getPendingWorkflowTemplates, reviewWorkflowTemplate, token }
+  // Changelog APIs (更新日志)
+  interface Changelog {
+    id: number
+    version: string
+    title: string
+    content: string
+    type: string
+    category: string | null
+    is_major: boolean
+    is_published: boolean
+    published_at: string | null
+    author: string | null
+    tags: string[] | null
+    breaking_changes: string | null
+    migration_notes: string | null
+    created_at: string
+    updated_at: string
+  }
+  interface ChangelogListResponse {
+    items: Changelog[]
+    total: number
+    page: number
+    page_size: number
+    has_more: boolean
+  }
+  const getChangelogs = (options?: { page?: number; page_size?: number; type?: string; category?: string; is_major?: boolean }) => {
+    let url = '/changelogs'
+    const params: string[] = []
+    if (options?.page) params.push(`page=${options.page}`)
+    if (options?.page_size) params.push(`page_size=${options.page_size}`)
+    if (options?.type) params.push(`type=${options.type}`)
+    if (options?.category) params.push(`category=${options.category}`)
+    if (options?.is_major !== undefined) params.push(`is_major=${options.is_major}`)
+    if (params.length > 0) url += '?' + params.join('&')
+    return api<ChangelogListResponse>(url)
+  }
+  const getLatestChangelog = () => api<Changelog>('/changelogs/latest')
+  const getChangelog = (id: number) => api<Changelog>(`/changelogs/${id}`)
+  const createChangelog = (data: { version: string; title: string; content: string; type?: string; category?: string; is_major?: boolean; is_published?: boolean; author?: string; tags?: string[]; breaking_changes?: string; migration_notes?: string }) =>
+    api<Changelog>('/changelogs', 'POST', data)
+  const updateChangelog = (id: number, data: { version?: string; title?: string; content?: string; type?: string; category?: string; is_major?: boolean; is_published?: boolean; author?: string; tags?: string[]; breaking_changes?: string; migration_notes?: string }) =>
+    api<Changelog>(`/changelogs/${id}`, 'PUT', data)
+  const deleteChangelog = (id: number) => api<{ message: string }>(`/changelogs/${id}`, 'DELETE')
+  const publishChangelog = (id: number) => api<Changelog>(`/changelogs/${id}/publish`, 'POST')
+  const unpublishChangelog = (id: number) => api<Changelog>(`/changelogs/${id}/unpublish`, 'POST')
+
+  return { login, login2FA, logout, getFolders, getEmails, getEmail, sendEmail, syncEmails, markEmailRead, deleteEmail, markEmailStarred, snoozeEmail, getAllEmails, getSnoozedEmails, searchEmails, getTrackingStats, resendEmail, getMe, updateMe, changePassword, getStorageStats, getInviteCodes, createInviteCode, deleteInviteCode, getInviteCodeUsages, getUsers, updateUserPermissions, adminCreateUser, adminDeleteUser, getPoolMailboxes, createPoolMailbox, deletePoolMailbox, getPoolMailboxEmails, getPoolStats, getPoolActivityLogs, markPoolEmailRead, saveDraft, updateDraft, deleteDraft, getSignatures, createSignature, updateSignature, deleteSignature, getDefaultSignature, uploadAttachment, deleteAttachment, downloadAttachmentUrl, getPlans, createPlan, updatePlan, deletePlan, getRedemptionCodes, generateRedemptionCodes, getRedemptionCodeStats, revokeRedemptionCode, getSubscriptionStatus, redeemCode, getRedemptionHistory, getLoginSessions, revokeSession, revokeAllSessions, getReservedPrefixes, createReservedPrefix, updateReservedPrefix, deleteReservedPrefix, getReservedPrefixCategories, checkPrefixAvailability, sendVerificationCode, verifyCode, registerWithVerification, forgotPassword, resetPassword, sendRecoveryEmailCode, updateRecoveryEmail, getEmailTemplates, getEmailTemplate, createEmailTemplate, updateEmailTemplate, deleteEmailTemplate, previewEmailTemplate, sendTestEmail, getTemplateMetadataList, getTemplateMetadata, getGlobalVariables, updateGlobalVariable, resetTemplateToDefault, sendTemplateEmail, getAvailableEvents, getTemplateTriggerRules, createTemplateTriggerRule, deleteTemplateTriggerRule, toggleTemplateTriggerRule, get2FAStatus, setup2FA, enable2FA, disable2FA, verify2FA, getBlockedSenders, addBlockedSender, removeBlockedSender, getAliases, createAlias, updateAlias, deleteAlias, getTags, createTag, updateTag, deleteTag, addTagToEmail, removeTagFromEmail, getEmailsByTag, getContacts, createContact, updateContact, deleteContact, getExternalAccounts, createExternalAccount, updateExternalAccount, deleteExternalAccount, testExternalAccount, getProviderPresets, getDriveFiles, uploadDriveFile, deleteDriveFile, createDriveShare, removeDriveShare, downloadDriveFileUrl, getShareInfo, downloadSharedFileUrl, getSystemWorkflows, getSystemWorkflow, getSystemWorkflowConfig, updateSystemWorkflowConfig, executeSystemWorkflow, getWorkflowExecutions, getWorkflowExecutionDetail, getNodeTypes, getWorkflows, createWorkflow, getWorkflow, updateWorkflow, saveWorkflowCanvas, publishWorkflow, deleteWorkflow, getWorkflowTemplates, getWorkflowTemplateCategories, getWorkflowTemplateTags, getWorkflowTemplate, useWorkflowTemplate, toggleWorkflowTemplateFavorite, createWorkflowTemplate, updateWorkflowTemplate, deleteWorkflowTemplate, getPendingWorkflowTemplates, reviewWorkflowTemplate, getChangelogs, getLatestChangelog, getChangelog, createChangelog, updateChangelog, deleteChangelog, publishChangelog, unpublishChangelog, token }
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { User, Shield, Palette, LogOut, ArrowLeft, Mail, Bell, Lock, HardDrive, Users, Ticket, UserCog, CreditCard, AtSign, FileText, Info, Zap, Workflow } from 'lucide-vue-next'
+import { User, Shield, Palette, LogOut, ArrowLeft, Mail, Bell, Lock, HardDrive, Users, Ticket, UserCog, CreditCard, AtSign, FileText, Info, Zap, Workflow, ScrollText } from 'lucide-vue-next'
 const router = useRouter()
 const route = useRoute()
 const { logout, getMe } = useApi()
@@ -115,6 +115,9 @@ const handleLogout = () => {
         <!-- 分组：其他 -->
         <div class="space-y-1">
           <div class="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">其他</div>
+          <button @click="setTab('changelog')" :class="['tab-btn', activeTab === 'changelog' ? 'active' : '']">
+            <ScrollText class="w-4 h-4" /> 更新日志
+          </button>
           <button @click="setTab('about')" :class="['tab-btn', activeTab === 'about' ? 'active' : '']">
             <Info class="w-4 h-4" /> 关于
           </button>
@@ -180,6 +183,7 @@ const handleLogout = () => {
             <SettingsReservedPrefixes v-else-if="activeTab === 'prefixes'" />
             <SettingsEmailTemplates v-else-if="activeTab === 'email-templates'" />
             <SettingsSystemWorkflows v-else-if="activeTab === 'system-workflows'" />
+            <SettingsChangelog v-else-if="activeTab === 'changelog'" />
             <SettingsAbout v-else-if="activeTab === 'about'" />
           </Transition>
         </div>

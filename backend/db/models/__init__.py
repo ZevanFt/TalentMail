@@ -6,7 +6,7 @@ from .user import User, UserSession, PoolActivityLog, BlockedSender
 from .email import Folder, Email, Attachment, Signature, Alias, TempMailbox, Domain
 from .billing import Plan, Subscription, Transaction, RedemptionCode, InviteCode, InviteCodeUsage, SubscriptionHistory
 from .features import Contact, Filter, Template, Tag, EmailTag, TrackingPixel, TrackingEvent
-from .system import ServerLog, ApiKey, ReservedPrefix, SystemEmailTemplate, VerificationCode
+from .system import ServerLog, ApiKey, ReservedPrefix, SystemEmailTemplate, VerificationCode, Changelog
 from .external_account import ExternalAccount
 from .drive import DriveFile
 from .template import TemplateMetadata, GlobalVariable
@@ -59,6 +59,7 @@ __all__ = [
     "ReservedPrefix",
     "SystemEmailTemplate",
     "VerificationCode",
+    "Changelog",
     "ExternalAccount",
     "DriveFile",
     "TemplateMetadata",

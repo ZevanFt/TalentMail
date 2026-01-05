@@ -82,3 +82,25 @@ class SystemEmailTemplate(Base):
     is_active = Column(Boolean, default=True, comment="是否启用")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="创建时间")
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), comment="更新时间")
+
+
+class Changelog(Base):
+    """系统更新日志，记录项目版本更新历史"""
+    __tablename__ = "changelogs"
+    __table_args__ = {'comment': '系统更新日志表，记录项目版本更新历史和功能变更'}
+    
+    id = Column(Integer, primary_key=True, comment="更新日志唯一标识符")
+    version = Column(String(50), nullable=False, index=True, comment="版本号，如 1.0.0, 1.1.0")
+    title = Column(String(255), nullable=False, comment="更新标题")
+    content = Column(Text, nullable=False, comment="更新内容（支持Markdown格式）")
+    type = Column(String(50), nullable=False, default="release", comment="类型：release/hotfix/beta/alpha")
+    category = Column(String(50), nullable=True, comment="分类：feature/bugfix/improvement/security")
+    is_major = Column(Boolean, default=False, comment="是否为重大更新")
+    is_published = Column(Boolean, default=True, comment="是否已发布（未发布的只有管理员可见）")
+    published_at = Column(DateTime(timezone=True), nullable=True, comment="发布时间")
+    author = Column(String(100), nullable=True, comment="更新作者/负责人")
+    tags = Column(JSON, nullable=True, comment="标签列表，如 ['新功能', '工作流', '模板']")
+    breaking_changes = Column(Text, nullable=True, comment="破坏性变更说明")
+    migration_notes = Column(Text, nullable=True, comment="迁移说明")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="创建时间")
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), comment="更新时间")
