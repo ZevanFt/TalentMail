@@ -132,7 +132,12 @@ class Workflow(Base):
     # 状态
     status = Column(String(20), default='draft', comment='状态: draft/published/disabled')
     is_active = Column(Boolean, default=False, comment='是否启用')
-    
+
+    # 配置
+    config_schema = Column(JSON, nullable=True, comment='可配置项的JSON Schema')
+    default_config = Column(JSON, nullable=True, default=dict, comment='默认配置')
+    config = Column(JSON, nullable=True, default=dict, comment='当前配置')
+
     # 版本控制
     version = Column(Integer, default=1, comment='当前版本')
     published_version = Column(Integer, nullable=True, comment='已发布版本')

@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { Play, Settings, Eye, Clock, CheckCircle, XCircle, RefreshCw, Workflow, Plus, Edit, FileText, X, BookOpen } from 'lucide-vue-next'
+import { Play, Settings, Eye, Clock, CheckCircle, XCircle, RefreshCw, Workflow, Plus, Edit, FileText, X, BookOpen, Trash2 } from 'lucide-vue-next'
 import { VueFlow, MarkerType } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
 
 const router = useRouter()
-const { getSystemWorkflows, getSystemWorkflowConfig, updateSystemWorkflowConfig, getWorkflowExecutions, getNodeTypes } = useApi()
+const { getSystemWorkflows, getSystemWorkflowConfig, updateSystemWorkflowConfig, getWorkflowExecutions, getNodeTypes, updateSystemWorkflow } = useApi()
 
 // 状态
 const loading = ref(true)
@@ -20,6 +20,15 @@ const showExecutionModal = ref(false)
 const showPreviewModal = ref(false)
 const executions = ref<any[]>([])
 const loadingExecutions = ref(false)
+
+// 启用/禁用状态
+const togglingActive = ref<number | null>(null)
+
+// 删除状态
+const deleting = ref<number | null>(null)
+
+// 核心工作流（不可删除）
+const coreWorkflows = ['welcome_email', 'email_verification', 'password_reset', 'new_device_alert']
 
 // 预览用节点类型
 const nodeTypes = ref<any[]>([])
@@ -41,6 +50,46 @@ const loadWorkflows = async () => {
     console.error('加载工作流失败:', e)
   } finally {
     loading.value = false
+  }
+}
+
+// 切换工作流启用状态
+const toggleWorkflowActive = async (workflow: any) => {
+  togglingActive.value = workflow.id
+  try {
+    const newState = !workflow.is_active
+    await updateSystemWorkflow(workflow.code, { is_active: newState })
+    workflow.is_active = newState
+  } catch (e: any) {
+    console.error('切换状态失败:', e)
+    alert('操作失败：' + (e.data?.detail || e.message || '未知错误'))
+  } finally {
+    togglingActive.value = null
+  }
+}
+
+// 判断是否可删除
+const canDelete = (workflow: any): boolean => {
+  return !coreWorkflows.includes(workflow.code)
+}
+
+// 删除系统工作流
+const deleteSystemWorkflow = async (workflow: any) => {
+  if (!canDelete(workflow)) {
+    alert('该工作流为核心功能，无法删除')
+    return
+  }
+  if (!confirm(`确定要删除系统工作流 "${workflow.name}" 吗？此操作不可恢复。`)) return
+
+  deleting.value = workflow.id
+  try {
+    await updateSystemWorkflow(workflow.code, { is_deleted: true })
+    workflows.value = workflows.value.filter(w => w.id !== workflow.id)
+  } catch (e: any) {
+    console.error('删除失败:', e)
+    alert('删除失败：' + (e.data?.detail || e.message || '未知错误'))
+  } finally {
+    deleting.value = null
   }
 }
 
@@ -281,74 +330,108 @@ onMounted(() => {
       <div
         v-for="workflow in workflows"
         :key="workflow.id"
-        class="bg-white dark:bg-bg-panelDark rounded-xl border border-gray-200 dark:border-border-dark p-6 hover:shadow-md transition-shadow"
+        class="relative bg-white dark:bg-bg-panelDark rounded-xl border border-gray-200 dark:border-border-dark p-6 hover:shadow-md transition-shadow min-h-[140px]"
       >
-        <div class="flex items-start justify-between">
-          <!-- 左侧信息 -->
-          <div class="flex-1">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Workflow class="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                  {{ workflow.name }}
-                </h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400">
-                  {{ workflow.name_en }} · {{ workflow.code }}
-                </p>
-              </div>
-              <span :class="['px-2 py-1 text-xs font-medium rounded-full', getCategoryColor(workflow.category)]">
-                {{ getCategoryLabel(workflow.category) }}
-              </span>
-            </div>
-            
-            <p class="mt-3 text-sm text-gray-600 dark:text-gray-400">
-              {{ workflow.description }}
-            </p>
+        <!-- 右上角按钮组 -->
+        <div class="absolute top-4 right-4 flex items-center gap-2">
+          <button
+            @click="openPreviewModal(workflow)"
+            class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            title="预览流程图"
+          >
+            <Eye class="w-4 h-4" />
+            <span>预览</span>
+          </button>
+          <button
+            @click="openExecutionModal(workflow)"
+            class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            title="查看执行记录"
+          >
+            <Clock class="w-4 h-4" />
+            <span>记录</span>
+          </button>
+          <button
+            @click="openConfigModal(workflow)"
+            class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            title="配置工作流"
+          >
+            <Settings class="w-4 h-4" />
+            <span>配置</span>
+          </button>
+          <button
+            @click="editSystemWorkflow(workflow)"
+            class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            title="编辑工作流"
+          >
+            <Edit class="w-4 h-4" />
+            <span>编辑</span>
+          </button>
+          <!-- 启用/禁用开关 -->
+          <div class="flex items-center gap-2 ml-2 pl-2 border-l border-gray-200 dark:border-gray-700">
+            <button
+              @click="toggleWorkflowActive(workflow)"
+              :disabled="togglingActive === workflow.id"
+              :class="[
+                'relative w-11 h-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50',
+                workflow.is_active ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
+              ]"
+              :title="workflow.is_active ? '点击禁用' : '点击启用'"
+            >
+              <span
+                :class="[
+                  'absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform shadow',
+                  workflow.is_active ? 'translate-x-5' : 'translate-x-0'
+                ]"
+              />
+              <RefreshCw v-if="togglingActive === workflow.id" class="absolute inset-0 m-auto w-3 h-3 text-white animate-spin" />
+            </button>
+          </div>
+        </div>
 
-            <!-- 节点数量统计 -->
-            <div class="mt-4 flex items-center gap-6 text-sm text-gray-500 dark:text-gray-400">
-              <span>{{ workflow.nodes?.length || 0 }} 个节点</span>
-              <span>{{ workflow.edges?.length || 0 }} 条连接</span>
-              <span>版本 v{{ workflow.version }}</span>
+        <!-- 右下角删除按钮 -->
+        <button
+          @click="deleteSystemWorkflow(workflow)"
+          :disabled="deleting === workflow.id || !canDelete(workflow)"
+          :class="[
+            'absolute bottom-4 right-4 flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-600 rounded-lg transition-colors',
+            canDelete(workflow)
+              ? 'hover:bg-red-50 dark:hover:bg-red-900/20'
+              : 'opacity-50 cursor-not-allowed'
+          ]"
+          :title="canDelete(workflow) ? '删除工作流' : '核心工作流无法删除'"
+        >
+          <Trash2 class="w-4 h-4" />
+          <span>{{ deleting === workflow.id ? '删除中...' : '删除' }}</span>
+        </button>
+
+        <!-- 左侧信息 -->
+        <div class="pr-96">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Workflow class="w-5 h-5 text-primary" />
             </div>
+            <div>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                {{ workflow.name }}
+              </h3>
+              <p class="text-sm text-gray-500 dark:text-gray-400">
+                {{ workflow.name_en }} · {{ workflow.code }}
+              </p>
+            </div>
+            <span :class="['px-2 py-1 text-xs font-medium rounded-full', getCategoryColor(workflow.category)]">
+              {{ getCategoryLabel(workflow.category) }}
+            </span>
           </div>
 
-          <!-- 右侧操作按钮 -->
-          <div class="flex items-center gap-2">
-            <button
-              @click="openPreviewModal(workflow)"
-              class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-              title="预览流程图"
-            >
-              <Eye class="w-4 h-4" />
-              <span class="hidden sm:inline">预览</span>
-            </button>
-            <button
-              @click="openExecutionModal(workflow)"
-              class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-              title="查看执行记录"
-            >
-              <Clock class="w-4 h-4" />
-              <span class="hidden sm:inline">记录</span>
-            </button>
-            <button
-              @click="openConfigModal(workflow)"
-              class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-              title="配置工作流"
-            >
-              <Settings class="w-4 h-4" />
-              <span class="hidden sm:inline">配置</span>
-            </button>
-            <button
-              @click="editSystemWorkflow(workflow)"
-              class="flex items-center gap-1.5 px-3 py-2 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg transition-colors"
-              title="编辑工作流"
-            >
-              <Edit class="w-4 h-4" />
-              <span class="hidden sm:inline">编辑</span>
-            </button>
+          <p class="mt-3 text-sm text-gray-600 dark:text-gray-400">
+            {{ workflow.description }}
+          </p>
+
+          <!-- 节点数量统计 -->
+          <div class="mt-4 flex items-center gap-6 text-sm text-gray-500 dark:text-gray-400">
+            <span>{{ workflow.nodes?.length || 0 }} 个节点</span>
+            <span>{{ workflow.edges?.length || 0 }} 条连接</span>
+            <span>版本 v{{ workflow.version }}</span>
           </div>
         </div>
       </div>

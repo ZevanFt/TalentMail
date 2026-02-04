@@ -336,6 +336,9 @@ class WorkflowUpdate(BaseModel):
     description: Optional[str] = None
     category: Optional[str] = None
     is_active: Optional[bool] = None
+    config_schema: Optional[Dict] = None
+    default_config: Optional[Dict] = None
+    config: Optional[Dict] = None
 
 
 class WorkflowNodeCreate(BaseModel):
@@ -373,7 +376,10 @@ class WorkflowResponse(BaseModel):
     is_active: bool
     version: int
     execution_count: int
-    
+    config_schema: Optional[Dict] = None
+    default_config: Optional[Dict] = None
+    config: Optional[Dict] = None
+
     class Config:
         from_attributes = True
 
@@ -450,7 +456,10 @@ async def get_workflow_detail(
             'category': workflow.category,
             'status': workflow.status,
             'is_active': workflow.is_active,
-            'version': workflow.version
+            'version': workflow.version,
+            'config_schema': workflow.config_schema,
+            'default_config': workflow.default_config,
+            'config': workflow.config
         },
         'nodes': [
             {
@@ -502,7 +511,13 @@ async def update_workflow(
         workflow.category = data.category
     if data.is_active is not None:
         workflow.is_active = data.is_active
-    
+    if data.config_schema is not None:
+        workflow.config_schema = data.config_schema
+    if data.default_config is not None:
+        workflow.default_config = data.default_config
+    if data.config is not None:
+        workflow.config = data.config
+
     db.commit()
     db.refresh(workflow)
     

@@ -85,3 +85,31 @@ class BlockedSender(Base):
     reason = Column(String(255), nullable=True, comment="屏蔽原因")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="添加时间")
     user = relationship("User")
+
+
+class TrustedSender(Base):
+    """白名单 - 信任的发件人"""
+    __tablename__ = "trusted_senders"
+    __table_args__ = {'comment': '用户信任的发件人白名单'}
+    id = Column(Integer, primary_key=True, comment="白名单记录ID")
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, comment="所属用户ID")
+    email = Column(String(255), nullable=False, comment="信任的邮箱地址（可以是完整地址或域名如 @example.com）")
+    sender_type = Column(String(20), nullable=False, default="email", comment="类型: 'email'(完整地址) 或 'domain'(整个域名)")
+    note = Column(String(255), nullable=True, comment="备注")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="添加时间")
+    user = relationship("User")
+
+
+class SpamReport(Base):
+    """垃圾邮件报告记录"""
+    __tablename__ = "spam_reports"
+    __table_args__ = {'comment': '垃圾邮件报告记录，用于训练过滤器'}
+    id = Column(Integer, primary_key=True, comment="报告ID")
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, comment="报告用户ID")
+    email_id = Column(Integer, ForeignKey("emails.id", ondelete="CASCADE"), nullable=False, comment="被报告的邮件ID")
+    report_type = Column(String(20), nullable=False, comment="报告类型: 'spam'(标记为垃圾) 或 'ham'(标记为非垃圾)")
+    original_folder_id = Column(Integer, ForeignKey("folders.id"), nullable=True, comment="邮件原始文件夹ID")
+    learned = Column(Boolean, default=False, comment="是否已学习到 SpamAssassin")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="报告时间")
+    user = relationship("User")
+    email = relationship("Email", foreign_keys=[email_id])

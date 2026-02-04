@@ -401,11 +401,25 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="创建用户失败",
         )
-    
+
     # 使用邀请码（记录使用者）
     crud_user.use_invite_code(db, invite, user_id=new_user.id)
     db.commit()
-    
+
+    # 触发用户注册工作流事件
+    try:
+        import asyncio
+        wf_service = WorkflowService(db)
+        asyncio.create_task(wf_service.trigger_event("user.registered", {
+            "user_id": new_user.id,
+            "email": new_user.email,
+            "display_name": new_user.display_name or new_user.email.split('@')[0],
+            "registered_at": datetime.now(timezone.utc).isoformat()
+        }))
+    except Exception as e:
+        # 工作流触发失败不影响注册
+        print(f"[Register] Workflow trigger failed: {e}")
+
     return {"status": "success", "user_id": new_user.id, "email": new_user.email}
 
 
@@ -517,19 +531,53 @@ def login_for_access_token(
     access_token_expires = timedelta(minutes=security.ACCESS_TOKEN_EXPIRE_MINUTES)
     refresh_token_expires = timedelta(days=security.REFRESH_TOKEN_EXPIRE_DAYS)
 
-    access_token = security.create_access_token(
+    # 先创建一个临时 token 用于生成 session
+    temp_token = security.create_access_token(
         data={"sub": user.email}, expires_delta=access_token_expires
     )
-    refresh_token = security.create_refresh_token(
-        data={"sub": user.email}, expires_delta=refresh_token_expires
-    )
-    
+
     # 记录登录会话
+    session = None
     try:
-        create_session_record(db, user.id, access_token, request)
+        session = create_session_record(db, user.id, temp_token, request)
     except Exception as e:
         # 记录失败不影响登录
         print(f"Failed to create session record: {e}")
+
+    # 创建包含 session_id 的正式 token
+    token_data = {"sub": user.email}
+    if session:
+        token_data["session_id"] = session.id
+
+    access_token = security.create_access_token(
+        data=token_data, expires_delta=access_token_expires
+    )
+    refresh_token = security.create_refresh_token(
+        data=token_data, expires_delta=refresh_token_expires
+    )
+
+    # 如果有 session，更新它的 token_hash
+    if session:
+        session.token_hash = hashlib.sha256(access_token.encode()).hexdigest()[:64]
+        db.commit()
+
+    # 触发用户登录工作流事件（用于异地登录检测等）
+    try:
+        import asyncio
+        wf_service = WorkflowService(db)
+        client_ip = get_client_ip(request)
+        asyncio.create_task(wf_service.trigger_event("user.login", {
+            "user_id": user.id,
+            "email": user.email,
+            "display_name": user.display_name or user.email.split('@')[0],
+            "ip_address": client_ip,
+            "user_agent": request.headers.get("User-Agent", ""),
+            "session_id": session.id if session else None,
+            "login_at": datetime.now(timezone.utc).isoformat()
+        }))
+    except Exception as e:
+        # 工作流触发失败不影响登录
+        print(f"[Login] Workflow trigger failed: {e}")
 
     return {
         "access_token": access_token,
@@ -590,18 +638,34 @@ def login_with_2fa(
     access_token_expires = timedelta(minutes=security.ACCESS_TOKEN_EXPIRE_MINUTES)
     refresh_token_expires = timedelta(days=security.REFRESH_TOKEN_EXPIRE_DAYS)
 
-    access_token = security.create_access_token(
+    # 先创建一个临时 token 用于生成 session
+    temp_token = security.create_access_token(
         data={"sub": user.email}, expires_delta=access_token_expires
     )
-    refresh_token = security.create_refresh_token(
-        data={"sub": user.email}, expires_delta=refresh_token_expires
-    )
-    
+
     # 记录登录会话
+    session = None
     try:
-        create_session_record(db, user.id, access_token, request)
+        session = create_session_record(db, user.id, temp_token, request)
     except Exception as e:
         print(f"Failed to create session record: {e}")
+
+    # 创建包含 session_id 的正式 token
+    token_data = {"sub": user.email}
+    if session:
+        token_data["session_id"] = session.id
+
+    access_token = security.create_access_token(
+        data=token_data, expires_delta=access_token_expires
+    )
+    refresh_token = security.create_refresh_token(
+        data=token_data, expires_delta=refresh_token_expires
+    )
+
+    # 如果有 session，更新它的 token_hash
+    if session:
+        session.token_hash = hashlib.sha256(access_token.encode()).hexdigest()[:64]
+        db.commit()
 
     return {
         "access_token": access_token,
@@ -739,7 +803,21 @@ def reset_password(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="重置密码失败，请稍后重试"
         )
-    
+
+    # 触发密码修改工作流事件（用于发送确认通知）
+    try:
+        import asyncio
+        wf_service = WorkflowService(db)
+        asyncio.create_task(wf_service.trigger_event("password.changed", {
+            "user_id": updated_user.id,
+            "email": updated_user.email,
+            "display_name": updated_user.display_name or updated_user.email.split('@')[0],
+            "changed_at": datetime.now(timezone.utc).isoformat(),
+            "method": "reset"  # 通过重置方式修改
+        }))
+    except Exception as e:
+        print(f"[ResetPassword] Workflow trigger failed: {e}")
+
     return {"status": "success", "message": "密码重置成功"}
 
 

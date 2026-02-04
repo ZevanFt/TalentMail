@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional, Dict
+from pydantic import BaseModel
 import uuid
 import json
 from api import deps
@@ -199,33 +200,43 @@ def search_emails(
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_active_user),
 ):
-    """搜索邮件（主题、发件人、正文）"""
-    from sqlalchemy import or_
-    
+    """搜索邮件（使用 PostgreSQL 全文搜索）"""
+    from sqlalchemy import or_, text
+
     # 获取用户所有文件夹（排除垃圾箱）
     user_folders = db.query(Folder).filter(
         Folder.user_id == current_user.id,
         Folder.role != 'trash'
     ).all()
     folder_ids = [f.id for f in user_folders]
-    
-    # 搜索条件：主题、发件人、正文包含关键词
-    search_pattern = f"%{q}%"
+
+    if not folder_ids:
+        return email_schema.EmailListResponse(
+            status="success",
+            data=email_schema.EmailListData(items=[], total=0, page=page, limit=limit)
+        )
+
+    # 使用 PostgreSQL 全文搜索
+    # 将搜索词转换为 tsquery 格式（支持多词搜索）
+    # 使用 plainto_tsquery 自动处理空格分隔的多个词
+    search_query = func.plainto_tsquery('simple', q)
+
+    # 构建查询：使用全文搜索匹配
     query = db.query(Email).filter(
         Email.folder_id.in_(folder_ids),
         Email.is_purged == False,
-        or_(
-            Email.subject.ilike(search_pattern),
-            Email.sender.ilike(search_pattern),
-            Email.body_text.ilike(search_pattern),
-            Email.body_html.ilike(search_pattern)
-        )
+        Email.search_vector.op('@@')(search_query)
     )
-    
+
     total = query.count()
     offset = (page - 1) * limit
-    emails = query.order_by(Email.received_at.desc()).offset(offset).limit(limit).all()
-    
+
+    # 按相关性排序（ts_rank），然后按时间排序
+    emails = query.order_by(
+        func.ts_rank(Email.search_vector, search_query).desc(),
+        Email.received_at.desc()
+    ).offset(offset).limit(limit).all()
+
     # 批量查询附件数量
     email_ids = [e.id for e in emails]
     attachment_counts: Dict[int, int] = {}
@@ -234,7 +245,7 @@ def search_emails(
             Attachment.email_id.in_(email_ids)
         ).group_by(Attachment.email_id).all()
         attachment_counts = {email_id: count for email_id, count in counts}
-    
+
     items = []
     for e in emails:
         items.append(email_schema.EmailListItem(
@@ -249,7 +260,7 @@ def search_emails(
             is_tracked=e.is_tracked or False,
             delivery_status=e.delivery_status,
         ))
-    
+
     return email_schema.EmailListResponse(
         status="success",
         data=email_schema.EmailListData(items=items, total=total, page=page, limit=limit)
@@ -804,3 +815,219 @@ def delete_draft(
     db.commit()
     
     return {"status": "success", "data": {"id": draft_id}}
+
+
+# --- 批量操作 API ---
+
+class BulkActionRequest(BaseModel):
+    """批量操作请求"""
+    email_ids: list[int]
+
+
+class BulkMoveRequest(BulkActionRequest):
+    """批量移动请求"""
+    folder_id: int
+
+
+class BulkActionResponse(BaseModel):
+    """批量操作响应"""
+    status: str
+    success_count: int
+    failed_count: int
+    failed_ids: list[int] = []
+
+
+@router.post("/bulk/read", response_model=BulkActionResponse)
+def bulk_mark_read(
+    data: BulkActionRequest,
+    is_read: bool = Query(..., description="标记为已读或未读"),
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+):
+    """批量标记邮件已读/未读"""
+    success_count = 0
+    failed_ids = []
+
+    for email_id in data.email_ids:
+        email = db.query(Email).join(Folder).filter(
+            Email.id == email_id,
+            Folder.user_id == current_user.id
+        ).first()
+
+        if email:
+            email.is_read = is_read
+            success_count += 1
+        else:
+            failed_ids.append(email_id)
+
+    db.commit()
+
+    return BulkActionResponse(
+        status="success",
+        success_count=success_count,
+        failed_count=len(failed_ids),
+        failed_ids=failed_ids
+    )
+
+
+@router.post("/bulk/star", response_model=BulkActionResponse)
+def bulk_mark_starred(
+    data: BulkActionRequest,
+    is_starred: bool = Query(..., description="标记为星标或取消星标"),
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+):
+    """批量标记邮件星标"""
+    success_count = 0
+    failed_ids = []
+
+    for email_id in data.email_ids:
+        email = db.query(Email).join(Folder).filter(
+            Email.id == email_id,
+            Folder.user_id == current_user.id
+        ).first()
+
+        if email:
+            email.is_starred = is_starred
+            success_count += 1
+        else:
+            failed_ids.append(email_id)
+
+    db.commit()
+
+    return BulkActionResponse(
+        status="success",
+        success_count=success_count,
+        failed_count=len(failed_ids),
+        failed_ids=failed_ids
+    )
+
+
+@router.post("/bulk/move", response_model=BulkActionResponse)
+def bulk_move_emails(
+    data: BulkMoveRequest,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+):
+    """批量移动邮件到指定文件夹"""
+    # 验证目标文件夹属于当前用户
+    target_folder = db.query(Folder).filter(
+        Folder.id == data.folder_id,
+        Folder.user_id == current_user.id
+    ).first()
+
+    if not target_folder:
+        raise HTTPException(status_code=404, detail="目标文件夹不存在")
+
+    success_count = 0
+    failed_ids = []
+
+    for email_id in data.email_ids:
+        email = db.query(Email).join(Folder).filter(
+            Email.id == email_id,
+            Folder.user_id == current_user.id
+        ).first()
+
+        if email:
+            email.folder_id = data.folder_id
+            success_count += 1
+        else:
+            failed_ids.append(email_id)
+
+    db.commit()
+
+    return BulkActionResponse(
+        status="success",
+        success_count=success_count,
+        failed_count=len(failed_ids),
+        failed_ids=failed_ids
+    )
+
+
+@router.post("/bulk/delete", response_model=BulkActionResponse)
+def bulk_delete_emails(
+    data: BulkActionRequest,
+    permanent: bool = Query(False, description="是否永久删除（否则移到垃圾箱）"),
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+):
+    """批量删除邮件"""
+    success_count = 0
+    failed_ids = []
+
+    if permanent:
+        # 永久删除
+        for email_id in data.email_ids:
+            email = db.query(Email).join(Folder).filter(
+                Email.id == email_id,
+                Folder.user_id == current_user.id
+            ).first()
+
+            if email:
+                email.is_purged = True
+                success_count += 1
+            else:
+                failed_ids.append(email_id)
+    else:
+        # 移到垃圾箱
+        trash_folder = get_user_folder_by_role(db, user_id=current_user.id, role="trash")
+        if not trash_folder:
+            raise HTTPException(status_code=404, detail="垃圾箱文件夹不存在")
+
+        for email_id in data.email_ids:
+            email = db.query(Email).join(Folder).filter(
+                Email.id == email_id,
+                Folder.user_id == current_user.id
+            ).first()
+
+            if email:
+                email.folder_id = trash_folder.id
+                email.deleted_at = datetime.now(timezone.utc)
+                success_count += 1
+            else:
+                failed_ids.append(email_id)
+
+    db.commit()
+
+    return BulkActionResponse(
+        status="success",
+        success_count=success_count,
+        failed_count=len(failed_ids),
+        failed_ids=failed_ids
+    )
+
+
+@router.post("/bulk/archive", response_model=BulkActionResponse)
+def bulk_archive_emails(
+    data: BulkActionRequest,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+):
+    """批量归档邮件"""
+    archive_folder = get_user_folder_by_role(db, user_id=current_user.id, role="archive")
+    if not archive_folder:
+        raise HTTPException(status_code=404, detail="归档文件夹不存在")
+
+    success_count = 0
+    failed_ids = []
+
+    for email_id in data.email_ids:
+        email = db.query(Email).join(Folder).filter(
+            Email.id == email_id,
+            Folder.user_id == current_user.id
+        ).first()
+
+        if email:
+            email.folder_id = archive_folder.id
+            success_count += 1
+        else:
+            failed_ids.append(email_id)
+
+    db.commit()
+
+    return BulkActionResponse(
+        status="success",
+        success_count=success_count,
+        failed_count=len(failed_ids),
+        failed_ids=failed_ids
+    )

@@ -474,13 +474,14 @@ class LoginSessionRead(BaseModel):
 def get_login_sessions(
     limit: int = Query(10, ge=1, le=50, description="返回记录数量"),
     db: Session = Depends(deps.get_db),
-    current_user: models.User = Depends(deps.get_current_active_user)
+    current_user: models.User = Depends(deps.get_current_active_user),
+    current_session_id: Optional[int] = Depends(deps.get_current_session_id)
 ):
     """获取当前用户的登录历史"""
     sessions = db.query(UserSession).filter(
         UserSession.user_id == current_user.id
     ).order_by(desc(UserSession.created_at)).limit(limit).all()
-    
+
     result = []
     for s in sessions:
         result.append({
@@ -493,9 +494,9 @@ def get_login_sessions(
             "is_active": s.is_active,
             "created_at": s.created_at.isoformat() if s.created_at else None,
             "last_active_at": s.last_active_at.isoformat() if s.last_active_at else None,
-            "is_current": False  # TODO: 可以通过 token_hash 判断
+            "is_current": s.id == current_session_id if current_session_id else False
         })
-    
+
     return result
 
 

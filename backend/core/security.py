@@ -63,14 +63,17 @@ def verify_token(token: str) -> Optional[schemas.TokenData]:
     """
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        
+
         sub: str = payload.get("sub")
         token_type: str = payload.get("token_type")
 
         if sub is None or token_type is None:
             return None
-            
-        return schemas.TokenData(sub=sub)
+
+        # 提取 session_id（如果存在）
+        session_id = payload.get("session_id")
+
+        return schemas.TokenData(sub=sub, session_id=session_id)
 
     except ExpiredSignatureError:
         # You can log this event if needed

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ShieldAlert, ImageOff, Plus, X, Trash2 } from 'lucide-vue-next'
+import { ShieldAlert, ImageOff, Plus, X, Trash2, ShieldCheck } from 'lucide-vue-next'
 
-const { getMe, updateMe, getBlockedSenders, addBlockedSender, removeBlockedSender } = useApi()
+const { getMe, updateMe, getBlockedSenders, addBlockedSender, removeBlockedSender, getWhitelist, addToWhitelist, removeFromWhitelist } = useApi()
 
 const user = ref<any>(null)
 const loading = ref(true)
@@ -15,6 +15,15 @@ const newBlockedEmail = ref('')
 const newBlockedReason = ref('')
 const addingBlocked = ref(false)
 const addError = ref('')
+
+// 白名单相关
+const whitelist = ref<Array<{ id: number; email: string; sender_type: string; note: string | null; created_at: string | null }>>([])
+const loadingWhitelist = ref(false)
+const showAddWhitelistModal = ref(false)
+const newWhitelistEmail = ref('')
+const newWhitelistNote = ref('')
+const addingWhitelist = ref(false)
+const addWhitelistError = ref('')
 
 const loadUser = async () => {
     loading.value = true
@@ -35,6 +44,17 @@ const loadBlocklist = async () => {
         console.error('加载黑名单失败', e)
     } finally {
         loadingBlocklist.value = false
+    }
+}
+
+const loadWhitelist = async () => {
+    loadingWhitelist.value = true
+    try {
+        whitelist.value = await getWhitelist()
+    } catch (e) {
+        console.error('加载白名单失败', e)
+    } finally {
+        loadingWhitelist.value = false
     }
 }
 
@@ -84,6 +104,33 @@ const handleRemoveBlocked = async (id: number) => {
     }
 }
 
+const handleAddWhitelist = async () => {
+    if (!newWhitelistEmail.value.trim()) return
+
+    addingWhitelist.value = true
+    addWhitelistError.value = ''
+    try {
+        const result = await addToWhitelist(newWhitelistEmail.value.trim(), newWhitelistNote.value.trim() || undefined)
+        whitelist.value.unshift(result)
+        showAddWhitelistModal.value = false
+        newWhitelistEmail.value = ''
+        newWhitelistNote.value = ''
+    } catch (e: any) {
+        addWhitelistError.value = e.data?.detail || '添加失败'
+    } finally {
+        addingWhitelist.value = false
+    }
+}
+
+const handleRemoveWhitelist = async (id: number) => {
+    try {
+        await removeFromWhitelist(id)
+        whitelist.value = whitelist.value.filter(w => w.id !== id)
+    } catch (e) {
+        console.error('移除失败', e)
+    }
+}
+
 const formatDate = (date: string | null) => {
     if (!date) return '-'
     return new Date(date).toLocaleDateString('zh-CN')
@@ -92,6 +139,7 @@ const formatDate = (date: string | null) => {
 onMounted(() => {
     loadUser()
     loadBlocklist()
+    loadWhitelist()
 })
 </script>
 
@@ -180,6 +228,74 @@ onMounted(() => {
                     <button @click="handleAddBlocked" :disabled="addingBlocked || !newBlockedEmail.trim()"
                         class="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary-hover disabled:opacity-50">
                         {{ addingBlocked ? '添加中...' : '添加' }}
+                    </button>
+                </div>
+            </div>
+        </CommonModal>
+
+        <!-- 白名单 -->
+        <div class="card">
+            <div class="flex justify-between items-center mb-4">
+                <div class="flex items-center gap-2">
+                    <div class="icon-box bg-green-100 text-green-600">
+                        <ShieldCheck class="w-5 h-5" />
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-gray-900 dark:text-white">白名单管理</h3>
+                        <p class="text-xs text-gray-500">白名单中的发件人邮件将不会被标记为垃圾邮件</p>
+                    </div>
+                </div>
+                <button @click="showAddWhitelistModal = true" class="text-primary text-sm font-medium flex items-center gap-1 hover:underline">
+                    <Plus class="w-4 h-4" /> 添加
+                </button>
+            </div>
+
+            <div v-if="loadingWhitelist" class="text-sm text-gray-500 p-4 text-center">
+                加载中...
+            </div>
+            <div v-else-if="whitelist.length === 0" class="text-sm text-gray-500 italic p-4 bg-gray-50 dark:bg-gray-900 rounded-lg text-center">
+                暂无白名单邮箱地址
+            </div>
+            <div v-else class="space-y-2 max-h-60 overflow-y-auto">
+                <div v-for="item in whitelist" :key="item.id"
+                    class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg group">
+                    <div>
+                        <div class="font-medium text-gray-900 dark:text-white text-sm">{{ item.email }}</div>
+                        <div class="text-xs text-gray-500">
+                            {{ item.note || '无备注' }} · {{ formatDate(item.created_at) }}
+                        </div>
+                    </div>
+                    <button @click="handleRemoveWhitelist(item.id)"
+                        class="text-red-500 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity p-1">
+                        <Trash2 class="w-4 h-4" />
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 添加白名单弹窗 -->
+        <CommonModal v-model="showAddWhitelistModal" title="添加到白名单">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">邮箱地址</label>
+                    <input v-model="newWhitelistEmail" type="email"
+                        class="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                        placeholder="example@domain.com">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">备注（可选）</label>
+                    <input v-model="newWhitelistNote" type="text"
+                        class="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                        placeholder="添加备注">
+                </div>
+                <div v-if="addWhitelistError" class="text-red-500 text-sm">{{ addWhitelistError }}</div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button @click="showAddWhitelistModal = false" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm">
+                        取消
+                    </button>
+                    <button @click="handleAddWhitelist" :disabled="addingWhitelist || !newWhitelistEmail.trim()"
+                        class="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary-hover disabled:opacity-50">
+                        {{ addingWhitelist ? '添加中...' : '添加' }}
                     </button>
                 </div>
             </div>

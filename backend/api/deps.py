@@ -1,5 +1,6 @@
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from typing import Optional
 
 from core import security
 from crud import user as crud_user
@@ -63,3 +64,17 @@ def get_current_admin_user(
             detail="Admin privileges required"
         )
     return current_user
+
+
+def get_current_session_id(
+    token: str = Depends(security.oauth2_scheme)
+) -> Optional[int]:
+    """
+    从 token 中获取当前会话 ID
+    """
+    token_data = security.verify_token(token)
+    if not token_data:
+        return None
+
+    # 从 token_data 中获取 session_id
+    return getattr(token_data, 'session_id', None)

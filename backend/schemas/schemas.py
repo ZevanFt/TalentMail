@@ -83,7 +83,8 @@ class Token(BaseModel):
 
 
 class TokenData(BaseModel):
-    sub: str # 'sub' is the standard JWT claim for the subject (user identifier)
+    sub: str  # 'sub' is the standard JWT claim for the subject (user identifier)
+    session_id: Optional[int] = None  # 当前会话ID，用于识别当前登录会话
 
 
 # --- Folder Schemas ---
@@ -243,3 +244,11 @@ class FilterRead(FilterBase):
 
     class Config:
         from_attributes = True
+
+
+# --- Bulk Action Schemas ---
+class BulkActionRequest(BaseModel):
+    """批量操作请求"""
+    email_ids: list[int]
+    action: str  # mark_read, mark_unread, star, unstar, delete, move
+    target_folder_id: Optional[int] = None  # 用于 move 操作

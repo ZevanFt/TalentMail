@@ -1,13 +1,140 @@
 <script setup lang="ts">
-import { Star, RefreshCw, Loader2, Circle, Clock, X, Send, CheckCircle, XCircle, Eye, Paperclip } from 'lucide-vue-next'
+import { Star, RefreshCw, Loader2, Circle, Clock, X, Send, CheckCircle, XCircle, Eye, Paperclip, SquareCheck, Square, Trash2, Archive, FolderInput, CheckCheck, CircleDot, MoreHorizontal } from 'lucide-vue-next'
 
 const { emails, selectedEmailId, folders, currentFolderId, loading, syncing, loadFolders, loadEmails, loadEmailDetail, sync, formatTime, toggleRead, toggleStar, snooze, searchQuery, isSearching, clearSearch, startAutoSync, stopAutoSync, editDraft } = useEmails()
 const { isComposeOpen } = useGlobalModal()
-const { getEmail } = useApi()
+const { getEmail, bulkMarkRead, bulkMarkStarred, bulkDeleteEmails, bulkArchiveEmails, bulkMoveEmails, markAsSpam, markAsNotSpam } = useApi()
 
 // 获取 Sidebar 中选中的虚拟文件夹 ID 和标签 ID
 const selectedVirtualId = useState<string | null>('selectedVirtualId', () => null)
 const selectedTagId = useState<number | null>('selectedTagId', () => null)
+
+// ========== 批量选择功能 ==========
+const isSelectionMode = ref(false)
+const selectedEmailIds = ref<Set<number>>(new Set())
+
+// 切换选择模式
+const toggleSelectionMode = () => {
+  isSelectionMode.value = !isSelectionMode.value
+  if (!isSelectionMode.value) {
+    selectedEmailIds.value.clear()
+  }
+}
+
+// 切换单个邮件选择
+const toggleEmailSelection = (id: number, event: Event) => {
+  event.stopPropagation()
+  if (selectedEmailIds.value.has(id)) {
+    selectedEmailIds.value.delete(id)
+  } else {
+    selectedEmailIds.value.add(id)
+  }
+  // 触发响应式更新
+  selectedEmailIds.value = new Set(selectedEmailIds.value)
+}
+
+// 全选/取消全选
+const isAllSelected = computed(() =>
+  emails.value.length > 0 && selectedEmailIds.value.size === emails.value.length
+)
+const isSomeSelected = computed(() =>
+  selectedEmailIds.value.size > 0 && selectedEmailIds.value.size < emails.value.length
+)
+const toggleSelectAll = () => {
+  if (isAllSelected.value) {
+    selectedEmailIds.value.clear()
+  } else {
+    selectedEmailIds.value = new Set(emails.value.map((e: any) => e.id))
+  }
+}
+
+// 批量操作 loading
+const bulkLoading = ref(false)
+
+// 批量标记已读
+const handleBulkMarkRead = async (isRead: boolean) => {
+  if (selectedEmailIds.value.size === 0) return
+  bulkLoading.value = true
+  try {
+    await bulkMarkRead(Array.from(selectedEmailIds.value), isRead)
+    await loadEmails()
+    selectedEmailIds.value.clear()
+    isSelectionMode.value = false
+  } catch (e) {
+    console.error('批量标记失败', e)
+  } finally {
+    bulkLoading.value = false
+  }
+}
+
+// 批量删除
+const handleBulkDelete = async () => {
+  if (selectedEmailIds.value.size === 0) return
+  bulkLoading.value = true
+  try {
+    await bulkDeleteEmails(Array.from(selectedEmailIds.value))
+    await loadEmails()
+    selectedEmailIds.value.clear()
+    isSelectionMode.value = false
+  } catch (e) {
+    console.error('批量删除失败', e)
+  } finally {
+    bulkLoading.value = false
+  }
+}
+
+// 批量归档
+const handleBulkArchive = async () => {
+  if (selectedEmailIds.value.size === 0) return
+  bulkLoading.value = true
+  try {
+    await bulkArchiveEmails(Array.from(selectedEmailIds.value))
+    await loadEmails()
+    selectedEmailIds.value.clear()
+    isSelectionMode.value = false
+  } catch (e) {
+    console.error('批量归档失败', e)
+  } finally {
+    bulkLoading.value = false
+  }
+}
+
+// 批量标记为垃圾邮件
+const handleBulkMarkSpam = async () => {
+  if (selectedEmailIds.value.size === 0) return
+  bulkLoading.value = true
+  try {
+    await markAsSpam(Array.from(selectedEmailIds.value))
+    await loadEmails()
+    selectedEmailIds.value.clear()
+    isSelectionMode.value = false
+  } catch (e) {
+    console.error('批量标记垃圾邮件失败', e)
+  } finally {
+    bulkLoading.value = false
+  }
+}
+
+// 批量标记为非垃圾邮件
+const handleBulkMarkNotSpam = async () => {
+  if (selectedEmailIds.value.size === 0) return
+  bulkLoading.value = true
+  try {
+    await markAsNotSpam(Array.from(selectedEmailIds.value))
+    await loadEmails()
+    selectedEmailIds.value.clear()
+    isSelectionMode.value = false
+  } catch (e) {
+    console.error('批量标记非垃圾邮件失败', e)
+  } finally {
+    bulkLoading.value = false
+  }
+}
+
+// 批量操作菜单
+const showBulkMenu = ref(false)
+
+// ========== 原有功能 ==========
 
 // 待办对话框
 const showSnoozeModal = ref(false)
@@ -103,6 +230,12 @@ const isDraftsFolder = computed(() => {
   return folder?.role === 'drafts'
 })
 
+// 是否是垃圾邮件文件夹
+const isSpamFolder = computed(() => {
+  const folder = folders.value.find(f => f.id === currentFolderId.value)
+  return folder?.role === 'spam'
+})
+
 // 获取发件人首字母
 const getAvatar = (sender: string) => {
   if (!sender) return '?'
@@ -149,11 +282,63 @@ onUnmounted(() => {
         <button v-if="isSearching" @click="clearSearch" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-primary" title="清除搜索">
           <X class="w-4 h-4" />
         </button>
+        <!-- 批量选择按钮 -->
+        <button @click="toggleSelectionMode"
+          class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+          :class="{ 'bg-primary/10 text-primary': isSelectionMode }"
+          :title="isSelectionMode ? '退出选择' : '批量选择'">
+          <SquareCheck class="w-4 h-4" />
+        </button>
         <button @click="sync" :disabled="syncing" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
           <Loader2 v-if="syncing" class="w-4 h-4 animate-spin" />
           <RefreshCw v-else class="w-4 h-4" />
         </button>
       </div>
+    </div>
+
+    <!-- 批量操作工具栏 -->
+    <div v-if="isSelectionMode && selectedEmailIds.size > 0"
+      class="px-3 py-2 bg-primary/5 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
+      <!-- 全选 -->
+      <button @click="toggleSelectAll" class="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded" :title="isAllSelected ? '取消全选' : '全选'">
+        <SquareCheck v-if="isAllSelected" class="w-4 h-4 text-primary" />
+        <Square v-else class="w-4 h-4 text-gray-500" />
+      </button>
+      <span class="text-xs text-gray-600 dark:text-gray-400">{{ selectedEmailIds.size }} 封</span>
+      <div class="flex-1"></div>
+      <!-- 批量操作按钮 -->
+      <button @click="handleBulkMarkRead(true)" :disabled="bulkLoading" class="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded" title="标记已读">
+        <CheckCheck class="w-4 h-4 text-gray-600 dark:text-gray-400" />
+      </button>
+      <button @click="handleBulkArchive" :disabled="bulkLoading" class="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded" title="归档">
+        <Archive class="w-4 h-4 text-gray-600 dark:text-gray-400" />
+      </button>
+      <button @click="handleBulkDelete" :disabled="bulkLoading" class="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded" title="删除">
+        <Trash2 class="w-4 h-4 text-red-500" />
+      </button>
+      <!-- 更多操作下拉 -->
+      <div class="relative">
+        <button @click="showBulkMenu = !showBulkMenu" class="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded" title="更多操作">
+          <MoreHorizontal class="w-4 h-4 text-gray-600 dark:text-gray-400" />
+        </button>
+        <div v-if="showBulkMenu"
+          class="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 py-1">
+          <button @click="handleBulkMarkRead(false); showBulkMenu = false"
+            class="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2">
+            <CircleDot class="w-4 h-4" /> 标记未读
+          </button>
+          <button @click="handleBulkMarkSpam(); showBulkMenu = false"
+            class="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-orange-600">
+            <X class="w-4 h-4" /> 标记垃圾邮件
+          </button>
+          <button v-if="isSpamFolder" @click="handleBulkMarkNotSpam(); showBulkMenu = false"
+            class="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-green-600">
+            <CheckCircle class="w-4 h-4" /> 不是垃圾邮件
+          </button>
+        </div>
+      </div>
+      <!-- Loading 指示器 -->
+      <Loader2 v-if="bulkLoading" class="w-4 h-4 animate-spin text-primary" />
     </div>
 
     <!-- 加载状态 -->
@@ -175,8 +360,17 @@ onUnmounted(() => {
         
         <!-- 第一行：头像、发件人、快捷操作 -->
         <div class="flex items-center gap-2.5">
-          <!-- 未读蓝点 -->
-          <div class="w-2 h-2 rounded-full shrink-0" :class="email.is_read ? 'bg-transparent' : 'bg-blue-500'"></div>
+          <!-- 选择模式：复选框；非选择模式：未读蓝点 -->
+          <template v-if="isSelectionMode">
+            <button @click="toggleEmailSelection(email.id, $event)" class="shrink-0">
+              <SquareCheck v-if="selectedEmailIds.has(email.id)" class="w-4 h-4 text-primary" />
+              <Square v-else class="w-4 h-4 text-gray-400 hover:text-gray-600" />
+            </button>
+          </template>
+          <template v-else>
+            <!-- 未读蓝点 -->
+            <div class="w-2 h-2 rounded-full shrink-0" :class="email.is_read ? 'bg-transparent' : 'bg-blue-500'"></div>
+          </template>
           <!-- 头像 -->
           <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-xs text-white font-bold shadow-sm shrink-0">
             {{ getAvatar(email.sender) }}

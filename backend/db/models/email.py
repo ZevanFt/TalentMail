@@ -9,6 +9,7 @@ from sqlalchemy import (
     ForeignKey,
     UUID as SQLAlchemy_UUID,
 )
+from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import relationship
 import uuid
 from ..database import Base
@@ -54,6 +55,8 @@ class Email(Base):
     # Soft delete fields
     deleted_at = Column(DateTime(timezone=True), nullable=True, comment="软删除时间戳，非空表示已移入回收站")
     is_purged = Column(Boolean, default=False, comment="是否已从回收站彻底清除")
+    # Full-text search vector (PostgreSQL tsvector)
+    search_vector = Column(TSVECTOR, nullable=True, comment="全文搜索向量，包含主题、发件人和正文的分词结果")
     folder = relationship("Folder")
     tags = relationship("Tag", secondary="email_tags", backref="emails")
 

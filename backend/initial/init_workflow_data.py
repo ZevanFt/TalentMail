@@ -110,6 +110,18 @@ def init_node_types(db: Session, force_update_icons: bool = True):
             "icon": "FileText",
             "color": "#10b981",
             "description": "当表单提交时触发（如注册表单）",
+            "config_schema": {
+                "type": "object",
+                "properties": {
+                    "form_type": {
+                        "type": "string",
+                        "title": "表单类型",
+                        "enum": ["registration", "login", "password_reset", "contact", "custom"],
+                        "enumNames": ["注册表单", "登录表单", "密码重置", "联系表单", "自定义表单"],
+                        "default": "custom"
+                    }
+                }
+            },
             "output_variables": ["form_data"]
         },
         
@@ -364,7 +376,15 @@ def init_node_types(db: Session, force_update_icons: bool = True):
             "category": "email_operation",
             "icon": "Star",
             "color": "#8b5cf6",
-            "description": "标记邮件为星标"
+            "description": "标记邮件为星标",
+            "config_schema": {
+                "type": "object",
+                "properties": {
+                    "email_id": {"type": "string", "title": "邮件ID", "description": "例如: {{trigger.email_id}}"},
+                    "starred": {"type": "boolean", "title": "星标状态", "default": True}
+                },
+                "required": ["email_id"]
+            }
         },
         {
             "code": "operation_mark_read",
@@ -373,7 +393,15 @@ def init_node_types(db: Session, force_update_icons: bool = True):
             "category": "email_operation",
             "icon": "CheckCircle",
             "color": "#8b5cf6",
-            "description": "标记邮件为已读"
+            "description": "标记邮件为已读",
+            "config_schema": {
+                "type": "object",
+                "properties": {
+                    "email_id": {"type": "string", "title": "邮件ID", "description": "例如: {{trigger.email_id}}"},
+                    "is_read": {"type": "boolean", "title": "已读状态", "default": True}
+                },
+                "required": ["email_id"]
+            }
         },
         {
             "code": "operation_delete",
@@ -382,7 +410,15 @@ def init_node_types(db: Session, force_update_icons: bool = True):
             "category": "email_operation",
             "icon": "Trash2",
             "color": "#8b5cf6",
-            "description": "删除邮件（移到垃圾箱）"
+            "description": "删除邮件（移到垃圾箱）",
+            "config_schema": {
+                "type": "object",
+                "properties": {
+                    "email_id": {"type": "string", "title": "邮件ID", "description": "例如: {{trigger.email_id}}"},
+                    "permanent": {"type": "boolean", "title": "永久删除", "default": False}
+                },
+                "required": ["email_id"]
+            }
         },
         {
             "code": "operation_archive",
@@ -391,7 +427,14 @@ def init_node_types(db: Session, force_update_icons: bool = True):
             "category": "email_operation",
             "icon": "Archive",
             "color": "#8b5cf6",
-            "description": "归档邮件"
+            "description": "归档邮件",
+            "config_schema": {
+                "type": "object",
+                "properties": {
+                    "email_id": {"type": "string", "title": "邮件ID", "description": "例如: {{trigger.email_id}}"}
+                },
+                "required": ["email_id"]
+            }
         },
         
         # ==================== 数据处理节点 ====================
@@ -467,7 +510,24 @@ def init_node_types(db: Session, force_update_icons: bool = True):
             "category": "data",
             "icon": "UserCog",
             "color": "#06b6d4",
-            "description": "更新用户信息"
+            "description": "更新用户信息",
+            "config_schema": {
+                "type": "object",
+                "properties": {
+                    "user_id": {"type": "string", "title": "用户ID", "description": "例如: {{trigger.user_id}}"},
+                    "updates": {
+                        "type": "object",
+                        "title": "更新字段",
+                        "description": "要更新的字段和值",
+                        "properties": {
+                            "password": {"type": "string", "title": "新密码"},
+                            "display_name": {"type": "string", "title": "显示名称"},
+                            "email_verified": {"type": "boolean", "title": "邮箱已验证"}
+                        }
+                    }
+                },
+                "required": ["user_id"]
+            }
         },
         {
             "code": "data_verify_code",
@@ -477,6 +537,14 @@ def init_node_types(db: Session, force_update_icons: bool = True):
             "icon": "KeyRound",
             "color": "#06b6d4",
             "description": "校验用户输入的验证码",
+            "config_schema": {
+                "type": "object",
+                "properties": {
+                    "code_var": {"type": "string", "title": "验证码变量", "description": "例如: {{trigger.code}}"},
+                    "email_var": {"type": "string", "title": "邮箱变量", "description": "例如: {{trigger.email}}"},
+                    "purpose": {"type": "string", "title": "用途", "enum": ["auth", "reset_password", "email_verify"], "default": "auth"}
+                }
+            },
             "output_ports": [
                 {"id": "valid", "label": "验证通过"},
                 {"id": "invalid", "label": "验证失败"}
@@ -490,6 +558,13 @@ def init_node_types(db: Session, force_update_icons: bool = True):
             "icon": "Lock",
             "color": "#06b6d4",
             "description": "校验用户密码",
+            "config_schema": {
+                "type": "object",
+                "properties": {
+                    "user_id_var": {"type": "string", "title": "用户ID变量", "description": "例如: {{trigger.user_id}}"},
+                    "password_var": {"type": "string", "title": "密码变量", "description": "例如: {{trigger.password}}"}
+                }
+            },
             "output_ports": [
                 {"id": "valid", "label": "验证通过"},
                 {"id": "invalid", "label": "验证失败"}
@@ -603,20 +678,34 @@ def init_node_types(db: Session, force_update_icons: bool = True):
             }
         },
     ]
-    
+
     if existing_count > 0 and force_update_icons:
-        # 更新现有节点类型的图标
+        # 更新现有节点类型的图标和配置
         updated_count = 0
         for data in node_types:
             existing_node = db.query(NodeType).filter(NodeType.code == data["code"]).first()
             if existing_node:
+                changed = False
                 new_icon = data.get("icon")
                 if existing_node.icon != new_icon:
                     existing_node.icon = new_icon
-                    existing_node.color = data.get("color")  # 同时更新颜色
+                    changed = True
+                existing_node.color = data.get("color")
+                # 更新 config_schema（如果新定义有而旧的没有）
+                new_schema = data.get("config_schema")
+                if new_schema and (not existing_node.config_schema or existing_node.config_schema != new_schema):
+                    existing_node.config_schema = new_schema
+                    changed = True
+                # 更新 output_ports（如果有）
+                if data.get("output_ports"):
+                    existing_node.output_ports = data.get("output_ports")
+                # 更新 output_variables（如果有）
+                if data.get("output_variables"):
+                    existing_node.output_variables = data.get("output_variables")
+                if changed:
                     updated_count += 1
         db.commit()
-        print(f"更新了 {updated_count} 个节点类型的图标")
+        print(f"更新了 {updated_count} 个节点类型的配置")
         return
     
     if existing_count > 0:
@@ -664,6 +753,7 @@ def init_system_workflows(db: Session):
             "name_en": "User Registration",
             "description": "处理用户注册的完整流程，包括验证码发送、账户创建、欢迎邮件等",
             "category": "auth",
+            "trigger_event": "user.registered",
             "nodes": [
                 {
                     "node_id": "trigger_1",
@@ -1075,6 +1165,7 @@ def init_system_workflows(db: Session):
             "name_en": "User Login",
             "description": "处理用户登录的安全流程",
             "category": "auth",
+            "trigger_event": "user.login",
             "nodes": [
                 {
                     "node_id": "trigger_1",
@@ -1214,6 +1305,75 @@ def init_system_workflows(db: Session):
                 "lockout_duration_minutes": 30,
                 "notify_new_device": True,
                 "require_2fa": False
+            }
+        },
+        {
+            "code": "password_changed_notification",
+            "name": "密码修改通知",
+            "name_en": "Password Changed Notification",
+            "description": "当用户密码被修改时发送安全通知",
+            "category": "security",
+            "trigger_event": "password.changed",
+            "nodes": [
+                {
+                    "node_id": "trigger_1",
+                    "node_type": "trigger",
+                    "node_subtype": "trigger_api",
+                    "name": "密码已修改",
+                    "position_x": 250,
+                    "position_y": 50,
+                    "is_system": True
+                },
+                {
+                    "node_id": "send_notification",
+                    "node_type": "action",
+                    "node_subtype": "action_send_template",
+                    "name": "发送安全通知",
+                    "position_x": 250,
+                    "position_y": 150,
+                    "config": {
+                        "template_code": "password_changed",
+                        "to_type": "trigger_user"
+                    }
+                },
+                {
+                    "node_id": "log_event",
+                    "node_type": "integration",
+                    "node_subtype": "integration_log",
+                    "name": "记录安全日志",
+                    "position_x": 250,
+                    "position_y": 250,
+                    "config": {
+                        "level": "info",
+                        "message": "用户 {{trigger.email}} 的密码已被修改"
+                    }
+                },
+                {
+                    "node_id": "end_success",
+                    "node_type": "end",
+                    "node_subtype": "end_success",
+                    "name": "完成",
+                    "position_x": 250,
+                    "position_y": 350
+                }
+            ],
+            "edges": [
+                {"edge_id": "e1", "source_node_id": "trigger_1", "target_node_id": "send_notification"},
+                {"edge_id": "e2", "source_node_id": "send_notification", "target_node_id": "log_event"},
+                {"edge_id": "e3", "source_node_id": "log_event", "target_node_id": "end_success"}
+            ],
+            "config_schema": {
+                "type": "object",
+                "properties": {
+                    "send_notification": {
+                        "type": "boolean",
+                        "title": "发送通知邮件",
+                        "default": True
+                    }
+                }
+            },
+            "default_config": {
+                "send_notification": True
             }
         }
     ]

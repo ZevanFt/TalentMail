@@ -8,6 +8,7 @@ from db.database import get_db
 from api.deps import get_current_user
 from db.models.user import User
 from db.models.external_account import ExternalAccount
+from core.crypto import encrypt_password, decrypt_password
 
 router = APIRouter(prefix="/external-accounts", tags=["external-accounts"])
 
@@ -223,7 +224,7 @@ def create_account(data: ExternalAccountCreate, db: Session = Depends(get_db), u
         display_name=data.display_name,
         provider=data.provider,
         username=data.username,
-        password=data.password,  # TODO: 加密存储
+        password=encrypt_password(data.password) if data.password else None,  # 加密存储密码
         imap_host=imap_host,
         imap_port=imap_port,
         imap_ssl=imap_ssl,
@@ -251,7 +252,7 @@ def update_account(account_id: int, data: ExternalAccountUpdate, db: Session = D
     if data.display_name is not None:
         account.display_name = data.display_name
     if data.password is not None:
-        account.password = data.password  # TODO: 加密存储
+        account.password = encrypt_password(data.password)  # 加密存储密码
     if data.is_active is not None:
         account.is_active = data.is_active
     if data.sync_enabled is not None:
@@ -294,7 +295,10 @@ def test_connection(account_id: int, db: Session = Depends(get_db), user: User =
             imap = imaplib.IMAP4_SSL(account.imap_host, account.imap_port)
         else:
             imap = imaplib.IMAP4(account.imap_host, account.imap_port)
-        imap.login(account.username, account.password)
+
+        # 解密密码进行登录
+        decrypted_password = decrypt_password(account.password) if account.password else ""
+        imap.login(account.username, decrypted_password)
         imap.logout()
         
         # 清除错误信息
