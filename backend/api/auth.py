@@ -689,7 +689,7 @@ def refresh_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    user = crud.get_user_by_email(db, email=token_data.sub)
+    user = crud_user.get_user_by_email(db, email=token_data.sub)
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

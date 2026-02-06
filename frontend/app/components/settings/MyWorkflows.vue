@@ -113,7 +113,7 @@ const openPreviewModal = async (workflow: any) => {
   try {
     // 加载完整工作流详情
     const detail = await getWorkflow(workflow.id)
-    
+
     // 转换节点数据为 Vue Flow 格式
     previewNodes.value = (detail.nodes || []).map((n: any) => ({
       id: n.node_id,
@@ -196,7 +196,7 @@ const openConfigModal = async (workflow: any) => {
   selectedWorkflow.value = workflow
   try {
     const detail = await getWorkflow(workflow.id)
-    configForm.value = { ...detail.config } || {}
+    configForm.value = detail.workflow.config ? { ...detail.workflow.config } : {}
     showConfigModal.value = true
   } catch (e: any) {
     console.error('加载配置失败:', e)

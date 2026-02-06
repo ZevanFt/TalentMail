@@ -4,7 +4,7 @@
 """
 import logging
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timedelta
 from db.models.system import Changelog
 from db.database import SessionLocal
 
@@ -22,6 +22,7 @@ CHANGELOG_DATA = [
         "is_published": True,
         "author": "TalentMail Team",
         "tags": ["首发", "核心功能", "邮件系统"],
+        "published_at": datetime(2025, 1, 1, 10, 0, 0),  # 2025年1月1日
         "content": """### 🎯 核心功能
 
 - **完整邮件系统**：发送、接收、转发、回复邮件
@@ -73,6 +74,7 @@ CHANGELOG_DATA = [
         "is_published": True,
         "author": "TalentMail Team",
         "tags": ["工作流", "自动化", "可视化编辑器"],
+        "published_at": datetime(2025, 1, 15, 14, 30, 0),  # 2025年1月15日
         "content": """### 🔄 工作流系统
 
 - **可视化编辑器**：拖拽式节点编辑，所见即所得
@@ -112,6 +114,7 @@ CHANGELOG_DATA = [
         "is_published": True,
         "author": "TalentMail Team",
         "tags": ["更新日志", "版本记录"],
+        "published_at": datetime(2025, 2, 1, 9, 0, 0),  # 2025年2月1日
         "content": """### 📝 更新日志
 
 - 版本更新历史记录
@@ -163,10 +166,10 @@ def init_changelog_data(db: Session = None, force_update: bool = False):
                 continue
             
             # 创建新记录
-            changelog = Changelog(
-                **data,
-                published_at=datetime.utcnow()
-            )
+            # 使用数据中的 published_at，如果没有则使用当前时间
+            changelog = Changelog(**data)
+            if not changelog.published_at:
+                changelog.published_at = datetime.utcnow()
             db.add(changelog)
             created_count += 1
             logger.info(f"创建更新日志: v{version}")

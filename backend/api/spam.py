@@ -12,6 +12,7 @@ import logging
 from db import models
 from db.models.user import TrustedSender, SpamReport
 from db.models.email import Email, Folder
+from db.database import SessionLocal
 from api import deps
 from crud.folder import get_user_folder_by_role
 
@@ -190,7 +191,8 @@ def mark_as_spam(
 
     # 后台任务：训练 SpamAssassin（如果有报告）
     if reports:
-        background_tasks.add_task(train_spamassassin, db, reports, 'spam')
+        report_ids = [r.id for r in reports]
+        background_tasks.add_task(train_spamassassin, report_ids, 'spam')
 
     return {
         "status": "success",
@@ -246,7 +248,8 @@ def mark_as_not_spam(
 
     # 后台任务：训练 SpamAssassin
     if reports:
-        background_tasks.add_task(train_spamassassin, db, reports, 'ham')
+        report_ids = [r.id for r in reports]
+        background_tasks.add_task(train_spamassassin, report_ids, 'ham')
 
     return {
         "status": "success",
@@ -313,7 +316,7 @@ def is_sender_blocked(db: Session, user_id: int, sender_email: str) -> bool:
     return blocked is not None
 
 
-async def train_spamassassin(db: Session, reports: List[SpamReport], report_type: str):
+async def train_spamassassin(report_ids: List[int], report_type: str):
     """
     后台任务：训练 SpamAssassin
 
@@ -325,7 +328,9 @@ async def train_spamassassin(db: Session, reports: List[SpamReport], report_type
     由于 docker-mailserver 已经启用了 SpamAssassin，
     可以通过 docker exec 调用 sa-learn 命令。
     """
+    db = SessionLocal()
     try:
+        reports = db.query(SpamReport).filter(SpamReport.id.in_(report_ids)).all()
         logger.info(f"[SpamAssassin] 准备训练 {len(reports)} 封邮件为 {report_type}")
 
         # TODO: 实际调用 sa-learn 命令
@@ -341,4 +346,7 @@ async def train_spamassassin(db: Session, reports: List[SpamReport], report_type
         logger.info(f"[SpamAssassin] 训练完成: {len(reports)} 封邮件")
 
     except Exception as e:
+        db.rollback()
         logger.error(f"[SpamAssassin] 训练失败: {e}")
+    finally:
+        db.close()

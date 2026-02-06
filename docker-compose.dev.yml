@@ -53,8 +53,8 @@ services:
     # 从 .env.caddy 加载 WEB_DOMAIN 环境变量 (与 Caddy 保持一致)
     env_file:
       - .env.caddy
-    # 启动 Nuxt.js 的开发服务器
-    command: npm run dev
+    # 启动 Nuxt.js 的开发服务器，监听所有网络接口以便 Caddy 可以访问
+    command: npm run dev -- --host 0.0.0.0
 
   # --- 数据库服务 (PostgreSQL) ---
   db:
@@ -86,7 +86,7 @@ services:
       context: ./config/mail
       dockerfile: Dockerfile
     container_name: talentmail-mailserver-1
-    hostname: maillink.talenting.test
+    hostname: ${MAIL_HOSTNAME:-maillink.talenting.test}
     env_file: ./config/mail/development/mailserver.env
     environment:
       - PERMIT_DOCKER=network
@@ -124,9 +124,10 @@ services:
     image: caddy:alpine
     restart: always
     ports:
-      # 暴露 HTTP 和 HTTPS 端口到主机
+      # 开发环境只使用 HTTP，不需要 HTTPS
       - "80:80"
-      - "443:443"
+      # 443 端口已注释，因为开发环境使用纯 HTTP 模式
+      # - "443:443"
     volumes:
       # 挂载 Caddy 配置文件
       - ./config/caddy/Caddyfile:/etc/caddy/Caddyfile

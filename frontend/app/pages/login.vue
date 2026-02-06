@@ -3,7 +3,6 @@ import { Mail, Eye, EyeOff, Moon, Sun, Loader2, Shield } from 'lucide-vue-next'
 const { isDark, toggleTheme } = useTheme()
 const { login, login2FA } = useApi()
 const { appName, emailDomain } = useConfig()
-const router = useRouter()
 
 definePageMeta({
     layout: false
@@ -40,8 +39,8 @@ const handleLogin = async () => {
             tempToken.value = result.temp_token || ''
             return
         }
-        
-        router.push('/')
+
+        await navigateTo('/', { replace: true })
     } catch (e: any) {
         error.value = e.data?.detail || '登录失败，请检查用户名和密码'
     } finally {
@@ -63,7 +62,7 @@ const handle2FAVerify = async () => {
     
     try {
         await login2FA(tempToken.value, twoFACode.value)
-        router.push('/')
+        await navigateTo('/', { replace: true })
     } catch (e: any) {
         error.value = e.data?.detail || '验证码错误，请重试'
     } finally {
@@ -114,13 +113,12 @@ const backToLogin = () => {
                     </div>
 
                     <!-- 密码 -->
-                    <div class="space-y-1.5 relative">
+                    <div class="relative">
                         <input v-model="form.password" :type="showPassword ? 'text' : 'password'" placeholder="密码"
-                            class="input-field pr-10" required>
+                            class="input-field pr-12" required>
                         <!-- 眼睛图标 -->
                         <button type="button" @click="showPassword = !showPassword"
-                            class="absolute right-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
-                            style="top: 50%; transform: translateY(-50%);">
+                            class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors p-1">
                             <EyeOff v-if="showPassword" class="w-5 h-5" />
                             <Eye v-else class="w-5 h-5" />
                         </button>

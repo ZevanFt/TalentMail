@@ -170,7 +170,7 @@ class WorkflowNode(Base):
     workflow_id = Column(Integer, ForeignKey("workflows.id", ondelete="CASCADE"), nullable=False, comment='工作流ID')
     
     # 节点信息
-    node_id = Column(String(50), nullable=False, comment='节点唯一ID(前端生成)')
+    node_id = Column(String(100), nullable=False, comment='节点唯一ID(前端生成)')
     node_type = Column(String(50), nullable=False, comment='节点大类: trigger/logic/action/end')
     node_subtype = Column(String(50), nullable=False, comment='节点子类型代码')
     name = Column(String(100), nullable=True, comment='节点显示名称')
@@ -212,9 +212,9 @@ class WorkflowEdge(Base):
     workflow_id = Column(Integer, ForeignKey("workflows.id", ondelete="CASCADE"), nullable=False, comment='工作流ID')
     
     # 连接信息
-    edge_id = Column(String(50), nullable=False, comment='连接唯一ID(前端生成)')
-    source_node_id = Column(String(50), nullable=False, comment='源节点ID')
-    target_node_id = Column(String(50), nullable=False, comment='目标节点ID')
+    edge_id = Column(String(150), nullable=False, comment='连接唯一ID(前端生成)')
+    source_node_id = Column(String(100), nullable=False, comment='源节点ID')
+    target_node_id = Column(String(100), nullable=False, comment='目标节点ID')
     source_handle = Column(String(50), nullable=True, comment='源节点的输出端口')
     target_handle = Column(String(50), nullable=True, comment='目标节点的输入端口')
     
@@ -276,7 +276,7 @@ class WorkflowNodeExecution(Base):
     id = Column(Integer, primary_key=True, index=True, comment='记录ID')
     execution_id = Column(Integer, ForeignKey("workflow_executions.id", ondelete="CASCADE"), nullable=False, comment='执行ID')
     
-    node_id = Column(String(50), nullable=False, comment='节点ID')
+    node_id = Column(String(100), nullable=False, comment='节点ID')
     node_type = Column(String(50), nullable=True, comment='节点类型')
     
     # 执行信息
@@ -392,3 +392,32 @@ class WorkflowTemplateFavorite(Base):
     # 关系
     user = relationship("User", backref="favorite_templates")
     template = relationship("WorkflowTemplate", back_populates="favorites")
+
+
+class WorkflowVersion(Base):
+    """
+    工作流版本历史表
+    存储每次保存时的完整快照，用于版本回溯和差异对比
+    """
+    __tablename__ = "workflow_versions"
+    __table_args__ = {'comment': '工作流版本历史表'}
+
+    id = Column(Integer, primary_key=True, index=True, comment='版本记录ID')
+    workflow_id = Column(Integer, ForeignKey("workflows.id", ondelete="CASCADE"), nullable=False, comment='工作流ID')
+    version = Column(Integer, nullable=False, comment='版本号')
+    
+    # 快照数据
+    nodes = Column(JSON, nullable=False, default=list, comment='节点快照')
+    edges = Column(JSON, nullable=False, default=list, comment='连接快照')
+    config = Column(JSON, nullable=True, comment='配置快照')
+    
+    # 变更信息
+    change_summary = Column(Text, nullable=True, comment='变更摘要')
+    
+    # 创建信息
+    created_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, comment='创建者ID')
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), comment='创建时间')
+    
+    # 关系
+    workflow = relationship("Workflow", backref="versions")
+    creator = relationship("User", foreign_keys=[created_by])

@@ -262,7 +262,11 @@ const { token } = useApi()
 onMounted(async () => {
   if (token.value) {
     await loadFolders()
-    await loadEmails()
+    // 如果已经有选中的标签或虚拟文件夹，说明是从其他页面导航过来的
+    // 这种情况下不要加载默认邮件，避免覆盖标签/虚拟文件夹的邮件列表
+    if (!selectedTagId.value && !selectedVirtualId.value) {
+      await loadEmails()
+    }
     // 启动实时同步（WebSocket + 备用轮询）
     startAutoSync()
   }

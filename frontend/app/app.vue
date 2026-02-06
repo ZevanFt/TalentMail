@@ -7,6 +7,7 @@
 
 <script setup lang="ts">
 const { initTheme } = useTheme()
+const token = useCookie('token')
 
 onMounted(() => {
   initTheme()
@@ -16,8 +17,8 @@ onMounted(() => {
 <template>
   <NuxtLayout>
     <NuxtPage />
-    
-    <!-- 全局挂载弹窗 -->
-    <EmailComposeModal />
+
+    <!-- 全局挂载弹窗 - 仅登录后显示 -->
+    <EmailComposeModal v-if="token" />
   </NuxtLayout>
 </template>

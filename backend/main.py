@@ -11,6 +11,7 @@ from initial import initial_data
 from core.mailserver_sync import sync_users_to_mailserver
 from core.lmtp_server import start_lmtp_server, stop_lmtp_server
 from core.mail_sync import periodic_sync
+from core.config import settings
 from core import websocket as ws_manager
 import logging
 
@@ -18,16 +19,114 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# 定时任务
+sync_task = None
+cleanup_task = None
+
+
+async def periodic_session_cleanup(interval: int = 86400):
+    """
+    定期清理旧会话的任务
+    默认每24小时执行一次，清理30天未活动的会话
+    """
+    while True:
+        await asyncio.sleep(interval)  # 等待指定间隔
+        try:
+            db = SessionLocal()
+            try:
+                deleted_count = cleanup_old_sessions(db, days=30)
+                if deleted_count > 0:
+                    logger.info(f"已清理 {deleted_count} 个过期会话记录")
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"清理会话记录失败: {e}")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global sync_task, cleanup_task
+    # Initialize the database and create the initial admin user
+    initial_data.init_db()
+
+    # 同步用户到邮件服务器
+    logger.info("开始执行用户同步到邮件服务器...")
+    try:
+        result = sync_users_to_mailserver()
+        logger.info(f"用户同步完成: {result}")
+    except Exception as e:
+        logger.error(f"用户同步失败，但 backend 将继续启动: {e}")
+
+    # 启动 LMTP 服务器接收邮件
+    logger.info("启动 LMTP 邮件接收服务...")
+    try:
+        start_lmtp_server(host='0.0.0.0', port=24)
+        logger.info("LMTP 服务启动成功，监听端口 24")
+    except Exception as e:
+        logger.error(f"LMTP 服务启动失败: {e}")
+
+    # 启动定时邮件同步任务（每5分钟）
+    logger.info("启动定时邮件同步任务（间隔5分钟）...")
+    sync_task = asyncio.create_task(periodic_sync(interval=300))
+
+    # 启动定时会话清理任务（每24小时）
+    logger.info("启动定时会话清理任务（间隔24小时）...")
+    cleanup_task = asyncio.create_task(periodic_session_cleanup(interval=86400))
+
+    # 启动时先执行一次清理
+    try:
+        db = SessionLocal()
+        try:
+            deleted_count = cleanup_old_sessions(db, days=30)
+            if deleted_count > 0:
+                logger.info(f"启动时清理了 {deleted_count} 个过期会话记录")
+        finally:
+            db.close()
+    except Exception as e:
+        logger.error(f"启动时清理会话记录失败: {e}")
+
+    yield
+
+    # Shutdown
+    logger.info("停止 LMTP 服务...")
+    stop_lmtp_server()
+    if sync_task:
+        sync_task.cancel()
+        try:
+            await sync_task
+        except asyncio.CancelledError:
+            pass
+    if cleanup_task:
+        cleanup_task.cancel()
+        try:
+            await cleanup_task
+        except asyncio.CancelledError:
+            pass
+
+
 app = FastAPI(
     title="TalentMail API",
     description="Backend API for TalentMail.",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
-# Configure CORS
+# Configure CORS - 根据环境设置允许的域名
+def _get_cors_origins():
+    """根据当前环境返回允许的 CORS 源"""
+    if settings.CURRENT_ENVIRONMENT == "production":
+        base_domain = settings.BASE_DOMAIN
+        web_prefix = settings.WEB_PREFIX
+        return [
+            f"https://{web_prefix}.{base_domain}",
+            f"https://{base_domain}",
+        ]
+    # 开发环境允许所有
+    return ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for now
+    allow_origins=_get_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -58,90 +157,6 @@ app.include_router(workflow_templates.router, prefix="/api/workflow-templates", 
 app.include_router(changelog.router, prefix="/api/changelogs", tags=["Changelog"])
 app.include_router(spam.router, prefix="/api/spam", tags=["Spam Management"])
 
-# 定时任务
-sync_task = None
-cleanup_task = None
-
-
-async def periodic_session_cleanup(interval: int = 86400):
-    """
-    定期清理旧会话的任务
-    默认每24小时执行一次，清理30天未活动的会话
-    """
-    while True:
-        await asyncio.sleep(interval)  # 等待指定间隔
-        try:
-            db = SessionLocal()
-            try:
-                deleted_count = cleanup_old_sessions(db, days=30)
-                if deleted_count > 0:
-                    logger.info(f"已清理 {deleted_count} 个过期会话记录")
-            finally:
-                db.close()
-        except Exception as e:
-            logger.error(f"清理会话记录失败: {e}")
-
-@app.on_event("startup")
-async def on_startup():
-    global sync_task, cleanup_task
-    # Initialize the database and create the initial admin user
-    initial_data.init_db()
-    
-    # 同步用户到邮件服务器
-    logger.info("开始执行用户同步到邮件服务器...")
-    try:
-        result = sync_users_to_mailserver()
-        logger.info(f"用户同步完成: {result}")
-    except Exception as e:
-        logger.error(f"用户同步失败，但 backend 将继续启动: {e}")
-    
-    # 启动 LMTP 服务器接收邮件
-    logger.info("启动 LMTP 邮件接收服务...")
-    try:
-        start_lmtp_server(host='0.0.0.0', port=24)
-        logger.info("LMTP 服务启动成功，监听端口 24")
-    except Exception as e:
-        logger.error(f"LMTP 服务启动失败: {e}")
-    
-    # 启动定时邮件同步任务（每5分钟）
-    logger.info("启动定时邮件同步任务（间隔5分钟）...")
-    sync_task = asyncio.create_task(periodic_sync(interval=300))
-    
-    # 启动定时会话清理任务（每24小时）
-    logger.info("启动定时会话清理任务（间隔24小时）...")
-    cleanup_task = asyncio.create_task(periodic_session_cleanup(interval=86400))
-    
-    # 启动时先执行一次清理
-    try:
-        db = SessionLocal()
-        try:
-            deleted_count = cleanup_old_sessions(db, days=30)
-            if deleted_count > 0:
-                logger.info(f"启动时清理了 {deleted_count} 个过期会话记录")
-        finally:
-            db.close()
-    except Exception as e:
-        logger.error(f"启动时清理会话记录失败: {e}")
-
-
-@app.on_event("shutdown")
-async def on_shutdown():
-    global sync_task, cleanup_task
-    logger.info("停止 LMTP 服务...")
-    stop_lmtp_server()
-    if sync_task:
-        sync_task.cancel()
-        try:
-            await sync_task
-        except asyncio.CancelledError:
-            pass
-    if cleanup_task:
-        cleanup_task.cancel()
-        try:
-            await cleanup_task
-        except asyncio.CancelledError:
-            pass
-
 
 @app.get("/")
 def read_root():
@@ -162,7 +177,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str):
             user_id = user.id
         finally:
             db.close()
-        
+
         await ws_manager.connect(websocket, user_id)
         try:
             while True:

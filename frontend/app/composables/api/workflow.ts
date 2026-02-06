@@ -91,8 +91,20 @@ export const useWorkflowApi = () => {
   }
   const createWorkflow = (data: { name: string; description?: string; category?: string }) =>
     api<CustomWorkflow>('/workflows/', 'POST', data)
-  const getWorkflow = (id: number) => api<any>(`/workflows/${id}`)
-  const updateWorkflow = (id: number, data: { name?: string; description?: string; category?: string; is_active?: boolean }) =>
+  interface WorkflowDetailInfo extends CustomWorkflow {
+    config_schema: any
+    default_config: any
+    config: any
+  }
+
+  interface WorkflowDetailResponse {
+    workflow: WorkflowDetailInfo
+    nodes: any[]
+    edges: any[]
+  }
+
+  const getWorkflow = (id: number) => api<WorkflowDetailResponse>(`/workflows/${id}`)
+  const updateWorkflow = (id: number, data: { name?: string; description?: string; category?: string; is_active?: boolean; config_schema?: any; default_config?: any; config?: any }) =>
     api<CustomWorkflow>(`/workflows/${id}`, 'PUT', data)
   const saveWorkflowCanvas = (id: number, nodes: any[], edges: any[]) =>
     api<{ success: boolean; version: number; nodes_count: number; edges_count: number }>(`/workflows/${id}/canvas`, 'PUT', { nodes, edges })

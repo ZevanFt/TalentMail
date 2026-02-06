@@ -13,7 +13,8 @@ from db.models.user import User
 from db.models.workflow import (
     NodeType, SystemWorkflow, SystemWorkflowConfig,
     Workflow, WorkflowNode, WorkflowEdge,
-    WorkflowExecution, WorkflowNodeExecution
+    WorkflowExecution, WorkflowNodeExecution,
+    WorkflowVersion
 )
 from core.workflow_service import WorkflowService
 
@@ -528,6 +529,7 @@ async def update_workflow(
 async def save_workflow_canvas(
     workflow_id: int,
     data: WorkflowSaveRequest,
+    change_summary: Optional[str] = Query(None, description="版本变更说明"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -544,6 +546,10 @@ async def save_workflow_canvas(
     db.query(WorkflowNode).filter(WorkflowNode.workflow_id == workflow_id).delete()
     db.query(WorkflowEdge).filter(WorkflowEdge.workflow_id == workflow_id).delete()
     
+    # 准备节点和边的数据用于版本历史
+    nodes_data = []
+    edges_data = []
+    
     # 创建新节点
     for node_data in data.nodes:
         node = WorkflowNode(
@@ -557,6 +563,16 @@ async def save_workflow_canvas(
             config=node_data.config or {}
         )
         db.add(node)
+        # 保存到版本历史数据
+        nodes_data.append({
+            'node_id': node_data.node_id,
+            'node_type': node_data.node_type,
+            'node_subtype': node_data.node_subtype,
+            'name': node_data.name,
+            'position_x': node_data.position_x,
+            'position_y': node_data.position_y,
+            'config': node_data.config or {}
+        })
     
     # 创建新边
     for edge_data in data.edges:
@@ -570,9 +586,30 @@ async def save_workflow_canvas(
             label=edge_data.label
         )
         db.add(edge)
+        # 保存到版本历史数据
+        edges_data.append({
+            'edge_id': edge_data.edge_id,
+            'source_node_id': edge_data.source_node_id,
+            'target_node_id': edge_data.target_node_id,
+            'source_handle': edge_data.source_handle,
+            'target_handle': edge_data.target_handle,
+            'label': edge_data.label
+        })
     
     # 更新版本
     workflow.version += 1
+    
+    # 创建版本历史记录
+    version_record = WorkflowVersion(
+        workflow_id=workflow_id,
+        version=workflow.version,
+        nodes=nodes_data,
+        edges=edges_data,
+        config=workflow.config,
+        change_summary=change_summary,
+        created_by=current_user.id
+    )
+    db.add(version_record)
     
     db.commit()
     
@@ -636,3 +673,179 @@ async def delete_workflow(
     db.commit()
     
     return {'success': True}
+
+
+# ==================== 版本历史 API ====================
+
+class WorkflowVersionResponse(BaseModel):
+    id: int
+    workflow_id: int
+    version: int
+    nodes_count: int
+    edges_count: int
+    change_summary: Optional[str]
+    created_by: Optional[int]
+    created_at: Optional[str]
+    
+    class Config:
+        from_attributes = True
+
+
+@router.get("/{workflow_id}/versions", response_model=List[WorkflowVersionResponse])
+async def list_workflow_versions(
+    workflow_id: int,
+    limit: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """获取工作流的版本历史列表"""
+    # 验证工作流所有权
+    workflow = db.query(Workflow).filter(
+        Workflow.id == workflow_id,
+        Workflow.owner_id == current_user.id
+    ).first()
+    
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    
+    versions = db.query(WorkflowVersion).filter(
+        WorkflowVersion.workflow_id == workflow_id
+    ).order_by(WorkflowVersion.version.desc()).limit(limit).all()
+    
+    return [
+        {
+            'id': v.id,
+            'workflow_id': v.workflow_id,
+            'version': v.version,
+            'nodes_count': len(v.nodes) if v.nodes else 0,
+            'edges_count': len(v.edges) if v.edges else 0,
+            'change_summary': v.change_summary,
+            'created_by': v.created_by,
+            'created_at': v.created_at.isoformat() if v.created_at else None
+        }
+        for v in versions
+    ]
+
+
+@router.get("/{workflow_id}/versions/{version}", response_model=Dict)
+async def get_workflow_version_detail(
+    workflow_id: int,
+    version: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """获取工作流特定版本的详细内容"""
+    # 验证工作流所有权
+    workflow = db.query(Workflow).filter(
+        Workflow.id == workflow_id,
+        Workflow.owner_id == current_user.id
+    ).first()
+    
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    
+    version_record = db.query(WorkflowVersion).filter(
+        WorkflowVersion.workflow_id == workflow_id,
+        WorkflowVersion.version == version
+    ).first()
+    
+    if not version_record:
+        raise HTTPException(status_code=404, detail="Version not found")
+    
+    return {
+        'id': version_record.id,
+        'workflow_id': version_record.workflow_id,
+        'version': version_record.version,
+        'nodes': version_record.nodes,
+        'edges': version_record.edges,
+        'config': version_record.config,
+        'change_summary': version_record.change_summary,
+        'created_by': version_record.created_by,
+        'created_at': version_record.created_at.isoformat() if version_record.created_at else None
+    }
+
+
+@router.post("/{workflow_id}/versions/{version}/restore", response_model=Dict)
+async def restore_workflow_version(
+    workflow_id: int,
+    version: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """恢复工作流到指定版本"""
+    # 验证工作流所有权
+    workflow = db.query(Workflow).filter(
+        Workflow.id == workflow_id,
+        Workflow.owner_id == current_user.id
+    ).first()
+    
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    
+    version_record = db.query(WorkflowVersion).filter(
+        WorkflowVersion.workflow_id == workflow_id,
+        WorkflowVersion.version == version
+    ).first()
+    
+    if not version_record:
+        raise HTTPException(status_code=404, detail="Version not found")
+    
+    # 删除当前的节点和边
+    db.query(WorkflowNode).filter(WorkflowNode.workflow_id == workflow_id).delete()
+    db.query(WorkflowEdge).filter(WorkflowEdge.workflow_id == workflow_id).delete()
+    
+    # 从版本历史恢复节点
+    for node_data in version_record.nodes or []:
+        node = WorkflowNode(
+            workflow_id=workflow_id,
+            node_id=node_data.get('node_id'),
+            node_type=node_data.get('node_type'),
+            node_subtype=node_data.get('node_subtype'),
+            name=node_data.get('name'),
+            position_x=node_data.get('position_x', 0),
+            position_y=node_data.get('position_y', 0),
+            config=node_data.get('config', {})
+        )
+        db.add(node)
+    
+    # 从版本历史恢复边
+    for edge_data in version_record.edges or []:
+        edge = WorkflowEdge(
+            workflow_id=workflow_id,
+            edge_id=edge_data.get('edge_id'),
+            source_node_id=edge_data.get('source_node_id'),
+            target_node_id=edge_data.get('target_node_id'),
+            source_handle=edge_data.get('source_handle'),
+            target_handle=edge_data.get('target_handle'),
+            label=edge_data.get('label')
+        )
+        db.add(edge)
+    
+    # 恢复配置
+    if version_record.config:
+        workflow.config = version_record.config
+    
+    # 更新版本号（恢复也算一次新版本）
+    workflow.version += 1
+    
+    # 创建恢复操作的版本记录
+    restore_version = WorkflowVersion(
+        workflow_id=workflow_id,
+        version=workflow.version,
+        nodes=version_record.nodes,
+        edges=version_record.edges,
+        config=version_record.config,
+        change_summary=f"恢复到版本 {version}",
+        created_by=current_user.id
+    )
+    db.add(restore_version)
+    
+    db.commit()
+    
+    return {
+        'success': True,
+        'restored_from_version': version,
+        'new_version': workflow.version,
+        'nodes_count': len(version_record.nodes) if version_record.nodes else 0,
+        'edges_count': len(version_record.edges) if version_record.edges else 0
+    }

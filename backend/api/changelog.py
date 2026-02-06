@@ -5,8 +5,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
-from typing import Optional
+from sqlalchemy import desc, asc
+from typing import Optional, Literal
 from datetime import datetime
 
 from api.deps import get_db, get_current_user_from_token, get_current_admin_user
@@ -46,6 +46,7 @@ async def list_changelogs(
     type: Optional[str] = Query(None, description="类型筛选"),
     category: Optional[str] = Query(None, description="分类筛选"),
     is_major: Optional[bool] = Query(None, description="是否重大更新"),
+    sort_order: Literal["desc", "asc"] = Query("desc", description="排序方向: desc=最新优先, asc=最早优先"),
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_optional_user)
 ):
@@ -53,6 +54,7 @@ async def list_changelogs(
     获取更新日志列表
     - 普通用户只能看到已发布的日志
     - 管理员可以看到所有日志（包括未发布的）
+    - sort_order: desc=最新优先(从新到旧), asc=最早优先(从旧到新)
     """
     query = db.query(Changelog)
     
@@ -76,9 +78,10 @@ async def list_changelogs(
     # 获取总数
     total = query.count()
     
-    # 分页
+    # 排序和分页
     offset = (page - 1) * page_size
-    items = query.order_by(desc(Changelog.created_at)).offset(offset).limit(page_size).all()
+    order_func = desc if sort_order == "desc" else asc
+    items = query.order_by(order_func(Changelog.created_at)).offset(offset).limit(page_size).all()
     
     return ChangelogListResponse(
         items=[ChangelogResponse.model_validate(item) for item in items],

@@ -1,294 +1,218 @@
 # 工作流系统文档
 
-TalentMail 的工作流系统是一个强大的无代码自动化引擎，允许用户通过可视化拖拽的方式创建复杂的邮件处理流程。
+> 最后更新：2026-02-06
 
-## 🎯 系统概述
+## 概述
 
-工作流系统基于事件驱动架构，支持：
-- 📊 可视化流程设计
-- 🔄 自动化任务执行
-- 🎨 拖拽式节点编辑
-- 📝 灵活的配置选项
-- 📈 执行状态追踪
+TalentMail 工作流系统是一个可视化的自动化引擎，允许用户通过拖拽节点和连接边的方式创建邮件处理自动化流程。系统支持多种触发器、逻辑控制、邮件操作和集成功能。
 
-## 🏗️ 技术架构
+## 架构
 
-### 前端技术栈
-- **框架**: Vue 3 + Nuxt 3
-- **可视化库**: Vue Flow
-- **UI 组件**: Headless UI + Tailwind CSS
-- **状态管理**: Pinia
+### 技术栈
 
-### 后端技术栈
-- **框架**: FastAPI
-- **ORM**: SQLAlchemy
-- **执行引擎**: 自研的 RuntimeEngine
-- **任务调度**: 基于事件触发
+- **前端**: Vue 3 + Vue Flow（可视化流程编辑器）
+- **后端**: FastAPI + SQLAlchemy
+- **数据库**: PostgreSQL
 
-## 📦 核心组件
+### 核心模型
 
-### 1. 节点类型系统
+| 模型 | 文件 | 说明 |
+|------|------|------|
+| `Workflow` | `backend/db/models/workflow.py` | 工作流主表 |
+| `WorkflowNode` | `backend/db/models/workflow.py` | 工作流节点 |
+| `WorkflowEdge` | `backend/db/models/workflow.py` | 节点连接边 |
+| `WorkflowVersion` | `backend/db/models/workflow.py` | 版本历史快照 |
+| `NodeType` | `backend/db/models/workflow.py` | 节点类型定义 |
+| `WorkflowExecution` | `backend/db/models/workflow.py` | 执行记录 |
+| `NodeExecution` | `backend/db/models/workflow.py` | 节点执行记录 |
 
-系统提供了 34 种预定义节点类型，分为 7 大类：
+## 功能状态
 
-#### 触发器节点 (Triggers)
-- 📧 **邮件接收触发器** - 收到新邮件时触发
-- ⏰ **定时触发器** - 按计划时间触发
-- 🔘 **手动触发器** - 手动执行工作流
-- 📅 **日期触发器** - 特定日期触发
-- 🔗 **Webhook触发器** - 外部调用触发
+### ✅ 已完成功能
 
-#### 逻辑控制节点 (Logic)
-- ❓ **条件判断** - If/Else 分支
-- 🔀 **Switch分支** - 多路分支
-- 🔁 **循环** - 批量处理
-- ⏸️ **延迟** - 等待指定时间
-- 🔄 **并行执行** - 同时执行多个分支
+#### 1. 可视化编辑器
+- **文件**: `frontend/app/pages/workflows/[id].vue`
+- **功能**:
+  - 拖拽节点到画布
+  - 连接节点创建边
+  - 节点配置面板
+  - 缩放和平移画布
+  - 小地图导航
+  - SSR 禁用（避免服务端渲染问题）
 
-#### 邮件动作节点 (Email Actions)
-- ✉️ **发送邮件** - 发送新邮件
-- ↩️ **回复邮件** - 自动回复
-- ➡️ **转发邮件** - 自动转发
-- 📝 **创建草稿** - 保存为草稿
-- 🗑️ **删除邮件** - 删除指定邮件
+#### 2. 节点类型系统
+- **API**: `GET /api/workflows/node-types`
+- **分类**:
+  - `trigger` - 触发器节点（邮件接收、定时、手动等）
+  - `logic` - 逻辑控制（条件分支、过滤器、延时等）
+  - `email_action` - 邮件动作（发送、回复、转发）
+  - `email_operation` - 邮件处理（移动、标记、归档）
+  - `data` - 数据处理（验证、提取、用户操作）
+  - `integration` - 集成（Webhook、API 调用）
+  - `end` - 结束节点
 
-#### 邮件操作节点 (Email Operations)
-- 📂 **移动到文件夹** - 整理邮件
-- 🏷️ **添加标签** - 标记邮件
-- ✅ **标记已读/未读** - 更改状态
-- ⭐ **标记星标** - 重要邮件标记
-- 🔍 **搜索邮件** - 查找特定邮件
+#### 3. 触发器选择弹窗
+- **功能**: 新建工作流时，弹窗让用户选择触发器类型
+- **位置**: 编辑器页面初始化时自动显示
+- **触发器类型**:
+  - 邮件接收触发器 (`trigger_email_received`)
+  - 定时触发器 (`trigger_schedule`)
+  - 手动触发器 (`trigger_manual`)
+  - Webhook 触发器 (`trigger_webhook`)
+  - 用户注册触发器 (`trigger_user_registered`)
+  - 等...
 
-#### 数据处理节点 (Data)
-- 📋 **提取数据** - 从邮件提取信息
-- 🔄 **数据转换** - 格式转换
-- 💾 **保存到数据库** - 数据持久化
-- 📊 **数据聚合** - 统计分析
-- 🔗 **API调用** - 调用外部接口
-- 📝 **生成报告** - 创建报表
+#### 4. 保存功能
+- **API**: `PUT /api/workflows/{id}/canvas`
+- **修复历史**:
+  - 扩展 `node_id` 字段长度：50 → 100 字符
+  - 扩展 `edge_id` 字段长度：50 → 150 字符
+  - 修复 `router.replace()` 导致组件重载问题，改用 `window.history.replaceState()`
 
-#### 集成节点 (Integration)
-- 📨 **发送到Webhook** - 推送到外部系统
-- 💬 **发送通知** - 系统内通知
-- 📱 **发送短信** - SMS 通知
-- 💬 **发送到Slack** - Slack 集成
-- 📊 **同步到CRM** - CRM 系统集成
+#### 5. 版本历史
+- **数据库表**: `workflow_versions`
+- **API**:
+  - `GET /api/workflows/{id}/versions` - 获取版本列表
+  - `GET /api/workflows/{id}/versions/{version}` - 获取版本详情
+  - `POST /api/workflows/{id}/versions/{version}/restore` - 恢复版本
+- **前端功能**:
+  - 历史按钮（工具栏）
+  - 版本列表弹窗
+  - 预览模式（在画布上显示历史版本）
+  - 恢复功能（创建新版本记录）
 
-#### 结束节点 (End)
-- ✅ **成功结束** - 正常完成
-- ❌ **失败结束** - 异常终止
-- 🔚 **终止流程** - 强制结束
+#### 6. 工作流设置面板
+- **功能**:
+  - 编辑工作流名称和描述
+  - 添加全局配置项
+  - 配置项绑定到节点字段
 
-### 2. 工作流编辑器
+### 🚧 待完成功能
 
-#### 主要功能
-- **拖拽添加节点** - 从左侧面板拖拽节点到画布
-- **连接节点** - 拖拽连接点创建流程
-- **配置节点** - 右侧面板配置节点参数
-- **画布操作** - 缩放、平移、小地图导航
-- **快捷键支持** - 删除、复制、粘贴等
+#### 1. 工作流运行时
+- **文件**: `backend/core/workflow_runtime.py`
+- **状态**: 框架已搭建，需要完善节点执行逻辑
+- **待实现**:
+  - 各类节点的具体执行逻辑
+  - 上下文变量传递
+  - 错误处理和重试机制
 
-#### 界面布局
+#### 2. 条件分支节点
+- **状态**: UI 已支持双输出端口（是/否）
+- **待实现**: 条件表达式解析和执行
+
+#### 3. 邮件触发集成
+- **文件**: `backend/core/lmtp_server.py`
+- **状态**: LMTP 服务器已集成邮件接收
+- **待实现**: 触发工作流执行
+
+#### 4. 定时任务调度
+- **待实现**: 定时触发器的调度系统
+
+#### 5. 工作流模板
+- **数据库表**: `workflow_templates`
+- **状态**: 表结构已创建
+- **待实现**: 模板市场 UI 和使用功能
+
+## API 参考
+
+### 工作流 CRUD
+
 ```
-┌─────────────┬─────────────────────────┬─────────────┐
-│   节点库    │       画布区域          │  属性面板   │
-│             │                         │             │
-│ ▼ 触发器   │    [触发器] → [动作]   │  节点配置   │
-│   • 邮件    │         ↓               │             │
-│   • 定时    │    [条件判断]          │  参数设置   │
-│             │      ↙    ↘            │             │
-│ ▼ 动作     │  [发送]  [归档]         │  保存/发布  │
-└─────────────┴─────────────────────────┴─────────────┘
-```
-
-### 3. 执行引擎
-
-#### 执行流程
-1. **触发检测** - 监听触发条件
-2. **上下文初始化** - 准备执行环境
-3. **节点执行** - 按流程顺序执行
-4. **状态记录** - 记录执行状态
-5. **结果处理** - 处理执行结果
-
-#### 执行上下文
-```python
-{
-    "workflow_id": "工作流ID",
-    "execution_id": "执行ID",
-    "trigger_data": {}, # 触发数据
-    "variables": {},    # 流程变量
-    "node_outputs": {}, # 节点输出
-    "current_node": "", # 当前节点
-    "status": "running" # 执行状态
-}
-```
-
-## 🎨 系统工作流
-
-系统预置了 3 个核心工作流：
-
-### 1. 用户注册流程 (`user_registration`)
-```
-[注册触发] → [验证邮箱] → [创建账号] → [发送欢迎邮件] → [成功]
+POST   /api/workflows/                    # 创建工作流
+GET    /api/workflows/                    # 获取工作流列表
+GET    /api/workflows/{id}                # 获取工作流详情
+PUT    /api/workflows/{id}                # 更新工作流基本信息
+DELETE /api/workflows/{id}                # 删除工作流
+PUT    /api/workflows/{id}/canvas         # 保存画布（节点和边）
+POST   /api/workflows/{id}/publish        # 发布工作流
 ```
 
-### 2. 密码重置流程 (`password_reset`)
-```
-[重置请求] → [验证用户] → [生成令牌] → [发送邮件] → [等待确认] → [更新密码]
-```
+### 版本历史
 
-### 3. 邮箱验证流程 (`email_verification`)
 ```
-[验证请求] → [生成验证码] → [发送邮件] → [等待验证] → [激活账号]
+GET    /api/workflows/{id}/versions                    # 版本列表
+GET    /api/workflows/{id}/versions/{version}          # 版本详情
+POST   /api/workflows/{id}/versions/{version}/restore  # 恢复版本
 ```
 
-## 📊 数据模型
+### 节点类型
 
-### 核心表结构
-
-#### `workflow` - 工作流定义
-```sql
-- id: UUID
-- name: 名称
-- description: 描述
-- status: 状态 (draft/published)
-- canvas_data: 画布数据 (JSON)
-- created_at: 创建时间
-- updated_at: 更新时间
+```
+GET    /api/workflows/node-types           # 获取所有节点类型
+GET    /api/workflows/node-types?category=trigger  # 按分类筛选
 ```
 
-#### `workflow_node` - 节点定义
-```sql
-- id: UUID
-- workflow_id: 所属工作流
-- node_type: 节点类型
-- position: 位置坐标
-- config: 配置参数 (JSON)
+### 执行记录
+
+```
+GET    /api/workflows/executions                        # 执行记录列表
+GET    /api/workflows/executions/{id}                   # 执行详情
 ```
 
-#### `workflow_execution` - 执行记录
-```sql
-- id: UUID
-- workflow_id: 工作流ID
-- trigger_type: 触发类型
-- status: 执行状态
-- started_at: 开始时间
-- completed_at: 结束时间
-- context: 执行上下文 (JSON)
+## 数据库迁移
+
+| 迁移文件 | 说明 |
+|----------|------|
+| `c7d8e9f0a1b2_add_workflow_tables.py` | 创建工作流基础表 |
+| `b8c7d6e5f4a3_add_workflow_templates_tables.py` | 创建工作流模板表 |
+| `d5e6f7a8b9c0_add_workflow_version_history.py` | 创建版本历史表 |
+| `e7f8a9b0c1d2_expand_workflow_id_fields.py` | 扩展字段长度 |
+
+## 前端组件
+
+| 文件 | 说明 |
+|------|------|
+| `frontend/app/pages/workflows/[id].vue` | 工作流编辑器主页面 |
+| `frontend/app/pages/workflows/index.vue` | 工作流列表页面 |
+| `frontend/app/pages/workflows/tutorial.vue` | 工作流教程页面 |
+| `frontend/app/components/workflow/TemplateSelector.vue` | 模板选择器组件 |
+
+## 配置说明
+
+### 页面元数据
+
+```typescript
+definePageMeta({
+  layout: false,  // 全屏布局
+  ssr: false      // 禁用 SSR（Vue Flow 不支持）
+})
 ```
 
-## 🔧 配置示例
+### 节点配置 Schema
 
-### 邮件自动分类工作流
+节点类型定义包含 `config_schema`，使用 JSON Schema 格式描述配置项：
+
 ```json
 {
-  "name": "邮件自动分类",
-  "nodes": [
-    {
-      "type": "email_received",
-      "config": {
-        "folder": "inbox"
-      }
+  "type": "object",
+  "properties": {
+    "template_code": {
+      "type": "string",
+      "title": "邮件模板",
+      "description": "选择要发送的邮件模板"
     },
-    {
-      "type": "condition",
-      "config": {
-        "conditions": [
-          {
-            "field": "from",
-            "operator": "contains",
-            "value": "@important.com"
-          }
-        ]
-      }
-    },
-    {
-      "type": "move_to_folder",
-      "config": {
-        "folder": "重要邮件"
-      }
+    "delay_seconds": {
+      "type": "integer",
+      "title": "延迟时间",
+      "default": 0,
+      "minimum": 0
     }
-  ]
+  },
+  "required": ["template_code"]
 }
 ```
 
-### 定时报告工作流
-```json
-{
-  "name": "每周统计报告",
-  "nodes": [
-    {
-      "type": "schedule",
-      "config": {
-        "cron": "0 9 * * 1"
-      }
-    },
-    {
-      "type": "search_emails",
-      "config": {
-        "timeRange": "last_week"
-      }
-    },
-    {
-      "type": "generate_report",
-      "config": {
-        "template": "weekly_summary"
-      }
-    },
-    {
-      "type": "send_email",
-      "config": {
-        "to": "manager@company.com",
-        "subject": "周报"
-      }
-    }
-  ]
-}
-```
+## 已知问题
 
-## 🚀 使用指南
+1. **预览模式退出**: 关闭版本历史弹窗时需要手动退出预览模式
+2. **大型工作流性能**: 节点过多时可能影响编辑器性能
+3. **节点 ID 长度**: 虽已扩展到 100-150 字符，复杂工作流仍需注意
 
-### 创建工作流
-1. 进入"工作流"页面
-2. 点击"创建工作流"
-3. 输入名称和描述
-4. 进入编辑器设计流程
+## 下一步计划
 
-### 设计流程
-1. 从左侧拖拽节点到画布
-2. 连接节点建立流程
-3. 点击节点配置参数
-4. 保存并发布工作流
-
-### 监控执行
-1. 查看"执行历史"
-2. 点击查看详细日志
-3. 分析执行性能
-4. 调试失败的流程
-
-## 🔍 最佳实践
-
-1. **简化流程** - 保持工作流简洁明了
-2. **错误处理** - 添加异常处理节点
-3. **性能优化** - 避免过多的循环和分支
-4. **测试验证** - 发布前充分测试
-5. **文档记录** - 为复杂流程添加说明
-
-## 🚧 当前限制
-
-- 暂不支持并行执行（计划中）
-- 单个工作流最多 50 个节点
-- 执行超时时间 5 分钟
-- 循环最大迭代 100 次
-
-## 📈 未来规划
-
-- [ ] 支持子流程调用
-- [ ] 增加更多集成节点
-- [ ] 支持自定义节点开发
-- [ ] 工作流版本管理
-- [ ] 性能监控仪表板
-
----
-
-更新时间：2025-02-01
+1. 完善工作流运行时，实现各类节点的执行逻辑
+2. 集成邮件接收触发器，实现自动化流程
+3. 添加定时任务调度器
+4. 完善工作流模板市场
+5. 添加工作流执行日志和监控

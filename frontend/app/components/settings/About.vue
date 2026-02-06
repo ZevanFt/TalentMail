@@ -85,13 +85,13 @@ const techStack = [
       <div class="text-sm text-gray-600 dark:text-gray-400 space-y-2">
         <p>Copyright © 2025 Talenting. All Rights Reserved.</p>
         <p>本项目为私有项目，保留所有权利。未经授权，禁止复制、修改、分发或使用本项目的任何部分。</p>
-        <p class="text-primary font-medium">作者: Zevan</p>
+        <p class="text-primary font-medium">作者: 且试新茶趁年华</p>
       </div>
     </div>
 
     <!-- 底部 -->
     <div class="text-center text-sm text-gray-400 py-4">
-      Made with <Heart class="w-4 h-4 inline text-red-500" /> by Zevan @ Talenting
+      Made with <Heart class="w-4 h-4 inline text-red-500" /> by 且试新茶趁年华 @ Talenting
     </div>
   </div>
 </template>

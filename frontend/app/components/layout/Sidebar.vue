@@ -151,40 +151,51 @@ const selectedTagId = useState<number | null>('selectedTagId', () => null)
 const selectFolder = async (folder: any) => {
   selectedTagId.value = null // 清除标签选中状态
   
+  // 先设置虚拟文件夹状态
+  if (folder.id === 'snoozed' || folder.id === 'all' || folder.filter) {
+    selectedVirtualId.value = folder.id
+  } else {
+    selectedVirtualId.value = null
+  }
+  
   // 如果不在首页，先导航回首页
   if (route.path !== '/') {
     await router.push('/')
+    // 等待下一个 tick 确保组件已挂载
+    await nextTick()
   }
   
   if (folder.id === 'snoozed') {
     // 待办邮件
-    selectedVirtualId.value = folder.id
-    loadSnoozedEmails()
+    await loadSnoozedEmails()
   } else if (folder.id === 'all') {
     // 所有邮件
-    selectedVirtualId.value = folder.id
-    loadAllEmails()
+    await loadAllEmails()
   } else if (folder.filter) {
     // 其他虚拟文件夹：使用筛选
-    selectedVirtualId.value = folder.id
-    loadFilteredEmails(folder.filter)
+    await loadFilteredEmails(folder.filter)
   } else {
     // 真实文件夹
-    selectedVirtualId.value = null
-    loadEmails(folder.id)
+    await loadEmails(folder.id)
   }
 }
 
 // 切换标签
 const { loadEmailsByTag } = useEmails()
 const selectTag = async (tag: TagItem) => {
+  // 先设置状态，确保 EmailList 不会加载默认邮件
+  selectedVirtualId.value = null
+  selectedTagId.value = tag.id
+  
   // 如果不在首页，先导航回首页
   if (route.path !== '/') {
     await router.push('/')
+    // 等待下一个 tick 确保组件已挂载
+    await nextTick()
   }
-  selectedVirtualId.value = null
-  selectedTagId.value = tag.id
-  loadEmailsByTag(tag.id)
+  
+  // 加载标签邮件
+  await loadEmailsByTag(tag.id)
 }
 
 // 判断是否选中
