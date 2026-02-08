@@ -1,0 +1,135 @@
+"""
+安全迁移操作工具集
+
+提供检查数据库对象是否存在的辅助函数，避免迁移脚本因对象不存在而失败。
+在迁移脚本中使用:
+
+from alembic.versions.safe_operations import (
+    table_exists, column_exists, index_exists, constraint_exists,
+    safe_drop_index, safe_drop_column, safe_add_column
+)
+"""
+
+from alembic import op
+import sqlalchemy as sa
+
+
+def get_connection():
+    """获取当前数据库连接"""
+    return op.get_bind()
+
+
+def table_exists(table_name: str) -> bool:
+    """检查表是否存在"""
+    conn = get_connection()
+    result = conn.execute(sa.text(
+        "SELECT 1 FROM information_schema.tables WHERE table_name = :table_name"
+    ), {"table_name": table_name})
+    return result.fetchone() is not None
+
+
+def column_exists(table_name: str, column_name: str) -> bool:
+    """检查列是否存在"""
+    conn = get_connection()
+    result = conn.execute(sa.text(
+        "SELECT 1 FROM information_schema.columns "
+        "WHERE table_name = :table_name AND column_name = :column_name"
+    ), {"table_name": table_name, "column_name": column_name})
+    return result.fetchone() is not None
+
+
+def index_exists(index_name: str, table_name: str = None) -> bool:
+    """检查索引是否存在"""
+    conn = get_connection()
+    if table_name:
+        result = conn.execute(sa.text(
+            "SELECT 1 FROM pg_indexes "
+            "WHERE indexname = :index_name AND tablename = :table_name"
+        ), {"index_name": index_name, "table_name": table_name})
+    else:
+        result = conn.execute(sa.text(
+            "SELECT 1 FROM pg_indexes WHERE indexname = :index_name"
+        ), {"index_name": index_name})
+    return result.fetchone() is not None
+
+
+def constraint_exists(constraint_name: str, table_name: str = None) -> bool:
+    """检查约束是否存在"""
+    conn = get_connection()
+    if table_name:
+        result = conn.execute(sa.text(
+            "SELECT 1 FROM information_schema.table_constraints "
+            "WHERE constraint_name = :constraint_name AND table_name = :table_name"
+        ), {"constraint_name": constraint_name, "table_name": table_name})
+    else:
+        result = conn.execute(sa.text(
+            "SELECT 1 FROM information_schema.table_constraints "
+            "WHERE constraint_name = :constraint_name"
+        ), {"constraint_name": constraint_name})
+    return result.fetchone() is not None
+
+
+# 安全操作封装
+
+def safe_drop_index(index_name: str, table_name: str):
+    """安全删除索引（如果存在）"""
+    if index_exists(index_name, table_name):
+        op.drop_index(op.f(index_name), table_name=table_name)
+        return True
+    return False
+
+
+def safe_drop_column(table_name: str, column_name: str):
+    """安全删除列（如果存在）"""
+    if column_exists(table_name, column_name):
+        op.drop_column(table_name, column_name)
+        return True
+    return False
+
+
+def safe_add_column(table_name: str, column):
+    """安全添加列（如果不存在）"""
+    if not column_exists(table_name, column.name):
+        op.add_column(table_name, column)
+        return True
+    return False
+
+
+def safe_alter_column(table_name: str, column_name: str, **kwargs):
+    """安全修改列（如果存在）"""
+    if column_exists(table_name, column_name):
+        op.alter_column(table_name, column_name, **kwargs)
+        return True
+    return False
+
+
+def safe_create_index(index_name: str, table_name: str, columns: list, **kwargs):
+    """安全创建索引（如果不存在）"""
+    if not index_exists(index_name, table_name):
+        op.create_index(op.f(index_name), table_name, columns, **kwargs)
+        return True
+    return False
+
+
+def safe_drop_constraint(constraint_name: str, table_name: str, type_: str = None):
+    """安全删除约束（如果存在）"""
+    if constraint_exists(constraint_name, table_name):
+        op.drop_constraint(constraint_name, table_name, type_=type_)
+        return True
+    return False
+
+
+def safe_create_table(table_name: str, *columns, **kwargs):
+    """安全创建表（如果不存在）"""
+    if not table_exists(table_name):
+        op.create_table(table_name, *columns, **kwargs)
+        return True
+    return False
+
+
+def safe_drop_table(table_name: str):
+    """安全删除表（如果存在）"""
+    if table_exists(table_name):
+        op.drop_table(table_name)
+        return True
+    return False

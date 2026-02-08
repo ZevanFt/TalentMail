@@ -11,30 +11,17 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 
+# 导入安全操作工具
+from alembic.versions.safe_operations import (
+    index_exists, column_exists, safe_drop_index, safe_alter_column
+)
+
 
 # revision identifiers, used by Alembic.
 revision: str = '08d510aaf02b'
 down_revision: Union[str, Sequence[str], None] = '89eac48bb723'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
-
-
-def index_exists(index_name: str, table_name: str) -> bool:
-    """检查索引是否存在"""
-    conn = op.get_bind()
-    result = conn.execute(sa.text(
-        "SELECT 1 FROM pg_indexes WHERE indexname = :index_name AND tablename = :table_name"
-    ), {"index_name": index_name, "table_name": table_name})
-    return result.fetchone() is not None
-
-
-def column_exists(table_name: str, column_name: str) -> bool:
-    """检查列是否存在"""
-    conn = op.get_bind()
-    result = conn.execute(sa.text(
-        "SELECT 1 FROM information_schema.columns WHERE table_name = :table_name AND column_name = :column_name"
-    ), {"table_name": table_name, "column_name": column_name})
-    return result.fetchone() is not None
 
 
 def upgrade() -> None:
