@@ -152,35 +152,144 @@ git clone https://github.com/your-repo/talentmail.git
 cd talentmail
 ```
 
-### 2. 创建配置文件
+### 2. 修改核心配置文件 (config.json)
+
+> ⚠️ **重要！** 这是整个项目的核心配置文件，域名相关设置都在这里。
+
+```bash
+nano config.json
+```
+
+**配置说明：**
+
+```json
+{
+  "_comment": "这是 TalentMail 项目的主要配置文件",
+  "currentEnvironment": "production",  // 👈 改为 production
+  "appName": "TalentMail",
+  "appIcon": "/logo.svg",
+  "environments": {
+    "development": {
+      "baseDomain": "talenting.test",
+      "webPrefix": "mail",
+      "mailServerPrefix": "maillink",
+      "smtpPort": 587,
+      "strictEmailValidation": false,
+      "useCredentials": true
+    },
+    "production": {
+      "baseDomain": "example.com",      // 👈 改为您的域名
+      "webPrefix": "mail",               // Web 应用子域名前缀
+      "mailServerPrefix": "maillink",    // 邮件服务器子域名前缀
+      "smtpPort": 587,
+      "strictEmailValidation": true,
+      "useCredentials": true
+    }
+  }
+}
+```
+
+**需要修改的字段：**
+
+| 字段 | 说明 | 示例 |
+|------|------|------|
+| `currentEnvironment` | 当前环境 | `production` |
+| `production.baseDomain` | 您的主域名 | `talenting.vip` |
+
+> 💡 **提示**：`webPrefix` 和 `mailServerPrefix` 通常不需要修改，保持默认即可。
+
+### 3. 创建环境变量文件 (.env)
 
 ```bash
 cp .env.example .env
-```
-
-### 3. 编辑配置文件
-
-```bash
 nano .env
 ```
 
-**必填配置项：**
-
-| 变量 | 说明 | 示例 |
-|------|------|------|
-| `CURRENT_ENVIRONMENT` | 环境类型 | `production` |
-| `SECRET_KEY` | JWT 密钥（随机字符串） | `openssl rand -hex 32` |
-| `POSTGRES_PASSWORD` | 数据库密码 | 设置强密码 |
-| `ADMIN_PASSWORD` | 管理员登录密码 | 设置强密码 |
-
-**配置示例：**
+**完整的 .env 配置示例：**
 
 ```env
+# ==============================================
+# 基础配置 (必填)
+# ==============================================
+
+# 当前环境 (必须与 config.json 中的 currentEnvironment 一致)
 CURRENT_ENVIRONMENT=production
-SECRET_KEY=your-super-secret-key-here-make-it-long-and-random
-POSTGRES_PASSWORD=your-database-password
+
+# 时区设置
+TZ=Asia/Shanghai
+
+# ==============================================
+# 安全配置 (必填)
+# ==============================================
+
+# 后端密钥 (生成方法: openssl rand -hex 32)
+SECRET_KEY=a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6
+
+# JWT 加密算法 (保持默认即可)
+JWT_ALGORITHM=HS256
+
+# Access Token 过期时间 (分钟, 默认 7 天)
+ACCESS_TOKEN_EXPIRE_MINUTES=10080
+
+# Refresh Token 过期时间 (天, 默认 30 天)
+REFRESH_TOKEN_EXPIRE_DAYS=30
+
+# 外部账户密码加密密钥 (生成方法: openssl rand -hex 32)
+# 注意：一旦设置不可更改，否则将无法解密已存储的密码
+ENCRYPTION_KEY=z1y2x3w4v5u6t7s8r9q0p1o2n3m4l5k6j7i8h9g0f1e2d3c4b5a6
+
+# ==============================================
+# 数据库配置 (必填)
+# ==============================================
+
+# 数据库用户名
+POSTGRES_USER=talentmail
+
+# 数据库密码 (请设置一个强密码)
+POSTGRES_PASSWORD=your-strong-database-password
+
+# 数据库名称
+POSTGRES_DB=talentmail
+
+# 数据库连接地址 (将 YOUR_PASSWORD 替换为上面的 POSTGRES_PASSWORD)
+DATABASE_URL_DOCKER=postgresql://talentmail:your-strong-database-password@db:5432/talentmail
+
+# ==============================================
+# 初始管理员账户 (必填)
+# ==============================================
+
+# 管理员邮箱 (可选，默认为 admin@{baseDomain})
+# 如果不填，系统会自动使用 admin@example.com
+ADMIN_EMAIL=admin@example.com
+
+# 管理员密码 (必填)
 ADMIN_PASSWORD=your-admin-password
+
+# ==============================================
+# 邮件服务器配置 (必填)
+# ==============================================
+
+# 邮件服务器容器名称 (默认: talentmail-mailserver-1)
+MAILSERVER_CONTAINER_NAME=talentmail-mailserver-1
+
+# 默认邮件账户密码 (用于初始化，建议设置复杂一点)
+DEFAULT_MAIL_PASSWORD=your-mail-password
+
+# Rspamd Web 界面密码 (用于垃圾邮件过滤管理)
+RSPAMD_PASSWORD=your-rspamd-password
 ```
+
+**必填字段清单：**
+
+| 变量 | 说明 | 如何生成/设置 |
+|------|------|---------------|
+| `SECRET_KEY` | JWT 密钥 | `openssl rand -hex 32` |
+| `ENCRYPTION_KEY` | 外部账户加密密钥 | `openssl rand -hex 32` |
+| `POSTGRES_PASSWORD` | 数据库密码 | 自己设置强密码 |
+| `DATABASE_URL_DOCKER` | 数据库连接串 | 替换其中的密码 |
+| `ADMIN_EMAIL` | 管理员邮箱 | `admin@您的域名` |
+| `ADMIN_PASSWORD` | 管理员密码 | 自己设置强密码 |
+| `DEFAULT_MAIL_PASSWORD` | 邮件账户密码 | 自己设置强密码 |
 
 保存退出: `Ctrl+O` 回车保存，`Ctrl+X` 退出。
 
@@ -188,16 +297,40 @@ ADMIN_PASSWORD=your-admin-password
 
 ## 四、一键部署
 
+### 部署脚本执行流程
+
 ```bash
 chmod +x deploy.sh
 ./deploy.sh
 ```
 
-脚本会自动：
-- 构建 Docker 镜像
-- 启动所有服务
-- 初始化数据库
-- 创建管理员账户
+**`deploy.sh` 脚本执行顺序：**
+
+```
+1. 停止现有服务
+   └── docker compose down
+
+2. 生成域名配置文件
+   └── python3 scripts/generate_domains.py
+   └── 从 config.json 读取域名配置
+   └── 生成 .env.domains 文件
+
+3. 检查必需的环境变量
+   └── 验证 .env 文件存在
+   └── 检查所有必需变量是否已填写
+
+4. 构建 Docker 镜像
+   └── docker compose --env-file .env --env-file .env.domains build
+
+5. 启动服务
+   └── docker compose --env-file .env --env-file .env.domains up -d
+
+6. 等待数据库就绪
+   └── sleep 10
+
+7. 运行数据库迁移
+   └── docker compose exec backend alembic upgrade head
+```
 
 ### 验证部署
 
@@ -205,11 +338,33 @@ chmod +x deploy.sh
 # 检查服务状态
 docker compose ps
 
-# 查看日志
-docker compose logs -f
+# 所有服务应该显示 Up 或 healthy
 ```
 
-所有服务应该显示 `Up` 或 `healthy` 状态。
+**预期输出：**
+
+```
+NAME                       STATUS
+talentmail-backend-1       Up (healthy)
+talentmail-caddy-1         Up
+talentmail-db-1            Up (healthy)
+talentmail-frontend-1      Up (healthy)
+talentmail-mailserver-1    Up
+```
+
+### 查看日志
+
+```bash
+# 查看所有服务日志
+docker compose logs -f
+
+# 查看特定服务日志
+docker compose logs -f backend      # 后端
+docker compose logs -f frontend     # 前端
+docker compose logs -f mailserver   # 邮件服务器
+docker compose logs -f caddy        # 反向代理
+docker compose logs -f db           # 数据库
+```
 
 ---
 
