@@ -24,11 +24,53 @@
     }
     reverse_proxy @websocket backend:8000
 
-    # API 请求代理到后端
-    reverse_proxy /api/* backend:8000
+    # API 请求代理到后端（与开发环境保持一致的配置）
+    reverse_proxy /api/* backend:8000 {
+        # 健康检查配置
+        health_uri /api/health
+        health_interval 30s
+        health_timeout 10s
+        health_status 2xx
+        
+        # 超时配置
+        transport http {
+            dial_timeout 10s
+            response_header_timeout 30s
+            read_timeout 60s
+            write_timeout 60s
+        }
+        
+        # 失败重试
+        lb_try_duration 30s
+        lb_try_interval 2s
+        
+        # 错误处理
+        @backend_error status 502 503 504
+        handle_response @backend_error {
+            respond "Backend service temporarily unavailable. Please try again later." 503
+        }
+    }
 
-    # 其他请求代理到前端
-    reverse_proxy /* frontend:3000
+    # 其他请求代理到前端（与开发环境保持一致的配置）
+    reverse_proxy /* frontend:3000 {
+        # 超时配置
+        transport http {
+            dial_timeout 10s
+            response_header_timeout 30s
+            read_timeout 60s
+            write_timeout 60s
+        }
+        
+        # 失败重试
+        lb_try_duration 30s
+        lb_try_interval 2s
+        
+        # 错误处理
+        @frontend_error status 502 503 504
+        handle_response @frontend_error {
+            respond "Frontend service temporarily unavailable. Please try again later." 503
+        }
+    }
 }
 
 # 邮件服务器域名 (如 maillink.example.com)

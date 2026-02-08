@@ -6,7 +6,7 @@
 
 - **操作系统**: Linux, macOS 或 Windows (WSL2)
 - **Docker**: 20.10+ 版本
-- **Docker Compose**: 2.0+ 版本
+- **Docker Compose**: 2.0+ 版本 (Docker Desktop 已内置)
 - **Git**: 用于克隆代码
 - **至少 4GB 可用内存**
 
@@ -19,7 +19,28 @@ git clone <repository-url>
 cd talentmail
 ```
 
-### 2. 使用开发脚本一键部署
+### 2. 配置环境变量
+
+```bash
+# 复制环境变量模板
+cp .env.example .env
+
+# 编辑配置文件，填写必要的密码
+nano .env
+```
+
+**必填配置项：**
+
+| 配置项 | 说明 | 示例值 |
+|--------|------|--------|
+| `POSTGRES_USER` | 数据库用户名 | `talentmail` |
+| `POSTGRES_PASSWORD` | 数据库密码 | `your-password` |
+| `POSTGRES_DB` | 数据库名称 | `talentmail` |
+| `DATABASE_URL_DOCKER` | 数据库连接串 | `postgresql://talentmail:your-password@db:5432/talentmail` |
+| `SECRET_KEY` | JWT 密钥 | 使用 `openssl rand -hex 32` 生成 |
+| `ADMIN_PASSWORD` | 管理员密码 | `adminpassword` |
+
+### 3. 使用开发脚本一键部署
 
 ```bash
 # 给脚本执行权限
@@ -29,33 +50,14 @@ chmod +x dev.sh
 ./dev.sh
 ```
 
-就是这么简单！`dev.sh` 脚本会自动完成所有配置和部署工作。
+就是这么简单！`dev.sh` 脚本会自动完成：
+- 从 `config.json` 生成 Caddy 环境变量
+- 从 `.env` 生成 Dovecot SQL 配置
+- 构建 Docker 镜像
+- 启动所有服务
+- 运行数据库迁移
 
-## 🛠️ 手动部署步骤
-
-如果你想了解详细的部署过程，可以按照以下步骤手动部署：
-
-### 1. 配置环境变量
-
-```bash
-# 复制环境变量模板
-cp .env.example .env
-
-# 编辑配置文件
-nano .env
-```
-
-主要配置项说明：
-
-| 配置项 | 说明 | 示例值 |
-|--------|------|--------|
-| `POSTGRES_USER` | 数据库用户名 | `user` |
-| `POSTGRES_PASSWORD` | 数据库密码 | `password` |
-| `POSTGRES_DB` | 数据库名称 | `talentmail` |
-| `SECRET_KEY` | JWT 密钥 | 使用 `openssl rand -hex 32` 生成 |
-| `ADMIN_PASSWORD` | 管理员密码 | `adminpassword` |
-
-### 2. 配置本地域名
+### 4. 配置本地域名
 
 编辑 hosts 文件：
 
@@ -71,24 +73,6 @@ notepad C:\Windows\System32\drivers\etc\hosts
 
 ```
 127.0.0.1 mail.talenting.test maillink.talenting.test
-```
-
-### 3. 启动服务
-
-```bash
-# 构建并启动所有服务
-docker-compose -f docker-compose.dev.yml up --build -d
-
-# 查看服务状态
-docker-compose -f docker-compose.dev.yml ps
-```
-
-### 4. 初始化数据库
-
-等待数据库启动完成后（约 10-20 秒），运行数据库迁移：
-
-```bash
-docker-compose -f docker-compose.dev.yml exec backend alembic upgrade head
 ```
 
 ## 📍 访问地址
@@ -157,22 +141,55 @@ newgrp docker
 
 ```bash
 # 查看数据库日志
-docker-compose -f docker-compose.dev.yml logs db
+docker compose -f docker-compose.dev.yml logs db
 
 # 确保数据库服务健康
-docker-compose -f docker-compose.dev.yml ps
+docker compose -f docker-compose.dev.yml ps
 ```
 
 ### 4. 证书警告
 
-开发环境使用自签名证书，浏览器会显示安全警告。选择"继续访问"即可。
+开发环境使用 mkcert 本地可信证书。如果遇到证书警告：
+
+1. 安装 mkcert: `brew install mkcert` (macOS) 或参考 [mkcert 官方文档](https://github.com/FiloSottile/mkcert)
+2. 运行 `mkcert -install` 安装根证书
+3. 重新生成证书：`./scripts/setup-mkcert.sh`
 
 ## 📝 开发提示
 
 1. **热重载**：前后端代码修改后会自动重载，无需重启服务
 2. **查看日志**：使用 `./dev.sh logs` 实时查看所有服务日志
 3. **数据持久化**：数据库数据保存在 Docker 卷中，停止服务不会丢失
-4. **清理数据**：使用 `docker-compose -f docker-compose.dev.yml down -v` 清空所有数据
+4. **清理数据**：使用 `docker compose -f docker-compose.dev.yml down -v` 清空所有数据
+
+## 🏗️ 开发环境技术架构
+
+```
+浏览器 (https://mail.talenting.test)
+    ↓
+Caddy (mkcert 本地可信证书)
+    ↓
+┌─────────────┬─────────────┐
+│   Frontend  │   Backend   │
+│  (Nuxt Dev) │  (FastAPI)  │
+│   热重载    │   热重载    │
+│  Port 3000  │  Port 8000  │
+└─────────────┴─────────────┘
+         ↓
+    PostgreSQL
+    Port 5432
+```
+
+**关键文件说明：**
+
+| 文件 | 用途 |
+|------|------|
+| `docker-compose.dev.yml` | 开发环境 Docker 编排 |
+| `frontend/Dockerfile` | 前端开发镜像（热重载） |
+| `backend/Dockerfile` | 后端镜像 |
+| `config/caddy/Caddyfile` | Caddy 开发配置（mkcert 证书） |
+| `dev.sh` | 开发环境启动脚本 |
+| `config.json` | 项目核心配置（域名等） |
 
 ## 🔄 更新代码
 
@@ -186,10 +203,10 @@ git pull
 
 ## 📚 相关文档
 
-- [生产环境部署](./production.md)
-- [系统架构设计](../02-architecture/system-design.md)
+- [生产环境部署](./production-deployment-guide.md)
+- [系统架构设计](../02-architecture/README.md)
 - [故障排查指南](../05-operations/troubleshooting.md)
 
 ---
 
-最后更新：2025-02-01
+最后更新：2026-02-08

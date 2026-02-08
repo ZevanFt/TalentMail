@@ -1,3 +1,10 @@
+# =============================================================================
+# TalentMail Backend Dockerfile
+# =============================================================================
+# 用于开发环境和生产环境
+# 启动命令由 docker-compose.yml 或 docker-compose.dev.yml 指定
+# =============================================================================
+
 # 使用官方 Python 镜像作为基础镜像
 FROM python:3.12-slim
 
@@ -16,6 +23,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libffi-dev \
     shared-mime-info \
     fonts-noto-cjk \
+    # wget 用于健康检查
+    wget \
     && rm -rf /var/lib/apt/lists/*
 
 # 配置国内 pip 镜像源（清华大学）
@@ -29,3 +38,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # 复制所有后端代码到工作目录
 COPY . .
+
+# 暴露端口
+EXPOSE 8000
+
+# 默认启动命令（会被 docker-compose 的 command 覆盖）
+# 开发环境使用 --reload，生产环境使用 --workers 4
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -32,6 +32,15 @@ services:
       mailserver:
         condition: service_started
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+    # 生产环境：服务异常退出时自动重启
+    restart: unless-stopped
+    # 健康检查：定期检查 API 是否正常响应
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   # --- 前端服务 (Nuxt.js 应用) ---
   frontend:
@@ -43,6 +52,15 @@ services:
     env_file:
       - .env
       - .env.domains
+    # 生产环境：服务异常退出时自动重启
+    restart: unless-stopped
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   # --- 数据库服务 (PostgreSQL) ---
   db:
@@ -60,6 +78,8 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+    # 生产环境：数据库崩溃时自动重启
+    restart: unless-stopped
 
   # --- 邮件服务器 (docker-mailserver) ---
   # SSL 证书说明：
