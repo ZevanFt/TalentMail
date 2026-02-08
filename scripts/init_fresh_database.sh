@@ -45,17 +45,21 @@ echo -e "${BLUE}🚀 TalentMail 全新数据库初始化${NC}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-info "🛑 停止所有服务..."
-docker compose -f $COMPOSE_FILE down 2>/dev/null || true
+info "🛑 停止所有服务并彻底清理..."
+docker compose -f $COMPOSE_FILE down -v --remove-orphans 2>/dev/null || true
 
-info "🗑️  删除数据库卷..."
+info "🗑️  确保数据库卷已删除..."
 docker volume rm talentmail_postgres_data 2>/dev/null || true
 
-info "🚀 启动数据库..."
+info "🧹 清理系统缓存..."
+docker system prune -f 2>/dev/null || true
+
+info "🚀 重新构建并启动数据库..."
+docker compose -f $COMPOSE_FILE $ENV_FILES build db 2>/dev/null || true
 docker compose -f $COMPOSE_FILE $ENV_FILES up -d db
 
-info "⏳ 等待数据库就绪..."
-sleep 10
+info "⏳ 等待数据库完全就绪..."
+sleep 15
 
 info "🚀 启动后端服务..."
 docker compose -f $COMPOSE_FILE $ENV_FILES up -d backend
