@@ -63,7 +63,11 @@ info "🚀 重新启动数据库..."
 docker compose -f $COMPOSE_FILE $ENV_FILES up -d db
 
 info "⏳ 等待数据库完全就绪..."
-sleep 15
+sleep 10
+
+info "🚀 启动后端服务（用于执行数据库操作）..."
+docker compose -f $COMPOSE_FILE $ENV_FILES up -d backend
+sleep 10
 
 info "🔧 直接用 SQL 创建所有表..."
 docker compose -f $COMPOSE_FILE $ENV_FILES exec -T backend python << 'PYTHON_SCRIPT'
@@ -102,10 +106,6 @@ if [ $? -ne 0 ]; then
     error "创建表失败！"
     exit 1
 fi
-
-info "🚀 启动后端服务..."
-docker compose -f $COMPOSE_FILE $ENV_FILES up -d backend
-sleep 5
 
 info "📝 标记迁移为最新状态..."
 docker compose -f $COMPOSE_FILE $ENV_FILES exec -T backend alembic stamp head
