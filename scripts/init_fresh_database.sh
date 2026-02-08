@@ -51,29 +51,61 @@ docker compose -f $COMPOSE_FILE down -v --remove-orphans 2>/dev/null || true
 info "🗑️  确保数据库卷已删除..."
 docker volume rm talentmail_postgres_data 2>/dev/null || true
 
+# 列出所有 talentmail 相关的卷并删除
+info "🗑️  删除所有 talentmail 相关卷..."
+docker volume ls -q | grep -i talentmail | xargs -r docker volume rm 2>/dev/null || true
+
 info "🧹 清理系统缓存..."
 docker system prune -f 2>/dev/null || true
+docker volume prune -f 2>/dev/null || true
 
-info "🚀 重新构建并启动数据库..."
-docker compose -f $COMPOSE_FILE $ENV_FILES build db 2>/dev/null || true
+info "🚀 重新启动数据库..."
 docker compose -f $COMPOSE_FILE $ENV_FILES up -d db
 
 info "⏳ 等待数据库完全就绪..."
 sleep 15
 
+info "🔧 直接用 SQL 创建所有表..."
+docker compose -f $COMPOSE_FILE $ENV_FILES exec -T backend python << 'PYTHON_SCRIPT'
+import sys
+from sqlalchemy import text
+from db.database import engine
+
+# 先删除所有现有表（如果存在）
+print("清理现有数据库对象...")
+with engine.connect() as conn:
+    # 删除所有表
+    conn.execute(text("DROP SCHEMA public CASCADE"))
+    conn.execute(text("CREATE SCHEMA public"))
+    conn.execute(text("GRANT ALL ON SCHEMA public TO public"))
+    conn.commit()
+    print("数据库已清理")
+
+# 现在创建所有表
+print("正在创建所有表...")
+from db.database import Base
+from db.models import *
+
+Base.metadata.create_all(bind=engine)
+print("表创建完成！")
+
+# 验证表是否创建成功
+from sqlalchemy import inspect
+inspector = inspect(engine)
+tables = inspector.get_table_names()
+print(f"数据库中共有 {len(tables)} 个表:")
+for t in sorted(tables):
+    print(f"  - {t}")
+PYTHON_SCRIPT
+
+if [ $? -ne 0 ]; then
+    error "创建表失败！"
+    exit 1
+fi
+
 info "🚀 启动后端服务..."
 docker compose -f $COMPOSE_FILE $ENV_FILES up -d backend
 sleep 5
-
-info "🔧 从 Models 直接创建数据库表..."
-docker compose -f $COMPOSE_FILE $ENV_FILES exec -T backend python -c "
-from db.database import engine, Base
-from db.models import user, template, workflow, billing, drive, features, system
-
-print('正在创建所有表...')
-Base.metadata.create_all(bind=engine)
-print('表创建完成！')
-"
 
 info "📝 标记迁移为最新状态..."
 docker compose -f $COMPOSE_FILE $ENV_FILES exec -T backend alembic stamp head
