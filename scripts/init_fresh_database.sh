@@ -110,14 +110,39 @@ fi
 info "📝 标记迁移为最新状态..."
 docker compose -f $COMPOSE_FILE $ENV_FILES exec -T backend alembic stamp head
 
+info "👤 初始化管理员用户和默认数据..."
+docker compose -f $COMPOSE_FILE $ENV_FILES exec -T backend python << 'PYTHON_SCRIPT'
+from initial.initial_data import init_db
+print("开始初始化默认数据...")
+init_db()
+print("默认数据初始化完成！")
+PYTHON_SCRIPT
+
+if [ $? -ne 0 ]; then
+    warn "初始化默认数据时出现警告，但不影响运行"
+fi
+
 info "▶️  启动所有服务..."
 docker compose -f $COMPOSE_FILE $ENV_FILES up -d
+
+# 等待服务就绪
+sleep 5
+
+# 获取管理员邮箱
+ADMIN_EMAIL=$(grep -E "^ADMIN_EMAIL=" .env | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+if [ -z "$ADMIN_EMAIL" ]; then
+    ADMIN_EMAIL="admin@talenting.vip"
+fi
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 success "🎉 数据库初始化完成！"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-echo "现在数据库已包含所有最新的表结构。"
+echo "📌 管理员账户："
+echo "   邮箱: ${ADMIN_EMAIL}"
+echo "   密码: 请查看 .env 文件中的 ADMIN_PASSWORD"
+echo ""
+echo "现在数据库已包含所有最新的表结构和默认数据。"
 echo "后续更新使用 ./deploy.sh 即可正常运行增量迁移。"
 echo ""
