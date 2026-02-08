@@ -87,29 +87,42 @@ TalentMail 工作流系统是一个可视化的自动化引擎，允许用户通
   - 添加全局配置项
   - 配置项绑定到节点字段
 
+#### 7. 工作流运行时引擎
+- **文件**: `backend/core/workflow_runtime.py`, `backend/core/workflow_service.py`
+- **API**:
+  - `POST /api/workflows/{id}/execute` - 执行已发布的工作流
+  - `POST /api/workflows/{id}/test` - 测试工作流（无需发布，不保存执行记录）
+- **前端功能**:
+  - 测试按钮（橙色，支持未发布的工作流）
+  - 执行按钮（绿色，需要先发布）
+  - 执行结果弹窗（显示成功/失败、节点数、耗时等）
+- **核心组件**:
+  - `WorkflowEngine` - BFS 图遍历执行引擎
+  - `WorkflowContext` - 执行上下文和变量管理
+  - `GraphExecutor` - 条件分支和并行执行支持
+  - `VariableResolver` - `{{variable}}` 模板变量解析
+- **节点处理器**: 41 种处理器类，包括：
+  - `TriggerHandler` - 触发器节点
+  - `ConditionHandler` - 条件分支
+  - `GenerateCodeHandler` - 生成验证码
+  - `SendTemplateEmailHandler` - 发送邮件
+  - `DelayHandler`, `LoopHandler`, `ParallelHandler` 等
+
 ### 🚧 待完成功能
 
-#### 1. 工作流运行时
-- **文件**: `backend/core/workflow_runtime.py`
-- **状态**: 框架已搭建，需要完善节点执行逻辑
-- **待实现**:
-  - 各类节点的具体执行逻辑
-  - 上下文变量传递
-  - 错误处理和重试机制
-
-#### 2. 条件分支节点
+#### 1. 条件分支节点
 - **状态**: UI 已支持双输出端口（是/否）
-- **待实现**: 条件表达式解析和执行
+- **待实现**: 条件表达式解析和执行的完善
 
-#### 3. 邮件触发集成
+#### 2. 邮件触发集成
 - **文件**: `backend/core/lmtp_server.py`
 - **状态**: LMTP 服务器已集成邮件接收
 - **待实现**: 触发工作流执行
 
-#### 4. 定时任务调度
+#### 3. 定时任务调度
 - **待实现**: 定时触发器的调度系统
 
-#### 5. 工作流模板
+#### 4. 工作流模板
 - **数据库表**: `workflow_templates`
 - **状态**: 表结构已创建
 - **待实现**: 模板市场 UI 和使用功能
@@ -126,6 +139,8 @@ PUT    /api/workflows/{id}                # 更新工作流基本信息
 DELETE /api/workflows/{id}                # 删除工作流
 PUT    /api/workflows/{id}/canvas         # 保存画布（节点和边）
 POST   /api/workflows/{id}/publish        # 发布工作流
+POST   /api/workflows/{id}/execute        # 执行工作流（需已发布）
+POST   /api/workflows/{id}/test           # 测试工作流（调试用）
 ```
 
 ### 版本历史
@@ -211,8 +226,8 @@ definePageMeta({
 
 ## 下一步计划
 
-1. 完善工作流运行时，实现各类节点的执行逻辑
+1. 完善条件分支节点的表达式解析
 2. 集成邮件接收触发器，实现自动化流程
 3. 添加定时任务调度器
 4. 完善工作流模板市场
-5. 添加工作流执行日志和监控
+5. 添加工作流执行日志和监控仪表板

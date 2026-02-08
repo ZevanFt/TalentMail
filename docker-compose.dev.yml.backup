@@ -35,15 +35,6 @@ services:
         condition: service_started
     # 直接启动 uvicorn，数据库就绪由 healthcheck 保证
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-    # 添加重启策略：服务异常退出时自动重启
-    restart: unless-stopped
-    # 添加健康检查：定期检查服务是否正常响应
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health').read()"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
 
   # --- 前端服务 (Nuxt.js 应用) ---
   frontend:
@@ -64,15 +55,6 @@ services:
       - .env.caddy
     # 启动 Nuxt.js 的开发服务器，监听所有网络接口以便 Caddy 可以访问
     command: npm run dev -- --host 0.0.0.0
-    # 添加重启策略
-    restart: unless-stopped
-    # 添加健康检查
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
 
   # --- 数据库服务 (PostgreSQL) ---
   db:
@@ -97,7 +79,6 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
-    restart: unless-stopped
 
   # --- 邮件服务器 (docker-mailserver) ---
   mailserver:
@@ -139,37 +120,26 @@ services:
 
   # --- Caddy 网关服务 (开发环境) ---
   # 让我们能通过 https://mail.talenting.test 访问应用
-  # 使用 mkcert 生成的本地可信证书，确保浏览器不会显示证书警告
   caddy:
     image: caddy:alpine
     restart: always
     ports:
-      # 开发环境同时支持 HTTP 和 HTTPS
+      # 开发环境只使用 HTTP，不需要 HTTPS
       - "80:80"
-      - "443:443"
+      # 443 端口已注释，因为开发环境使用纯 HTTP 模式
+      # - "443:443"
     volumes:
       # 挂载 Caddy 配置文件
       - ./config/caddy/Caddyfile:/etc/caddy/Caddyfile
-      # 挂载 mkcert 生成的证书（开发环境使用本地可信证书）
-      - ./config/caddy/certs:/etc/caddy/certs:ro
-      # 使用具名卷来持久化 Caddy 数据
+      # 使用具名卷来持久化 Caddy 自动生成的 TLS 证书
       - caddy_data:/data
     # 从 .env.caddy 文件加载 WEB_DOMAIN 环境变量
     env_file:
       - .env.caddy
     # 确保 Caddy 在它需要代理的服务启动之后再启动
     depends_on:
-      backend:
-        condition: service_healthy
-      frontend:
-        condition: service_healthy
-    # 移除健康检查，因为 Caddy 本身工作正常，健康检查配置有问题
-    # healthcheck:
-    #   test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80"]
-    #   interval: 30s
-    #   timeout: 10s
-    #   retries: 3
-    #   start_period: 10s
+      - backend
+      - frontend
  
 # 'volumes' 用来统一定义在上面服务中使用的具名卷
 volumes:

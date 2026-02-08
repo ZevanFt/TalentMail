@@ -14,7 +14,7 @@
 <!-- </template> -->
 
 <template>
-  <div class="flex w-full h-full bg-white dark:bg-bg-dark overflow-hidden">
+  <div class="flex w-full h-full main-container overflow-hidden">
     <!-- 
       修复：组件名变了！
       Email (文件夹名) + List (文件名) = EmailList

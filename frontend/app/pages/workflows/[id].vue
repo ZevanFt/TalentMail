@@ -17,7 +17,9 @@ import {
   Globe, ScrollText, Zap, Bell, Database, Flag,
   CircleCheck, CircleX, Package, XCircle,
   // 版本历史
-  History, RotateCcw, Eye
+  History, RotateCcw, Eye,
+  // 执行相关
+  PlayCircle, Bug, AlertCircle, CheckCircle2, Loader2
 } from 'lucide-vue-next'
 import type { Component } from 'vue'
 
@@ -36,7 +38,7 @@ const systemWorkflowCode = computed(() => {
   return null
 })
 
-const { getNodeTypes, createWorkflow, getWorkflow, updateWorkflow, saveWorkflowCanvas, publishWorkflow, getSystemWorkflow, getEmailTemplates, getWorkflowVersions, getWorkflowVersion, restoreWorkflowVersion } = useApi()
+const { getNodeTypes, createWorkflow, getWorkflow, updateWorkflow, saveWorkflowCanvas, publishWorkflow, getSystemWorkflow, getEmailTemplates, getWorkflowVersions, getWorkflowVersion, restoreWorkflowVersion, executeWorkflow, testWorkflow } = useApi()
 
 // 邮件模板列表（用于"发送邮件"节点的模板选择）
 const emailTemplates = ref<any[]>([])
@@ -161,6 +163,21 @@ const selectedNodeConfigSchema = computed(() => {
 const loading = ref(false)
 const saving = ref(false)
 const publishing = ref(false)
+const testing = ref(false)
+const executing = ref(false)
+
+// 执行结果弹窗
+const showExecutionResult = ref(false)
+const executionResult = ref<{
+  success: boolean
+  execution_id: number
+  status: string
+  result: any
+  error_message: string | null
+  nodes_executed: number
+  duration_ms: number
+  mode: 'test' | 'execute'
+} | null>(null)
 
 // 版本历史
 const showVersionHistory = ref(false)
@@ -644,6 +661,77 @@ const saveWorkflowData = async () => {
   }
 }
 
+// 测试工作流（不保存执行记录）
+const testWorkflowData = async () => {
+  if (!workflow.value.id) {
+    showMessage('error', '请先保存工作流')
+    return
+  }
+  
+  if (nodes.value.length === 0) {
+    showMessage('error', '工作流没有任何节点')
+    return
+  }
+  
+  testing.value = true
+  try {
+    // 先保存当前画布状态
+    await saveWorkflowData()
+    
+    // 执行测试
+    const result = await testWorkflow(workflow.value.id, {})
+    executionResult.value = { ...result, mode: 'test' }
+    showExecutionResult.value = true
+    
+    if (result.success) {
+      showMessage('success', `测试成功，执行了 ${result.nodes_executed} 个节点`)
+    } else {
+      showMessage('error', result.error_message || '测试失败')
+    }
+  } catch (e: any) {
+    console.error('测试失败:', e)
+    showMessage('error', e.data?.detail || '测试失败')
+  } finally {
+    testing.value = false
+  }
+}
+
+// 执行工作流（正式执行，保存记录）
+const executeWorkflowData = async () => {
+  if (!workflow.value.id) {
+    showMessage('error', '请先保存工作流')
+    return
+  }
+  
+  if (workflow.value.status !== 'published') {
+    showMessage('error', '请先发布工作流')
+    return
+  }
+  
+  if (nodes.value.length === 0) {
+    showMessage('error', '工作流没有任何节点')
+    return
+  }
+  
+  executing.value = true
+  try {
+    const result = await executeWorkflow(workflow.value.id, {})
+    executionResult.value = { ...result, mode: 'execute' }
+    showExecutionResult.value = true
+    
+    if (result.success) {
+      showMessage('success', `执行成功，共 ${result.nodes_executed} 个节点，耗时 ${result.duration_ms}ms`)
+    } else {
+      showMessage('error', result.error_message || '执行失败')
+    }
+  } catch (e: any) {
+    console.error('执行失败:', e)
+    showMessage('error', e.data?.detail || '执行失败')
+  } finally {
+    executing.value = false
+  }
+}
+
 // 发布工作流
 const publishWorkflowData = async () => {
   if (!workflow.value.id) {
@@ -962,6 +1050,33 @@ definePageMeta({
           </span>
           
           <span class="text-xs text-gray-400">v{{ workflow.version }}</span>
+          
+          <!-- 测试按钮 -->
+          <button
+            @click="testWorkflowData"
+            :disabled="testing || !workflow.id || nodes.length === 0"
+            class="flex items-center gap-1.5 px-3 py-2 text-sm text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title="测试运行（不保存执行记录）"
+          >
+            <Loader2 v-if="testing" class="w-4 h-4 animate-spin" />
+            <Bug v-else class="w-4 h-4" />
+            <span class="hidden sm:inline">{{ testing ? '测试中...' : '测试' }}</span>
+          </button>
+
+          <!-- 执行按钮 -->
+          <button
+            @click="executeWorkflowData"
+            :disabled="executing || workflow.status !== 'published'"
+            class="flex items-center gap-1.5 px-3 py-2 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title="执行工作流（需要先发布）"
+          >
+            <Loader2 v-if="executing" class="w-4 h-4 animate-spin" />
+            <PlayCircle v-else class="w-4 h-4" />
+            <span class="hidden sm:inline">{{ executing ? '执行中...' : '执行' }}</span>
+          </button>
+          
+          <!-- 分隔线 -->
+          <div class="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
           
           <button
             @click="saveWorkflowData"
@@ -1644,6 +1759,115 @@ definePageMeta({
               </button>
               <button
                 @click="showVersionHistory = false; if (previewingVersion) exitPreview()"
+                class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              >
+                关闭
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- 执行结果弹窗 -->
+    <Teleport to="body">
+      <Transition name="fade">
+        <div
+          v-if="showExecutionResult && executionResult"
+          class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          @click.self="showExecutionResult = false"
+        >
+          <div class="bg-white dark:bg-bg-panelDark rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
+            <!-- 头部 -->
+            <div
+              :class="[
+                'flex items-center justify-between px-6 py-4 border-b',
+                executionResult.success
+                  ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+                  : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+              ]"
+            >
+              <div class="flex items-center gap-3">
+                <div
+                  :class="[
+                    'w-10 h-10 rounded-lg flex items-center justify-center',
+                    executionResult.success
+                      ? 'bg-green-100 dark:bg-green-900/30'
+                      : 'bg-red-100 dark:bg-red-900/30'
+                  ]"
+                >
+                  <CheckCircle2 v-if="executionResult.success" class="w-5 h-5 text-green-600 dark:text-green-400" />
+                  <AlertCircle v-else class="w-5 h-5 text-red-600 dark:text-red-400" />
+                </div>
+                <div>
+                  <h3 class="text-lg font-semibold" :class="executionResult.success ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'">
+                    {{ executionResult.mode === 'test' ? '测试' : '执行' }}{{ executionResult.success ? '成功' : '失败' }}
+                  </h3>
+                  <p class="text-sm" :class="executionResult.success ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+                    {{ executionResult.mode === 'test' ? '测试运行完成' : '工作流执行完成' }}
+                  </p>
+                </div>
+              </div>
+              <button
+                @click="showExecutionResult = false"
+                class="p-2 hover:bg-white/50 dark:hover:bg-gray-800/50 rounded-lg transition-colors"
+              >
+                <X class="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            <!-- 内容 -->
+            <div class="p-6 space-y-4">
+              <!-- 统计信息 -->
+              <div class="grid grid-cols-3 gap-4">
+                <div class="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ executionResult.nodes_executed }}</p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">执行节点数</p>
+                </div>
+                <div class="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ executionResult.duration_ms }}</p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">耗时(ms)</p>
+                </div>
+                <div class="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <p class="text-2xl font-bold" :class="executionResult.success ? 'text-green-600' : 'text-red-600'">
+                    {{ executionResult.status }}
+                  </p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">状态</p>
+                </div>
+              </div>
+
+              <!-- 错误信息 -->
+              <div v-if="executionResult.error_message" class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <div class="flex items-start gap-2">
+                  <AlertCircle class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p class="font-medium text-red-800 dark:text-red-200">错误信息</p>
+                    <p class="text-sm text-red-600 dark:text-red-400 mt-1">{{ executionResult.error_message }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 执行结果 -->
+              <div v-if="executionResult.result && Object.keys(executionResult.result).length > 0" class="space-y-2">
+                <p class="text-sm font-medium text-gray-700 dark:text-gray-300">执行结果</p>
+                <div class="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg max-h-48 overflow-auto">
+                  <pre class="text-xs text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{{ JSON.stringify(executionResult.result, null, 2) }}</pre>
+                </div>
+              </div>
+
+              <!-- 执行ID -->
+              <div class="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">
+                <span>执行 ID: #{{ executionResult.execution_id }}</span>
+                <span v-if="executionResult.mode === 'test'" class="px-2 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded text-xs">
+                  测试模式
+                </span>
+              </div>
+            </div>
+
+            <!-- 底部 -->
+            <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+              <button
+                @click="showExecutionResult = false"
                 class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
               >
                 关闭

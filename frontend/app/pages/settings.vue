@@ -52,11 +52,11 @@ const handleLogout = () => {
 </script>
 
 <template>
-  <div class="flex w-full h-full bg-gray-50 dark:bg-bg-dark overflow-hidden">
+  <div class="settings-page flex w-full h-full bg-gray-50 dark:bg-bg-dark overflow-hidden">
 
     <!-- 1. 设置导航栏 (固定宽度 w-64) -->
     <div
-      class="w-64 bg-white dark:bg-bg-panelDark border-r border-gray-200 dark:border-border-dark flex flex-col shrink-0 h-full">
+      class="settings-sidebar w-64 bg-white dark:bg-bg-panelDark border-r border-gray-200 dark:border-border-dark flex flex-col shrink-0 h-full">
 
       <!-- 顶部返回 -->
       <div class="h-14 flex items-center px-6 gap-2 border-b border-gray-100 dark:border-gray-800 shrink-0">
@@ -158,7 +158,7 @@ const handleLogout = () => {
     </div>
 
     <!-- 2. 内容主区域 -->
-    <div class="flex-1 flex flex-col overflow-hidden bg-gray-50 dark:bg-bg-dark">
+    <div class="settings-content flex-1 flex flex-col overflow-hidden bg-gray-50 dark:bg-bg-dark">
       <!-- 用户权限管理使用全高度布局 -->
       <div v-if="activeTab === 'user-mgmt'" class="flex-1 p-8 md:p-12 overflow-hidden">
         <div class="max-w-5xl mx-auto h-full">

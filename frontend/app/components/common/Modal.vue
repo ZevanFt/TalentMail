@@ -44,8 +44,8 @@ const handleClose = () => {
       <div v-if="modelValue" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="handleClose">
         
         <!-- 弹窗主体 -->
-        <div 
-          class="bg-white dark:bg-bg-panelDark rounded-xl shadow-2xl flex flex-col max-h-[90vh] transition-all transform scale-100"
+        <div
+          class="modal-solid-bg bg-white dark:bg-bg-panelDark rounded-xl shadow-2xl flex flex-col max-h-[90vh] transition-all transform scale-100"
           :class="widthClass || 'w-full max-w-lg'"
         >
           <!-- 头部 -->

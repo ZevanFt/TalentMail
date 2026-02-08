@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 import asyncio
 from db.database import engine, SessionLocal
 from db import models  # 确保导入 models 以注册表
-from api import auth, mail, users, folders, tracking, invite, pool, signatures, attachments, billing, reserved_prefixes, email_templates, totp, blocklist, aliases, tags, contacts, external_accounts, drive, automation, workflows, workflow_templates, changelog, spam
+from api import auth, mail, users, folders, tracking, invite, pool, signatures, attachments, billing, reserved_prefixes, email_templates, totp, blocklist, aliases, tags, contacts, external_accounts, drive, automation, workflows, workflow_templates, changelog, spam, health
 from api.deps import get_current_user_from_token
 from api.auth import cleanup_old_sessions
 from initial import initial_data
@@ -27,7 +27,7 @@ cleanup_task = None
 async def periodic_session_cleanup(interval: int = 86400):
     """
     定期清理旧会话的任务
-    默认每24小时执行一次，清理30天未活动的会话
+    默认每24小时执行一次,清理30天未活动的会话
     """
     while True:
         await asyncio.sleep(interval)  # 等待指定间隔
@@ -132,6 +132,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(health.router, prefix="/api", tags=["Health"])
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(mail.router, prefix="/api/emails", tags=["Emails"])
 app.include_router(folders.router, prefix="/api/folders", tags=["Folders"])

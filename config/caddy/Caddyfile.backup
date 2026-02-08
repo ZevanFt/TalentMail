@@ -1,0 +1,24 @@
+{
+    # 根据环境变量自动切换证书模式
+    # 开发环境（CURRENT_ENVIRONMENT=development）：使用本地自签名证书
+    # 生产环境（CURRENT_ENVIRONMENT=production）：使用 Let's Encrypt 真实证书
+    {$USE_LOCAL_CERTS}
+}
+
+# 动态域名配置
+# 通过 WEB_DOMAIN 环境变量设置，支持 HTTP 或 HTTPS
+# 开发环境示例：
+#   - WEB_DOMAIN=http://mail.talenting.test (强制 HTTP，无证书)
+#   - WEB_DOMAIN=mail.talenting.test (HTTPS，使用本地证书)
+# 生产环境示例：
+#   - WEB_DOMAIN=mail.yourdomain.com (HTTPS，Let's Encrypt 自动证书)
+{$WEB_DOMAIN} {
+    # Enable compression
+    encode gzip zstd
+
+    # Reverse proxy API requests to the backend service
+    reverse_proxy /api/* backend:8000
+
+    # Reverse proxy all other requests to the frontend service
+    reverse_proxy /* frontend:3000
+}

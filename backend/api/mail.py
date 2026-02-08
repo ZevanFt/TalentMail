@@ -1,10 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional, Dict
 from pydantic import BaseModel
 import uuid
 import json
+import os
+from urllib.parse import quote
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
+from email.utils import formataddr, formatdate
 from api import deps
 from db.database import SessionLocal
 from schemas import email as email_schema
@@ -1030,4 +1038,277 @@ def bulk_archive_emails(
         success_count=success_count,
         failed_count=len(failed_ids),
         failed_ids=failed_ids
+    )
+
+
+@router.get("/{email_id}/export")
+def export_email(
+    email_id: int,
+    format: str = Query("eml", description="导出格式：eml 或 pdf"),
+    token: str = Query(..., description="认证 token"),
+    tz: str = Query("Asia/Shanghai", description="用户时区，如 Asia/Shanghai"),
+    db: Session = Depends(deps.get_db),
+):
+    """导出邮件为 EML 或 PDF 格式（通过 URL token 参数认证）"""
+    # 从 token 参数获取用户
+    user = deps.get_current_user_from_token(db, token)
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    email = db.query(Email).join(Folder).filter(
+        Email.id == email_id,
+        Folder.user_id == user.id
+    ).first()
+    
+    if not email:
+        raise HTTPException(status_code=404, detail="Email not found")
+    
+    if format == "eml":
+        return export_as_eml(email, db)
+    elif format == "pdf":
+        return export_as_pdf(email, db, tz)
+    else:
+        raise HTTPException(status_code=400, detail="不支持的导出格式，请使用 eml 或 pdf")
+
+
+def export_as_eml(email: Email, db: Session) -> Response:
+    """导出邮件为 EML 格式"""
+    # 创建 MIME 消息
+    if email.body_html:
+        msg = MIMEMultipart('alternative')
+        # 添加纯文本版本
+        if email.body_text:
+            text_part = MIMEText(email.body_text, 'plain', 'utf-8')
+            msg.attach(text_part)
+        # 添加 HTML 版本
+        html_part = MIMEText(email.body_html, 'html', 'utf-8')
+        msg.attach(html_part)
+    else:
+        msg = MIMEText(email.body_text or '', 'plain', 'utf-8')
+    
+    # 设置邮件头
+    msg['Subject'] = email.subject or '(无主题)'
+    msg['From'] = email.sender or ''
+    
+    # 解析收件人
+    if email.recipients:
+        try:
+            recipients = json.loads(email.recipients)
+            to_list = [r.get('email', '') for r in recipients.get('to', [])]
+            cc_list = [r.get('email', '') for r in recipients.get('cc', [])]
+            if to_list:
+                msg['To'] = ', '.join(to_list)
+            if cc_list:
+                msg['Cc'] = ', '.join(cc_list)
+        except:
+            msg['To'] = email.recipients
+    
+    # 设置日期
+    if email.received_at:
+        msg['Date'] = formatdate(email.received_at.timestamp(), localtime=True)
+    
+    # 设置 Message-ID
+    if email.message_id:
+        msg['Message-ID'] = f'<{email.message_id}>'
+    
+    # 获取附件
+    attachments = db.query(Attachment).filter(Attachment.email_id == email.id).all()
+    
+    # 如果有附件，需要改用 mixed 类型
+    if attachments:
+        outer = MIMEMultipart('mixed')
+        # 复制头信息
+        for key in ['Subject', 'From', 'To', 'Cc', 'Date', 'Message-ID']:
+            if msg[key]:
+                outer[key] = msg[key]
+        outer.attach(msg)
+        
+        # 添加附件
+        for att in attachments:
+            if att.file_path and os.path.exists(att.file_path):
+                try:
+                    with open(att.file_path, 'rb') as f:
+                        att_part = MIMEBase('application', 'octet-stream')
+                        att_part.set_payload(f.read())
+                        encoders.encode_base64(att_part)
+                        att_part.add_header(
+                            'Content-Disposition',
+                            'attachment',
+                            filename=att.filename or 'attachment'
+                        )
+                        outer.attach(att_part)
+                except Exception as e:
+                    logger.warning(f"无法添加附件 {att.filename}: {e}")
+        
+        msg = outer
+    
+    # 生成 EML 内容
+    eml_content = msg.as_bytes()
+    
+    # 生成文件名（使用 RFC 5987 编码支持中文）
+    safe_subject = (email.subject or 'email')[:50].replace('/', '_').replace('\\', '_')
+    filename = f"{safe_subject}.eml"
+    # URL 编码文件名以支持非 ASCII 字符
+    encoded_filename = quote(filename, safe='')
+    
+    return Response(
+        content=eml_content,
+        media_type="message/rfc822",
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"
+        }
+    )
+
+
+def export_as_pdf(email: Email, db: Session, user_timezone: str = "Asia/Shanghai") -> Response:
+    """导出邮件为 PDF 格式（简单 HTML 转 PDF）"""
+    from zoneinfo import ZoneInfo
+    
+    # 获取用户时区
+    try:
+        user_tz = ZoneInfo(user_timezone)
+    except Exception:
+        user_tz = ZoneInfo("Asia/Shanghai")  # 默认时区
+    
+    # 时区显示名称映射
+    tz_display_names = {
+        "Asia/Shanghai": "北京时间 (UTC+8)",
+        "Asia/Tokyo": "东京时间 (UTC+9)",
+        "America/New_York": "纽约时间 (UTC-5)",
+        "America/Los_Angeles": "洛杉矶时间 (UTC-8)",
+        "Europe/London": "伦敦时间 (UTC+0)",
+        "Europe/Paris": "巴黎时间 (UTC+1)",
+        "UTC": "世界协调时间 (UTC)",
+    }
+    tz_display = tz_display_names.get(user_timezone, user_timezone)
+    
+    # 解析收件人
+    recipients_str = ""
+    if email.recipients:
+        try:
+            recipients = json.loads(email.recipients)
+            to_list = [r.get('email', '') for r in recipients.get('to', [])]
+            cc_list = [r.get('email', '') for r in recipients.get('cc', [])]
+            if to_list:
+                recipients_str += f"收件人: {', '.join(to_list)}"
+            if cc_list:
+                recipients_str += f"<br>抄送: {', '.join(cc_list)}"
+        except:
+            recipients_str = f"收件人: {email.recipients}"
+    
+    # 格式化日期（转换为用户时区）
+    date_str = ""
+    if email.received_at:
+        # 确保时间有时区信息，然后转换为用户时区
+        if email.received_at.tzinfo is None:
+            from datetime import timezone as dt_timezone
+            received_at_utc = email.received_at.replace(tzinfo=dt_timezone.utc)
+        else:
+            received_at_utc = email.received_at
+        received_at_local = received_at_utc.astimezone(user_tz)
+        date_str = received_at_local.strftime("%Y年%m月%d日 %H:%M")
+    
+    # 获取附件列表
+    attachments = db.query(Attachment).filter(Attachment.email_id == email.id).all()
+    attachments_html = ""
+    if attachments:
+        att_list = ', '.join([att.filename or 'attachment' for att in attachments])
+        attachments_html = f'<p style="color: #666; font-size: 12px; margin-top: 20px; padding-top: 10px; border-top: 1px solid #eee;">📎 附件: {att_list}</p>'
+    
+    # 构建 HTML 内容
+    html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px;
+            color: #333;
+            line-height: 1.6;
+        }}
+        .header {{
+            border-bottom: 2px solid #3b82f6;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }}
+        .subject {{
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #1a1a1a;
+        }}
+        .meta {{
+            font-size: 14px;
+            color: #666;
+        }}
+        .meta-row {{
+            margin: 5px 0;
+        }}
+        .label {{
+            font-weight: 600;
+            color: #444;
+        }}
+        .body {{
+            margin-top: 20px;
+        }}
+        .footer {{
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            font-size: 12px;
+            color: #999;
+            text-align: center;
+        }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="subject">{email.subject or '(无主题)'}</div>
+        <div class="meta">
+            <div class="meta-row"><span class="label">发件人:</span> {email.sender or ''}</div>
+            <div class="meta-row">{recipients_str}</div>
+            <div class="meta-row"><span class="label">日期:</span> {date_str}</div>
+        </div>
+    </div>
+    <div class="body">
+        {email.body_html or f'<pre style="white-space: pre-wrap; font-family: inherit;">{email.body_text or "(无正文内容)"}</pre>'}
+    </div>
+    {attachments_html}
+    <div class="footer">
+        由 TalentMail 导出 · {datetime.now(user_tz).strftime("%Y-%m-%d %H:%M")} ({tz_display})
+    </div>
+</body>
+</html>
+"""
+    
+    # 尝试使用 weasyprint 生成 PDF（如果可用）
+    try:
+        from weasyprint import HTML
+        pdf_content = HTML(string=html_content).write_pdf()
+        media_type = "application/pdf"
+        ext = "pdf"
+    except ImportError:
+        # 如果 weasyprint 不可用，返回 HTML 文件
+        logger.info("weasyprint 不可用，返回 HTML 格式")
+        pdf_content = html_content.encode('utf-8')
+        media_type = "text/html"
+        ext = "html"
+    
+    # 生成文件名（使用 RFC 5987 编码支持中文）
+    safe_subject = (email.subject or 'email')[:50].replace('/', '_').replace('\\', '_')
+    filename = f"{safe_subject}.{ext}"
+    # URL 编码文件名以支持非 ASCII 字符
+    encoded_filename = quote(filename, safe='')
+    
+    return Response(
+        content=pdf_content,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"
+        }
     )

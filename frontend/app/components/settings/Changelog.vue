@@ -107,7 +107,7 @@
       <div
         v-for="log in changelogs"
         :key="log.id"
-        class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden transition-all duration-200"
+        class="card bg-white dark:bg-bg-panelDark rounded-xl border border-gray-200 dark:border-border-dark overflow-hidden transition-all duration-200"
       >
         <!-- 手风琴头部 - 可点击展开/收起 -->
         <div
@@ -197,16 +197,12 @@
           </div>
         </div>
 
-        <!-- 手风琴内容 - 展开时显示 -->
-        <Transition
-          enter-active-class="transition-all duration-300 ease-out"
-          leave-active-class="transition-all duration-200 ease-in"
-          enter-from-class="opacity-0 max-h-0"
-          enter-to-class="opacity-100 max-h-[2000px]"
-          leave-from-class="opacity-100 max-h-[2000px]"
-          leave-to-class="opacity-0 max-h-0"
+        <!-- 手风琴内容 - 使用 CSS Grid 实现平滑展开/收起 -->
+        <div
+          class="grid transition-[grid-template-rows] duration-300 ease-out"
+          :class="expandedIds.has(log.id) ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'"
         >
-          <div v-if="expandedIds.has(log.id)" class="overflow-hidden">
+          <div class="overflow-hidden">
             <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
               <!-- 版本标题 -->
               <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">{{ log.title }}</h4>
@@ -253,7 +249,7 @@
               </div>
             </div>
           </div>
-        </Transition>
+        </div>
       </div>
 
       <!-- 加载更多 -->

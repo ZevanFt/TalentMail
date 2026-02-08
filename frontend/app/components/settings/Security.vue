@@ -383,7 +383,7 @@ onMounted(() => {
         <h2 class="section-title">登录与安全</h2>
 
         <!-- 1. 核心认证设置 -->
-        <div class="card divide-y divide-gray-100 dark:divide-gray-800">
+        <div class="card bg-white dark:bg-bg-panelDark divide-y divide-gray-100 dark:divide-gray-800">
 
             <!-- 修改密码 -->
             <div class="p-6 flex items-center justify-between">
@@ -463,7 +463,7 @@ onMounted(() => {
                 </button>
             </div>
 
-            <div class="card p-0 overflow-hidden">
+            <div class="card bg-white dark:bg-bg-panelDark p-0 overflow-hidden">
                 <!-- 加载中 -->
                 <div v-if="loadingSessions" class="p-8 text-center text-gray-500">
                     加载中...
@@ -518,7 +518,7 @@ onMounted(() => {
         <!-- 修改密码弹窗 -->
         <Teleport to="body">
             <div v-if="showPasswordModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                <div class="bg-white dark:bg-bg-panelDark rounded-2xl shadow-2xl w-full max-w-md">
+                <div class="modal-solid-bg bg-white dark:bg-bg-panelDark rounded-2xl shadow-2xl w-full max-w-md">
                     <div class="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-800">
                         <h3 class="text-lg font-bold text-gray-900 dark:text-white">修改密码</h3>
                         <button @click="showPasswordModal = false" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
@@ -558,7 +558,7 @@ onMounted(() => {
         <!-- 辅助邮箱设置弹窗 -->
         <Teleport to="body">
             <div v-if="showRecoveryEmailModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                <div class="bg-white dark:bg-bg-panelDark rounded-2xl shadow-2xl w-full max-w-md">
+                <div class="modal-solid-bg bg-white dark:bg-bg-panelDark rounded-2xl shadow-2xl w-full max-w-md">
                     <div class="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-800">
                         <h3 class="text-lg font-bold text-gray-900 dark:text-white">
                             {{ user?.recovery_email ? '修改辅助邮箱' : '设置辅助邮箱' }}
@@ -651,7 +651,7 @@ onMounted(() => {
         <!-- 2FA 设置弹窗 -->
         <Teleport to="body">
             <div v-if="show2FAModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                <div class="bg-white dark:bg-bg-panelDark rounded-2xl shadow-2xl w-full max-w-md">
+                <div class="modal-solid-bg bg-white dark:bg-bg-panelDark rounded-2xl shadow-2xl w-full max-w-md">
                     <div class="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-800">
                         <h3 class="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
                             <Shield v-if="twoFAStep !== 'disable'" class="w-5 h-5 text-green-500" />

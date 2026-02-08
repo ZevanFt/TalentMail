@@ -471,7 +471,7 @@ onMounted(() => {
           class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
           @click.self="showPreviewModal = false"
         >
-          <div class="bg-white dark:bg-bg-panelDark rounded-xl shadow-2xl w-[90vw] h-[85vh] max-w-6xl flex flex-col overflow-hidden">
+          <div class="modal-solid-bg bg-white dark:bg-bg-panelDark rounded-xl shadow-2xl w-[90vw] h-[85vh] max-w-6xl flex flex-col overflow-hidden">
             <!-- 头部 -->
             <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
               <div class="flex items-center gap-3">

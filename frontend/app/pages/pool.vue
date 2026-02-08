@@ -187,7 +187,7 @@ watch(isGenerateOpen, (val) => {
 </script>
 
 <template>
-    <div class="flex w-full h-full bg-white dark:bg-bg-dark overflow-hidden">
+    <div class="pool-page flex w-full h-full bg-white dark:bg-bg-dark overflow-hidden">
         <!-- 无权限提示 -->
         <div v-if="!loading && !hasAccess" class="flex-1 flex flex-col items-center justify-center text-gray-500">
             <Box class="w-20 h-20 opacity-20 mb-6" />
@@ -198,7 +198,7 @@ watch(isGenerateOpen, (val) => {
 
         <template v-else>
             <!-- 第一栏：账号列表 -->
-            <div class="w-64 h-full bg-gray-50/80 dark:bg-bg-panelDark border-r border-gray-200 dark:border-border-dark flex flex-col shrink-0">
+            <div class="pool-sidebar w-64 h-full bg-gray-50/80 dark:bg-bg-panelDark border-r border-gray-200 dark:border-border-dark flex flex-col shrink-0">
                 <!-- 顶部 Header -->
                 <div class="h-14 flex items-center px-4 gap-3 border-b border-gray-200/50 dark:border-gray-800 shrink-0">
                     <button @click="router.push('/')" class="p-2 -ml-2 text-gray-500 hover:text-gray-900 dark:hover:text-white rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
@@ -270,8 +270,8 @@ watch(isGenerateOpen, (val) => {
             </div>
 
             <!-- 第二栏：邮件列表 -->
-            <div class="w-80 h-full bg-white dark:bg-bg-dark border-r border-gray-200 dark:border-border-dark flex flex-col shrink-0">
-                <div class="h-14 flex items-center justify-between px-5 border-b border-gray-100 dark:border-gray-800 shrink-0 bg-gray-50/30 dark:bg-gray-900/30">
+            <div class="pool-email-list w-80 h-full border-r border-gray-200 dark:border-border-dark flex flex-col shrink-0">
+                <div class="pool-email-header h-14 flex items-center justify-between px-5 border-b border-gray-100 dark:border-gray-800 shrink-0">
                     <div v-if="selectedMailbox" class="flex items-center gap-3 min-w-0">
                         <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-bold shrink-0 text-xs">
                             {{ getInitial(selectedMailbox.email) }}
@@ -316,8 +316,8 @@ watch(isGenerateOpen, (val) => {
             </div>
 
             <!-- 第三栏：详情 -->
-            <div class="flex-1 h-full bg-gray-50/30 dark:bg-bg-panelDark flex flex-col min-w-0">
-                <div class="h-14 border-b border-gray-200 dark:border-border-dark flex items-center justify-end px-6 gap-3 shrink-0 bg-white dark:bg-bg-dark">
+            <div class="pool-detail flex-1 h-full flex flex-col min-w-0">
+                <div class="pool-detail-header h-14 border-b border-gray-200 dark:border-border-dark flex items-center justify-end px-6 gap-3 shrink-0">
                     <button @click="isHistoryOpen = true" class="btn-tool">
                         <History class="w-4 h-4" /> 历史
                     </button>

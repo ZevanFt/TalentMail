@@ -216,4 +216,41 @@ const backToLogin = () => {
     font-size: clamp(0.65rem, 2.5cqw, 0.875rem);
     container-type: inline-size;
 }
+
+/* 覆盖浏览器自动填充样式 - 浅色模式 */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px rgb(249, 250, 251) inset !important; /* gray-50 */
+    -webkit-text-fill-color: rgb(17, 24, 39) !important; /* gray-900 */
+    caret-color: rgb(17, 24, 39) !important;
+    background-color: rgb(249, 250, 251) !important;
+    transition: background-color 5000s ease-in-out 0s !important;
+}
+
+/* 覆盖浏览器自动填充样式 - 暗色模式 */
+:global(html.dark) input:-webkit-autofill,
+:global(html.dark) input:-webkit-autofill:hover,
+:global(html.dark) input:-webkit-autofill:focus,
+:global(html.dark) input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px rgb(17, 24, 39) inset !important; /* gray-900 */
+    -webkit-text-fill-color: rgb(255, 255, 255) !important; /* white */
+    caret-color: rgb(255, 255, 255) !important;
+    background-color: rgb(17, 24, 39) !important;
+    transition: background-color 5000s ease-in-out 0s !important;
+}
+
+/* Firefox 自动填充 */
+input:-moz-autofill,
+input:-moz-autofill-preview {
+    background-color: rgb(249, 250, 251) !important;
+    color: rgb(17, 24, 39) !important;
+}
+
+:global(html.dark) input:-moz-autofill,
+:global(html.dark) input:-moz-autofill-preview {
+    background-color: rgb(17, 24, 39) !important;
+    color: rgb(255, 255, 255) !important;
+}
 </style>

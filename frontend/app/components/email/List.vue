@@ -278,7 +278,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="w-80 h-full bg-white dark:bg-bg-panelDark border-r border-gray-200 dark:border-border-dark flex flex-col shrink-0">
+  <div class="w-80 h-full email-list-container border-r border-gray-200 dark:border-border-dark flex flex-col shrink-0">
     <!-- 标题栏 -->
     <div class="px-4 py-3 text-xs font-bold text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
       <span class="truncate flex-1">{{ currentFolderName }} ({{ emails.length }})</span>
@@ -300,49 +300,51 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- 批量操作工具栏 -->
-    <div v-if="isSelectionMode && selectedEmailIds.size > 0"
-      class="px-3 py-2 bg-primary/5 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
-      <!-- 全选 -->
-      <button @click="toggleSelectAll" class="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded" :title="isAllSelected ? '取消全选' : '全选'">
-        <SquareCheck v-if="isAllSelected" class="w-4 h-4 text-primary" />
-        <Square v-else class="w-4 h-4 text-gray-500" />
-      </button>
-      <span class="text-xs text-gray-600 dark:text-gray-400">{{ selectedEmailIds.size }} 封</span>
-      <div class="flex-1"></div>
-      <!-- 批量操作按钮 -->
-      <button @click="handleBulkMarkRead(true)" :disabled="bulkLoading" class="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded" title="标记已读">
-        <CheckCheck class="w-4 h-4 text-gray-600 dark:text-gray-400" />
-      </button>
-      <button @click="handleBulkArchive" :disabled="bulkLoading" class="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded" title="归档">
-        <Archive class="w-4 h-4 text-gray-600 dark:text-gray-400" />
-      </button>
-      <button @click="handleBulkDelete" :disabled="bulkLoading" class="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded" title="删除">
-        <Trash2 class="w-4 h-4 text-red-500" />
-      </button>
-      <!-- 更多操作下拉 -->
-      <div class="relative">
-        <button @click="showBulkMenu = !showBulkMenu" class="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded" title="更多操作">
-          <MoreHorizontal class="w-4 h-4 text-gray-600 dark:text-gray-400" />
+    <!-- 批量操作工具栏 - 修复：始终保留空间，避免跳动 -->
+    <div class="bulk-toolbar-container px-3 border-b border-gray-200 dark:border-gray-700 transition-all duration-200"
+      :class="isSelectionMode && selectedEmailIds.size > 0 ? 'py-2 bg-primary/5' : 'py-0 h-0 overflow-hidden'">
+      <div v-if="isSelectionMode && selectedEmailIds.size > 0" class="flex items-center gap-2">
+        <!-- 全选 -->
+        <button @click="toggleSelectAll" class="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded" :title="isAllSelected ? '取消全选' : '全选'">
+          <SquareCheck v-if="isAllSelected" class="w-4 h-4 text-primary" />
+          <Square v-else class="w-4 h-4 text-gray-500" />
         </button>
-        <div v-if="showBulkMenu"
-          class="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 py-1">
-          <button @click="handleBulkMarkRead(false); showBulkMenu = false"
-            class="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2">
-            <CircleDot class="w-4 h-4" /> 标记未读
+        <span class="text-xs text-gray-600 dark:text-gray-400">{{ selectedEmailIds.size }} 封</span>
+        <div class="flex-1"></div>
+        <!-- 批量操作按钮 -->
+        <button @click="handleBulkMarkRead(true)" :disabled="bulkLoading" class="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded" title="标记已读">
+          <CheckCheck class="w-4 h-4 text-gray-600 dark:text-gray-400" />
+        </button>
+        <button @click="handleBulkArchive" :disabled="bulkLoading" class="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded" title="归档">
+          <Archive class="w-4 h-4 text-gray-600 dark:text-gray-400" />
+        </button>
+        <button @click="handleBulkDelete" :disabled="bulkLoading" class="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded" title="删除">
+          <Trash2 class="w-4 h-4 text-red-500" />
+        </button>
+        <!-- 更多操作下拉 -->
+        <div class="relative">
+          <button @click="showBulkMenu = !showBulkMenu" class="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded" title="更多操作">
+            <MoreHorizontal class="w-4 h-4 text-gray-600 dark:text-gray-400" />
           </button>
-          <button @click="handleBulkMarkSpam(); showBulkMenu = false"
-            class="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-orange-600">
-            <X class="w-4 h-4" /> 标记垃圾邮件
-          </button>
-          <button v-if="isSpamFolder" @click="handleBulkMarkNotSpam(); showBulkMenu = false"
-            class="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-green-600">
-            <CheckCircle class="w-4 h-4" /> 不是垃圾邮件
-          </button>
+          <div v-if="showBulkMenu"
+            class="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 py-1">
+            <button @click="handleBulkMarkRead(false); showBulkMenu = false"
+              class="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2">
+              <CircleDot class="w-4 h-4" /> 标记未读
+            </button>
+            <button @click="handleBulkMarkSpam(); showBulkMenu = false"
+              class="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-orange-600">
+              <X class="w-4 h-4" /> 标记垃圾邮件
+            </button>
+            <button v-if="isSpamFolder" @click="handleBulkMarkNotSpam(); showBulkMenu = false"
+              class="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-green-600">
+              <CheckCircle class="w-4 h-4" /> 不是垃圾邮件
+            </button>
+          </div>
         </div>
+        <!-- Loading 指示器 -->
+        <Loader2 v-if="bulkLoading" class="w-4 h-4 animate-spin text-primary" />
       </div>
-      <!-- Loading 指示器 -->
-      <Loader2 v-if="bulkLoading" class="w-4 h-4 animate-spin text-primary" />
     </div>
 
     <!-- 加载状态 -->
@@ -358,6 +360,7 @@ onUnmounted(() => {
     <!-- 邮件列表 -->
     <div v-else class="flex-1 overflow-y-auto">
       <div v-for="email in emails" :key="email.id" @click="selectEmail(email.id)"
+        :data-email-id="email.id"
         class="px-4 py-3 border-b border-gray-50 dark:border-gray-800 cursor-pointer transition-all hover:bg-gray-50 dark:hover:bg-gray-800/50 relative group"
         :class="{ 'bg-blue-50/30 dark:bg-gray-800': selectedEmailId === email.id }">
         <div v-if="selectedEmailId === email.id" class="absolute left-0 top-0 bottom-0 w-[3px] bg-primary"></div>
@@ -519,3 +522,15 @@ onUnmounted(() => {
     </CommonModal>
   </div>
 </template>
+
+<style scoped>
+/* 批量操作工具栏容器 - 防止跳动 */
+.bulk-toolbar-container {
+  min-height: 0;
+  transition: all 0.2s ease-in-out;
+}
+
+.bulk-toolbar-container.py-2 {
+  min-height: 44px; /* 确保有足够的高度 */
+}
+</style>

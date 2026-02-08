@@ -229,7 +229,7 @@ const isActive = (path: string) => route.path === path
 
 <template>
   <aside
-    class="w-64 h-full bg-gray-50/50 dark:bg-bg-panelDark/50 border-r border-gray-200 dark:border-border-dark flex flex-col shrink-0 transition-colors duration-200 pt-4 font-sans select-none">
+    class="sidebar-glass w-64 h-full bg-gray-50/50 dark:bg-bg-panelDark/50 border-r border-gray-200 dark:border-border-dark flex flex-col shrink-0 transition-colors duration-200 pt-4 font-sans select-none">
 
     <!-- 写邮件 -->
     <div class="px-3 mb-2">
@@ -373,7 +373,7 @@ const isActive = (path: string) => route.path === path
   <!-- 标签编辑弹窗 -->
   <Teleport to="body">
     <div v-if="showTagModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showTagModal = false">
-      <div class="bg-white dark:bg-gray-800 rounded-lg p-4 w-80 shadow-xl">
+      <div class="modal-solid-bg bg-white dark:bg-gray-800 rounded-lg p-4 w-80 shadow-xl">
         <div class="flex justify-between items-center mb-4">
           <h3 class="font-bold">{{ editingTag ? '编辑标签' : '新建标签' }}</h3>
           <button @click="showTagModal = false"><X class="w-4 h-4" /></button>
@@ -395,7 +395,7 @@ const isActive = (path: string) => route.path === path
   <!-- 添加外部账号弹窗 -->
   <Teleport to="body">
     <div v-if="showAddAccountModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showAddAccountModal = false">
-      <div class="bg-white dark:bg-gray-800 rounded-lg p-5 w-96 shadow-xl">
+      <div class="modal-solid-bg bg-white dark:bg-gray-800 rounded-lg p-5 w-96 shadow-xl">
         <div class="flex justify-between items-center mb-4">
           <h3 class="font-bold text-gray-900 dark:text-white">添加外部邮箱</h3>
           <button @click="showAddAccountModal = false"><X class="w-4 h-4" /></button>

@@ -4,7 +4,7 @@
 
 @layer base {
   body {
-    /* 
+    /*
        修复点：
        1. 移除了不存在的 text-text-main
        2. 增加了 bg-bg-light (浅色背景) 和 dark:bg-bg-dark (深色背景)
@@ -12,6 +12,17 @@
     */
     @apply bg-bg-light dark:bg-bg-dark text-gray-900 dark:text-gray-100 font-sans antialiased overflow-hidden;
   }
+}
+
+/* ========== 自定义背景时让容器透明 ========== */
+/* 这是关键：让 body 背景透明，才能看到全局背景层 */
+html.has-custom-bg.bg-area-main body {
+  background: transparent !important;
+}
+
+/* Nuxt 根容器也需要透明 */
+html.has-custom-bg.bg-area-main #__nuxt {
+  background: transparent !important;
 }
 
 /* 现代化滚动条 */

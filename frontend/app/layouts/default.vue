@@ -1,7 +1,7 @@
 <template>
   <!-- 最外层：垂直排列 (Header 在上，内容在下) -->
   <div
-    class="flex flex-col h-screen w-full bg-bg-light dark:bg-bg-dark text-gray-900 dark:text-gray-100 overflow-hidden font-sans">
+    class="layout-default flex flex-col h-screen w-full bg-bg-light dark:bg-bg-dark text-gray-900 dark:text-gray-100 overflow-hidden font-sans">
 
     <!-- 1. 顶部通栏 Header (固定高度) -->
     <LayoutHeader />

@@ -621,6 +621,327 @@ async def save_workflow_canvas(
     }
 
 
+@router.post("/{workflow_id}/execute")
+async def execute_user_workflow(
+    workflow_id: int,
+    data: ExecuteWorkflowRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """执行用户工作流"""
+    from core.workflow_runtime import WorkflowEngine as RuntimeEngine
+    from core.workflow_runtime import WorkflowDefinition, WorkflowNode as RuntimeNode, WorkflowEdge as RuntimeEdge
+    from core.workflow_service import (
+        GenerateCodeHandler, SendTemplateEmailHandler, ConditionHandler,
+        LogHandler, DelayHandler, WebhookHandler, LoopHandler,
+        ParallelHandler, SwitchHandler, TransformHandler, EndHandler,
+        DataValidateHandler, TriggerHandler
+    )
+    from datetime import datetime
+    
+    workflow = db.query(Workflow).filter(
+        Workflow.id == workflow_id,
+        Workflow.owner_id == current_user.id
+    ).first()
+    
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    
+    # 检查工作流是否已发布
+    if workflow.status != 'published':
+        raise HTTPException(status_code=400, detail="Workflow must be published before execution")
+    
+    # 获取节点和边
+    nodes = db.query(WorkflowNode).filter(
+        WorkflowNode.workflow_id == workflow_id
+    ).all()
+    
+    edges = db.query(WorkflowEdge).filter(
+        WorkflowEdge.workflow_id == workflow_id
+    ).all()
+    
+    if not nodes:
+        raise HTTPException(status_code=400, detail="Workflow has no nodes")
+    
+    # 转换为运行时格式
+    runtime_nodes = {}
+    start_node_id = None
+    
+    for n in nodes:
+        node_config = n.config or {}
+        
+        # 识别起始节点（触发器）
+        if n.node_type == 'trigger':
+            start_node_id = n.node_id
+        
+        runtime_nodes[n.node_id] = RuntimeNode(
+            id=n.node_id,
+            type=n.node_subtype,  # 使用 subtype 作为处理器类型
+            label=n.name or n.node_id,
+            config=node_config
+        )
+    
+    if not start_node_id:
+        raise HTTPException(status_code=400, detail="Workflow has no trigger node")
+    
+    # 转换边
+    runtime_edges = []
+    for e in edges:
+        runtime_edges.append(RuntimeEdge(
+            id=e.edge_id,
+            source_node_id=e.source_node_id,
+            target_node_id=e.target_node_id,
+            source_handle=e.source_handle,
+            target_handle=e.target_handle
+        ))
+        # 向后兼容：设置 next_node_id
+        if e.source_node_id in runtime_nodes and not runtime_nodes[e.source_node_id].next_node_id:
+            runtime_nodes[e.source_node_id].next_node_id = e.target_node_id
+    
+    # 创建工作流定义
+    definition = WorkflowDefinition(
+        id=str(workflow.id),
+        name=workflow.name,
+        nodes=runtime_nodes,
+        start_node_id=start_node_id,
+        edges=runtime_edges
+    )
+    
+    # 准备处理器
+    handlers = {
+        # 触发器
+        'trigger_form_submit': TriggerHandler(db).execute,
+        'trigger_email_received': TriggerHandler(db).execute,
+        'trigger_schedule': TriggerHandler(db).execute,
+        'trigger_api': TriggerHandler(db).execute,
+        'trigger_manual': TriggerHandler(db).execute,
+        'trigger_webhook': TriggerHandler(db).execute,
+        # 数据节点
+        'data_generate_code': GenerateCodeHandler(db).execute,
+        'data_validate': DataValidateHandler(db).execute,
+        'data_transform': TransformHandler(db).execute,
+        # 动作节点
+        'action_send_template': SendTemplateEmailHandler(db).execute,
+        'action_send_email': SendTemplateEmailHandler(db).execute,
+        # 逻辑节点
+        'logic_condition': ConditionHandler(db).execute,
+        'logic_delay': DelayHandler(db).execute,
+        'logic_switch': SwitchHandler(db).execute,
+        'logic_parallel': ParallelHandler(db).execute,
+        # 控制流
+        'control_delay': DelayHandler(db).execute,
+        'control_loop': LoopHandler(db).execute,
+        'control_parallel': ParallelHandler(db).execute,
+        'control_switch': SwitchHandler(db).execute,
+        # 集成节点
+        'integration_log': LogHandler(db).execute,
+        'integration_webhook': WebhookHandler(db).execute,
+        # 结束节点
+        'end_success': EndHandler(db).execute,
+        'end_failure': EndHandler(db).execute,
+    }
+    
+    # 创建执行记录
+    execution = WorkflowExecution(
+        workflow_type='custom',
+        workflow_id=workflow.id,
+        workflow_version=workflow.version,
+        user_id=current_user.id,
+        trigger_type='manual',
+        trigger_data=data.trigger_data,
+        status='running',
+        started_at=datetime.utcnow()
+    )
+    db.add(execution)
+    db.commit()
+    db.refresh(execution)
+    
+    try:
+        # 执行工作流
+        start_time = datetime.utcnow()
+        engine = RuntimeEngine(definition, handlers=handlers)
+        final_context = await engine.run(data.trigger_data)
+        end_time = datetime.utcnow()
+        
+        # 计算执行时间
+        duration_ms = int((end_time - start_time).total_seconds() * 1000)
+        
+        # 更新执行记录
+        execution.status = 'success'
+        execution.finished_at = end_time
+        execution.result = final_context.data
+        
+        # 更新工作流执行计数
+        workflow.execution_count += 1
+        
+        db.commit()
+        
+        return {
+            'success': True,
+            'execution_id': execution.id,
+            'status': 'success',
+            'result': final_context.data,
+            'error_message': None,
+            'nodes_executed': len(final_context.data.get('steps', {})),
+            'duration_ms': duration_ms
+        }
+        
+    except Exception as e:
+        end_time = datetime.utcnow()
+        duration_ms = int((end_time - execution.started_at).total_seconds() * 1000)
+        
+        # 更新执行记录为失败
+        execution.status = 'failed'
+        execution.finished_at = end_time
+        execution.error_message = str(e)
+        db.commit()
+        
+        return {
+            'success': False,
+            'execution_id': execution.id,
+            'status': 'failed',
+            'result': {},
+            'error_message': str(e),
+            'nodes_executed': 0,
+            'duration_ms': duration_ms
+        }
+
+
+@router.post("/{workflow_id}/test")
+async def test_user_workflow(
+    workflow_id: int,
+    data: ExecuteWorkflowRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """测试用户工作流（无需发布，用于调试）"""
+    from core.workflow_runtime import WorkflowEngine as RuntimeEngine
+    from core.workflow_runtime import WorkflowDefinition, WorkflowNode as RuntimeNode, WorkflowEdge as RuntimeEdge
+    from core.workflow_service import (
+        GenerateCodeHandler, SendTemplateEmailHandler, ConditionHandler,
+        LogHandler, DelayHandler, WebhookHandler, LoopHandler,
+        ParallelHandler, SwitchHandler, TransformHandler, EndHandler,
+        DataValidateHandler, TriggerHandler
+    )
+    
+    workflow = db.query(Workflow).filter(
+        Workflow.id == workflow_id,
+        Workflow.owner_id == current_user.id
+    ).first()
+    
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    
+    # 获取节点和边
+    nodes = db.query(WorkflowNode).filter(
+        WorkflowNode.workflow_id == workflow_id
+    ).all()
+    
+    edges = db.query(WorkflowEdge).filter(
+        WorkflowEdge.workflow_id == workflow_id
+    ).all()
+    
+    if not nodes:
+        raise HTTPException(status_code=400, detail="Workflow has no nodes")
+    
+    # 转换为运行时格式
+    runtime_nodes = {}
+    start_node_id = None
+    
+    for n in nodes:
+        if n.node_type == 'trigger':
+            start_node_id = n.node_id
+        
+        runtime_nodes[n.node_id] = RuntimeNode(
+            id=n.node_id,
+            type=n.node_subtype,
+            label=n.name or n.node_id,
+            config=n.config or {}
+        )
+    
+    if not start_node_id:
+        raise HTTPException(status_code=400, detail="Workflow has no trigger node")
+    
+    # 转换边
+    runtime_edges = []
+    for e in edges:
+        runtime_edges.append(RuntimeEdge(
+            id=e.edge_id,
+            source_node_id=e.source_node_id,
+            target_node_id=e.target_node_id,
+            source_handle=e.source_handle,
+            target_handle=e.target_handle
+        ))
+        if e.source_node_id in runtime_nodes and not runtime_nodes[e.source_node_id].next_node_id:
+            runtime_nodes[e.source_node_id].next_node_id = e.target_node_id
+    
+    definition = WorkflowDefinition(
+        id=str(workflow.id),
+        name=workflow.name,
+        nodes=runtime_nodes,
+        start_node_id=start_node_id,
+        edges=runtime_edges
+    )
+    
+    # 准备处理器（测试模式使用模拟处理器）
+    handlers = {
+        'trigger_form_submit': TriggerHandler(db).execute,
+        'trigger_email_received': TriggerHandler(db).execute,
+        'trigger_schedule': TriggerHandler(db).execute,
+        'trigger_api': TriggerHandler(db).execute,
+        'trigger_manual': TriggerHandler(db).execute,
+        'trigger_webhook': TriggerHandler(db).execute,
+        'data_generate_code': GenerateCodeHandler(db).execute,
+        'data_validate': DataValidateHandler(db).execute,
+        'data_transform': TransformHandler(db).execute,
+        'action_send_template': SendTemplateEmailHandler(db).execute,
+        'action_send_email': SendTemplateEmailHandler(db).execute,
+        'logic_condition': ConditionHandler(db).execute,
+        'logic_delay': DelayHandler(db).execute,
+        'logic_switch': SwitchHandler(db).execute,
+        'logic_parallel': ParallelHandler(db).execute,
+        'control_delay': DelayHandler(db).execute,
+        'control_loop': LoopHandler(db).execute,
+        'control_parallel': ParallelHandler(db).execute,
+        'control_switch': SwitchHandler(db).execute,
+        'integration_log': LogHandler(db).execute,
+        'integration_webhook': WebhookHandler(db).execute,
+        'end_success': EndHandler(db).execute,
+        'end_failure': EndHandler(db).execute,
+    }
+    
+    try:
+        from datetime import datetime
+        start_time = datetime.utcnow()
+        engine = RuntimeEngine(definition, handlers=handlers)
+        final_context = await engine.run(data.trigger_data)
+        end_time = datetime.utcnow()
+        
+        # 计算执行时间
+        duration_ms = int((end_time - start_time).total_seconds() * 1000)
+        
+        return {
+            'success': True,
+            'execution_id': 0,  # 测试模式不保存执行记录
+            'status': 'success',
+            'result': final_context.data,
+            'error_message': None,
+            'nodes_executed': len(final_context.data.get('steps', {})),
+            'duration_ms': duration_ms
+        }
+        
+    except Exception as e:
+        return {
+            'success': False,
+            'execution_id': 0,
+            'status': 'failed',
+            'result': {},
+            'error_message': str(e),
+            'nodes_executed': 0,
+            'duration_ms': 0
+        }
+
+
 @router.post("/{workflow_id}/publish", response_model=WorkflowResponse)
 async def publish_workflow(
     workflow_id: int,

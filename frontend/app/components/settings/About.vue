@@ -35,7 +35,7 @@ const techStack = [
     </div>
 
     <!-- 产品信息 -->
-    <div class="bg-white dark:bg-bg-panelDark rounded-2xl border border-gray-100 dark:border-border-dark p-8">
+    <div class="card bg-white dark:bg-bg-panelDark rounded-2xl border border-gray-200 dark:border-border-dark p-8">
       <div class="flex items-center gap-6">
         <img src="/logo.png" alt="Talenting Logo" class="h-24 shrink-0" />
         <div>
@@ -51,7 +51,7 @@ const techStack = [
     </div>
 
     <!-- 功能特性 -->
-    <div class="bg-white dark:bg-bg-panelDark rounded-2xl border border-gray-100 dark:border-border-dark p-6">
+    <div class="card bg-white dark:bg-bg-panelDark rounded-2xl border border-gray-200 dark:border-border-dark p-6">
       <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">功能特性</h3>
       <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
         <div v-for="feature in features" :key="feature.title"
@@ -68,7 +68,7 @@ const techStack = [
     </div>
 
     <!-- 技术栈 -->
-    <div class="bg-white dark:bg-bg-panelDark rounded-2xl border border-gray-100 dark:border-border-dark p-6">
+    <div class="card bg-white dark:bg-bg-panelDark rounded-2xl border border-gray-200 dark:border-border-dark p-6">
       <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">技术栈</h3>
       <div class="flex flex-wrap gap-2">
         <div v-for="tech in techStack" :key="tech.name"
@@ -80,7 +80,7 @@ const techStack = [
     </div>
 
     <!-- 版权声明 -->
-    <div class="bg-gradient-to-r from-primary/5 to-purple-500/5 rounded-2xl border border-primary/10 p-6">
+    <div class="card bg-gradient-to-r from-primary/5 to-purple-500/5 rounded-2xl border border-primary/10 p-6">
       <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">版权声明</h3>
       <div class="text-sm text-gray-600 dark:text-gray-400 space-y-2">
         <p>Copyright © 2025 Talenting. All Rights Reserved.</p>

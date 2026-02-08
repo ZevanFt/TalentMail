@@ -201,7 +201,7 @@ onMounted(() => {
 
         <template v-else-if="user">
             <!-- 主账号 -->
-            <div class="card border-primary/30 relative overflow-hidden">
+            <div class="card bg-white dark:bg-bg-panelDark border-primary/30 relative overflow-hidden">
                 <div class="absolute top-0 right-0 bg-primary text-white text-xs px-2 py-1 rounded-bl-lg">当前</div>
                 <div class="flex items-center gap-4">
                     <div
@@ -215,7 +215,7 @@ onMounted(() => {
             </div>
 
             <!-- 外部邮箱账号 -->
-            <div class="card">
+            <div class="card bg-white dark:bg-bg-panelDark">
                 <h3 class="font-bold text-gray-900 dark:text-white mb-4">外部邮箱账号</h3>
                 <div v-if="loadingExternal" class="text-sm text-gray-500 p-4 text-center">加载中...</div>
                 <div v-else-if="externalAccounts.length === 0" class="text-sm text-gray-500 italic p-4 bg-gray-50 dark:bg-gray-900 rounded-lg text-center">
@@ -246,7 +246,7 @@ onMounted(() => {
             </div>
 
             <!-- 别名管理 -->
-            <div class="card">
+            <div class="card bg-white dark:bg-bg-panelDark">
                 <div class="flex items-center justify-between mb-4">
                     <div>
                         <h3 class="font-bold text-gray-900 dark:text-white">邮件别名 (Aliases)</h3>

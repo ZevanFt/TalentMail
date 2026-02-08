@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { PenTool, Calendar, Server, Plus, Trash2, Check } from 'lucide-vue-next'
+import { PenTool, Calendar, Server, Plus, Trash2, Check, AtSign, Power, Loader2 } from 'lucide-vue-next'
 
-const { getMe, updateMe, getSignatures, createSignature, updateSignature, deleteSignature } = useApi()
+const { getMe, updateMe, getSignatures, createSignature, updateSignature, deleteSignature, getAliases, createAlias, updateAlias, deleteAlias } = useApi()
 const { baseDomain } = useConfig()
 
 // 邮件服务器配置
@@ -14,6 +14,13 @@ interface Signature {
     is_default: boolean
 }
 
+interface EmailAlias {
+    id: number
+    alias_email: string
+    name: string | null
+    is_active: boolean
+}
+
 const loading = ref(true)
 const saving = ref(false)
 const signatures = ref<Signature[]>([])
@@ -21,6 +28,14 @@ const editingSignature = ref<Signature | null>(null)
 const newSignatureName = ref('')
 const newSignatureContent = ref('')
 const showNewForm = ref(false)
+
+// 别名管理
+const aliases = ref<EmailAlias[]>([])
+const showAliasForm = ref(false)
+const newAliasPrefix = ref('')
+const newAliasName = ref('')
+const aliasLoading = ref(false)
+const aliasError = ref('')
 
 const settings = reactive({
     auto_reply_enabled: false,
@@ -31,12 +46,13 @@ const settings = reactive({
 
 const loadSettings = async () => {
     try {
-        const [user, sigs] = await Promise.all([getMe(), getSignatures()])
+        const [user, sigs, aliasData] = await Promise.all([getMe(), getSignatures(), getAliases()])
         settings.auto_reply_enabled = user.auto_reply_enabled || false
         settings.auto_reply_start_date = user.auto_reply_start_date || ''
         settings.auto_reply_end_date = user.auto_reply_end_date || ''
         settings.auto_reply_message = user.auto_reply_message || ''
         signatures.value = sigs
+        aliases.value = aliasData
     } catch (e) {
         console.error('加载设置失败', e)
     } finally {
@@ -120,6 +136,44 @@ const removeSig = async (sig: Signature) => {
     }
 }
 
+// 别名管理
+const addAlias = async () => {
+    if (!newAliasPrefix.value.trim()) return
+    aliasLoading.value = true
+    aliasError.value = ''
+    try {
+        const alias = await createAlias(newAliasPrefix.value, newAliasName.value || undefined)
+        aliases.value.push(alias)
+        newAliasPrefix.value = ''
+        newAliasName.value = ''
+        showAliasForm.value = false
+    } catch (e: any) {
+        aliasError.value = e.data?.detail || '创建别名失败'
+    } finally {
+        aliasLoading.value = false
+    }
+}
+
+const toggleAliasActive = async (alias: EmailAlias) => {
+    try {
+        const updated = await updateAlias(alias.id, { is_active: !alias.is_active })
+        const idx = aliases.value.findIndex(a => a.id === updated.id)
+        if (idx >= 0) aliases.value[idx] = updated
+    } catch (e) {
+        console.error('切换别名状态失败', e)
+    }
+}
+
+const removeAlias = async (alias: EmailAlias) => {
+    if (!confirm(`确定删除别名 ${alias.alias_email}？`)) return
+    try {
+        await deleteAlias(alias.id)
+        aliases.value = aliases.value.filter(a => a.id !== alias.id)
+    } catch (e) {
+        console.error('删除别名失败', e)
+    }
+}
+
 onMounted(loadSettings)
 </script>
 
@@ -193,7 +247,83 @@ onMounted(loadSettings)
                 </div>
             </section>
 
-            <!-- 2. 自动回复 -->
+            <!-- 2. 邮件别名 -->
+            <section class="card">
+                <div class="card-header">
+                    <div class="flex items-center gap-3">
+                        <div class="icon-box bg-green-100 text-green-600 dark:bg-green-900/30">
+                            <AtSign class="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-gray-900 dark:text-white">邮件别名</h3>
+                            <p class="text-xs text-gray-500">创建别名地址，所有发送到别名的邮件都会转发到你的主邮箱</p>
+                        </div>
+                    </div>
+                    <button @click="showAliasForm = true" class="btn-secondary text-xs">
+                        <Plus class="w-3 h-3 mr-1" /> 新增别名
+                    </button>
+                </div>
+
+                <!-- 新增别名表单 -->
+                <div v-if="showAliasForm" class="mt-4 p-4 border border-green-200 dark:border-green-800 rounded-lg bg-green-50 dark:bg-green-900/20">
+                    <div class="mb-3">
+                        <label class="block text-xs text-gray-500 mb-1">别名地址</label>
+                        <div class="flex items-center gap-2">
+                            <input v-model="newAliasPrefix" class="input-field flex-1" placeholder="support" />
+                            <span class="text-gray-500 dark:text-gray-400">@{{ baseDomain }}</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="block text-xs text-gray-500 mb-1">备注名称（可选）</label>
+                        <input v-model="newAliasName" class="input-field" placeholder="客服邮箱" />
+                    </div>
+                    <div v-if="aliasError" class="text-red-500 text-xs mb-2">{{ aliasError }}</div>
+                    <div class="flex gap-2">
+                        <button @click="addAlias" :disabled="aliasLoading || !newAliasPrefix.trim()" class="btn-primary text-xs disabled:opacity-50">
+                            <Loader2 v-if="aliasLoading" class="w-3 h-3 mr-1 animate-spin" />
+                            保存
+                        </button>
+                        <button @click="showAliasForm = false; aliasError = ''" class="btn-secondary text-xs">取消</button>
+                    </div>
+                </div>
+
+                <!-- 别名列表 -->
+                <div class="mt-4 space-y-2">
+                    <div v-for="alias in aliases" :key="alias.id"
+                        class="flex items-center justify-between p-3 border rounded-lg transition-colors"
+                        :class="alias.is_active
+                            ? 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
+                            : 'border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 opacity-60'">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                                <AtSign class="w-4 h-4 text-green-600 dark:text-green-400" />
+                            </div>
+                            <div>
+                                <div class="font-medium text-gray-900 dark:text-white text-sm">{{ alias.alias_email }}</div>
+                                <div class="text-xs text-gray-500">{{ alias.name || '未命名' }}</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span v-if="alias.is_active" class="text-xs text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded">启用</span>
+                            <span v-else class="text-xs text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded">禁用</span>
+                            <button @click="toggleAliasActive(alias)"
+                                class="p-1.5 rounded-lg transition-colors"
+                                :class="alias.is_active ? 'text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20' : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'"
+                                :title="alias.is_active ? '点击禁用' : '点击启用'">
+                                <Power class="w-4 h-4" />
+                            </button>
+                            <button @click="removeAlias(alias)" class="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="删除">
+                                <Trash2 class="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+                    <div v-if="aliases.length === 0" class="text-gray-500 text-sm py-4 text-center">
+                        暂无别名，点击上方按钮新增
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. 自动回复 -->
             <section class="card">
                 <div class="card-header">
                     <div class="flex items-center gap-3">
@@ -281,5 +411,9 @@ onMounted(loadSettings)
 
 .btn-secondary {
     @apply px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center text-gray-700 dark:text-gray-300;
+}
+
+.btn-primary {
+    @apply px-3 py-1.5 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors flex items-center;
 }
 </style>

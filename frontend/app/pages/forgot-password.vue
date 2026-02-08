@@ -293,4 +293,26 @@ onUnmounted(() => {
     font-size: clamp(0.65rem, 2.5cqw, 0.875rem);
     container-type: inline-size;
 }
+
+/* 覆盖浏览器自动填充样式 - 浅色模式 */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px rgb(249, 250, 251) inset !important;
+    -webkit-text-fill-color: rgb(17, 24, 39) !important;
+    caret-color: rgb(17, 24, 39) !important;
+    transition: background-color 5000s ease-in-out 0s !important;
+}
+
+/* 覆盖浏览器自动填充样式 - 暗色模式 */
+:global(html.dark) input:-webkit-autofill,
+:global(html.dark) input:-webkit-autofill:hover,
+:global(html.dark) input:-webkit-autofill:focus,
+:global(html.dark) input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px rgb(17, 24, 39) inset !important;
+    -webkit-text-fill-color: rgb(255, 255, 255) !important;
+    caret-color: rgb(255, 255, 255) !important;
+    transition: background-color 5000s ease-in-out 0s !important;
+}
 </style>

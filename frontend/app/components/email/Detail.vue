@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ArrowLeft, Trash2, Archive, Star, Reply, Forward, MoreHorizontal, Mail, MailOpen, ReplyAll, Eye, Send, CheckCircle, XCircle, Loader2, RefreshCw, Paperclip, Download, Copy, Check, Tag, Plus, X } from 'lucide-vue-next'
+import { ArrowLeft, Trash2, Archive, Star, Reply, Forward, MoreHorizontal, Mail, MailOpen, ReplyAll, Eye, Send, CheckCircle, XCircle, Loader2, RefreshCw, Paperclip, Download, Copy, Check, Tag, Plus, X, FileDown, FileText } from 'lucide-vue-next'
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
 
 const { selectedEmailDetail, formatTime, toggleRead, removeEmail, startReply, startReplyAll, startForward, folders, currentFolderId, loadEmails, tags, loadTags, addTag, removeTag } = useEmails()
 const { isComposeOpen } = useGlobalModal()
-const { getTrackingStats, resendEmail, downloadAttachmentUrl, token } = useApi()
+const { getTrackingStats, resendEmail, downloadAttachmentUrl, exportEmailUrl, token } = useApi()
 
 // 验证码检测和复制
 const detectedCode = ref<string | null>(null)
@@ -248,15 +248,22 @@ const downloadAttachment = (id: number) => {
   const url = downloadAttachmentUrl(id)
   window.open(`${url}?token=${token.value}`, '_blank')
 }
+
+// 导出邮件
+const exportEmail = (format: 'eml' | 'pdf') => {
+  if (!selectedEmailDetail.value) return
+  const url = exportEmailUrl(selectedEmailDetail.value.id, format)
+  window.open(`${url}&token=${token.value}`, '_blank')
+}
 </script>
 
 <template>
-  <main class="flex-1 h-full bg-white dark:bg-bg-dark flex flex-col min-w-0 relative">
+  <main class="flex-1 h-full email-detail-container flex flex-col min-w-0 relative">
     <template v-if="selectedEmailDetail">
       <!-- 顶部工具栏 -->
       <div class="h-14 border-b border-gray-100 dark:border-gray-800 flex items-center px-6 justify-between shrink-0">
         <div class="flex items-center gap-1">
-          <button class="btn-icon">
+          <button class="btn-icon" title="返回">
             <ArrowLeft class="w-5 h-5" />
           </button>
           <div class="w-px h-4 bg-gray-200 dark:bg-gray-700 mx-2"></div>
@@ -264,16 +271,54 @@ const downloadAttachment = (id: number) => {
             <MailOpen v-if="selectedEmailDetail.is_read" class="w-5 h-5" />
             <Mail v-else class="w-5 h-5" />
           </button>
-          <button class="btn-icon">
+          <button class="btn-icon" title="归档">
             <Archive class="w-5 h-5" />
           </button>
-          <button class="btn-icon hover:text-red-500 hover:bg-red-50" @click="handleDelete" title="删除">
+          <button class="btn-icon hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30" @click="handleDelete" title="删除">
             <Trash2 class="w-5 h-5" />
           </button>
         </div>
-        <button class="btn-icon">
-          <MoreHorizontal class="w-5 h-5" />
-        </button>
+        
+        <!-- 更多操作菜单 -->
+        <Menu as="div" class="relative">
+          <MenuButton class="btn-icon" title="更多操作（导出等）">
+            <MoreHorizontal class="w-5 h-5" />
+          </MenuButton>
+          <transition
+            enter-active-class="transition duration-100 ease-out"
+            enter-from-class="transform scale-95 opacity-0"
+            enter-to-class="transform scale-100 opacity-100"
+            leave-active-class="transition duration-75 ease-in"
+            leave-from-class="transform scale-100 opacity-100"
+            leave-to-class="transform scale-95 opacity-0"
+          >
+            <MenuItems class="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50 focus:outline-none">
+              <div class="px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
+                导出邮件
+              </div>
+              <MenuItem v-slot="{ active }">
+                <button
+                  @click="exportEmail('eml')"
+                  class="w-full text-left px-4 py-2 text-sm flex items-center gap-2"
+                  :class="active ? 'bg-gray-50 dark:bg-gray-700' : ''"
+                >
+                  <FileDown class="w-4 h-4 text-gray-500" />
+                  <span class="text-gray-700 dark:text-gray-200">导出为 EML</span>
+                </button>
+              </MenuItem>
+              <MenuItem v-slot="{ active }">
+                <button
+                  @click="exportEmail('pdf')"
+                  class="w-full text-left px-4 py-2 text-sm flex items-center gap-2"
+                  :class="active ? 'bg-gray-50 dark:bg-gray-700' : ''"
+                >
+                  <FileText class="w-4 h-4 text-gray-500" />
+                  <span class="text-gray-700 dark:text-gray-200">导出为 PDF</span>
+                </button>
+              </MenuItem>
+            </MenuItems>
+          </transition>
+        </Menu>
       </div>
 
       <!-- 滚动内容区 -->

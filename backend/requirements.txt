@@ -37,3 +37,4 @@ aiosmtpd>=1.4.4
 user-agents>=2.2.0
 pyotp>=2.9.0
 qrcode[pil]>=7.4.2
+weasyprint>=62.0

@@ -687,7 +687,7 @@ const getVariableTypeIcon = (type: string) => {
     <!-- 编辑弹窗 -->
     <Teleport to="body">
       <div v-if="showEditModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div class="modal-solid-bg bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
           <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ editingTemplate ? '编辑模板' : '新建模板' }}</h3>
             <div class="flex items-center gap-2">
@@ -814,7 +814,7 @@ const getVariableTypeIcon = (type: string) => {
     <!-- 预览弹窗 - 左右分栏设计 -->
     <Teleport to="body">
       <div v-if="showPreviewModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div class="modal-solid-bg bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
           <!-- 标题栏 -->
           <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
@@ -1004,7 +1004,7 @@ const getVariableTypeIcon = (type: string) => {
     <!-- 删除确认弹窗 -->
     <Teleport to="body">
       <div v-if="showDeleteConfirm" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md p-6">
+        <div class="modal-solid-bg bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md p-6">
           <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">确认删除</h3>
           <p class="text-gray-600 dark:text-gray-400 mb-4">确定要删除模板 <strong>{{ deletingTemplate?.name }}</strong> 吗？此操作不可撤销。</p>
           <div class="flex items-center justify-end gap-3">
@@ -1018,7 +1018,7 @@ const getVariableTypeIcon = (type: string) => {
     <!-- 全局变量弹窗 -->
     <Teleport to="body">
       <div v-if="showGlobalVarsModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
+        <div class="modal-solid-bg bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
           <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">全局变量设置</h3>
             <button @click="showGlobalVarsModal = false" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"><X class="w-5 h-5" /></button>
@@ -1078,7 +1078,7 @@ const getVariableTypeIcon = (type: string) => {
     <!-- 手动发送弹窗 -->
     <Teleport to="body">
       <div v-if="showSendModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
+        <div class="modal-solid-bg bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
           <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
@@ -1156,7 +1156,7 @@ const getVariableTypeIcon = (type: string) => {
     <!-- 添加变量弹窗 -->
     <Teleport to="body">
       <div v-if="showAddVariableModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md p-6">
+        <div class="modal-solid-bg bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md p-6">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">添加模板变量</h3>
             <button @click="showAddVariableModal = false" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">

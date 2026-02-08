@@ -156,15 +156,22 @@ export default defineNuxtConfig({
   // 注意：这些配置只在开发模式 (npm run dev) 下生效
   vite: {
     server: {
-      // Allow requests from our custom domain via Caddy
-      // 域名从 config.json 的当前环境配置中读取
+      // 允许来自自定义域名的请求（通过 Caddy 反向代理）
+      // 域名从 config.json 的当前环境配置中动态读取
       allowedHosts: [
         webDomain,
         'localhost'
       ],
-      // Ensure HMR works correctly through the proxy
+      // HMR (热模块替换) 配置
+      // 开发环境：通过 Caddy 代理 WebSocket 连接实现热更新
+      // 使用 mkcert 本地可信证书确保 wss:// 连接正常
       hmr: {
+        // 让客户端自动检测协议（http->ws, https->wss）
+        protocol: 'wss',
+        // 使用配置的域名
         host: webDomain,
+        // 通过 Caddy 443 端口代理
+        clientPort: 443,
       }
     }
   }
