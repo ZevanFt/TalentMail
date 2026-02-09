@@ -75,9 +75,18 @@ def get_email_body(msg: email.message.Message) -> tuple:
 def sync_user_mailbox(db: Session, user: User) -> int:
     """使用 master 用户同步单个用户的邮箱"""
     synced = 0
+    imap = None
     try:
         # 使用 master 用户登录（格式: user*master_user）
-        imap = imaplib.IMAP4(settings.MAIL_SERVER, 143)
+        # 根据配置选择 SSL 或 STARTTLS
+        if settings.MAIL_USE_SSL:
+            # 使用 SSL (端口 993)
+            imap = imaplib.IMAP4_SSL(settings.MAIL_SERVER, 993)
+        else:
+            # 使用 STARTTLS (端口 143)
+            imap = imaplib.IMAP4(settings.MAIL_SERVER, 143)
+            imap.starttls()
+
         login_user = f"{user.email}*{MASTER_USER}"
         imap.login(login_user, MASTER_PASSWORD)
         
@@ -147,13 +156,18 @@ def sync_user_mailbox(db: Session, user: User) -> int:
             synced += 1
         
         db.commit()
-        imap.logout()
         logger.info(f"同步 {user.email}: {synced} 封新邮件")
-        
+
     except Exception as e:
-        logger.error(f"同步用户 {user.email} 失败: {e}")
+        logger.error(f"同步用户 {user.email} 失败: {e}", exc_info=True)
         db.rollback()
-    
+    finally:
+        if imap:
+            try:
+                imap.logout()
+            except:
+                pass
+
     return synced
 
 

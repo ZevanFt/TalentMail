@@ -76,31 +76,32 @@ class MailService:
             from_email: 发件人邮箱（可选）
             cc: 抄送列表（可选）
         """
+        server = None
         try:
             # 创建邮件
             msg = MIMEMultipart('alternative')
-            
+
             # 确定发件人
             if not from_email:
                 from_email = f"noreply@{settings.BASE_DOMAIN}"
                 sender_name = settings.APP_NAME
             else:
                 sender_name = from_email.split('@')[0]
-            
+
             msg['From'] = formataddr((str(Header(sender_name, 'utf-8')), from_email))
             msg['To'] = to_email
             msg['Subject'] = Header(subject, 'utf-8')
             msg['Date'] = formatdate(localtime=True)
             msg['Message-ID'] = make_msgid(domain=settings.BASE_DOMAIN)
-            
+
             # 添加抄送
             if cc:
                 msg['Cc'] = ', '.join(cc)
-            
+
             # 添加内容
             if body_text:
                 msg.attach(MIMEText(body_text, 'plain', 'utf-8'))
-            
+
             if body_html:
                 msg.attach(MIMEText(body_html, 'html', 'utf-8'))
             elif not body_text:
@@ -108,28 +109,33 @@ class MailService:
                 msg.attach(MIMEText("", 'html', 'utf-8'))
 
             # 发送
-            server = smtplib.SMTP(settings.MAIL_SERVER, settings.SMTP_PORT)
-            
+            server = smtplib.SMTP(settings.MAIL_SERVER, settings.SMTP_PORT, timeout=30)
+
             if settings.MAIL_STARTTLS:
                 server.starttls()
-            
+
             if settings.USE_CREDENTIALS:
                 server.login(settings.MAIL_USERNAME, settings.MAIL_PASSWORD)
-            
+
             # SMTP envelope sender
             envelope_from = settings.MAIL_USERNAME if settings.USE_CREDENTIALS else from_email
-            
+
             # 所有收件人（包括抄送）
             all_recipients = [to_email]
             if cc:
                 all_recipients.extend(cc)
-            
+
             server.sendmail(envelope_from, all_recipients, msg.as_string())
-            server.quit()
-            
+
             logger.info(f"Email sent to {to_email}, subject: {subject}")
             return True
-            
+
         except Exception as e:
-            logger.error(f"Failed to send email to {to_email}: {e}")
+            logger.error(f"Failed to send email to {to_email}: {e}", exc_info=True)
             return False
+        finally:
+            if server:
+                try:
+                    server.quit()
+                except:
+                    pass

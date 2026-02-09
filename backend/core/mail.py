@@ -70,39 +70,47 @@ async def send_email(
                      [recipient.email for recipient in email_data.cc] + \
                      bcc_addrs
 
+    server = None
     try:
         # Connect to the SMTP server
         # Note: For development with docker-mailserver, we don't use SSL/TLS initially.
         # The server is on the internal Docker network.
-        server = smtplib.SMTP(settings.MAIL_SERVER, settings.SMTP_PORT)
-        
+        logger.info(f"Connecting to SMTP server {settings.MAIL_SERVER}:{settings.SMTP_PORT}")
+        server = smtplib.SMTP(settings.MAIL_SERVER, settings.SMTP_PORT, timeout=30)
+
         # If STARTTLS is configured (recommended for production)
         if settings.MAIL_STARTTLS:
+            logger.info("Starting TLS connection...")
             server.starttls()
-        
+
         # Login if credentials are provided
         if settings.USE_CREDENTIALS:
+            logger.info(f"Authenticating as {settings.MAIL_USERNAME}...")
             server.login(settings.MAIL_USERNAME, settings.MAIL_PASSWORD)
-            
+
         # Send the email
         # The `from_addr` for the SMTP envelope MUST be the authenticated user.
         # The `From` header in the message (`msg['From']`) can be the actual user.
         # When not using credentials, the from_addr should be the actual sender.
         # When using credentials, it must be the authenticated user.
         from_addr = settings.MAIL_USERNAME if settings.USE_CREDENTIALS else sender_email
+        logger.info(f"Sending email from {from_addr} to {all_recipients}...")
         server.sendmail(from_addr, all_recipients, msg.as_string())
-        
+
         log_user = f" via SMTP user {settings.MAIL_USERNAME}" if settings.USE_CREDENTIALS else ""
         logger.info(f"Email sent successfully{log_user}, from {sender_email} to {all_recipients}")
-        
+
         return msg['Message-ID']
 
     except Exception as e:
-        logger.error(f"Failed to send email: {e}")
-        return None
+        logger.error(f"Failed to send email: {e}", exc_info=True)
+        raise  # 重新抛出异常，让调用方处理
     finally:
-        if 'server' in locals() and server:
-            server.quit()
+        if server:
+            try:
+                server.quit()
+            except:
+                pass
 
 
 def render_template(template_str: str, variables: Dict[str, Any]) -> str:
@@ -266,27 +274,31 @@ async def send_verification_code_email(
     msg.attach(MIMEText(body_text, 'plain', 'utf-8'))
     msg.attach(MIMEText(body_html, 'html', 'utf-8'))
 
+    server = None
     try:
-        server = smtplib.SMTP(settings.MAIL_SERVER, settings.SMTP_PORT)
-        
+        server = smtplib.SMTP(settings.MAIL_SERVER, settings.SMTP_PORT, timeout=30)
+
         if settings.MAIL_STARTTLS:
             server.starttls()
-        
+
         if settings.USE_CREDENTIALS:
             server.login(settings.MAIL_USERNAME, settings.MAIL_PASSWORD)
-        
+
         from_addr = settings.MAIL_USERNAME if settings.USE_CREDENTIALS else sender_email
         server.sendmail(from_addr, [to_email], msg.as_string())
-        
+
         logger.info(f"Verification code email sent to {to_email} for {purpose}")
         return True
 
     except Exception as e:
-        logger.error(f"Failed to send verification code email to {to_email}: {e}")
+        logger.error(f"Failed to send verification code email to {to_email}: {e}", exc_info=True)
         return False
     finally:
-        if 'server' in locals() and server:
-            server.quit()
+        if server:
+            try:
+                server.quit()
+            except:
+                pass
 
 
 async def send_system_email(
@@ -335,24 +347,28 @@ async def send_system_email(
     msg.attach(MIMEText(body_text, 'plain', 'utf-8'))
     msg.attach(MIMEText(body_html, 'html', 'utf-8'))
 
+    server = None
     try:
-        server = smtplib.SMTP(settings.MAIL_SERVER, settings.SMTP_PORT)
-        
+        server = smtplib.SMTP(settings.MAIL_SERVER, settings.SMTP_PORT, timeout=30)
+
         if settings.MAIL_STARTTLS:
             server.starttls()
-        
+
         if settings.USE_CREDENTIALS:
             server.login(settings.MAIL_USERNAME, settings.MAIL_PASSWORD)
-        
+
         from_addr = settings.MAIL_USERNAME if settings.USE_CREDENTIALS else sender_email
         server.sendmail(from_addr, [to_email], msg.as_string())
-        
+
         logger.info(f"System email sent to {to_email} using template {template_code}")
         return True
 
     except Exception as e:
-        logger.error(f"Failed to send system email to {to_email}: {e}")
+        logger.error(f"Failed to send system email to {to_email}: {e}", exc_info=True)
         return False
     finally:
-        if 'server' in locals() and server:
-            server.quit()
+        if server:
+            try:
+                server.quit()
+            except:
+                pass

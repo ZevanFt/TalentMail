@@ -186,8 +186,27 @@ const handleSend = async () => {
       }
     }
     
+    // 显示成功提示（使用浏览器原生通知）
+    if (typeof window !== 'undefined') {
+      // 创建一个临时的成功提示元素
+      const toast = document.createElement('div')
+      toast.className = 'fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-slide-in'
+      toast.innerHTML = `
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        </svg>
+        <span>邮件已加入发送队列，请在"已发送"文件夹查看发送状态</span>
+      `
+      document.body.appendChild(toast)
+      setTimeout(() => {
+        toast.style.opacity = '0'
+        toast.style.transition = 'opacity 0.3s'
+        setTimeout(() => document.body.removeChild(toast), 300)
+      }, 5000)
+    }
+
     closeAndReset()
-    
+
     // 发送成功后，切换到已发送文件夹并刷新
     const sentFolder = folders.value.find(f => f.role === 'sent')
     if (sentFolder) {
@@ -196,6 +215,23 @@ const handleSend = async () => {
     }
   } catch (e: any) {
     error.value = e.data?.detail || '发送失败'
+    // 显示错误提示
+    if (typeof window !== 'undefined') {
+      const toast = document.createElement('div')
+      toast.className = 'fixed top-4 right-4 z-50 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2'
+      toast.innerHTML = `
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+        <span>${error.value}</span>
+      `
+      document.body.appendChild(toast)
+      setTimeout(() => {
+        toast.style.opacity = '0'
+        toast.style.transition = 'opacity 0.3s'
+        setTimeout(() => document.body.removeChild(toast), 300)
+      }, 5000)
+    }
   } finally {
     sending.value = false
   }

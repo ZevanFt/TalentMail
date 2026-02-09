@@ -19,6 +19,8 @@
       "webPrefix": "mail",
       "mailServerPrefix": "maillink",
       "smtpPort": 587,
+      "mailStarttls": true,
+      "mailUseSsl": false,
       "strictEmailValidation": true,
       "useCredentials": true
     }
