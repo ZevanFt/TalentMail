@@ -61,4 +61,65 @@ else
     echo "更新 auth_username_chars 配置成功"
 fi
 
+# 配置 Dovecot Master user passdb
+echo "配置 Dovecot Master user passdb..."
+# 复制 Master users 文件到 Dovecot 配置目录
+if [ -f /tmp/docker-mailserver/dovecot-master-users ]; then
+    cp /tmp/docker-mailserver/dovecot-master-users /etc/dovecot/master-users
+    chmod 600 /etc/dovecot/master-users
+    echo "Master users 文件已复制"
+fi
+
+# 在 auth-sql.conf.ext 中添加 Master passdb（在 SQL passdb 之前）
+if ! grep -q "# Master user passdb" /etc/dovecot/conf.d/auth-sql.conf.ext; then
+    # 备份原文件
+    cp /etc/dovecot/conf.d/auth-sql.conf.ext /etc/dovecot/conf.d/auth-sql.conf.ext.bak
+
+    # 在文件开头添加 Master passdb 配置
+    cat > /etc/dovecot/conf.d/auth-sql.conf.ext << 'EOFMASTER'
+# Authentication for SQL users. Included from 10-auth.conf.
+#
+# <doc/wiki/AuthDatabase.SQL.txt>
+
+# Master user passdb - 必须放在普通 SQL passdb 之前
+# 支持 user@domain*masteruser 格式的登录
+passdb {
+  driver = passwd-file
+  args = /etc/dovecot/master-users
+  master = yes
+  pass = yes
+}
+
+passdb {
+  driver = sql
+
+  # Path for SQL configuration file, see example-config/dovecot-sql.conf.ext
+  args = /etc/dovecot/dovecot-sql.conf.ext
+}
+
+# "prefetch" user database means that the passdb already provided the
+# needed information and there's no need to do a separate userdb lookup.
+# <doc/wiki/UserDatabase.Prefetch.txt>
+#userdb {
+#  driver = prefetch
+#}
+
+userdb {
+  driver = sql
+  args = /etc/dovecot/dovecot-sql.conf.ext
+}
+
+# If you don't have any user-specific settings, you can avoid the user_query
+# by using userdb static instead of userdb sql, for example:
+# <doc/wiki/UserDatabase.Static.txt>
+#userdb {
+  #driver = static
+  #args = uid=vmail gid=vmail home=/var/vmail/%u
+#}
+EOFMASTER
+    echo "Master passdb 配置已添加到 auth-sql.conf.ext"
+else
+    echo "Master passdb 配置已存在，跳过"
+fi
+
 echo "=== TalentMail 自定义配置完成 ==="

@@ -116,6 +116,8 @@ services:
       # Dovecot SQL 认证配置
       - ./config/mail/dovecot-sql.conf.ext:/etc/dovecot/dovecot-sql.conf.ext:ro
       - ./config/mail/dovecot/10-auth.conf:/etc/dovecot/conf.d/10-auth.conf:ro
+      # Dovecot Master user 配置
+      - ./config/mail/dovecot-master-users:/tmp/docker-mailserver/dovecot-master-users:ro
       # Fail2Ban 配置
       - ./config/mail/fail2ban-jail.local:/etc/fail2ban/jail.local:ro
     depends_on:

@@ -1,0 +1,12 @@
+# Dovecot Master Users 配置文件
+# 格式: username:password_hash
+# 使用 doveadm pw -s BLF-CRYPT 生成密码哈希
+#
+# Master user: sync_master
+# 明文密码: SyncMasterPassword123
+# 生成方式: echo -n "SyncMasterPassword123" | doveadm pw -s SHA512-CRYPT
+#
+# 注意：这里使用明文密码仅用于简化配置（Dovecot 支持明文格式）
+# 生产环境建议使用加密哈希
+
+sync_master:{PLAIN}SyncMasterPassword123
