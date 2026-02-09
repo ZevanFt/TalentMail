@@ -49,4 +49,16 @@ postconf -e "smtpd_tls_security_level=may"
 # 强制覆盖 submission 服务的 TLS 设置（如果需要完全禁用 TLS，可以使用 none）
 postconf -P "submission/inet/smtpd_tls_security_level=none"
 
+# 配置 Dovecot 允许用户名中包含 * 字符（用于 Master user 认证）
+echo "配置 Dovecot 允许 Master user 认证格式 (user*master)..."
+# 在 dovecot.conf 中添加 auth_username_chars 配置
+if ! grep -q "auth_username_chars" /etc/dovecot/dovecot.conf 2>/dev/null; then
+    echo "auth_username_chars = abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890.-_@*" >> /etc/dovecot/dovecot.conf
+    echo "添加 auth_username_chars 配置成功"
+else
+    # 如果已存在，则更新配置
+    sed -i 's/^auth_username_chars.*/auth_username_chars = abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890.-_@*/' /etc/dovecot/dovecot.conf
+    echo "更新 auth_username_chars 配置成功"
+fi
+
 echo "=== TalentMail 自定义配置完成 ==="
