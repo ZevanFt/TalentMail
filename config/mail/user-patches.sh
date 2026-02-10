@@ -46,8 +46,8 @@ postconf -e "smtpd_sasl_path=/dev/shm/sasl-auth.sock"
 postconf -e "smtpd_tls_auth_only=no"
 # 尝试降低 TLS 安全级别，允许自签名证书
 postconf -e "smtpd_tls_security_level=may"
-# 强制覆盖 submission 服务的 TLS 设置（如果需要完全禁用 TLS，可以使用 none）
-postconf -P "submission/inet/smtpd_tls_security_level=none"
+# 配置 submission 端口的 TLS 设置（may = 支持但不强制 STARTTLS）
+postconf -P "submission/inet/smtpd_tls_security_level=may"
 
 # 配置 Dovecot 允许用户名中包含 * 字符（用于 Master user 认证）
 echo "配置 Dovecot 允许 Master user 认证格式 (user*master)..."
