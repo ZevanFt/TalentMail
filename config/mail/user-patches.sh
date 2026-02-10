@@ -51,75 +51,35 @@ postconf -P "submission/inet/smtpd_tls_security_level=none"
 
 # 配置 Dovecot 允许用户名中包含 * 字符（用于 Master user 认证）
 echo "配置 Dovecot 允许 Master user 认证格式 (user*master)..."
-# 在 dovecot.conf 中添加 auth_username_chars 配置
 if ! grep -q "auth_username_chars" /etc/dovecot/dovecot.conf 2>/dev/null; then
     echo "auth_username_chars = abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890.-_@*" >> /etc/dovecot/dovecot.conf
     echo "添加 auth_username_chars 配置成功"
 else
-    # 如果已存在，则更新配置
     sed -i 's/^auth_username_chars.*/auth_username_chars = abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890.-_@*/' /etc/dovecot/dovecot.conf
     echo "更新 auth_username_chars 配置成功"
 fi
 
-# 配置 Dovecot Master user passdb
-echo "配置 Dovecot Master user passdb..."
-# 复制 Master users 文件到 Dovecot 配置目录
-if [ -f /tmp/docker-mailserver/dovecot-master-users ]; then
-    cp /tmp/docker-mailserver/dovecot-master-users /etc/dovecot/master-users
-    chmod 600 /etc/dovecot/master-users
-    echo "Master users 文件已复制"
-fi
+# 配置 docker-mailserver 标准 Master user（使用 auth-master.inc）
+echo "配置 docker-mailserver Master user..."
+MASTER_USER="sync_master"
+MASTER_PASSWORD="SyncMasterPassword123"
 
-# 在 auth-sql.conf.ext 中添加 Master passdb（在 SQL passdb 之前）
-if ! grep -q "# Master user passdb" /etc/dovecot/conf.d/auth-sql.conf.ext; then
-    # 备份原文件
-    cp /etc/dovecot/conf.d/auth-sql.conf.ext /etc/dovecot/conf.d/auth-sql.conf.ext.bak
+# 生成 SHA512-CRYPT 密码哈希
+echo "生成 Master user 密码哈希..."
+PASSWORD_HASH=$(doveadm pw -s SHA512-CRYPT -p "$MASTER_PASSWORD" | cut -d'}' -f2)
 
-    # 在文件开头添加 Master passdb 配置
-    cat > /etc/dovecot/conf.d/auth-sql.conf.ext << 'EOFMASTER'
-# Authentication for SQL users. Included from 10-auth.conf.
-#
-# <doc/wiki/AuthDatabase.SQL.txt>
+# 创建 masterdb 文件（docker-mailserver 标准路径）
+echo "${MASTER_USER}:{SHA512-CRYPT}${PASSWORD_HASH}" > /etc/dovecot/masterdb
+chown dovecot:dovecot /etc/dovecot/masterdb
+chmod 600 /etc/dovecot/masterdb
+echo "masterdb 文件已创建"
 
-# Master user passdb - 必须放在普通 SQL passdb 之前
-# 支持 user@domain*masteruser 格式的登录
-passdb {
-  driver = passwd-file
-  args = /etc/dovecot/master-users
-  master = yes
-  pass = yes
-}
-
-passdb {
-  driver = sql
-
-  # Path for SQL configuration file, see example-config/dovecot-sql.conf.ext
-  args = /etc/dovecot/dovecot-sql.conf.ext
-}
-
-# "prefetch" user database means that the passdb already provided the
-# needed information and there's no need to do a separate userdb lookup.
-# <doc/wiki/UserDatabase.Prefetch.txt>
-#userdb {
-#  driver = prefetch
-#}
-
-userdb {
-  driver = sql
-  args = /etc/dovecot/dovecot-sql.conf.ext
-}
-
-# If you don't have any user-specific settings, you can avoid the user_query
-# by using userdb static instead of userdb sql, for example:
-# <doc/wiki/UserDatabase.Static.txt>
-#userdb {
-  #driver = static
-  #args = uid=vmail gid=vmail home=/var/vmail/%u
-#}
-EOFMASTER
-    echo "Master passdb 配置已添加到 auth-sql.conf.ext"
+# 在 10-auth.conf 中启用 auth-master.inc
+if ! grep -q "!include auth-master.inc" /etc/dovecot/conf.d/10-auth.conf; then
+    sed -i "/!include auth-sql.conf.ext/i !include auth-master.inc" /etc/dovecot/conf.d/10-auth.conf
+    echo "已在 10-auth.conf 中启用 auth-master.inc"
 else
-    echo "Master passdb 配置已存在，跳过"
+    echo "auth-master.inc 已启用，跳过"
 fi
 
 echo "=== TalentMail 自定义配置完成 ==="
