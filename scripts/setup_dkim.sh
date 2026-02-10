@@ -96,26 +96,16 @@ echo "📋 请在 Cloudflare DNS 管理中添加以下 TXT 记录："
 echo ""
 echo "-------------------------------------------"
 
-# 提取并格式化 DKIM 公钥
-DKIM_RECORD=$(docker exec "$CONTAINER_NAME" cat /tmp/docker-mailserver/opendkim/keys/$DOMAIN/$SELECTOR.txt)
+# 提取并格式化 DKIM 公钥（提取所有引号内的内容并合并成一行）
+DKIM_PUBLIC_KEY=$(docker exec "$CONTAINER_NAME" cat /tmp/docker-mailserver/opendkim/keys/$DOMAIN/$SELECTOR.txt | grep -o '"[^"]*"' | tr -d '"\n' | sed 's/  */ /g' | sed 's/^ //;s/ $//')
 
-# 解析记录
-echo "$DKIM_RECORD" | sed 's/[()]//g' | sed 's/\"//g' | awk '
-BEGIN {
-    print "类型: TXT"
-    print "名称: '"$SELECTOR"'._domainkey"
-    print "内容:"
-}
-/v=DKIM1/ {
-    content = ""
-    for (i=1; i<=NF; i++) {
-        if ($i ~ /v=DKIM1/ || $i ~ /k=rsa/ || $i ~ /p=/) {
-            content = content $i
-        }
-    }
-    print "  " content
-}
-'
+echo "类型: TXT"
+echo "名称: $SELECTOR._domainkey"
+echo ""
+echo "内容（直接复制下面这一整行）："
+echo "-------------------------------------------"
+echo "$DKIM_PUBLIC_KEY"
+echo "-------------------------------------------"
 
 echo "-------------------------------------------"
 echo ""
