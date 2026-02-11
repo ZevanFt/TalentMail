@@ -261,21 +261,21 @@ const exportEmail = (format: 'eml' | 'pdf') => {
   <main class="flex-1 h-full email-detail-container flex flex-col min-w-0 relative">
     <template v-if="selectedEmailDetail">
       <!-- 顶部工具栏 -->
-      <div class="h-14 border-b border-gray-100 dark:border-gray-800 flex items-center px-6 justify-between shrink-0">
-        <div class="flex items-center gap-1">
+      <div class="h-16 border-b border-gray-200/50 dark:border-gray-800/50 flex items-center px-6 justify-between shrink-0">
+        <div class="flex items-center gap-2">
           <button class="btn-icon" title="返回">
             <ArrowLeft class="w-5 h-5" />
           </button>
-          <div class="w-px h-4 bg-gray-200 dark:bg-gray-700 mx-2"></div>
-          <button class="btn-icon" @click="handleToggleRead" :title="selectedEmailDetail.is_read ? '标记为未读' : '标记为已读'">
-            <MailOpen v-if="selectedEmailDetail.is_read" class="w-5 h-5" />
-            <Mail v-else class="w-5 h-5" />
+          <div class="w-px h-5 bg-gray-300 dark:bg-gray-600 mx-1"></div>
+          <button class="btn-icon group" @click="handleToggleRead" :title="selectedEmailDetail.is_read ? '标记为未读' : '标记为已读'">
+            <MailOpen v-if="selectedEmailDetail.is_read" class="w-5 h-5 group-hover:scale-110 transition-transform" />
+            <Mail v-else class="w-5 h-5 group-hover:scale-110 transition-transform" />
           </button>
-          <button class="btn-icon" title="归档">
-            <Archive class="w-5 h-5" />
+          <button class="btn-icon group" title="归档">
+            <Archive class="w-5 h-5 group-hover:scale-110 transition-transform" />
           </button>
-          <button class="btn-icon hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30" @click="handleDelete" title="删除">
-            <Trash2 class="w-5 h-5" />
+          <button class="btn-icon group hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30" @click="handleDelete" title="删除">
+            <Trash2 class="w-5 h-5 group-hover:scale-110 transition-transform" />
           </button>
         </div>
         
@@ -292,28 +292,28 @@ const exportEmail = (format: 'eml' | 'pdf') => {
             leave-from-class="transform scale-100 opacity-100"
             leave-to-class="transform scale-95 opacity-0"
           >
-            <MenuItems class="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50 focus:outline-none">
-              <div class="px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
+            <MenuItems class="absolute right-0 mt-2 w-52 bg-white dark:bg-gray-800 rounded-xl shadow-xl shadow-gray-900/10 dark:shadow-black/30 border border-gray-200 dark:border-gray-700 py-1.5 z-50 focus:outline-none">
+              <div class="px-4 py-2.5 text-xs font-semibold text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
                 导出邮件
               </div>
               <MenuItem v-slot="{ active }">
                 <button
                   @click="exportEmail('eml')"
-                  class="w-full text-left px-4 py-2 text-sm flex items-center gap-2"
+                  class="w-full text-left px-4 py-2.5 text-sm flex items-center gap-3 transition-colors group"
                   :class="active ? 'bg-gray-50 dark:bg-gray-700' : ''"
                 >
-                  <FileDown class="w-4 h-4 text-gray-500" />
-                  <span class="text-gray-700 dark:text-gray-200">导出为 EML</span>
+                  <FileDown class="w-4 h-4 text-gray-500 group-hover:text-primary transition-colors" />
+                  <span class="text-gray-700 dark:text-gray-200 group-hover:text-primary transition-colors">导出为 EML</span>
                 </button>
               </MenuItem>
               <MenuItem v-slot="{ active }">
                 <button
                   @click="exportEmail('pdf')"
-                  class="w-full text-left px-4 py-2 text-sm flex items-center gap-2"
+                  class="w-full text-left px-4 py-2.5 text-sm flex items-center gap-3 transition-colors group"
                   :class="active ? 'bg-gray-50 dark:bg-gray-700' : ''"
                 >
-                  <FileText class="w-4 h-4 text-gray-500" />
-                  <span class="text-gray-700 dark:text-gray-200">导出为 PDF</span>
+                  <FileText class="w-4 h-4 text-gray-500 group-hover:text-primary transition-colors" />
+                  <span class="text-gray-700 dark:text-gray-200 group-hover:text-primary transition-colors">导出为 PDF</span>
                 </button>
               </MenuItem>
             </MenuItems>
@@ -391,18 +391,23 @@ const exportEmail = (format: 'eml' | 'pdf') => {
             </div>
           </div>
 
-          <!-- 发件人卡片 -->
-          <div class="flex items-start gap-4 mb-8">
-            <div class="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-lg text-white font-medium shrink-0">
+          <!-- 发件人卡片 - 改进样式 -->
+          <div class="flex items-start gap-4 p-4 bg-gradient-to-r from-gray-50/50 to-transparent dark:from-gray-800/30 dark:to-transparent rounded-xl mb-8">
+            <div class="w-14 h-14 rounded-full bg-gradient-to-br from-primary to-primary-hover flex items-center justify-center text-xl text-white font-bold shrink-0 shadow-lg shadow-primary/20 ring-2 ring-white dark:ring-gray-900">
               {{ getAvatar(selectedEmailDetail.sender) }}
             </div>
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2 mb-0.5">
-                <span class="text-base font-bold text-gray-900 dark:text-white">{{ selectedEmailDetail.sender }}</span>
+            <div class="flex-1 min-w-0 pt-1">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-lg font-bold text-gray-900 dark:text-white">{{ selectedEmailDetail.sender }}</span>
               </div>
-              <div class="text-xs text-gray-500">
-                {{ formatRecipients(selectedEmailDetail.recipients) }}
-                <span class="ml-4">{{ formatTime(selectedEmailDetail.received_at) }}</span>
+              <div class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                <p>{{ formatRecipients(selectedEmailDetail.recipients) }}</p>
+                <p class="mt-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-500">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  {{ formatTime(selectedEmailDetail.received_at) }}
+                </p>
               </div>
               <!-- 投递状态 + 追踪统计（仅已发送文件夹显示） -->
               <div v-if="isSentFolder && (currentDeliveryStatus || (selectedEmailDetail.is_tracked && trackingStats))" class="mt-2 flex items-center gap-3 text-xs flex-wrap">
@@ -437,18 +442,25 @@ const exportEmail = (format: 'eml' | 'pdf') => {
             </div>
           </div>
 
-          <!-- 附件列表 -->
-          <div v-if="attachments.length" class="mb-6 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-            <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-3">
-              <Paperclip class="w-4 h-4" />
+          <!-- 附件列表 - 改进样式 -->
+          <div v-if="attachments.length" class="mb-8 p-5 bg-gradient-to-br from-blue-50/50 to-purple-50/30 dark:from-blue-900/10 dark:to-purple-900/10 border border-blue-100 dark:border-blue-900/30 rounded-xl">
+            <div class="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
+              <div class="p-1.5 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                <Paperclip class="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              </div>
               <span>{{ attachments.length }} 个附件</span>
             </div>
-            <div class="flex flex-wrap gap-2">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
               <button v-for="att in attachments" :key="att.id" @click="downloadAttachment(att.id)"
-                class="flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors text-sm">
-                <Download class="w-4 h-4 text-gray-500" />
-                <span class="text-gray-700 dark:text-gray-300">{{ att.filename }}</span>
-                <span class="text-gray-400 text-xs">({{ formatFileSize(att.size) }})</span>
+                class="flex items-center gap-3 px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl
+                       hover:shadow-md hover:border-primary dark:hover:border-primary transition-all duration-200 text-sm group">
+                <div class="p-2 bg-gray-50 dark:bg-gray-700 rounded-lg group-hover:bg-primary/10 transition-colors">
+                  <Download class="w-4 h-4 text-gray-500 group-hover:text-primary transition-colors" />
+                </div>
+                <div class="flex-1 min-w-0 text-left">
+                  <p class="text-gray-800 dark:text-gray-200 font-medium truncate group-hover:text-primary transition-colors">{{ att.filename }}</p>
+                  <p class="text-gray-400 text-xs mt-0.5">{{ formatFileSize(att.size) }}</p>
+                </div>
               </button>
             </div>
           </div>
@@ -475,36 +487,73 @@ const exportEmail = (format: 'eml' | 'pdf') => {
         </div>
       </div>
 
-      <!-- 底部浮动栏 -->
-      <div class="absolute bottom-6 right-8 flex gap-3 z-20">
-        <button @click="handleForward" class="flex items-center gap-2 px-5 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-50 dark:hover:bg-gray-700 transition-all text-sm font-medium border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md">
-          <Forward class="w-4 h-4" /> 转发
+      <!-- 底部浮动栏 - 改进样式 -->
+      <div class="absolute bottom-8 right-8 flex gap-3 z-20">
+        <button @click="handleForward"
+          class="flex items-center gap-2.5 px-6 py-3 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300
+                 rounded-2xl hover:bg-gray-50 dark:hover:bg-gray-700 active:scale-95
+                 transition-all duration-200 text-sm font-semibold border-2 border-gray-200 dark:border-gray-700
+                 shadow-lg hover:shadow-xl hover:-translate-y-0.5 group">
+          <Forward class="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+          <span>转发</span>
         </button>
-        <button @click="handleReplyAll" class="flex items-center gap-2 px-5 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-50 dark:hover:bg-gray-700 transition-all text-sm font-medium border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md">
-          <ReplyAll class="w-4 h-4" /> 回复全部
+        <button @click="handleReplyAll"
+          class="flex items-center gap-2.5 px-6 py-3 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300
+                 rounded-2xl hover:bg-gray-50 dark:hover:bg-gray-700 active:scale-95
+                 transition-all duration-200 text-sm font-semibold border-2 border-gray-200 dark:border-gray-700
+                 shadow-lg hover:shadow-xl hover:-translate-y-0.5 group">
+          <ReplyAll class="w-4 h-4 group-hover:-rotate-12 transition-transform" />
+          <span>回复全部</span>
         </button>
-        <button @click="handleReply" class="flex items-center gap-2 px-6 py-2 bg-primary text-white rounded-full hover:bg-primary-hover transition-all text-sm font-medium shadow-lg shadow-primary/30 hover:shadow-primary/50 hover:-translate-y-0.5">
-          <Reply class="w-4 h-4" /> 回复
+        <button @click="handleReply"
+          class="flex items-center gap-2.5 px-7 py-3 bg-gradient-to-r from-primary to-primary-hover text-white
+                 rounded-2xl hover:shadow-2xl hover:shadow-primary/40 active:scale-95
+                 transition-all duration-200 text-sm font-bold
+                 hover:-translate-y-1 group ring-2 ring-primary/20">
+          <Reply class="w-4 h-4 group-hover:-rotate-12 transition-transform" />
+          <span>回复</span>
         </button>
       </div>
     </template>
 
-    <!-- 空状态 -->
+    <!-- 空状态 - 改进样式 -->
     <template v-else>
-      <div class="flex-1 flex items-center justify-center text-gray-400">
-        选择一封邮件查看
+      <div class="flex-1 flex flex-col items-center justify-center gap-4 text-gray-400 px-8">
+        <div class="w-20 h-20 rounded-full bg-gradient-to-br from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-900 flex items-center justify-center shadow-inner">
+          <svg class="w-10 h-10 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+          </svg>
+        </div>
+        <div class="text-center">
+          <p class="text-lg font-semibold text-gray-600 dark:text-gray-400">选择一封邮件查看</p>
+          <p class="text-sm text-gray-500 dark:text-gray-500 mt-1">从左侧列表中选择要阅读的邮件</p>
+        </div>
       </div>
     </template>
 
-    <!-- 删除确认对话框 -->
+    <!-- 删除确认对话框 - 改进样式 -->
     <CommonModal v-model="showDeleteConfirm" title="确认删除" width-class="w-full max-w-sm">
-      <p class="text-gray-600 dark:text-gray-300">确定要将此邮件移到垃圾箱吗？</p>
+      <div class="flex items-start gap-3 py-2">
+        <div class="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">
+          <Trash2 class="w-5 h-5 text-red-500" />
+        </div>
+        <div>
+          <p class="text-gray-800 dark:text-gray-200 font-medium">确定要将此邮件移到垃圾箱吗？</p>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">此操作可以在垃圾箱中撤销</p>
+        </div>
+      </div>
       <template #footer>
-        <button @click="showDeleteConfirm = false" class="px-4 py-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 rounded-lg">
+        <button @click="showDeleteConfirm = false"
+          class="px-5 py-2.5 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200
+                 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-all duration-200 font-medium">
           取消
         </button>
-        <button @click="confirmDelete" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
-          删除
+        <button @click="confirmDelete"
+          class="px-5 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl
+                 hover:shadow-lg hover:shadow-red-500/30 transition-all duration-200 font-semibold
+                 active:scale-95 flex items-center gap-2">
+          <Trash2 class="w-4 h-4" />
+          <span>删除</span>
         </button>
       </template>
     </CommonModal>
@@ -513,26 +562,105 @@ const exportEmail = (format: 'eml' | 'pdf') => {
 
 <style scoped>
 .btn-icon {
-  @apply p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-all;
+  @apply p-2.5 rounded-xl text-gray-500 dark:text-gray-400
+         hover:bg-gray-100 dark:hover:bg-gray-800
+         hover:text-gray-900 dark:hover:text-white
+         transition-all duration-200 hover:scale-105 active:scale-95;
 }
 
 .btn-primary {
-  @apply flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors font-medium shadow-md shadow-primary/20;
+  @apply flex items-center gap-2.5 px-7 py-3
+         bg-gradient-to-r from-primary to-primary-hover text-white
+         rounded-xl hover:shadow-lg hover:shadow-primary/30
+         transition-all duration-200 font-semibold
+         active:scale-95 hover:-translate-y-0.5;
 }
 
 .btn-secondary {
-  @apply flex items-center gap-2 px-6 py-2.5 bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors font-medium;
+  @apply flex items-center gap-2.5 px-6 py-3
+         bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300
+         rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700
+         transition-all duration-200 font-semibold
+         hover:shadow-md active:scale-95;
 }
 
 /* 验证码按钮滑入动画 */
 .slide-up-enter-active,
 .slide-up-leave-active {
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .slide-up-enter-from,
 .slide-up-leave-to {
   opacity: 0;
   transform: translateY(20px);
+}
+
+/* 邮件内容区域平滑滚动 */
+.email-detail-container {
+  scroll-behavior: smooth;
+}
+
+/* 自定义滚动条 */
+.email-detail-container ::-webkit-scrollbar {
+  width: 8px;
+}
+
+.email-detail-container ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.email-detail-container ::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.3);
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.email-detail-container ::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.5);
+}
+
+.dark .email-detail-container ::-webkit-scrollbar-thumb {
+  background: rgba(75, 85, 99, 0.4);
+}
+
+.dark .email-detail-container ::-webkit-scrollbar-thumb:hover {
+  background: rgba(75, 85, 99, 0.6);
+}
+
+/* 邮件内容样式覆盖 - 确保在暗色模式下可读 */
+/* 覆盖邮件HTML中可能存在的白色/浅色背景 */
+.prose :deep(div),
+.prose :deep(p),
+.prose :deep(table),
+.prose :deep(td),
+.prose :deep(th),
+.prose :deep(span) {
+  background-color: transparent !important;
+  background: transparent !important;
+}
+
+/* 暗色模式下强制文字颜色 */
+.dark .prose :deep(*) {
+  color: inherit !important;
+}
+
+/* 确保链接在暗色模式下可见 */
+.dark .prose :deep(a) {
+  color: #60a5fa !important;
+}
+
+/* 表格边框在暗色模式下可见 */
+.dark .prose :deep(table),
+.dark .prose :deep(td),
+.dark .prose :deep(th) {
+  border-color: rgba(75, 85, 99, 0.5) !important;
+}
+
+/* 代码块在暗色模式下的背景 */
+.dark .prose :deep(code),
+.dark .prose :deep(pre) {
+  background-color: rgba(39, 39, 42, 0.5) !important;
+  color: #e5e7eb !important;
 }
 </style>

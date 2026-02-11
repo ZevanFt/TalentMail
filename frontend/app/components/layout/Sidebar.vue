@@ -229,7 +229,7 @@ const isActive = (path: string) => route.path === path
 
 <template>
   <aside
-    class="sidebar-glass w-64 h-full bg-gray-50/50 dark:bg-bg-panelDark/50 border-r border-gray-200 dark:border-border-dark flex flex-col shrink-0 transition-colors duration-200 pt-4 font-sans select-none">
+    class="sidebar-glass w-64 h-full border-r border-gray-200/50 dark:border-border-dark/50 flex flex-col shrink-0 transition-colors duration-200 pt-4 font-sans select-none">
 
     <!-- 写邮件 -->
     <div class="px-3 mb-2">
@@ -471,7 +471,7 @@ const isActive = (path: string) => route.path === path
 }
 
 .nav-item.active {
-  @apply bg-white dark:bg-gray-800 text-primary dark:text-primary font-bold shadow-sm;
+  @apply text-primary dark:text-primary font-bold shadow-sm;
 }
 
 .sub-item {
@@ -479,7 +479,7 @@ const isActive = (path: string) => route.path === path
 }
 
 .sub-item.active {
-  @apply bg-white dark:bg-gray-800 text-primary dark:text-primary font-bold;
+  @apply text-primary dark:text-primary font-bold;
 }
 
 .count-badge {

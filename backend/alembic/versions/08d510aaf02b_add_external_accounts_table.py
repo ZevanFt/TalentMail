@@ -11,10 +11,32 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 
-# 导入安全操作工具
-from alembic.versions.safe_operations import (
-    index_exists, column_exists, safe_drop_index, safe_alter_column
-)
+
+# 辅助函数：检查索引是否存在
+def index_exists(index_name: str, table_name: str = None) -> bool:
+    """检查索引是否存在"""
+    conn = op.get_bind()
+    if table_name:
+        result = conn.execute(sa.text(
+            "SELECT 1 FROM pg_indexes "
+            "WHERE indexname = :index_name AND tablename = :table_name"
+        ), {"index_name": index_name, "table_name": table_name})
+    else:
+        result = conn.execute(sa.text(
+            "SELECT 1 FROM pg_indexes WHERE indexname = :index_name"
+        ), {"index_name": index_name})
+    return result.fetchone() is not None
+
+
+# 辅助函数：检查列是否存在
+def column_exists(table_name: str, column_name: str) -> bool:
+    """检查列是否存在"""
+    conn = op.get_bind()
+    result = conn.execute(sa.text(
+        "SELECT 1 FROM information_schema.columns "
+        "WHERE table_name = :table_name AND column_name = :column_name"
+    ), {"table_name": table_name, "column_name": column_name})
+    return result.fetchone() is not None
 
 
 # revision identifiers, used by Alembic.

@@ -375,73 +375,153 @@ const handleTemplateClear = () => {
 </script>
 
 <template>
-  <!-- 草稿确认对话框 -->
+  <!-- 草稿确认对话框 - 改进样式 -->
   <CommonModal v-model="showDraftConfirm" title="保存草稿？" widthClass="w-full max-w-sm">
-    <p class="text-gray-600 dark:text-gray-400">是否将当前内容保存为草稿？</p>
+    <div class="flex items-start gap-3 py-2">
+      <div class="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center shrink-0">
+        <svg class="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path>
+        </svg>
+      </div>
+      <div>
+        <p class="text-gray-700 dark:text-gray-300 font-medium">是否将当前内容保存为草稿？</p>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">保存后可在草稿箱中继续编辑</p>
+      </div>
+    </div>
     <template #footer>
-      <button @click="discardDraft" class="px-4 py-2 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200">
+      <button @click="discardDraft"
+        class="px-5 py-2.5 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200
+               hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-all duration-200 font-medium">
         不保存
       </button>
-      <button @click="handleSaveDraft" :disabled="savingDraft" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover disabled:opacity-50">
-        {{ savingDraft ? '保存中...' : '保存草稿' }}
+      <button @click="handleSaveDraft" :disabled="savingDraft"
+        class="px-5 py-2.5 bg-gradient-to-r from-primary to-primary-hover text-white rounded-xl
+               hover:shadow-lg hover:shadow-primary/30 transition-all duration-200 font-semibold
+               disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+        <Loader2 v-if="savingDraft" class="w-4 h-4 animate-spin" />
+        <span>{{ savingDraft ? '保存中...' : '保存草稿' }}</span>
       </button>
     </template>
   </CommonModal>
 
   <CommonModal v-model="isComposeOpen" :title="modalTitle" widthClass="w-full max-w-3xl" :before-close="beforeClose">
-    <div class="space-y-3">
-      <!-- 模板选择区 -->
-      <div class="flex items-center gap-4 pb-3 border-b border-gray-200 dark:border-gray-700">
+    <div class="space-y-4">
+      <!-- 模板选择区 - 改进样式 -->
+      <div class="flex items-center gap-4 pb-4 border-b border-gray-200 dark:border-gray-700">
         <TemplateSelector
           @select="handleTemplateSelect"
           @clear="handleTemplateClear"
         />
-        <div v-if="appliedTemplate" class="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
+        <div v-if="appliedTemplate" class="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 animate-in fade-in slide-in-from-left-2 duration-200">
           <FileText class="w-4 h-4" />
-          <span>已应用: {{ appliedTemplate.name }}</span>
+          <span class="font-medium">已应用: {{ appliedTemplate.name }}</span>
         </div>
       </div>
-      
-      <div v-if="error" class="text-red-500 text-sm">{{ error }}</div>
-      <div class="flex items-center gap-2">
-        <input v-model="recipients" type="text" placeholder="收件人 (多个用逗号分隔)" class="flex-1 px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
-        <button v-if="!showCc" @click="showCc = true" class="text-sm text-gray-500 hover:text-primary px-2">抄送</button>
+
+      <!-- 错误提示 - 改进样式 -->
+      <div v-if="error" class="px-4 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-600 dark:text-red-400 text-sm flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <span>{{ error }}</span>
       </div>
-      <div v-if="showCc">
-        <input v-model="ccRecipients" type="text" placeholder="抄送 (多个用逗号分隔)" class="w-full px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
+
+      <!-- 收件人 - 改进样式 -->
+      <div class="flex items-stretch gap-2">
+        <div class="flex-1 relative group">
+          <input v-model="recipients" type="text" placeholder="收件人 (多个用逗号分隔)"
+            class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900/50 border-2 border-gray-200 dark:border-gray-700 rounded-xl
+                   focus:bg-white dark:focus:bg-gray-900 focus:ring-2 focus:ring-primary/30 focus:border-primary
+                   outline-none transition-all duration-200 placeholder:text-gray-400">
+          <div class="absolute inset-0 -z-10 bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 rounded-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300"></div>
+        </div>
+        <button v-if="!showCc" @click="showCc = true"
+          class="px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary
+                 bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800 border-2 border-gray-200 dark:border-gray-700
+                 rounded-xl transition-all duration-200 hover:scale-105">
+          抄送
+        </button>
       </div>
-      <div>
-        <input v-model="subject" type="text" placeholder="主题" class="w-full px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
+
+      <!-- 抄送 - 改进动画 -->
+      <div v-if="showCc" class="relative group animate-in fade-in slide-in-from-top-2 duration-200">
+        <input v-model="ccRecipients" type="text" placeholder="抄送 (多个用逗号分隔)"
+          class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900/50 border-2 border-gray-200 dark:border-gray-700 rounded-xl
+                 focus:bg-white dark:focus:bg-gray-900 focus:ring-2 focus:ring-primary/30 focus:border-primary
+                 outline-none transition-all duration-200 placeholder:text-gray-400">
+        <div class="absolute inset-0 -z-10 bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 rounded-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300"></div>
       </div>
-      <div>
-        <textarea v-model="body" placeholder="内容..." class="w-full h-64 px-4 py-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all resize-none custom-scrollbar"></textarea>
+
+      <!-- 主题 - 改进样式 -->
+      <div class="relative group">
+        <input v-model="subject" type="text" placeholder="主题"
+          class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900/50 border-2 border-gray-200 dark:border-gray-700 rounded-xl
+                 focus:bg-white dark:focus:bg-gray-900 focus:ring-2 focus:ring-primary/30 focus:border-primary
+                 outline-none transition-all duration-200 placeholder:text-gray-400">
+        <div class="absolute inset-0 -z-10 bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 rounded-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300"></div>
+      </div>
+
+      <!-- 正文 - 改进样式 -->
+      <div class="relative group">
+        <textarea v-model="body" placeholder="输入邮件内容..."
+          class="w-full h-64 px-4 py-3 bg-gray-50 dark:bg-gray-900/50 border-2 border-gray-200 dark:border-gray-700 rounded-xl
+                 focus:bg-white dark:focus:bg-gray-900 focus:ring-2 focus:ring-primary/30 focus:border-primary
+                 outline-none transition-all duration-200 resize-none custom-scrollbar placeholder:text-gray-400"></textarea>
+        <div class="absolute inset-0 -z-10 bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 rounded-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300"></div>
       </div>
     </div>
 
     <template #footer>
-      <div class="flex items-center gap-2 mr-auto">
+      <!-- 附件区域 - 改进样式 -->
+      <div class="flex items-center gap-3 mr-auto">
         <input ref="fileInput" type="file" multiple class="hidden" @change="handleFileSelect" />
-        <button @click="fileInput?.click()" :disabled="uploading" class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-          <Loader2 v-if="uploading" class="w-5 h-5 animate-spin" />
+        <button @click="fileInput?.click()" :disabled="uploading"
+          class="p-2.5 text-gray-500 hover:text-primary dark:hover:text-primary bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700
+                 rounded-xl transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+          title="添加附件">
+          <Loader2 v-if="uploading" class="w-5 h-5 animate-spin text-primary" />
           <Paperclip v-else class="w-5 h-5" />
         </button>
-        <div v-if="attachments.length" class="flex flex-wrap gap-1">
-          <span v-for="att in attachments" :key="att.id" class="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs text-gray-600 dark:text-gray-400">
-            {{ att.filename }} ({{ formatFileSize(att.size) }})
-            <button @click="removeAttachment(att)" class="hover:text-red-500"><X class="w-3 h-3" /></button>
+        <!-- 附件列表 - 改进卡片样式 -->
+        <div v-if="attachments.length" class="flex flex-wrap gap-2 max-w-md">
+          <span v-for="att in attachments" :key="att.id"
+            class="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700
+                   border border-gray-200 dark:border-gray-600 rounded-lg text-xs text-gray-700 dark:text-gray-300
+                   shadow-sm hover:shadow transition-all duration-200 group">
+            <Paperclip class="w-3 h-3 text-gray-400 group-hover:text-primary transition-colors" />
+            <span class="font-medium">{{ att.filename }}</span>
+            <span class="text-gray-400">({{ formatFileSize(att.size) }})</span>
+            <button @click="removeAttachment(att)"
+              class="ml-1 p-0.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors group/btn"
+              title="删除附件">
+              <X class="w-3 h-3 text-gray-400 group-hover/btn:text-red-500 transition-colors" />
+            </button>
           </span>
         </div>
       </div>
-      <button @click="isTracked = !isTracked" class="flex items-center gap-2 text-sm mr-4 transition-colors" :class="isTracked ? 'text-primary' : 'text-gray-400'">
-        <div class="relative w-9 h-5 rounded-full transition-colors" :class="isTracked ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'">
-          <div class="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform" :class="isTracked ? 'translate-x-4' : 'translate-x-0.5'"></div>
+
+      <!-- 追踪开关 - 改进样式 -->
+      <button @click="isTracked = !isTracked"
+        class="flex items-center gap-2.5 px-3 py-2 text-sm font-medium mr-4 rounded-xl transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-800"
+        :class="isTracked ? 'text-primary' : 'text-gray-500 dark:text-gray-400'">
+        <div class="relative w-10 h-5 rounded-full transition-all duration-200 shadow-inner"
+          :class="isTracked ? 'bg-primary shadow-primary/30' : 'bg-gray-300 dark:bg-gray-600'">
+          <div class="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-md transition-all duration-200"
+            :class="isTracked ? 'translate-x-5' : 'translate-x-0.5'"></div>
         </div>
-        <Eye class="w-4 h-4" />
-        <span>追踪</span>
+        <Eye class="w-4 h-4 transition-transform duration-200" :class="isTracked ? 'scale-110' : ''" />
+        <span class="transition-colors">追踪</span>
       </button>
-      <button @click="handleSend" :disabled="sending" class="flex items-center gap-2 px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover shadow-lg shadow-primary/20 transition-all font-medium disabled:opacity-50">
+
+      <!-- 发送按钮 - 改进样式 -->
+      <button @click="handleSend" :disabled="sending"
+        class="flex items-center gap-2.5 px-7 py-2.5 bg-gradient-to-r from-primary to-primary-hover text-white
+               rounded-xl hover:shadow-lg hover:shadow-primary/30 active:scale-95
+               transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed
+               disabled:hover:shadow-none disabled:active:scale-100">
         <Loader2 v-if="sending" class="w-4 h-4 animate-spin" />
-        <Send v-else class="w-4 h-4" /> {{ sending ? '发送中...' : '发送' }}
+        <Send v-else class="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+        <span>{{ sending ? '发送中...' : '发送' }}</span>
       </button>
     </template>
   </CommonModal>

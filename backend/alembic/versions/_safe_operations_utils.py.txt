@@ -2,9 +2,9 @@
 安全迁移操作工具集
 
 提供检查数据库对象是否存在的辅助函数，避免迁移脚本因对象不存在而失败。
-在迁移脚本中使用:
+在迁移脚本中使用（相对导入）:
 
-from alembic.versions.safe_operations import (
+from .safe_operations import (
     table_exists, column_exists, index_exists, constraint_exists,
     safe_drop_index, safe_drop_column, safe_add_column
 )

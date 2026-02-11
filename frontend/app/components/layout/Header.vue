@@ -83,7 +83,7 @@ const copyEmail = async () => {
 
 <template>
     <header
-        class="header-glass h-14 bg-white dark:bg-bg-panelDark border-b border-gray-200 dark:border-border-dark flex items-center justify-between px-4 shrink-0 transition-colors duration-200 z-20 relative">
+        class="header-glass h-14 border-b border-gray-200/50 dark:border-border-dark/50 flex items-center justify-between px-4 shrink-0 transition-colors duration-200 z-20 relative">
 
         <!-- 左侧 Logo -->
         <NuxtLink to="/" class="w-64 flex items-center gap-2 shrink-0 hover:opacity-80 transition-opacity">

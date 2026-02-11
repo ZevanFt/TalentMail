@@ -9,16 +9,31 @@ type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
 
 export const useApi = () => {
   const token = useCookie('token')
+  const router = useRouter()
 
   const api = async <T>(url: string, method: HttpMethod = 'GET', body?: any): Promise<T> => {
-    return await $fetch<T>(`${API_BASE}${url}`, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token.value ? { Authorization: `Bearer ${token.value}` } : {})
-      },
-      body: body ? JSON.stringify(body) : undefined
-    })
+    try {
+      return await $fetch<T>(`${API_BASE}${url}`, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token.value ? { Authorization: `Bearer ${token.value}` } : {})
+        },
+        body: body ? JSON.stringify(body) : undefined
+      })
+    } catch (error: any) {
+      // 处理 401 未授权错误 - Token 失效
+      if (error?.response?.status === 401 || error?.statusCode === 401) {
+        // 清除失效的 token
+        token.value = null
+        // 跳转到登录页
+        if (import.meta.client) {
+          router.push('/login')
+        }
+      }
+      // 重新抛出错误，让调用方可以处理
+      throw error
+    }
   }
 
   // Auth
