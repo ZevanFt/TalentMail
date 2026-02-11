@@ -82,4 +82,19 @@ else
     echo "auth-master.inc 已启用，跳过"
 fi
 
+# 配置 OpenDKIM 允许从 /tmp 路径加载密钥
+echo "配置 OpenDKIM 允许从 /tmp 加载密钥..."
+if [ -f /etc/opendkim.conf ]; then
+    # 添加 RequireSafeKeys no 配置（允许从 /tmp 加载密钥）
+    if ! grep -q "^RequireSafeKeys" /etc/opendkim.conf; then
+        echo "RequireSafeKeys no" >> /etc/opendkim.conf
+        echo "已添加 RequireSafeKeys no 配置"
+    else
+        sed -i 's/^RequireSafeKeys.*/RequireSafeKeys no/' /etc/opendkim.conf
+        echo "已更新 RequireSafeKeys 配置"
+    fi
+else
+    echo "警告：未找到 /etc/opendkim.conf 文件"
+fi
+
 echo "=== TalentMail 自定义配置完成 ==="

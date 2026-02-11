@@ -384,6 +384,23 @@ fi
 
 echo ""
 
+# 13. 自动配置 DKIM 签名（防止邮件进垃圾箱）
+info "🔐 自动配置 DKIM 邮件签名..."
+echo ""
+
+# 调用 DKIM 配置脚本
+if [ -f "scripts/setup_dkim.sh" ]; then
+    bash scripts/setup_dkim.sh || {
+        warn "DKIM 配置失败"
+        warn "请稍后手动执行: bash scripts/setup_dkim.sh"
+    }
+else
+    warn "DKIM 配置脚本不存在，跳过 DKIM 配置"
+    warn "发送外部邮件可能进垃圾箱"
+fi
+
+echo ""
+
 # 读取生成的域名信息
 WEB_DOMAIN=$(cat .env.domains | grep WEB_DOMAIN | cut -d'=' -f2)
 MAIL_SERVER=$(cat .env.domains | grep MAIL_SERVER | cut -d'=' -f2)
