@@ -26,16 +26,16 @@ echo "🔐 [2/4] 配置 Master user 认证..."
 echo "生成密码哈希..."
 docker exec "$CONTAINER_NAME" bash -c "
 PASSWORD_HASH=\$(doveadm pw -s SHA512-CRYPT -p '$MASTER_PASSWORD' 2>&1)
-echo '${MASTER_USER}:\$PASSWORD_HASH' > /etc/dovecot/masterdb
-chown dovecot:dovecot /etc/dovecot/masterdb
-chmod 600 /etc/dovecot/masterdb
+echo '${MASTER_USER}:\$PASSWORD_HASH' > /etc/dovecot/master-users
+chown dovecot:dovecot /etc/dovecot/master-users
+chmod 600 /etc/dovecot/master-users
 "
 
-echo "验证 masterdb 文件..."
-if docker exec "$CONTAINER_NAME" test -s /etc/dovecot/masterdb; then
-    echo "  ✅ masterdb 文件已创建"
+echo "验证 master-users 文件..."
+if docker exec "$CONTAINER_NAME" test -s /etc/dovecot/master-users; then
+    echo "  ✅ master-users 文件已创建"
 else
-    echo "  ❌ masterdb 文件创建失败"
+    echo "  ❌ master-users 文件创建失败"
     exit 1
 fi
 
@@ -67,7 +67,7 @@ else
     echo "  ❌ Master user 认证失败"
     echo ""
     echo "查看日志："
-    docker logs "$CONTAINER_NAME" --tail 20 | grep -E "auth:|masterdb"
+    docker logs "$CONTAINER_NAME" --tail 20 | grep -E "auth:|master-users"
     exit 1
 fi
 

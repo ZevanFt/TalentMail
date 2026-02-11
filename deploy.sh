@@ -367,6 +367,23 @@ else:
 db.close()
 PYTHON_SCRIPT
 
+# 12. 自动修复邮件系统（权限 + STARTTLS 配置）
+info "🔧 自动修复邮件系统..."
+echo ""
+
+# 调用邮件修复脚本
+if [ -f "scripts/fix_mail_permissions.sh" ]; then
+    bash scripts/fix_mail_permissions.sh || {
+        warn "邮件系统自动修复失败"
+        warn "请稍后手动执行: bash scripts/fix_mail_permissions.sh"
+    }
+else
+    warn "修复脚本不存在，跳过邮件系统修复"
+    warn "邮件功能可能需要手动修复"
+fi
+
+echo ""
+
 # 读取生成的域名信息
 WEB_DOMAIN=$(cat .env.domains | grep WEB_DOMAIN | cut -d'=' -f2)
 MAIL_SERVER=$(cat .env.domains | grep MAIL_SERVER | cut -d'=' -f2)

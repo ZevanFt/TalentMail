@@ -68,11 +68,11 @@ MASTER_PASSWORD="SyncMasterPassword123"
 echo "生成 Master user 密码哈希..."
 PASSWORD_HASH=$(doveadm pw -s SHA512-CRYPT -p "$MASTER_PASSWORD" | cut -d'}' -f2)
 
-# 创建 masterdb 文件（docker-mailserver 标准路径）
-echo "${MASTER_USER}:{SHA512-CRYPT}${PASSWORD_HASH}" > /etc/dovecot/masterdb
-chown dovecot:dovecot /etc/dovecot/masterdb
-chmod 600 /etc/dovecot/masterdb
-echo "masterdb 文件已创建"
+# 创建 master-users 文件（Dovecot 标准路径）
+echo "${MASTER_USER}:{SHA512-CRYPT}${PASSWORD_HASH}" > /etc/dovecot/master-users
+chown dovecot:dovecot /etc/dovecot/master-users
+chmod 600 /etc/dovecot/master-users
+echo "master-users 文件已创建"
 
 # 在 10-auth.conf 中启用 auth-master.inc
 if ! grep -q "!include auth-master.inc" /etc/dovecot/conf.d/10-auth.conf; then
