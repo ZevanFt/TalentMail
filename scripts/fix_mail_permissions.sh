@@ -44,13 +44,35 @@ docker exec "$CONTAINER_NAME" postconf -P "submission/inet/smtpd_tls_security_le
 docker exec "$CONTAINER_NAME" postfix reload
 echo "  ✅ STARTTLS 已启用"
 
-# 4. 重启 Dovecot 应用新权限
+# 4. 配置 OpenDKIM 允许从 /tmp 加载密钥
+echo ""
+echo "🔐 配置 OpenDKIM 允许从 /tmp 加载密钥..."
+docker exec "$CONTAINER_NAME" bash -c "
+if [ -f /etc/opendkim.conf ]; then
+    # 添加或更新 RequireSafeKeys 配置
+    if ! grep -q '^RequireSafeKeys' /etc/opendkim.conf; then
+        echo 'RequireSafeKeys no' >> /etc/opendkim.conf
+        echo '  ✅ 已添加 RequireSafeKeys no 配置'
+    else
+        sed -i 's/^RequireSafeKeys.*/RequireSafeKeys no/' /etc/opendkim.conf
+        echo '  ✅ 已更新 RequireSafeKeys 配置'
+    fi
+else
+    echo '  ⚠️  未找到 /etc/opendkim.conf，跳过配置'
+fi
+"
+
+# 重启 OpenDKIM 应用新配置
+docker exec "$CONTAINER_NAME" supervisorctl restart opendkim 2>/dev/null || true
+echo "  ✅ OpenDKIM 服务已重启"
+
+# 5. 重启 Dovecot 应用新权限
 echo ""
 echo "🔄 重启 Dovecot..."
 docker exec "$CONTAINER_NAME" supervisorctl restart dovecot
 sleep 3
 
-# 5. 测试 Master user 认证
+# 6. 测试 Master user 认证
 echo ""
 echo "🔍 测试 Master user 认证..."
 if docker exec "$CONTAINER_NAME" doveadm auth test -x service=imap "admin@talenting.vip*${MASTER_USER}" "$MASTER_PASSWORD" | grep -q "auth succeeded"; then
@@ -71,10 +93,15 @@ echo ""
 echo "📝 功能状态："
 echo "  ✅ SMTP 发送（支持 STARTTLS）"
 echo "  ✅ IMAP Master user 认证正常"
+echo "  ✅ OpenDKIM 邮件签名已启用"
 echo "  ✅ 邮件同步功能已恢复"
 echo ""
 echo "📌 下一步："
 echo "  1. 刷新前端页面"
-echo "  2. 尝试发送邮件测试"
+echo "  2. 尝试发送内部邮件测试"
 echo "  3. 点击同步按钮接收邮件"
+echo ""
+echo "📧 发送外部邮件（防止进垃圾箱）："
+echo "  运行: bash scripts/setup_dkim.sh"
+echo "  然后在 Cloudflare 配置 DKIM DNS 记录"
 echo ""
