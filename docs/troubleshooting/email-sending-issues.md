@@ -379,5 +379,81 @@ telnet maillink.talenting.vip 143
 
 ---
 
-**最后更新：** 2026-02-12
+---
+
+## 待解决问题（2026-03-03 记录）
+
+### 问题 A：Web 前端发送邮件失败
+
+**症状**：在 `https://mail.talenting.vip` 网页上点击发送邮件，提示发送失败。
+
+**影响**：用户无法通过 Web 界面发送邮件。收邮件正常（已修复）。
+
+**可能原因**（待排查）：
+1. SMTP 认证配置问题（Postfix submission 端口 587 的 SASL 认证）
+2. OpenDKIM 签名失败导致 Postfix 拒绝发送（参见故障 1）
+3. Backend 发邮件代码的 SMTP 连接参数不对
+4. STARTTLS 配置问题
+
+**排查步骤**：
+```bash
+# 1. 在网页上尝试发送邮件，然后立即查看 backend 日志
+cd /root/projects/TalentMail
+docker compose logs --tail=30 backend 2>&1 | grep -i "send\|smtp\|mail\|error"
+
+# 2. 查看 mailserver 日志
+docker compose logs --tail=30 mailserver 2>&1 | grep -i "reject\|error\|auth\|sasl"
+
+# 3. 检查 SMTP submission 端口是否监听
+docker compose exec mailserver ss -tlnp | grep 587
+
+# 4. 检查 OpenDKIM 状态
+docker compose exec mailserver supervisorctl status opendkim
+```
+
+**优先级**：中（收邮件已通，注册流水线不依赖发邮件功能）
+
+---
+
+### 问题 B：历史临时邮箱脏数据导致大量 IMAP 报错
+
+**症状**：backend 同步日志每 30 秒产生大量 `user not found from userdb` 错误。
+
+**涉及邮箱**：
+- `0qwr7oms@talenting.vip`
+- `codex-reg@talenting.vip`
+- `codex-596b6e@talenting.vip`
+- `cx-4de80a@talenting.vip`
+- `cx72b998@talenting.vip`
+
+**原因**：这些临时邮箱只在 PostgreSQL 的 `temp_mailboxes` 表中有记录，但从未在 docker-mailserver 中创建过（缺少 `setup email add`），导致 mail_sync.py 用 Master user IMAP 登录时失败。
+
+**解决方案**（二选一）：
+
+方案 1 — 清理 PostgreSQL 中的脏数据（推荐）：
+```bash
+cd /root/projects/TalentMail
+docker compose exec db psql -U talentmail -d talentmail -c "
+  SELECT id, address, created_at FROM temp_mailboxes;
+"
+# 确认后删除无用的临时邮箱记录
+docker compose exec db psql -U talentmail -d talentmail -c "
+  DELETE FROM temp_mailboxes WHERE address IN (
+    '0qwr7oms@talenting.vip',
+    'codex-reg@talenting.vip',
+    'codex-596b6e@talenting.vip',
+    'cx-4de80a@talenting.vip',
+    'cx72b998@talenting.vip'
+  );
+"
+```
+
+方案 2 — 在 mail_sync.py 中把 IMAP 登录失败降为 debug 级别（已实现，但日志仍多）：
+- 代码已处理，但 Dovecot 自身的 Error 日志无法从 backend 侧控制
+
+**优先级**：低（不影响功能，只是日志噪音）
+
+---
+
+**最后更新：** 2026-03-03
 **维护者：** TalentMail Team
