@@ -1,100 +1,90 @@
 #!/bin/bash
 
-# This script is executed during docker-mailserver startup
-# It installs dovecot-pgsql for PostgreSQL authentication support
-# and configures Postfix to use Dovecot SASL
+# TalentMail 自定义配置脚本
+# dovecot-pgsql 和 netcat 已在 Dockerfile 中预装
+#
+# 邮件投递架构：
+#   外部邮件 → Postfix (port 25) → Dovecot LMTP (默认) → 邮件存储
+#   Backend mail_sync.py 每 30 秒通过 IMAP Master user 同步到 PostgreSQL
 
-echo "=== TalentMail 自定义配置脚本 ==="
+echo "=== TalentMail 配置脚本开始 ==="
 
-# 使用阿里云镜像源加速下载（解决网络慢的问题）
-# 备份原有源
-cp /etc/apt/sources.list /etc/apt/sources.list.bak 2>/dev/null || true
-
-# 检测 Debian 版本并设置镜像源
-if [ -f /etc/os-release ]; then
-    . /etc/os-release
-    CODENAME=${VERSION_CODENAME:-bookworm}
-else
-    CODENAME="bookworm"
-fi
-
-# 写入阿里云镜像源
-cat > /etc/apt/sources.list << EOF
-deb https://mirrors.aliyun.com/debian/ ${CODENAME} main contrib non-free non-free-firmware
-deb https://mirrors.aliyun.com/debian/ ${CODENAME}-updates main contrib non-free non-free-firmware
-deb https://mirrors.aliyun.com/debian-security ${CODENAME}-security main contrib non-free non-free-firmware
-EOF
-
-echo "使用阿里云镜像源加速下载..."
-
-# 检查 dovecot-pgsql 是否已安装
-if ! dpkg -l | grep -q dovecot-pgsql; then
-    echo "安装 dovecot-pgsql..."
-    apt-get update -qq
-    apt-get install -y -qq dovecot-pgsql
-    echo "dovecot-pgsql 安装成功"
-else
-    echo "dovecot-pgsql 已安装，跳过"
-fi
-
-# 配置 Postfix 使用 Dovecot SASL 认证
-# 这样 Postfix 会通过 Dovecot 来验证用户，而 Dovecot 会查询我们的 PostgreSQL 数据库
-echo "配置 Postfix 使用 Dovecot SASL..."
-postconf -e "smtpd_sasl_type=dovecot"
-postconf -e "smtpd_sasl_path=/dev/shm/sasl-auth.sock"
-# 允许非加密连接进行认证（解决开发环境 Thunderbird 连接超时问题）
-postconf -e "smtpd_tls_auth_only=no"
-# 尝试降低 TLS 安全级别，允许自签名证书
-postconf -e "smtpd_tls_security_level=may"
-# 配置 submission 端口的 TLS 设置（may = 支持但不强制 STARTTLS）
-postconf -P "submission/inet/smtpd_tls_security_level=may"
-
-# 配置 Dovecot 允许用户名中包含 * 字符（用于 Master user 认证）
-echo "配置 Dovecot 允许 Master user 认证格式 (user*master)..."
-if ! grep -q "auth_username_chars" /etc/dovecot/dovecot.conf 2>/dev/null; then
-    echo "auth_username_chars = abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890.-_@*" >> /etc/dovecot/dovecot.conf
-    echo "添加 auth_username_chars 配置成功"
-else
-    sed -i 's/^auth_username_chars.*/auth_username_chars = abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890.-_@*/' /etc/dovecot/dovecot.conf
-    echo "更新 auth_username_chars 配置成功"
-fi
-
-# 配置 docker-mailserver 标准 Master user（使用 auth-master.inc）
-echo "配置 docker-mailserver Master user..."
+# ---- 1. Dovecot Master user（用于 IMAP 邮件同步）----
+echo "配置 Dovecot Master user..."
 MASTER_USER="sync_master"
 MASTER_PASSWORD="SyncMasterPassword123"
-
-# 生成 SHA512-CRYPT 密码哈希
-echo "生成 Master user 密码哈希..."
-PASSWORD_HASH=$(doveadm pw -s SHA512-CRYPT -p "$MASTER_PASSWORD" | cut -d'}' -f2)
-
-# 创建 master-users 文件（Dovecot 标准路径）
-echo "${MASTER_USER}:{SHA512-CRYPT}${PASSWORD_HASH}" > /etc/dovecot/master-users
+echo "${MASTER_USER}:{PLAIN}${MASTER_PASSWORD}" > /etc/dovecot/master-users
 chown dovecot:dovecot /etc/dovecot/master-users
 chmod 600 /etc/dovecot/master-users
 echo "master-users 文件已创建"
 
-# 在 10-auth.conf 中启用 auth-master.inc
-if ! grep -q "!include auth-master.inc" /etc/dovecot/conf.d/10-auth.conf; then
-    sed -i "/!include auth-sql.conf.ext/i !include auth-master.inc" /etc/dovecot/conf.d/10-auth.conf
-    echo "已在 10-auth.conf 中启用 auth-master.inc"
-else
-    echo "auth-master.inc 已启用，跳过"
-fi
+# ---- 2. Dovecot 配置（master user + socket 权限）----
+cat > /etc/dovecot/conf.d/99-talentmail.conf << 'DOVECOT_EOF'
+# Master user 认证（用于 mail_sync.py 通过 IMAP 同步邮件到数据库）
+auth_master_user_separator = *
+passdb {
+  driver = passwd-file
+  master = yes
+  args = /etc/dovecot/master-users
+}
 
-# 配置 OpenDKIM 允许从 /tmp 路径加载密钥
-echo "配置 OpenDKIM 允许从 /tmp 加载密钥..."
+# LMTP socket 权限
+service lmtp {
+  unix_listener lmtp {
+    mode = 0666
+  }
+}
+
+# Auth socket 权限
+service auth {
+  unix_listener auth-userdb {
+    mode = 0777
+  }
+}
+DOVECOT_EOF
+echo "Dovecot 99-talentmail.conf 已写入"
+
+# ---- 3. Postfix SASL 配置 ----
+# 延迟执行以确保 docker-mailserver 初始化完成
+(
+    sleep 10
+
+    echo "配置 Postfix SASL..."
+    postconf -e "smtpd_sasl_type=dovecot"
+    postconf -e "smtpd_sasl_path=/dev/shm/sasl-auth.sock"
+    postconf -e "smtpd_tls_auth_only=no"
+    postconf -e "smtpd_tls_security_level=may"
+    postconf -P "submission/inet/smtpd_tls_security_level=none"
+
+    # 关键修复：移除已损坏的 dual-deliver 传输，恢复默认 Dovecot LMTP 投递
+    CURRENT_TRANSPORT=$(postconf -h virtual_transport 2>/dev/null)
+    if [ "$CURRENT_TRANSPORT" = "dual-deliver" ]; then
+        echo "检测到 dual-deliver 传输，恢复默认 Dovecot LMTP..."
+        postconf -e "virtual_transport=lmtp:unix:private/dovecot-lmtp"
+    fi
+
+    # 从 master.cf 移除 dual-deliver 配置（如有）
+    if grep -q "dual-deliver" /etc/postfix/master.cf 2>/dev/null; then
+        sed -i '/^# 双投递传输$/d' /etc/postfix/master.cf
+        sed -i '/^dual-deliver /,/^[^ ]/{ /^dual-deliver /d; /^  /d; }' /etc/postfix/master.cf
+        echo "已从 master.cf 移除 dual-deliver"
+    fi
+
+    # 重载配置
+    postfix reload
+    supervisorctl restart dovecot
+
+    echo "=== Postfix/Dovecot 配置完成 ==="
+) &
+
+# ---- 4. OpenDKIM 配置 ----
 if [ -f /etc/opendkim.conf ]; then
-    # 添加 RequireSafeKeys no 配置（允许从 /tmp 加载密钥）
     if ! grep -q "^RequireSafeKeys" /etc/opendkim.conf; then
         echo "RequireSafeKeys no" >> /etc/opendkim.conf
-        echo "已添加 RequireSafeKeys no 配置"
     else
         sed -i 's/^RequireSafeKeys.*/RequireSafeKeys no/' /etc/opendkim.conf
-        echo "已更新 RequireSafeKeys 配置"
     fi
-else
-    echo "警告：未找到 /etc/opendkim.conf 文件"
+    echo "OpenDKIM 配置完成"
 fi
 
-echo "=== TalentMail 自定义配置完成 ==="
+echo "=== TalentMail 配置脚本完成 ==="

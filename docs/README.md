@@ -60,6 +60,10 @@ docs/
 - [🧪 测试指南](./04-development/testing-guide.md)
 - [🐛 故障排查](./05-operations/troubleshooting.md)
 
+### 故障排查记录
+- [邮件投递修复 - dual-deliver 链路断裂](./troubleshooting/mail-delivery-fix.md) (2026-03-03)
+- [空白页面问题 - CSS/HTTPS](./troubleshooting/CURRENT_ISSUE_SUMMARY.md) (2026-02-07)
+
 ## 📝 文档维护说明
 
 1. **文档命名规范**：使用小写字母和连字符，如 `system-design.md`
@@ -77,4 +81,4 @@ docs/
 
 ---
 
-最后更新时间：2025-02-01
+最后更新时间：2026-03-03

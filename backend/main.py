@@ -65,9 +65,9 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"LMTP 服务启动失败: {e}")
 
-    # 启动定时邮件同步任务（每5分钟）
-    logger.info("启动定时邮件同步任务（间隔5分钟）...")
-    sync_task = asyncio.create_task(periodic_sync(interval=300))
+    # 启动定时邮件同步任务（每30秒，确保临时邮箱验证码及时到达）
+    logger.info("启动定时邮件同步任务（间隔30秒）...")
+    sync_task = asyncio.create_task(periodic_sync(interval=30))
 
     # 启动定时会话清理任务（每24小时）
     logger.info("启动定时会话清理任务（间隔24小时）...")
