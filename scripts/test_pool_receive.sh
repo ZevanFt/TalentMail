@@ -91,12 +91,13 @@ echo "--- Step 5: 等待 mail_sync 同步到 PostgreSQL (35秒) ---"
 sleep 35
 
 # Step 6: 检查 PostgreSQL 是否有邮件记录
+# mail_sync 把临时邮箱的邮件存入 emails 表，mailbox_address = 临时邮箱地址
 echo "--- Step 6: 检查 PostgreSQL 邮件记录 ---"
-MAILBOX_ID=$(docker compose exec -T db psql -U talentmail -d talentmail -t -c \
-    "SELECT id FROM temp_mailboxes WHERE email = '${TEMP_EMAIL}';" 2>/dev/null | xargs)
+DB_USER=$(grep -E '^POSTGRES_USER=' .env 2>/dev/null | cut -d'=' -f2- || echo "talentmail")
+DB_NAME=$(grep -E '^POSTGRES_DB=' .env 2>/dev/null | cut -d'=' -f2- || echo "talentmail")
 
-DB_COUNT=$(docker compose exec -T db psql -U talentmail -d talentmail -t -c \
-    "SELECT COUNT(*) FROM temp_emails WHERE mailbox_id = ${MAILBOX_ID};" 2>/dev/null | xargs)
+DB_COUNT=$(docker compose exec -T db psql -U "$DB_USER" -d "$DB_NAME" -t -c \
+    "SELECT COUNT(*) FROM emails WHERE mailbox_address = '${TEMP_EMAIL}';" 2>/dev/null | xargs)
 
 if [ "$DB_COUNT" -gt 0 ]; then
     pass "mail_sync 同步成功！PostgreSQL 中有 ${DB_COUNT} 封邮件"
