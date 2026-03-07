@@ -107,7 +107,13 @@ class TempMailbox(Base):
     email = Column(String, unique=True, nullable=False, comment="临时邮箱地址")
     purpose = Column(String, nullable=True, comment="创建该临时邮箱的用途")
     auto_verify_codes = Column(Boolean, default=False, comment="是否自动提取邮件中的验证码")
+    status = Column(String(32), default="active", nullable=False, comment="生命周期状态: active/expired_recoverable/purged")
     is_active = Column(Boolean, default=True, comment="是否激活")
+    expires_at = Column(DateTime(timezone=True), nullable=True, comment="过期时间")
+    recovery_until = Column(DateTime(timezone=True), nullable=True, comment="恢复截止时间")
+    expired_at = Column(DateTime(timezone=True), nullable=True, comment="首次进入过期状态的时间")
+    purged_at = Column(DateTime(timezone=True), nullable=True, comment="被彻底清理的时间")
+    last_extended_at = Column(DateTime(timezone=True), nullable=True, comment="最近一次续期/恢复时间")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="创建时间")
     owner = relationship("User")
 

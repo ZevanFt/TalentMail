@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Search, Plus, RefreshCw, Copy, Mail, History, BarChart, Trash2, Star, Box, ArrowLeft, Check } from 'lucide-vue-next'
 const { isGenerateOpen, isHistoryOpen, isStatsOpen } = useGlobalModal()
-const { getPoolMailboxes, getPoolMailboxEmails, deletePoolMailbox, getPoolStats, getMe, markPoolEmailRead } = useApi()
+const { getPoolMailboxes, getPoolMailboxEmails, deletePoolMailbox, getPoolStats, getMe, markPoolEmailRead, extendPoolMailbox, restorePoolMailbox } = useApi()
 const router = useRouter()
 
 definePageMeta({ layout: 'pool' })
@@ -17,7 +17,10 @@ interface Mailbox {
     purpose: string | null
     auto_verify_codes: boolean
     is_active: boolean
+    status: 'active' | 'expired_recoverable' | 'purged'
     created_at: string
+    expires_at: string | null
+    recovery_until: string | null
     unread_count: number
 }
 
@@ -34,7 +37,7 @@ const mailboxes = ref<Mailbox[]>([])
 const selectedMailbox = ref<Mailbox | null>(null)
 const emails = ref<PoolEmail[]>([])
 const selectedEmail = ref<PoolEmail | null>(null)
-const stats = ref({ active_mailboxes: 0, total_emails: 0 })
+const stats = ref({ active_mailboxes: 0, recoverable_mailboxes: 0, total_emails: 0 })
 const searchQuery = ref('')
 const copiedCode = ref<string | null>(null)
 
@@ -88,7 +91,44 @@ const loadStats = async () => {
 // 选择邮箱
 const selectMailbox = (mailbox: Mailbox) => {
     selectedMailbox.value = mailbox
+    selectedEmail.value = null
     loadEmails()
+}
+
+const formatCountdown = (dateStr: string | null) => {
+    if (!dateStr) return '-'
+    const diff = new Date(dateStr).getTime() - Date.now()
+    if (diff <= 0) return '已过期'
+    const h = Math.floor(diff / 3600000)
+    const m = Math.floor((diff % 3600000) / 60000)
+    if (h > 0) return `${h}h${m}m`
+    return `${m}m`
+}
+
+const mailboxStatusText = (mailbox: Mailbox) => {
+    if (mailbox.status === 'active') return `剩余 ${formatCountdown(mailbox.expires_at)}`
+    if (mailbox.status === 'expired_recoverable') return `已过期，可恢复至 ${formatTime(mailbox.recovery_until)}`
+    return '已清理'
+}
+
+const handleExtendSelected = async () => {
+    if (!selectedMailbox.value) return
+    try {
+        await extendPoolMailbox(selectedMailbox.value.id)
+        await Promise.all([loadMailboxes(), loadStats()])
+    } catch (e: any) {
+        alert(e.data?.detail || '续期失败')
+    }
+}
+
+const handleRestoreSelected = async () => {
+    if (!selectedMailbox.value) return
+    try {
+        await restorePoolMailbox(selectedMailbox.value.id)
+        await Promise.all([loadMailboxes(), loadStats()])
+    } catch (e: any) {
+        alert(e.data?.detail || '恢复失败')
+    }
 }
 
 // 选择邮件并标记已读
@@ -250,9 +290,15 @@ watch(isGenerateOpen, (val) => {
                                 <div class="flex items-center gap-2">
                                     <div class="text-sm font-bold text-gray-900 dark:text-white truncate">{{ mailbox.email }}</div>
                                     <span v-if="mailbox.unread_count > 0" class="px-1.5 py-0.5 bg-primary text-white text-[10px] font-bold rounded-full min-w-[18px] text-center">{{ mailbox.unread_count }}</span>
+                                    <span class="px-1.5 py-0.5 text-[10px] rounded-full border"
+                                        :class="mailbox.status === 'active'
+                                            ? 'text-green-600 border-green-200 bg-green-50'
+                                            : 'text-amber-600 border-amber-200 bg-amber-50'">
+                                        {{ mailbox.status === 'active' ? '活跃' : '可恢复' }}
+                                    </span>
                                 </div>
                                 <div class="flex items-center justify-between mt-0.5">
-                                    <span class="text-[10px] text-gray-400">{{ mailbox.purpose || '未分类' }}</span>
+                                    <span class="text-[10px] text-gray-400 truncate max-w-[130px]">{{ mailboxStatusText(mailbox) }}</span>
                                     <button @click.stop="handleDelete(mailbox)" class="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-red-500 transition-all">
                                         <Trash2 class="w-3 h-3" />
                                     </button>
@@ -265,7 +311,7 @@ watch(isGenerateOpen, (val) => {
                 <!-- 底部统计 -->
                 <div class="p-3 border-t border-gray-200 dark:border-gray-800 flex justify-between text-[10px] text-gray-400 bg-gray-100/50 dark:bg-gray-900/50">
                     <span>{{ stats.active_mailboxes }} 个活跃账号</span>
-                    <span>共 {{ stats.total_emails }} 封邮件</span>
+                    <span>{{ stats.recoverable_mailboxes }} 个可恢复</span>
                 </div>
             </div>
 
@@ -282,11 +328,26 @@ watch(isGenerateOpen, (val) => {
                                 <Check v-if="copiedEmail === selectedMailbox.email" class="w-4 h-4 text-green-500" />
                                 <Copy v-else class="w-4 h-4" />
                             </button>
+                            <span class="text-[11px] text-gray-400 hidden md:inline">{{ mailboxStatusText(selectedMailbox) }}</span>
                         </div>
                     </div>
-                    <button @click="loadEmails" class="text-gray-400 hover:text-primary transition-colors">
-                        <RefreshCw class="w-4 h-4" />
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <button
+                            v-if="selectedMailbox?.status === 'active'"
+                            @click="handleExtendSelected"
+                            class="btn-tool !px-2.5 !py-1 text-xs">
+                            续期
+                        </button>
+                        <button
+                            v-if="selectedMailbox?.status === 'expired_recoverable'"
+                            @click="handleRestoreSelected"
+                            class="btn-tool !px-2.5 !py-1 text-xs">
+                            恢复
+                        </button>
+                        <button @click="loadEmails" class="text-gray-400 hover:text-primary transition-colors">
+                            <RefreshCw class="w-4 h-4" />
+                        </button>
+                    </div>
                 </div>
 
                 <div class="flex-1 overflow-y-auto">

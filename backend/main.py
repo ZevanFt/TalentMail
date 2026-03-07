@@ -11,6 +11,7 @@ from initial import initial_data
 from core.mailserver_sync import sync_users_to_mailserver
 from core.lmtp_server import start_lmtp_server, stop_lmtp_server
 from core.mail_sync import periodic_sync
+from core.temp_mailbox_lifecycle import run_temp_mailbox_maintenance
 from core.config import settings
 from core import websocket as ws_manager
 import logging
@@ -22,6 +23,7 @@ logger = logging.getLogger(__name__)
 # 定时任务
 sync_task = None
 cleanup_task = None
+temp_mailbox_cleanup_task = None
 
 
 async def periodic_session_cleanup(interval: int = 86400):
@@ -43,9 +45,31 @@ async def periodic_session_cleanup(interval: int = 86400):
             logger.error(f"清理会话记录失败: {e}")
 
 
+async def periodic_temp_mailbox_cleanup(interval: int = 600):
+    """
+    定时推进临时邮箱生命周期并按策略执行清理
+    interval 为轮询检查间隔（秒），实际清理频率由数据库策略控制。
+    """
+    while True:
+        await asyncio.sleep(interval)
+        try:
+            db = SessionLocal()
+            try:
+                result = run_temp_mailbox_maintenance(db, force_cleanup=False)
+                if result["expired_count"] > 0 or result["cleanup_ran"]:
+                    logger.info(
+                        f"临时邮箱维护完成: expired={result['expired_count']}, "
+                        f"purged={result['purged_count']}, ran={result['cleanup_ran']}"
+                    )
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"临时邮箱维护任务失败: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global sync_task, cleanup_task
+    global sync_task, cleanup_task, temp_mailbox_cleanup_task
     # Initialize the database and create the initial admin user
     initial_data.init_db()
 
@@ -72,6 +96,10 @@ async def lifespan(app: FastAPI):
     # 启动定时会话清理任务（每24小时）
     logger.info("启动定时会话清理任务（间隔24小时）...")
     cleanup_task = asyncio.create_task(periodic_session_cleanup(interval=86400))
+
+    # 启动临时邮箱生命周期维护任务（每10分钟检查一次）
+    logger.info("启动临时邮箱生命周期维护任务（检查间隔10分钟）...")
+    temp_mailbox_cleanup_task = asyncio.create_task(periodic_temp_mailbox_cleanup(interval=600))
 
     # 启动时先执行一次清理
     try:
@@ -100,6 +128,12 @@ async def lifespan(app: FastAPI):
         cleanup_task.cancel()
         try:
             await cleanup_task
+        except asyncio.CancelledError:
+            pass
+    if temp_mailbox_cleanup_task:
+        temp_mailbox_cleanup_task.cancel()
+        try:
+            await temp_mailbox_cleanup_task
         except asyncio.CancelledError:
             pass
 

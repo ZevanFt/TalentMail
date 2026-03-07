@@ -187,6 +187,38 @@ def create_or_update_mail_user(email: str, password: str) -> bool:
         return create_mail_user(email, password)
 
 
+def delete_mail_user(email: str) -> bool:
+    """
+    删除 mailserver 中邮箱账户
+    """
+    client = get_docker_client()
+    if client is None:
+        return False
+
+    try:
+        logger.info(f"正在删除邮箱: {email}")
+        container = client.containers.get(MAILSERVER_CONTAINER_NAME)
+        result = container.exec_run(["setup", "email", "del", "-y", email], demux=True)
+        if result.exit_code == 0:
+            logger.info(f"✔ 成功删除邮箱: {email}")
+            return True
+        stderr = result.output[1].decode('utf-8') if result.output[1] else ''
+        if "does not exist" in stderr.lower():
+            logger.info(f"邮箱不存在，跳过删除: {email}")
+            return True
+        logger.error(f"✖ 删除邮箱 {email} 失败: {stderr}")
+        return False
+    except NotFound:
+        logger.error(f"容器 {MAILSERVER_CONTAINER_NAME} 未找到")
+        return False
+    except APIError as e:
+        logger.error(f"✖ 删除邮箱 {email} 时 Docker API 错误: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"✖ 删除邮箱 {email} 时发生错误: {e}")
+        return False
+
+
 def sync_users_to_mailserver() -> dict:
     """
     将数据库中的用户同步到邮件服务器

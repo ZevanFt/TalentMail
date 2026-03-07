@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { User, Shield, Palette, LogOut, ArrowLeft, Mail, Bell, Lock, HardDrive, Users, Ticket, UserCog, CreditCard, AtSign, FileText, Info, Zap, Workflow, ScrollText } from 'lucide-vue-next'
+import { User, Shield, Palette, LogOut, ArrowLeft, Mail, Bell, Lock, HardDrive, Users, Ticket, UserCog, CreditCard, AtSign, FileText, Info, Zap, Workflow, ScrollText, Box } from 'lucide-vue-next'
 const router = useRouter()
 const route = useRoute()
 const { logout, getMe } = useApi()
@@ -141,6 +141,9 @@ const handleLogout = () => {
           <button @click="setTab('system-workflows')" :class="['tab-btn', activeTab === 'system-workflows' ? 'active' : '']">
             <Workflow class="w-4 h-4" /> 系统工作流
           </button>
+          <button @click="setTab('temp-mail-policy')" :class="['tab-btn', activeTab === 'temp-mail-policy' ? 'active' : '']">
+            <Box class="w-4 h-4" /> 临时邮箱策略
+          </button>
           <button @click="setTab('user-mgmt')" :class="['tab-btn', activeTab === 'user-mgmt' ? 'active' : '']">
             <UserCog class="w-4 h-4" /> 用户权限管理
           </button>
@@ -183,6 +186,7 @@ const handleLogout = () => {
             <SettingsReservedPrefixes v-else-if="activeTab === 'prefixes'" />
             <SettingsEmailTemplates v-else-if="activeTab === 'email-templates'" />
             <SettingsSystemWorkflows v-else-if="activeTab === 'system-workflows'" />
+            <SettingsTempMailboxPolicy v-else-if="activeTab === 'temp-mail-policy'" />
             <SettingsChangelog v-else-if="activeTab === 'changelog'" />
             <SettingsAbout v-else-if="activeTab === 'about'" />
           </Transition>

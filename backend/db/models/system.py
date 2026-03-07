@@ -104,3 +104,21 @@ class Changelog(Base):
     migration_notes = Column(Text, nullable=True, comment="迁移说明")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="创建时间")
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), comment="更新时间")
+
+
+class TempMailboxPolicy(Base):
+    """临时邮箱生命周期与清理策略（系统级单例）"""
+    __tablename__ = "temp_mailbox_policies"
+    __table_args__ = {'comment': '临时邮箱生命周期与自动清理策略配置'}
+
+    id = Column(Integer, primary_key=True, comment="策略唯一标识符（单例）")
+    cleanup_enabled = Column(Boolean, default=True, nullable=False, comment="是否启用自动清理")
+    ttl_hours = Column(Integer, default=24, nullable=False, comment="临时邮箱有效期（小时）")
+    recoverable_days = Column(Integer, default=10, nullable=False, comment="过期后可恢复天数")
+    cleanup_interval_hours = Column(Integer, default=24, nullable=False, comment="自动清理执行周期（小时）")
+    cleanup_batch_size = Column(Integer, default=500, nullable=False, comment="单次清理最大处理数量")
+    delete_emails_on_purge = Column(Boolean, default=True, nullable=False, comment="清理邮箱时是否删除关联邮件")
+    last_cleanup_at = Column(DateTime(timezone=True), nullable=True, comment="最近一次清理执行时间")
+    last_cleanup_count = Column(Integer, default=0, nullable=False, comment="最近一次清理处理数量")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="创建时间")
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), comment="更新时间")
