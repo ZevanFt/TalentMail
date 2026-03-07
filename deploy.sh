@@ -32,6 +32,28 @@ success() { echo -e "${GREEN}✅ $1${NC}"; }
 warn() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 error() { echo -e "${RED}❌ $1${NC}"; }
 
+run_alembic_migration() {
+    local MIGRATION_LOG
+    set +e
+    MIGRATION_LOG=$(docker compose --env-file .env --env-file .env.domains exec -T backend alembic upgrade head 2>&1)
+    local status=$?
+    set -e
+
+    if [ $status -eq 0 ]; then
+        echo "$MIGRATION_LOG"
+        return 0
+    fi
+
+    echo "$MIGRATION_LOG"
+    if echo "$MIGRATION_LOG" | grep -qi "Multiple head revisions"; then
+        warn "检测到 Alembic 多 head，自动尝试 alembic upgrade heads..."
+        docker compose --env-file .env --env-file .env.domains exec -T backend alembic upgrade heads
+        return $?
+    fi
+
+    return $status
+}
+
 # 解析命令行参数
 DEPLOY_MODE=""
 while [[ $# -gt 0 ]]; do
@@ -289,13 +311,10 @@ elif [ "$DEPLOY_MODE" = "migrate" ]; then
     info "📦 执行迁移部署..."
     
     info "🔄 运行数据库迁移..."
-    docker compose --env-file .env --env-file .env.domains exec -T backend alembic upgrade head || {
-        warn "数据库迁移失败，尝试使用安全方式..."
-        docker compose --env-file .env --env-file .env.domains exec -T backend python << 'PYTHON_SCRIPT'
-from initial.initial_data import init_db
-init_db()
-PYTHON_SCRIPT
-    }
+    if ! run_alembic_migration; then
+        error "数据库迁移失败（已禁止自动 init_db 回退以保护现有数据）。请先修复迁移后重试。"
+        exit 1
+    fi
 
 else
     # 自动检测模式
@@ -356,13 +375,10 @@ PYTHON_SCRIPT
         info "📊 检测到已有 ${TABLE_COUNT} 个表，执行增量迁移..."
         
         info "🔄 运行数据库迁移..."
-        docker compose --env-file .env --env-file .env.domains exec -T backend alembic upgrade head || {
-            warn "数据库迁移失败，尝试使用安全方式..."
-            docker compose --env-file .env --env-file .env.domains exec -T backend python << 'PYTHON_SCRIPT'
-from initial.initial_data import init_db
-init_db()
-PYTHON_SCRIPT
-        }
+        if ! run_alembic_migration; then
+            error "数据库迁移失败（已禁止自动 init_db 回退以保护现有数据）。请先修复迁移后重试。"
+            exit 1
+        fi
     fi
 fi
 
