@@ -98,6 +98,8 @@ class EmailDetail(BaseModel):
     is_read: bool
     is_starred: bool
     is_tracked: bool = False
+    tracking_pixel_id: Optional[str] = None
+    tracking_open_url: Optional[str] = None
     delivery_status: Optional[str] = None
     delivery_error: Optional[str] = None
     attachments: List[AttachmentInfo] = []

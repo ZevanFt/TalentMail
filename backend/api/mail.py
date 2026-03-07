@@ -31,6 +31,12 @@ from datetime import datetime, timezone
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+def _tracking_base_url() -> str:
+    api_base = settings.API_BASE_URL.rstrip("/")
+    if api_base.endswith("/api"):
+        return api_base[:-4]
+    return api_base
+
 @router.post("/send", response_model=email_schema.EmailRead)
 async def send_email_endpoint(
     email_in: email_schema.EmailCreate,
@@ -105,7 +111,7 @@ async def send_email_endpoint(
             db.add(tracking_pixel)
             db.commit()
             # 生成追踪像素 URL
-            base_url = settings.API_BASE_URL.rstrip('/api')
+            base_url = _tracking_base_url()
             tracking_url = f"{base_url}/api/track/open/{str(pixel_id)}"
             tracking_pixel_html = f'<img src="{tracking_url}" width="1" height="1" style="display:none" />'
             logger.info(f"已创建追踪像素: {pixel_id}")
@@ -698,6 +704,15 @@ def get_email(
                 color=tag.color
             ) for tag in email.tags
         ]
+
+    tracking_pixel_id = None
+    tracking_open_url = None
+    if email.is_tracked:
+        tracking_pixel = db.query(TrackingPixel).filter(TrackingPixel.email_id == email.id).first()
+        if tracking_pixel:
+            tracking_pixel_id = str(tracking_pixel.id)
+            base_url = _tracking_base_url()
+            tracking_open_url = f"{base_url}/api/track/open/{tracking_pixel_id}"
     
     return email_schema.EmailDetailResponse(
         status="success",
@@ -712,6 +727,8 @@ def get_email(
             is_read=email.is_read,
             is_starred=email.is_starred,
             is_tracked=email.is_tracked or False,
+            tracking_pixel_id=tracking_pixel_id,
+            tracking_open_url=tracking_open_url,
             delivery_status=email.delivery_status,
             delivery_error=email.delivery_error,
             attachments=attachment_list,
