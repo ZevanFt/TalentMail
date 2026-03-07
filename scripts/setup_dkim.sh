@@ -6,8 +6,18 @@
 set -e
 
 CONTAINER_NAME="${MAILSERVER_CONTAINER_NAME:-talentmail-mailserver-1}"
-DOMAIN="talenting.vip"
-SELECTOR="mail"  # DKIM 选择器，可以是任意名称
+DOMAIN="${DOMAIN:-}"
+SELECTOR="${DKIM_SELECTOR:-mail}"  # DKIM 选择器，可以是任意名称
+FORCE_REGEN="${FORCE_DKIM_REGEN:-0}"
+
+if [ -z "$DOMAIN" ] && [ -f ".env.domains" ]; then
+    DOMAIN=$(grep -E '^DOMAIN=' .env.domains | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+fi
+
+if [ -z "$DOMAIN" ]; then
+    DOMAIN="talenting.vip"
+    echo "⚠️  未检测到 DOMAIN，使用默认值: $DOMAIN"
+fi
 
 echo "==========================================="
 echo "  TalentMail DKIM 配置"
@@ -15,6 +25,7 @@ echo "==========================================="
 echo ""
 echo "域名: $DOMAIN"
 echo "选择器: $SELECTOR"
+echo "强制重生成: $FORCE_REGEN"
 echo ""
 
 # 检查容器是否运行
@@ -23,19 +34,30 @@ if ! docker ps | grep -q "$CONTAINER_NAME"; then
     exit 1
 fi
 
-# 1. 生成 DKIM 密钥对
-echo "📝 [1/4] 生成 DKIM 密钥对..."
+# 1. 生成/复用 DKIM 密钥对（幂等）
+echo "📝 [1/4] 检查 DKIM 密钥对..."
 docker exec "$CONTAINER_NAME" bash -c "
-    # 创建 DKIM 配置目录
-    mkdir -p /tmp/docker-mailserver/opendkim/keys/$DOMAIN
+    set -e
+    KEY_DIR=/tmp/docker-mailserver/opendkim/keys/$DOMAIN
+    PRIVATE_KEY=\$KEY_DIR/$SELECTOR.private
+    PUBLIC_KEY=\$KEY_DIR/$SELECTOR.txt
+    mkdir -p \$KEY_DIR
 
-    # 生成 DKIM 密钥对（2048 位）
-    cd /tmp/docker-mailserver/opendkim/keys/$DOMAIN
-    opendkim-genkey -b 2048 -d $DOMAIN -s $SELECTOR
+    if [ \"$FORCE_REGEN\" = \"1\" ]; then
+        echo '强制重生成 DKIM 密钥对...'
+        rm -f \$PRIVATE_KEY \$PUBLIC_KEY
+    fi
 
-    # 修改权限
+    if [ -f \$PRIVATE_KEY ] && [ -f \$PUBLIC_KEY ]; then
+        echo '检测到已有 DKIM 密钥，复用现有密钥'
+    else
+        echo '未检测到完整 DKIM 密钥，开始生成...'
+        cd \$KEY_DIR
+        opendkim-genkey -b 2048 -d $DOMAIN -s $SELECTOR
+    fi
+
     chown -R opendkim:opendkim /tmp/docker-mailserver/opendkim
-    chmod 600 /tmp/docker-mailserver/opendkim/keys/$DOMAIN/$SELECTOR.private
+    chmod 600 \$PRIVATE_KEY
 "
 
 if [ $? -eq 0 ]; then

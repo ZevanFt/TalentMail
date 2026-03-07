@@ -147,6 +147,22 @@ generate_dovecot_sql_config() {
     fi
 }
 
+# 同步运行时 mailserver 配置（data 目录不受 git 管理）
+sync_mail_runtime_config() {
+    info "🔄 同步 mailserver 运行时配置..."
+
+    local runtime_dir="data/mailserver/config"
+    mkdir -p "${runtime_dir}"
+
+    if [ -f "config/mail/user-patches.sh" ]; then
+        cp config/mail/user-patches.sh "${runtime_dir}/user-patches.sh"
+        chmod +x "${runtime_dir}/user-patches.sh"
+        success "已同步 user-patches.sh 到 ${runtime_dir}"
+    else
+        warn "未找到 config/mail/user-patches.sh，跳过同步"
+    fi
+}
+
 # 全新部署时需要清空数据库卷
 if [ "$DEPLOY_MODE" = "fresh" ]; then
     info "🛑 停止所有服务并清空数据..."
@@ -207,6 +223,9 @@ fi
 
 # 5. 生成 Dovecot SQL 配置文件（与开发环境保持一致）
 generate_dovecot_sql_config
+
+# 5.1 同步运行时 mailserver 配置（修复迁移部署后未更新 user-patches 的问题）
+sync_mail_runtime_config
 
 # 6. 构建 Docker 镜像
 info "🏗️  构建 Docker 镜像..."

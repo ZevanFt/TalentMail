@@ -2,7 +2,7 @@
 import { Mail, ArrowLeft, Loader2, Eye, EyeOff, Moon, Sun, CheckCircle } from 'lucide-vue-next'
 const { isDark, toggleTheme } = useTheme()
 const { forgotPassword, resetPassword } = useApi()
-const { appName, emailDomain } = useConfig()
+const { appName, emailDomain, baseDomain } = useConfig()
 const router = useRouter()
 
 definePageMeta({
@@ -20,13 +20,20 @@ const showConfirmPassword = ref(false)
 
 const form = reactive({
     username: '',  // 只输入用户名部分
+    domain: baseDomain,
     code: '',
     newPassword: '',
     confirmPassword: ''
 })
 
 // 完整邮箱地址
-const fullEmail = computed(() => `${form.username}${emailDomain}`)
+const normalizedDomain = computed(() => form.domain.trim().replace(/^@+/, '').toLowerCase())
+const fullEmail = computed(() => {
+    const username = form.username.trim()
+    if (!username) return ''
+    if (username.includes('@')) return username
+    return normalizedDomain.value ? `${username}@${normalizedDomain.value}` : username
+})
 
 // 倒计时
 const countdown = ref(0)
@@ -45,7 +52,14 @@ const startCountdown = () => {
 
 // 发送验证码
 const handleSendCode = async () => {
-    if (loading.value || !form.username || countdown.value > 0) return
+    const username = form.username.trim()
+    if (loading.value || !username || countdown.value > 0) return
+
+    if (!username.includes('@') && !normalizedDomain.value) {
+        error.value = '请输入域名或直接输入完整邮箱'
+        return
+    }
+
     loading.value = true
     error.value = ''
     
@@ -163,10 +177,17 @@ onUnmounted(() => {
                     <label class="text-sm font-medium text-gray-700 dark:text-gray-300">TalentMail 邮箱</label>
                     <div class="flex items-stretch rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all">
                         <input v-model="form.username" type="text" placeholder="用户名"
-                            class="flex-[6] min-w-0 px-4 py-3 bg-gray-50 dark:bg-gray-900 text-sm outline-none text-gray-900 dark:text-white placeholder-gray-400 border-none" required>
-                        <span class="flex-[4] px-2 py-3 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 flex items-center justify-center border-l border-gray-200 dark:border-gray-700 domain-suffix">
-                            {{ emailDomain }}
+                            class="flex-[5] min-w-0 px-4 py-3 bg-gray-50 dark:bg-gray-900 text-sm outline-none text-gray-900 dark:text-white placeholder-gray-400 border-none" required>
+                        <span class="px-2 py-3 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 flex items-center justify-center border-l border-r border-gray-200 dark:border-gray-700">
+                            @
                         </span>
+                        <input
+                            v-model="form.domain"
+                            type="text"
+                            placeholder="域名"
+                            :disabled="form.username.includes('@')"
+                            class="flex-[5] min-w-0 px-3 py-3 bg-gray-100 dark:bg-gray-800 text-sm outline-none text-gray-700 dark:text-gray-200 placeholder-gray-400 border-none domain-suffix disabled:opacity-60"
+                        >
                     </div>
                     <p class="text-xs text-gray-500 dark:text-gray-400">验证码将发送到此邮箱</p>
                 </div>

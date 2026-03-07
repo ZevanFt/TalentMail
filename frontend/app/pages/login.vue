@@ -2,7 +2,7 @@
 import { Mail, Eye, EyeOff, Moon, Sun, Loader2, Shield } from 'lucide-vue-next'
 const { isDark, toggleTheme } = useTheme()
 const { login, login2FA } = useApi()
-const { appName, emailDomain } = useConfig()
+const { appName, emailDomain, baseDomain } = useConfig()
 
 definePageMeta({
     layout: false
@@ -19,14 +19,28 @@ const twoFACode = ref('')
 
 const form = reactive({
     username: '',  // 只输入用户名部分
+    domain: baseDomain,
     password: ''
 })
 
 // 完整邮箱地址
-const fullEmail = computed(() => `${form.username}${emailDomain}`)
+const normalizedDomain = computed(() => form.domain.trim().replace(/^@+/, '').toLowerCase())
+const fullEmail = computed(() => {
+    const username = form.username.trim()
+    if (!username) return ''
+    if (username.includes('@')) return username
+    return normalizedDomain.value ? `${username}@${normalizedDomain.value}` : username
+})
 
 const handleLogin = async () => {
-    if (loading.value || !form.username) return
+    const username = form.username.trim()
+    if (loading.value || !username) return
+
+    if (!username.includes('@') && !normalizedDomain.value) {
+        error.value = '请输入域名或直接输入完整邮箱'
+        return
+    }
+
     loading.value = true
     error.value = ''
     
@@ -101,15 +115,25 @@ const backToLogin = () => {
             <template v-if="!requires2FA">
                 <form @submit.prevent="handleLogin" class="space-y-5">
 
-                    <!-- 邮箱（用户名 + 固定后缀） -->
+                    <!-- 邮箱（支持完整邮箱或用户名 + 可编辑域名） -->
                     <div class="space-y-1.5">
                         <div class="flex items-stretch rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all">
                             <input v-model="form.username" type="text" placeholder="用户名"
-                                class="flex-[6] min-w-0 px-4 py-3 bg-gray-50 dark:bg-gray-900 text-sm outline-none text-gray-900 dark:text-white placeholder-gray-400 border-none" required>
-                            <span class="flex-[4] px-2 py-3 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 flex items-center justify-center border-l border-gray-200 dark:border-gray-700 domain-suffix">
-                                {{ emailDomain }}
+                                class="flex-[5] min-w-0 px-4 py-3 bg-gray-50 dark:bg-gray-900 text-sm outline-none text-gray-900 dark:text-white placeholder-gray-400 border-none" required>
+                            <span class="px-2 py-3 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 flex items-center justify-center border-l border-r border-gray-200 dark:border-gray-700">
+                                @
                             </span>
+                            <input
+                                v-model="form.domain"
+                                type="text"
+                                placeholder="域名"
+                                :disabled="form.username.includes('@')"
+                                class="flex-[5] min-w-0 px-3 py-3 bg-gray-100 dark:bg-gray-800 text-sm outline-none text-gray-700 dark:text-gray-200 placeholder-gray-400 border-none domain-suffix disabled:opacity-60"
+                            >
                         </div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                            默认域名 {{ emailDomain }}，也可直接输入完整邮箱（如 admin@talenting.vip）
+                        </p>
                     </div>
 
                     <!-- 密码 -->

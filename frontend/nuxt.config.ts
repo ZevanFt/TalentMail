@@ -8,17 +8,21 @@ function loadConfig() {
     const config = JSON.parse(readFileSync(configPath, 'utf-8'))
     const envName = config.currentEnvironment || 'development'
     const envConfig = config.environments?.[envName] || {}
-    
-    const baseDomain = envConfig.baseDomain || 'talenting.test'
+
+    const baseDomain =
+      process.env.NUXT_PUBLIC_BASE_DOMAIN ||
+      process.env.DOMAIN ||
+      envConfig.baseDomain ||
+      'talenting.vip'
     const webPrefix = envConfig.webPrefix || 'mail'
-    const webDomain = `${webPrefix}.${baseDomain}`
+    const webDomain = process.env.WEB_DOMAIN || `${webPrefix}.${baseDomain}`
     
     return { baseDomain, webDomain, envName }
   } catch (e) {
     console.warn('无法读取 config.json，使用默认配置')
     return {
-      baseDomain: 'talenting.test',
-      webDomain: 'mail.talenting.test',
+      baseDomain: process.env.NUXT_PUBLIC_BASE_DOMAIN || process.env.DOMAIN || 'talenting.vip',
+      webDomain: process.env.WEB_DOMAIN || 'mail.talenting.vip',
       envName: 'development'
     }
   }
