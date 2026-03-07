@@ -9,6 +9,7 @@
 #   --fresh    全新部署（清空数据库重新创建）
 #   --migrate  迁移部署（保留数据，仅更新代码和运行迁移）
 #   --auto     自动检测模式（默认）
+#   --doctor   仅执行迁移诊断（不部署）
 #
 # 部署前请确保:
 #   1. 已修改 config.json 中的生产环境配置
@@ -54,8 +55,39 @@ run_alembic_migration() {
     return $status
 }
 
+collect_migration_diagnostics() {
+    local TS LOG_DIR LOG_FILE
+    TS=$(date +"%Y%m%d_%H%M%S")
+    LOG_DIR=".deploy_logs"
+    LOG_FILE="${LOG_DIR}/migration_failure_${TS}.log"
+    mkdir -p "$LOG_DIR"
+
+    {
+        echo "=== Migration Failure Diagnostics @ ${TS} ==="
+        echo ""
+        echo "[alembic current]"
+        docker compose --env-file .env --env-file .env.domains exec -T backend alembic current || true
+        echo ""
+        echo "[alembic heads]"
+        docker compose --env-file .env --env-file .env.domains exec -T backend alembic heads || true
+        echo ""
+        echo "[backend recent logs]"
+        docker compose --env-file .env --env-file .env.domains logs --tail=120 backend || true
+        echo ""
+        echo "[git rev]"
+        git rev-parse --short HEAD || true
+    } > "$LOG_FILE" 2>&1
+
+    warn "已生成迁移诊断日志: ${LOG_FILE}"
+    warn "建议处理顺序："
+    warn "  1) 检查日志中的 alembic current / heads 是否一致"
+    warn "  2) 如为多 head，先补 merge migration 并提交"
+    warn "  3) 再执行: bash deploy.sh --migrate"
+}
+
 # 解析命令行参数
 DEPLOY_MODE=""
+DOCTOR_ONLY=false
 while [[ $# -gt 0 ]]; do
     case $1 in
         --fresh)
@@ -70,9 +102,14 @@ while [[ $# -gt 0 ]]; do
             DEPLOY_MODE="auto"
             shift
             ;;
+        --doctor)
+            DOCTOR_ONLY=true
+            DEPLOY_MODE="doctor"
+            shift
+            ;;
         *)
             echo "未知选项: $1"
-            echo "用法: $0 [--fresh|--migrate|--auto]"
+            echo "用法: $0 [--fresh|--migrate|--auto|--doctor]"
             exit 1
             ;;
     esac
@@ -136,6 +173,12 @@ fi
 echo ""
 info "部署模式: $DEPLOY_MODE"
 echo ""
+
+if [ "$DOCTOR_ONLY" = true ]; then
+    info "🩺 仅执行迁移诊断（不部署）..."
+    collect_migration_diagnostics
+    exit 0
+fi
 
 # 从 .env 文件读取变量值（与 dev.sh 保持一致）
 get_env_value() {
@@ -312,6 +355,7 @@ elif [ "$DEPLOY_MODE" = "migrate" ]; then
     
     info "🔄 运行数据库迁移..."
     if ! run_alembic_migration; then
+        collect_migration_diagnostics
         error "数据库迁移失败（已禁止自动 init_db 回退以保护现有数据）。请先修复迁移后重试。"
         exit 1
     fi
@@ -376,6 +420,7 @@ PYTHON_SCRIPT
         
         info "🔄 运行数据库迁移..."
         if ! run_alembic_migration; then
+            collect_migration_diagnostics
             error "数据库迁移失败（已禁止自动 init_db 回退以保护现有数据）。请先修复迁移后重试。"
             exit 1
         fi
