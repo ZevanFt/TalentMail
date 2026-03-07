@@ -38,6 +38,7 @@
 
 ### 📮 账号池功能
 - **临时邮箱** - 快速创建临时邮箱，支持外部邮件接收
+- **生命周期管理** - 默认 24 小时有效，过期后 10 天可恢复，支持管理员系统级清理策略
 - **验证码识别** - 自动提取邮件中的验证码（支持 4-8 位数字/字母）
 - **IMAP 实时同步** - 每 30 秒通过 Master user 同步临时邮箱收件
 - **统计分析** - 邮箱使用情况统计
@@ -184,24 +185,57 @@ nano .env
 | **MX** | `@` | `maillink.example.com` | - | 优先级 10 |
 | **TXT** | `@` | `v=spf1 mx ~all` | - | SPF 记录 |
 
-> ⚠️ **重要**: `maillink` 子域名必须是 **灰色云朵 (DNS Only)**，否则邮件无法正常收发！
+> ⚠️ **重要**: `maillink` 子域名必须是 **灰色云朵 (DNS Only)**，否则邮件无法正常收发。
 
-### 3. 一键部署
+### 3. 首次部署（推荐）
 
 ```bash
-# 配置环境变量
+# 1) 环境变量
 cp .env.example .env
-nano .env  # 编辑必填项
+nano .env
 
-# 运行部署脚本
+# 2) 域名配置
+nano config.json
+
+# 3) 执行迁移部署（保留数据）
 chmod +x deploy.sh
-./deploy.sh
+bash deploy.sh --migrate
 ```
 
-### 4. SSL 证书配置 (可选)
+### 4. 后续更新部署
 
 ```bash
-# 同步 Let's Encrypt 证书到邮件服务器
+git pull
+bash deploy.sh --migrate
+```
+
+### 5. 部署模式说明
+
+- `--migrate`: 保留数据，执行增量迁移（推荐）
+- `--fresh`: 清空数据重建（仅首次或明确重置）
+- `--auto`: 自动判断数据库状态
+- `--doctor`: 仅迁移诊断，不部署
+
+### 6. 迁移失败排查（不影响线上）
+
+```bash
+# 只做诊断，不部署
+bash deploy.sh --doctor
+
+# 查看最新诊断日志
+ls -lt .deploy_logs/
+tail -n 200 .deploy_logs/migration_failure_*.log
+```
+
+诊断日志包含：
+- `alembic current`
+- `alembic heads`
+- backend 最近日志
+- 当前 git 提交号
+
+### 7. SSL 证书同步（可选）
+
+```bash
 chmod +x scripts/sync_mail_certs.sh
 ./scripts/sync_mail_certs.sh
 ```
@@ -270,8 +304,17 @@ docker compose -f docker-compose.dev.yml down -v
 ### 生产环境
 
 ```bash
-# 部署/更新
-./deploy.sh
+# 迁移部署（推荐）
+bash deploy.sh --migrate
+
+# 全新部署（危险：会清空数据）
+bash deploy.sh --fresh
+
+# 自动模式
+bash deploy.sh --auto
+
+# 仅迁移诊断（不部署）
+bash deploy.sh --doctor
 
 # 查看日志
 docker compose logs -f                      # 所有日志
@@ -357,6 +400,27 @@ docker compose -f docker-compose.dev.yml logs frontend --tail 20
 
 # 重新构建前端
 docker compose -f docker-compose.dev.yml up -d --build frontend
+```
+
+### 生产迁移失败（推荐流程）
+
+```bash
+# 1) 先做诊断（不会部署）
+bash deploy.sh --doctor
+
+# 2) 查看最新日志
+ls -lt .deploy_logs/
+tail -n 200 .deploy_logs/migration_failure_*.log
+
+# 3) 重点检查版本状态
+docker compose exec -T backend alembic current
+docker compose exec -T backend alembic heads
+```
+
+若 `heads` 多于 1 个，先补 merge migration，再执行：
+
+```bash
+bash deploy.sh --migrate
 ```
 
 ---
