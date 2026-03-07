@@ -1,114 +1,74 @@
 #!/bin/bash
 
-# --- Configuration ---
-# Load environment variables from .env file at the project root
-set -a # automatically export all variables
+set -euo pipefail
+
+set -a
 source .env
 set +a
 
-# API endpoint
-API_BASE_URL="https://mail.talenting.test"
-LOGIN_URL="${API_BASE_URL}/api/auth/login"
-SEND_MAIL_URL="${API_BASE_URL}/api/mail/send"
-RESET_PASSWORD_URL="${API_BASE_URL}/api/users/reset-password-dev"
+DOMAIN=$(grep -E '^DOMAIN=' .env.domains | cut -d'=' -f2-)
+WEB_DOMAIN=$(grep -E '^WEB_DOMAIN=' .env.domains | cut -d'=' -f2-)
+BASE_URL="https://${WEB_DOMAIN}"
+ADMIN_EMAIL="${ADMIN_EMAIL:-admin@${DOMAIN}}"
+SUBJECT="[CLOSE_LOOP_$(date +%s)] API send test"
 
-# --- Helper Functions ---
-log() {
-    echo "[INFO] $1"
-}
+log() { echo "[INFO] $1"; }
+fail() { echo "[ERROR] $1" >&2; exit 1; }
 
-error() {
-    echo "[ERROR] $1" >&2
-    exit 1
-}
+log "Login as ${ADMIN_EMAIL} via ${BASE_URL}"
+LOGIN_RESPONSE=$(curl -sS -k -X POST "${BASE_URL}/api/auth/login" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  --data-urlencode "username=${ADMIN_EMAIL}" \
+  --data-urlencode "password=${ADMIN_PASSWORD}")
 
-# --- Dynamic Credentials ---
-# Dynamically get the baseDomain from config.json to construct the admin email
-log "Reading baseDomain from config.json..."
-CURRENT_ENV=$(jq -r '.currentEnvironment' config.json)
-BASE_DOMAIN=$(jq -r ".environments.${CURRENT_ENV}.baseDomain" config.json)
+ACCESS_TOKEN=$(echo "${LOGIN_RESPONSE}" | jq -r '.access_token // empty')
+[ -n "${ACCESS_TOKEN}" ] || fail "Login failed: ${LOGIN_RESPONSE}"
 
-if [ -z "${BASE_DOMAIN}" ] || [ "${BASE_DOMAIN}" == "null" ]; then
-    error "Could not read baseDomain from config.json for environment ${CURRENT_ENV}."
-fi
+PAYLOAD=$(jq -n \
+  --arg to "${ADMIN_EMAIL}" \
+  --arg subject "${SUBJECT}" \
+  '{to:[{name:"Admin",email:$to}],cc:[],bcc:[],subject:$subject,body_html:"<p>close loop test</p>"}')
 
-ADMIN_EMAIL="admin@${BASE_DOMAIN}"
-ADMIN_PASSWORD="${ADMIN_PASSWORD}" # This one correctly comes from .env
-log "Admin email dynamically set to: ${ADMIN_EMAIL}"
+log "Send email to self (subject=${SUBJECT})"
+SEND_RESPONSE=$(curl -sS -k -X POST "${BASE_URL}/api/emails/send" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d "${PAYLOAD}")
 
-# --- Main Script ---
+EMAIL_ID=$(echo "${SEND_RESPONSE}" | jq -r '.id // empty')
+[ -n "${EMAIL_ID}" ] || fail "Send failed: ${SEND_RESPONSE}"
 
-# 1. Reset admin password to ensure consistency (for development)
-log "Resetting password for ${ADMIN_EMAIL} to ensure test consistency..."
-reset_payload=$(jq -n \
-    --arg email "$ADMIN_EMAIL" \
-    --arg password "$ADMIN_PASSWORD" \
-    '{email: $email, new_password: $password}')
+log "Trigger sync"
+curl -sS -k -X POST "${BASE_URL}/api/emails/sync" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" >/dev/null
 
-reset_response=$(curl -s -k -X POST -H "Content-Type: application/json" \
-    -d "${reset_payload}" \
-    "${RESET_PASSWORD_URL}")
+INBOX_ID=$(curl -sS -k "${BASE_URL}/api/folders" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" | jq -r '.data[] | select(.role=="inbox") | .id' | head -n1)
+[ -n "${INBOX_ID}" ] || fail "Inbox folder not found"
 
-reset_msg=$(echo "${reset_response}" | jq -r .msg)
+MATCH=0
+for i in 1 2 3 4 5 6; do
+  curl -sS -k -X POST "${BASE_URL}/api/emails/sync" -H "Authorization: Bearer ${ACCESS_TOKEN}" >/dev/null
+  MATCH=$(curl -sS -k -G "${BASE_URL}/api/emails" \
+    -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    --data-urlencode "folder_id=${INBOX_ID}" \
+    --data-urlencode "limit=100" | jq --arg s "${SUBJECT}" '[.data.items[] | select(.subject==$s)] | length')
+  [ "${MATCH}" -gt 0 ] && break
+  sleep 5
+done
 
-if [ -z "${reset_msg}" ] || [ "${reset_msg}" == "null" ]; then
-    error "Failed to reset password. Response: ${reset_response}"
-fi
-log "Password for ${ADMIN_EMAIL} has been successfully reset."
+DETAIL=$(curl -sS -k "${BASE_URL}/api/emails/${EMAIL_ID}" -H "Authorization: Bearer ${ACCESS_TOKEN}")
+DELIVERY_STATUS=$(echo "${DETAIL}" | jq -r '.data.delivery_status // .delivery_status // "unknown"')
+DELIVERY_ERROR=$(echo "${DETAIL}" | jq -r '.data.delivery_error // .delivery_error // ""')
 
+echo "BASE_URL=${BASE_URL}"
+echo "ADMIN_EMAIL=${ADMIN_EMAIL}"
+echo "SENT_EMAIL_ID=${EMAIL_ID}"
+echo "SENT_DELIVERY_STATUS=${DELIVERY_STATUS}"
+echo "SENT_DELIVERY_ERROR=${DELIVERY_ERROR}"
+echo "INBOX_ID=${INBOX_ID}"
+echo "SUBJECT=${SUBJECT}"
+echo "INBOX_MATCH_COUNT=${MATCH}"
 
-# 2. Authenticate and get JWT token
-log "Attempting to login as ${ADMIN_EMAIL}..."
-login_response=$(curl -s -k -X POST -H "Content-Type: application/x-www-form-urlencoded" \
-    -d "username=${ADMIN_EMAIL}&password=${ADMIN_PASSWORD}" \
-    "${LOGIN_URL}")
-
-access_token=$(echo "${login_response}" | jq -r .access_token)
-
-if [ -z "${access_token}" ] || [ "${access_token}" == "null" ]; then
-    error "Failed to get access token. Response: ${login_response}"
-fi
-log "Successfully logged in. Token received."
-
-# 3. Prepare the email payload
-# We will send an email from the admin to a test user.
-# In a real scenario, you might want to create another user for testing.
-# We will send an email from the admin to themselves to test the full loop.
-recipient_email="testuser_1764489698@talenting.test"
-recipient_name="Test User"
-
-log "Preparing to send email to ${recipient_email}..."
-
-# Using jq to safely construct the JSON payload
-json_payload=$(jq -n \
-    --arg to_email "$recipient_email" \
-    --arg to_name "$recipient_name" \
-    --arg subject "Hello from TalentMail API!" \
-    --arg body_html "<h1>Test Email</h1><p>This is a test email sent from the <strong>TalentMail API</strong> using a test script.</p>" \
-    '{
-        "to": [{ "name": $to_name, "email": $to_email }],
-        "cc": [],
-        "bcc": [],
-        "subject": $subject,
-        "body_html": $body_html
-    }')
-
-# 4. Send the email
-log "Sending email via API..."
-send_response=$(curl -s -k -X POST "${SEND_MAIL_URL}" \
-    -H "Authorization: Bearer ${access_token}" \
-    -H "Content-Type: application/json" \
-    -d "${json_payload}")
-
-# 5. Display the result
-log "API Response:"
-echo "${send_response}" | jq .
-
-# Check if the response contains an ID, indicating success at the API level
-email_id=$(echo "${send_response}" | jq -r .id)
-if [ -z "${email_id}" ] || [ "${email_id}" == "null" ]; then
-    error "Failed to send email. The API did not return a valid email record."
-fi
-
-log "Email sending task was successfully submitted to the backend. DB record ID: ${email_id}"
-log "Check the backend logs and your email client (Thunderbird) to verify the actual sending."
+[ "${MATCH}" -gt 0 ] || fail "Close-loop failed: inbox not found subject ${SUBJECT}"
+log "Close-loop success"

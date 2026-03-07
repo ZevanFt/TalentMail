@@ -9,6 +9,7 @@ CONTAINER_NAME="${MAILSERVER_CONTAINER_NAME:-talentmail-mailserver-1}"
 DOMAIN="${DOMAIN:-}"
 SELECTOR="${DKIM_SELECTOR:-mail}"  # DKIM 选择器，可以是任意名称
 FORCE_REGEN="${FORCE_DKIM_REGEN:-0}"
+STRICT_DOMAIN_CHECK="${STRICT_DKIM_DOMAIN_CHECK:-0}"
 
 if [ -z "$DOMAIN" ] && [ -f ".env.domains" ]; then
     DOMAIN=$(grep -E '^DOMAIN=' .env.domains | cut -d'=' -f2- | tr -d '"' | tr -d "'")
@@ -26,6 +27,7 @@ echo ""
 echo "域名: $DOMAIN"
 echo "选择器: $SELECTOR"
 echo "强制重生成: $FORCE_REGEN"
+echo "严格域名检查: $STRICT_DOMAIN_CHECK"
 echo ""
 
 # 检查容器是否运行
@@ -33,6 +35,48 @@ if ! docker ps | grep -q "$CONTAINER_NAME"; then
     echo "❌ 容器 $CONTAINER_NAME 未运行，请先启动邮件服务器"
     exit 1
 fi
+
+# 0. 检查历史 DKIM 域名与当前部署域名是否一致
+echo "🔎 [0/4] 检查 DKIM 域名一致性..."
+EXISTING_DKIM_DOMAINS=$(docker exec "$CONTAINER_NAME" bash -c '
+KEY_ROOT=/tmp/docker-mailserver/opendkim/keys
+if [ -d "$KEY_ROOT" ]; then
+  find "$KEY_ROOT" -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | sort
+fi
+')
+
+TARGET_KEY_EXISTS=$(docker exec "$CONTAINER_NAME" bash -c "
+if [ -f /tmp/docker-mailserver/opendkim/keys/$DOMAIN/$SELECTOR.private ] && [ -f /tmp/docker-mailserver/opendkim/keys/$DOMAIN/$SELECTOR.txt ]; then
+  echo yes
+else
+  echo no
+fi
+")
+
+if [ -n "$EXISTING_DKIM_DOMAINS" ]; then
+    echo "  已存在 DKIM 域名目录:"
+    echo "$EXISTING_DKIM_DOMAINS" | sed 's/^/    - /'
+fi
+
+if [ "$TARGET_KEY_EXISTS" = "no" ] && [ -n "$EXISTING_DKIM_DOMAINS" ]; then
+    echo "  ⚠️  当前部署域名 $DOMAIN 没有现成 DKIM 密钥，但容器里存在其他历史域名密钥。"
+    echo "  ⚠️  这通常表示曾经用错域名（例如 .test -> .vip）或发生域名迁移。"
+    if [ "$STRICT_DOMAIN_CHECK" = "1" ]; then
+        echo "  ❌ 严格模式已开启，停止执行。请确认 DOMAIN 与 DNS 配置后重试。"
+        exit 1
+    fi
+fi
+
+KEYTABLE_DOMAIN=$(docker exec "$CONTAINER_NAME" bash -c '
+if [ -f /tmp/docker-mailserver/opendkim/KeyTable ]; then
+  awk "NF>0 {print \$2; exit}" /tmp/docker-mailserver/opendkim/KeyTable | cut -d: -f1
+fi
+')
+if [ -n "$KEYTABLE_DOMAIN" ] && [ "$KEYTABLE_DOMAIN" != "$DOMAIN" ]; then
+    echo "  ⚠️  KeyTable 当前域名为 $KEYTABLE_DOMAIN，与部署域名 $DOMAIN 不一致。"
+    echo "  ⚠️  本次会按 $DOMAIN 重写 OpenDKIM 配置。"
+fi
+echo "  ✅ 域名检查完成"
 
 # 1. 生成/复用 DKIM 密钥对（幂等）
 echo "📝 [1/4] 检查 DKIM 密钥对..."
