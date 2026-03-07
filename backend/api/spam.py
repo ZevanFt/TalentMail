@@ -8,6 +8,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
 import logging
+import asyncio
 
 from db import models
 from db.models.user import TrustedSender, SpamReport
@@ -15,6 +16,8 @@ from db.models.email import Email, Folder
 from db.database import SessionLocal
 from api import deps
 from crud.folder import get_user_folder_by_role
+from core.config import settings
+from core.spamassassin import train_report_with_spamassassin
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -47,6 +50,9 @@ class SpamReportRead(BaseModel):
     email_id: int
     report_type: str
     learned: bool
+    learn_attempts: int = 0
+    learn_error: Optional[str] = None
+    learned_at: Optional[str] = None
     created_at: Optional[str] = None
 
     class Config:
@@ -275,6 +281,9 @@ def get_spam_reports(
             "email_id": r.email_id,
             "report_type": r.report_type,
             "learned": r.learned,
+            "learn_attempts": r.learn_attempts or 0,
+            "learn_error": r.learn_error,
+            "learned_at": r.learned_at.isoformat() if r.learned_at else None,
             "created_at": r.created_at.isoformat() if r.created_at else None
         }
         for r in reports
@@ -316,7 +325,15 @@ def is_sender_blocked(db: Session, user_id: int, sender_email: str) -> bool:
     return blocked is not None
 
 
-async def train_spamassassin(report_ids: List[int], report_type: str):
+async def train_spamassassin(
+    report_ids: List[int],
+    report_type: str,
+    *,
+    session_factory=SessionLocal,
+    trainer=train_report_with_spamassassin,
+    max_retries: Optional[int] = None,
+    retry_delay_seconds: Optional[float] = None,
+):
     """
     后台任务：训练 SpamAssassin
 
@@ -328,22 +345,75 @@ async def train_spamassassin(report_ids: List[int], report_type: str):
     由于 docker-mailserver 已经启用了 SpamAssassin，
     可以通过 docker exec 调用 sa-learn 命令。
     """
-    db = SessionLocal()
+    retries = max_retries if max_retries is not None else getattr(settings, "SPAMASSASSIN_MAX_RETRIES", 3)
+    delay_seconds = (
+        retry_delay_seconds
+        if retry_delay_seconds is not None
+        else float(getattr(settings, "SPAMASSASSIN_RETRY_DELAY_SECONDS", 0.5))
+    )
+    db = session_factory()
     try:
-        reports = db.query(SpamReport).filter(SpamReport.id.in_(report_ids)).all()
-        logger.info(f"[SpamAssassin] 准备训练 {len(reports)} 封邮件为 {report_type}")
+        reports = (
+            db.query(SpamReport)
+            .filter(SpamReport.id.in_(report_ids))
+            .all()
+        )
+        logger.info(
+            "[SpamAssassin] 训练任务启动",
+            extra={"report_count": len(reports), "report_type": report_type},
+        )
 
-        # TODO: 实际调用 sa-learn 命令
-        # 示例命令:
-        # docker exec talentmail-mailserver-1 sa-learn --spam /path/to/email.eml
-        # docker exec talentmail-mailserver-1 sa-learn --ham /path/to/email.eml
-
-        # 标记为已学习
         for report in reports:
-            report.learned = True
+            current_type = report.report_type or report_type
+            if current_type not in {"spam", "ham"}:
+                report.learned = False
+                report.learn_attempts = (report.learn_attempts or 0) + 1
+                report.learn_error = f"invalid report_type: {current_type}"
+                db.commit()
+                continue
 
-        db.commit()
-        logger.info(f"[SpamAssassin] 训练完成: {len(reports)} 封邮件")
+            for attempt in range(1, retries + 1):
+                report.learn_attempts = (report.learn_attempts or 0) + 1
+                try:
+                    trainer(report, current_type)
+                    report.learned = True
+                    report.learn_error = None
+                    report.learned_at = datetime.utcnow()
+                    db.commit()
+                    logger.info(
+                        "[SpamAssassin] 单条训练成功",
+                        extra={
+                            "report_id": report.id,
+                            "report_type": current_type,
+                            "attempt": attempt,
+                        },
+                    )
+                    break
+                except Exception as exc:
+                    report.learned = False
+                    report.learn_error = str(exc)[:1024]
+                    db.commit()
+                    logger.error(
+                        "[SpamAssassin] 单条训练失败",
+                        extra={
+                            "report_id": report.id,
+                            "report_type": current_type,
+                            "attempt": attempt,
+                            "max_retries": retries,
+                        },
+                    )
+                    if attempt < retries:
+                        await asyncio.sleep(delay_seconds)
+
+        learned_count = db.query(SpamReport).filter(SpamReport.id.in_(report_ids), SpamReport.learned == True).count()  # noqa: E712
+        logger.info(
+            "[SpamAssassin] 训练任务完成",
+            extra={
+                "report_count": len(reports),
+                "learned_count": learned_count,
+                "report_type": report_type,
+            },
+        )
 
     except Exception as e:
         db.rollback()

@@ -43,6 +43,8 @@ class Settings(BaseSettings):
     API_KEY_DEFAULT_RATE_LIMIT_PER_MINUTE: int = 120
     API_KEY_MIN_RATE_LIMIT_PER_MINUTE: int = 1
     API_KEY_MAX_RATE_LIMIT_PER_MINUTE: int = 10000
+    SPAMASSASSIN_MAX_RETRIES: int = 3
+    SPAMASSASSIN_RETRY_DELAY_SECONDS: float = 0.5
 
     # --- Dynamically generated attributes ---
     DOMAIN: str = ""
