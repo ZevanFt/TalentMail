@@ -87,9 +87,6 @@ watch(() => token.value, (newToken) => {
   
   <NuxtLayout>
     <NuxtPage />
-
-    <!-- 全局挂载弹窗 - 仅登录后显示 -->
-    <EmailComposeModal v-if="token" />
     
     <!-- 键盘快捷键帮助弹窗 -->
     <CommonKeyboardShortcutsHelp v-if="token" />

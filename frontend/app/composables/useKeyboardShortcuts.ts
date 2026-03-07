@@ -66,6 +66,8 @@ export const useKeyboardShortcuts = () => {
   const { emails, selectedEmailId, selectedEmailDetail, loadEmailDetail, toggleRead, toggleStar, removeEmail, startReply, startReplyAll, startForward } = useEmails()
   const { isComposeOpen } = useGlobalModal()
   const { bulkArchiveEmails } = useApi()
+  const router = useRouter()
+  const route = useRoute()
   
   // 快捷键帮助弹窗状态
   const showShortcutsHelp = useState('showShortcutsHelp', () => false)
@@ -190,7 +192,10 @@ export const useKeyboardShortcuts = () => {
   }
   
   // 写新邮件 (c)
-  const handleCompose = () => {
+  const handleCompose = async () => {
+    if (route.path !== '/') {
+      await router.push('/')
+    }
     isComposeOpen.value = true
   }
   
@@ -211,8 +216,6 @@ export const useKeyboardShortcuts = () => {
   const handleEscape = () => {
     if (showShortcutsHelp.value) {
       showShortcutsHelp.value = false
-    } else if (isComposeOpen.value) {
-      isComposeOpen.value = false
     }
   }
   
@@ -275,7 +278,7 @@ export const useKeyboardShortcuts = () => {
         break
       case 'c':
         event.preventDefault()
-        handleCompose()
+        void handleCompose()
         break
       case '/':
         event.preventDefault()

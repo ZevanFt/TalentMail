@@ -147,6 +147,15 @@ const moreFolders = computed(() => [
 const selectedVirtualId = useState<string | null>('selectedVirtualId', () => null)
 const selectedTagId = useState<number | null>('selectedTagId', () => null)
 
+const openComposePanel = async () => {
+  selectedTagId.value = null
+  selectedVirtualId.value = null
+  if (route.path !== '/') {
+    await router.push('/')
+  }
+  isComposeOpen.value = true
+}
+
 // 切换文件夹
 const selectFolder = async (folder: any) => {
   selectedTagId.value = null // 清除标签选中状态
@@ -233,7 +242,7 @@ const isActive = (path: string) => route.path === path
 
     <!-- 写邮件 -->
     <div class="px-3 mb-2">
-      <button @click="isComposeOpen = true"
+      <button @click="openComposePanel"
         class="w-full bg-primary hover:bg-primary-hover active:scale-95 text-white py-2.5 rounded-lg flex items-center justify-center gap-2 font-bold shadow-md shadow-purple-500/20 transition-all duration-200 text-sm">
         <Plus class="w-4 h-4" stroke-width="2.5" />
         写邮件

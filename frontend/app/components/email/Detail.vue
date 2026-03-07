@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ArrowLeft, Trash2, Archive, Star, Reply, Forward, MoreHorizontal, Mail, MailOpen, ReplyAll, Eye, Send, CheckCircle, XCircle, Loader2, RefreshCw, Paperclip, Download, Copy, Check, Tag, Plus, X, FileDown, FileText } from 'lucide-vue-next'
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
+import ComposePanel from './ComposePanel.vue'
 
 const { selectedEmailDetail, formatTime, toggleRead, removeEmail, startReply, startReplyAll, startForward, folders, currentFolderId, loadEmails, tags, loadTags, addTag, removeTag } = useEmails()
 const { isComposeOpen } = useGlobalModal()
@@ -259,7 +260,9 @@ const exportEmail = (format: 'eml' | 'pdf') => {
 
 <template>
   <main class="flex-1 h-full email-detail-container flex flex-col min-w-0 relative">
-    <template v-if="selectedEmailDetail">
+    <ComposePanel v-if="isComposeOpen" />
+
+    <template v-else-if="selectedEmailDetail">
       <!-- 顶部工具栏 -->
       <div class="h-16 border-b border-gray-200/50 dark:border-gray-800/50 flex items-center px-6 justify-between shrink-0">
         <div class="flex items-center gap-2">
