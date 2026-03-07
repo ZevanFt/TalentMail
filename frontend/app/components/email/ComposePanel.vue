@@ -2,7 +2,7 @@
 import { Paperclip, Send, Loader2, Eye, X, FileText, Bold, Italic, Underline, List, ListOrdered, Link2, Quote, Eraser } from 'lucide-vue-next'
 import TemplateSelector from './TemplateSelector.vue'
 
-const { isComposeOpen } = useGlobalModal()
+const { isComposeOpen, composeCloseGuard } = useGlobalModal()
 const { sendEmail, saveDraft, updateDraft, deleteDraft, getDefaultSignature, uploadAttachment, deleteAttachment } = useApi()
 const { composeState, resetCompose, formatTime, folders, loadEmails, currentFolderId } = useEmails()
 
@@ -22,6 +22,8 @@ const showCc = ref(false)
 const isTracked = ref(false)
 const draftId = ref<number | null>(null)
 const showDraftConfirm = ref(false)
+const closeRequestResolver = ref<((ok: boolean) => void) | null>(null)
+const draftDialogAction = ref<'save' | 'discard' | null>(null)
 const savingDraft = ref(false)
 const defaultSignature = ref('')
 const attachments = ref<UploadedFile[]>([])
@@ -349,13 +351,27 @@ const hasContent = computed(() => {
   return hasRecipients || hasSubject || hasBody
 })
 
-const tryClose = () => {
-  syncBodyFromEditor()
-  if (hasContent.value) {
-    showDraftConfirm.value = true
-    return
+const resolveCloseRequest = (ok: boolean) => {
+  if (closeRequestResolver.value) {
+    closeRequestResolver.value(ok)
+    closeRequestResolver.value = null
   }
-  closeAndReset()
+}
+
+const requestCloseWithDraftGuard = async () => {
+  syncBodyFromEditor()
+  if (!hasContent.value) {
+    closeAndReset()
+    return true
+  }
+  showDraftConfirm.value = true
+  return await new Promise<boolean>((resolve) => {
+    closeRequestResolver.value = resolve
+  })
+}
+
+const tryClose = async () => {
+  await requestCloseWithDraftGuard()
 }
 
 const handleSaveDraft = async () => {
@@ -376,8 +392,10 @@ const handleSaveDraft = async () => {
       const res = await saveDraft(data)
       draftId.value = res.data.id
     }
+    draftDialogAction.value = 'save'
     showDraftConfirm.value = false
     closeAndReset()
+    resolveCloseRequest(true)
 
     const draftsFolder = folders.value.find(f => f.role === 'drafts')
     if (draftsFolder && currentFolderId.value === draftsFolder.id) {
@@ -398,8 +416,10 @@ const discardDraft = async () => {
       console.error('删除草稿失败', e)
     }
   }
+  draftDialogAction.value = 'discard'
   showDraftConfirm.value = false
   closeAndReset()
+  resolveCloseRequest(true)
 }
 
 const closeAndReset = () => {
@@ -416,6 +436,27 @@ const closeAndReset = () => {
     editorRef.value.innerHTML = ''
   }
 }
+
+watch(showDraftConfirm, (open) => {
+  if (open) return
+  if (draftDialogAction.value) {
+    draftDialogAction.value = null
+    return
+  }
+  // 对话框被关闭但未执行保存/丢弃动作时，视为取消切换
+  resolveCloseRequest(false)
+})
+
+onMounted(() => {
+  composeCloseGuard.value = requestCloseWithDraftGuard
+})
+
+onUnmounted(() => {
+  if (composeCloseGuard.value === requestCloseWithDraftGuard) {
+    composeCloseGuard.value = null
+  }
+  resolveCloseRequest(false)
+})
 
 watch(() => composeState.value, async (state) => {
   if (state.mode === 'draft' && state.originalEmail) {
@@ -482,7 +523,7 @@ const handleTemplateClear = () => {
   </CommonModal>
 
   <section v-if="isComposeOpen" class="flex-1 h-full flex flex-col min-w-0">
-    <div class="px-4 py-3.5 border-b border-gray-200/50 dark:border-gray-800/50 flex items-center justify-between shrink-0">
+    <div class="h-12 px-4 border-b border-gray-200/50 dark:border-gray-800/50 flex items-center justify-between shrink-0">
       <div class="flex items-center gap-2 min-w-0">
         <h2 class="text-xs font-bold text-gray-600 dark:text-gray-400 tracking-wide">{{ modalTitle }}</h2>
         <div v-if="appliedTemplate" class="hidden md:flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">

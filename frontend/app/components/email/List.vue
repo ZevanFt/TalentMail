@@ -2,7 +2,7 @@
 import { Star, RefreshCw, Loader2, Circle, Clock, X, Send, CheckCircle, XCircle, Eye, Paperclip, SquareCheck, Square, Trash2, Archive, FolderInput, CheckCheck, CircleDot, MoreHorizontal } from 'lucide-vue-next'
 
 const { emails, selectedEmailId, folders, currentFolderId, loading, syncing, loadFolders, loadEmails, loadEmailDetail, sync, formatTime, toggleRead, toggleStar, snooze, searchQuery, isSearching, clearSearch, startAutoSync, stopAutoSync, editDraft } = useEmails()
-const { isComposeOpen } = useGlobalModal()
+const { isComposeOpen, requestCloseCompose } = useGlobalModal()
 const { getEmail, bulkMarkRead, bulkMarkStarred, bulkDeleteEmails, bulkArchiveEmails, bulkMoveEmails, markAsSpam, markAsNotSpam } = useApi()
 
 // 获取 Sidebar 中选中的虚拟文件夹 ID 和标签 ID
@@ -246,6 +246,11 @@ const getAvatar = (sender: string) => {
 
 // 选择邮件
 const selectEmail = async (id: number) => {
+  if (isComposeOpen.value) {
+    const canClose = await requestCloseCompose()
+    if (!canClose) return
+  }
+
   // 草稿箱：打开编辑弹窗
   if (isDraftsFolder.value) {
     const res = await getEmail(id)
@@ -280,7 +285,7 @@ onUnmounted(() => {
 <template>
   <div class="w-80 h-full email-list-container border-r border-gray-200/50 dark:border-border-dark/50 flex flex-col shrink-0">
     <!-- 标题栏 -->
-    <div class="px-4 py-3.5 text-xs font-bold text-gray-600 dark:text-gray-400 border-b border-gray-200/50 dark:border-gray-800/50 flex items-center justify-between">
+    <div class="h-12 px-4 text-xs font-bold text-gray-600 dark:text-gray-400 border-b border-gray-200/50 dark:border-gray-800/50 flex items-center justify-between">
       <span class="truncate flex-1 tracking-wide">{{ currentFolderName }} <span class="text-gray-400 font-normal">({{ emails.length }})</span></span>
       <div class="flex items-center gap-1 shrink-0">
         <button v-if="isSearching" @click="clearSearch"

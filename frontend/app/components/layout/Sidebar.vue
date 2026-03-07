@@ -6,7 +6,7 @@ import {
   FolderOpen, Tag, Clock, Paperclip, Users, Cloud, PlusCircle, X, Check, Pencil
 } from 'lucide-vue-next'
 
-const { isComposeOpen } = useGlobalModal()
+const { isComposeOpen, requestCloseCompose } = useGlobalModal()
 const { folders, currentFolderId, loadEmails, loadFolders, loadFilteredEmails, loadSnoozedEmails, loadAllEmails, currentFilter } = useEmails()
 const { token, getTags, createTag, updateTag, deleteTag, getExternalAccounts, createExternalAccount } = useApi()
 const route = useRoute()
@@ -158,6 +158,11 @@ const openComposePanel = async () => {
 
 // 切换文件夹
 const selectFolder = async (folder: any) => {
+  if (isComposeOpen.value) {
+    const canClose = await requestCloseCompose()
+    if (!canClose) return
+  }
+
   selectedTagId.value = null // 清除标签选中状态
   
   // 先设置虚拟文件夹状态
@@ -192,6 +197,11 @@ const selectFolder = async (folder: any) => {
 // 切换标签
 const { loadEmailsByTag } = useEmails()
 const selectTag = async (tag: TagItem) => {
+  if (isComposeOpen.value) {
+    const canClose = await requestCloseCompose()
+    if (!canClose) return
+  }
+
   // 先设置状态，确保 EmailList 不会加载默认邮件
   selectedVirtualId.value = null
   selectedTagId.value = tag.id
