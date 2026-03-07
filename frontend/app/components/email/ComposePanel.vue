@@ -482,38 +482,35 @@ const handleTemplateClear = () => {
   </CommonModal>
 
   <section v-if="isComposeOpen" class="flex-1 h-full flex flex-col min-w-0">
-    <div class="h-16 border-b border-gray-200/50 dark:border-gray-800/50 flex items-center justify-between px-6 shrink-0">
-      <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ modalTitle }}</h2>
+    <div class="px-4 py-3.5 border-b border-gray-200/50 dark:border-gray-800/50 flex items-center justify-between shrink-0">
+      <h2 class="text-xs font-bold text-gray-600 dark:text-gray-400 tracking-wide">{{ modalTitle }}</h2>
       <div class="flex items-center gap-2">
+        <TemplateSelector
+          @select="handleTemplateSelect"
+          @clear="handleTemplateClear"
+        />
+        <div v-if="appliedTemplate" class="hidden md:flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+          <FileText class="w-3.5 h-3.5" />
+          <span class="font-medium max-w-36 truncate">{{ appliedTemplate.name }}</span>
+        </div>
         <button
           @click="handleSaveDraft"
           :disabled="savingDraft"
-          class="px-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50"
+          class="px-3 py-1.5 text-xs rounded-md border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50"
         >
           {{ savingDraft ? '保存中...' : '保存草稿' }}
         </button>
         <button
           @click="tryClose"
-          class="p-2 rounded-lg text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+          class="p-1.5 rounded-md text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
           title="关闭写信面板"
         >
-          <X class="w-5 h-5" />
+          <X class="w-4 h-4" />
         </button>
       </div>
     </div>
 
     <div class="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-4">
-      <div class="flex items-center gap-4 pb-4 border-b border-gray-200 dark:border-gray-700">
-        <TemplateSelector
-          @select="handleTemplateSelect"
-          @clear="handleTemplateClear"
-        />
-        <div v-if="appliedTemplate" class="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 animate-in fade-in slide-in-from-left-2 duration-200">
-          <FileText class="w-4 h-4" />
-          <span class="font-medium">已应用: {{ appliedTemplate.name }}</span>
-        </div>
-      </div>
-
       <div v-if="error" class="px-4 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-600 dark:text-red-400 text-sm flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
         <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
