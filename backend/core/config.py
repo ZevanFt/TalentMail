@@ -32,6 +32,8 @@ class Settings(BaseSettings):
     USE_CREDENTIALS: bool = False # Default to false, should be enabled in production
     MAIL_USERNAME: Optional[str] = None # Will be dynamically generated
     MAIL_PASSWORD: Optional[str] = None # Will be sourced from ADMIN_PASSWORD
+    MAIL_MASTER_USER: str = "sync_master"
+    MAIL_MASTER_PASSWORD: Optional[str] = None
 
     # --- Dynamically generated attributes ---
     DOMAIN: str = ""
@@ -86,6 +88,8 @@ def load_config() -> Settings:
     settings.MAIL_USERNAME = settings.ADMIN_EMAIL
     # The password for the mail server's admin account is the same as the app's admin account.
     settings.MAIL_PASSWORD = settings.ADMIN_PASSWORD
+    # Master user password: 优先环境变量，未设置时回退为 ADMIN_PASSWORD。
+    settings.MAIL_MASTER_PASSWORD = os.getenv("MAIL_MASTER_PASSWORD", settings.ADMIN_PASSWORD)
 
     return settings
 

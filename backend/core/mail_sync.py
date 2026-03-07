@@ -22,8 +22,8 @@ from core.config import settings
 logger = logging.getLogger(__name__)
 
 # Dovecot Master 用户配置
-MASTER_USER = "sync_master"
-MASTER_PASSWORD = "SyncMasterPassword123"
+MASTER_USER = settings.MAIL_MASTER_USER
+MASTER_PASSWORD = settings.MAIL_MASTER_PASSWORD or settings.ADMIN_PASSWORD
 
 
 def decode_mime_header(header: str) -> str:

@@ -11,8 +11,12 @@ echo "=== TalentMail 配置脚本开始 ==="
 
 # ---- 1. Dovecot Master user（用于 IMAP 邮件同步）----
 echo "配置 Dovecot Master user..."
-MASTER_USER="sync_master"
-MASTER_PASSWORD="SyncMasterPassword123"
+MASTER_USER="${MAIL_MASTER_USER:-sync_master}"
+MASTER_PASSWORD="${MAIL_MASTER_PASSWORD:-${ADMIN_PASSWORD}}"
+if [ -z "$MASTER_PASSWORD" ]; then
+    echo "❌ 未配置 MAIL_MASTER_PASSWORD（且 ADMIN_PASSWORD 为空），无法创建 master user"
+    exit 1
+fi
 echo "${MASTER_USER}:{PLAIN}${MASTER_PASSWORD}" > /etc/dovecot/master-users
 chown dovecot:dovecot /etc/dovecot/master-users
 chmod 600 /etc/dovecot/master-users

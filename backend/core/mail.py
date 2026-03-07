@@ -15,6 +15,25 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+def _resolve_smtp_credentials(sender_email: str, per_user_identity: bool) -> tuple[Optional[str], Optional[str], str]:
+    """
+    返回 (smtp_login_username, smtp_login_password, envelope_from)。
+    - per_user_identity=True: 使用 master user 以用户身份认证发信。
+    - per_user_identity=False: 使用系统账号（admin）认证发信。
+    """
+    if not settings.USE_CREDENTIALS:
+        return None, None, sender_email
+
+    if per_user_identity:
+        master_user = settings.MAIL_MASTER_USER
+        master_password = settings.MAIL_MASTER_PASSWORD
+        if master_user and master_password:
+            return f"{sender_email}*{master_user}", master_password, sender_email
+        logger.warning("MAIL_MASTER_USER/MAIL_MASTER_PASSWORD 未配置，回退为系统账号认证")
+
+    # 系统账号认证（兼容验证码/系统通知等场景）
+    return settings.MAIL_USERNAME, settings.MAIL_PASSWORD, settings.MAIL_USERNAME or sender_email
+
 
 async def send_email(
     email_data: email_schema.EmailCreate,
@@ -84,20 +103,17 @@ async def send_email(
             server.starttls()
 
         # Login if credentials are provided
-        if settings.USE_CREDENTIALS:
-            logger.info(f"Authenticating as {settings.MAIL_USERNAME}...")
-            server.login(settings.MAIL_USERNAME, settings.MAIL_PASSWORD)
+        smtp_user, smtp_password, from_addr = _resolve_smtp_credentials(sender_email, per_user_identity=True)
+        if settings.USE_CREDENTIALS and smtp_user and smtp_password:
+            logger.info(f"Authenticating as {smtp_user}...")
+            server.login(smtp_user, smtp_password)
 
         # Send the email
-        # The `from_addr` for the SMTP envelope MUST be the authenticated user.
-        # The `From` header in the message (`msg['From']`) can be the actual user.
-        # When not using credentials, the from_addr should be the actual sender.
-        # When using credentials, it must be the authenticated user.
-        from_addr = settings.MAIL_USERNAME if settings.USE_CREDENTIALS else sender_email
+        # 用户邮件：优先按用户身份认证（master user）；系统邮件见其它函数。
         logger.info(f"Sending email from {from_addr} to {all_recipients}...")
         server.sendmail(from_addr, all_recipients, msg.as_string())
 
-        log_user = f" via SMTP user {settings.MAIL_USERNAME}" if settings.USE_CREDENTIALS else ""
+        log_user = f" via SMTP user {smtp_user}" if settings.USE_CREDENTIALS and smtp_user else ""
         logger.info(f"Email sent successfully{log_user}, from {sender_email} to {all_recipients}")
 
         return msg['Message-ID']
@@ -281,10 +297,9 @@ async def send_verification_code_email(
         if settings.MAIL_STARTTLS:
             server.starttls()
 
-        if settings.USE_CREDENTIALS:
-            server.login(settings.MAIL_USERNAME, settings.MAIL_PASSWORD)
-
-        from_addr = settings.MAIL_USERNAME if settings.USE_CREDENTIALS else sender_email
+        smtp_user, smtp_password, from_addr = _resolve_smtp_credentials(sender_email, per_user_identity=False)
+        if settings.USE_CREDENTIALS and smtp_user and smtp_password:
+            server.login(smtp_user, smtp_password)
         server.sendmail(from_addr, [to_email], msg.as_string())
 
         logger.info(f"Verification code email sent to {to_email} for {purpose}")
@@ -354,10 +369,9 @@ async def send_system_email(
         if settings.MAIL_STARTTLS:
             server.starttls()
 
-        if settings.USE_CREDENTIALS:
-            server.login(settings.MAIL_USERNAME, settings.MAIL_PASSWORD)
-
-        from_addr = settings.MAIL_USERNAME if settings.USE_CREDENTIALS else sender_email
+        smtp_user, smtp_password, from_addr = _resolve_smtp_credentials(sender_email, per_user_identity=False)
+        if settings.USE_CREDENTIALS and smtp_user and smtp_password:
+            server.login(smtp_user, smtp_password)
         server.sendmail(from_addr, [to_email], msg.as_string())
 
         logger.info(f"System email sent to {to_email} using template {template_code}")

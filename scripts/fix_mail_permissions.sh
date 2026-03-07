@@ -5,9 +5,17 @@
 
 set -e
 
+# 读取项目根目录 .env（如果存在）
+if [ -f ".env" ]; then
+  set -a
+  # shellcheck disable=SC1091
+  source .env
+  set +a
+fi
+
 CONTAINER_NAME="${MAILSERVER_CONTAINER_NAME:-talentmail-mailserver-1}"
-MASTER_USER="sync_master"
-MASTER_PASSWORD="SyncMasterPassword123"
+MASTER_USER="${MAIL_MASTER_USER:-sync_master}"
+MASTER_PASSWORD="${MAIL_MASTER_PASSWORD:-${ADMIN_PASSWORD}}"
 
 echo "=========================================="
 echo "  TalentMail 邮件权限快速修复"
@@ -75,7 +83,10 @@ sleep 3
 # 6. 测试 Master user 认证
 echo ""
 echo "🔍 测试 Master user 认证..."
-if docker exec "$CONTAINER_NAME" doveadm auth test -x service=imap "admin@talenting.vip*${MASTER_USER}" "$MASTER_PASSWORD" | grep -q "auth succeeded"; then
+MASTER_TEST_EMAIL="admin@$(grep -E '^DOMAIN=' .env.domains | cut -d'=' -f2-)"
+if [ -z "$MASTER_PASSWORD" ]; then
+    echo "  ⚠️  跳过认证测试：MAIL_MASTER_PASSWORD/ADMIN_PASSWORD 未配置"
+elif docker exec "$CONTAINER_NAME" doveadm auth test -x service=imap "${MASTER_TEST_EMAIL}*${MASTER_USER}" "$MASTER_PASSWORD" | grep -q "auth succeeded"; then
     echo "  ✅ Master user 认证成功"
 else
     echo "  ❌ Master user 认证失败"
