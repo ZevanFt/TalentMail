@@ -483,27 +483,30 @@ const handleTemplateClear = () => {
 
   <section v-if="isComposeOpen" class="flex-1 h-full flex flex-col min-w-0">
     <div class="px-4 py-3.5 border-b border-gray-200/50 dark:border-gray-800/50 flex items-center justify-between shrink-0">
-      <h2 class="text-xs font-bold text-gray-600 dark:text-gray-400 tracking-wide">{{ modalTitle }}</h2>
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 min-w-0">
+        <h2 class="text-xs font-bold text-gray-600 dark:text-gray-400 tracking-wide">{{ modalTitle }}</h2>
+        <div v-if="appliedTemplate" class="hidden md:flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+          <FileText class="w-3.5 h-3.5" />
+          <span class="font-medium max-w-36 truncate">{{ appliedTemplate.name }}</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-1 p-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/80">
         <TemplateSelector
           compact
+          toolbar
           @select="handleTemplateSelect"
           @clear="handleTemplateClear"
         />
         <button
           @click="handleSaveDraft"
           :disabled="savingDraft"
-          class="px-3 py-1.5 text-xs rounded-md border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50"
+          class="px-3 py-1.5 text-xs rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
         >
           {{ savingDraft ? '保存中...' : '保存草稿' }}
         </button>
-        <div v-if="appliedTemplate" class="hidden md:flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-          <FileText class="w-3.5 h-3.5" />
-          <span class="font-medium max-w-36 truncate">{{ appliedTemplate.name }}</span>
-        </div>
         <button
           @click="tryClose"
-          class="p-1.5 rounded-md text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+          class="p-1.5 rounded-md text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
           title="关闭写信面板"
         >
           <X class="w-4 h-4" />

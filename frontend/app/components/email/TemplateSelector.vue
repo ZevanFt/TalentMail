@@ -46,8 +46,10 @@ const emit = defineEmits<{
 
 const props = withDefaults(defineProps<{
   compact?: boolean
+  toolbar?: boolean
 }>(), {
-  compact: false
+  compact: false,
+  toolbar: false
 })
 
 // 状态
@@ -195,11 +197,15 @@ onMounted(() => {
       <button 
         @click="showDropdown = !showDropdown"
         :class="[
-          props.compact
+          props.toolbar
+            ? 'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition'
+            : props.compact
             ? 'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs border transition'
             : 'flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition',
           selectedTemplate 
-            ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-300 dark:border-blue-700' 
+            ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-300 dark:border-blue-700'
+            : props.toolbar
+              ? 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
             : props.compact
               ? 'border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
               : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
