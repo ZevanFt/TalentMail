@@ -489,10 +489,6 @@ const handleTemplateClear = () => {
           @select="handleTemplateSelect"
           @clear="handleTemplateClear"
         />
-        <div v-if="appliedTemplate" class="hidden md:flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-          <FileText class="w-3.5 h-3.5" />
-          <span class="font-medium max-w-36 truncate">{{ appliedTemplate.name }}</span>
-        </div>
         <button
           @click="handleSaveDraft"
           :disabled="savingDraft"
@@ -500,6 +496,10 @@ const handleTemplateClear = () => {
         >
           {{ savingDraft ? '保存中...' : '保存草稿' }}
         </button>
+        <div v-if="appliedTemplate" class="hidden md:flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+          <FileText class="w-3.5 h-3.5" />
+          <span class="font-medium max-w-36 truncate">{{ appliedTemplate.name }}</span>
+        </div>
         <button
           @click="tryClose"
           class="p-1.5 rounded-md text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
