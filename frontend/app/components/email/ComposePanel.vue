@@ -347,8 +347,9 @@ const hasContent = computed(() => {
   const hasRecipients = recipients.value.trim().length > 0
   const hasSubject = subject.value.trim().length > 0
   const hasBody = bodyText.length > 0
+  const hasAttachments = attachments.value.length > 0
 
-  return hasRecipients || hasSubject || hasBody
+  return hasRecipients || hasSubject || hasBody || hasAttachments
 })
 
 const resolveCloseRequest = (ok: boolean) => {
