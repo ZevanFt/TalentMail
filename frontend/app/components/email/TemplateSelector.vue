@@ -44,6 +44,12 @@ const emit = defineEmits<{
   (e: 'clear'): void
 }>()
 
+const props = withDefaults(defineProps<{
+  compact?: boolean
+}>(), {
+  compact: false
+})
+
 // 状态
 const showDropdown = ref(false)
 const showVariableForm = ref(false)
@@ -182,23 +188,27 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="space-y-4">
+  <div :class="props.compact ? '' : 'space-y-4'">
     
     <!-- 模板选择按钮 -->
     <div ref="dropdownRef" class="relative">
       <button 
         @click="showDropdown = !showDropdown"
         :class="[
-          'flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition',
+          props.compact
+            ? 'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs border transition'
+            : 'flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition',
           selectedTemplate 
             ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-300 dark:border-blue-700' 
-            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+            : props.compact
+              ? 'border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
         ]"
       >
-        <FileText class="w-4 h-4" />
+        <FileText :class="props.compact ? 'w-3.5 h-3.5' : 'w-4 h-4'" />
         <span v-if="selectedTemplate">{{ selectedTemplate.name }}</span>
         <span v-else>使用模板</span>
-        <ChevronRight :class="['w-4 h-4 transition', showDropdown ? 'rotate-90' : '']" />
+        <ChevronRight :class="[props.compact ? 'w-3.5 h-3.5' : 'w-4 h-4', 'transition', showDropdown ? 'rotate-90' : '']" />
       </button>
       
       <!-- 清除按钮 -->

@@ -486,6 +486,7 @@ const handleTemplateClear = () => {
       <h2 class="text-xs font-bold text-gray-600 dark:text-gray-400 tracking-wide">{{ modalTitle }}</h2>
       <div class="flex items-center gap-2">
         <TemplateSelector
+          compact
           @select="handleTemplateSelect"
           @clear="handleTemplateClear"
         />
