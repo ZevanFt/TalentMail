@@ -17,6 +17,26 @@ CONTAINER_NAME="${MAILSERVER_CONTAINER_NAME:-talentmail-mailserver-1}"
 MASTER_USER="${MAIL_MASTER_USER:-sync_master}"
 MASTER_PASSWORD="${MAIL_MASTER_PASSWORD:-${ADMIN_PASSWORD}}"
 
+retry_docker_exec() {
+    local max_attempts="$1"
+    local wait_seconds="$2"
+    shift 2
+    local attempt=1
+    while [ "$attempt" -le "$max_attempts" ]; do
+        if docker exec "$CONTAINER_NAME" "$@" >/tmp/fix_mail_permissions.last 2>&1; then
+            return 0
+        fi
+        if [ "$attempt" -lt "$max_attempts" ]; then
+            echo "  ⏳ 命令未就绪，${wait_seconds}s 后重试 (${attempt}/${max_attempts})..."
+            sleep "$wait_seconds"
+        fi
+        attempt=$((attempt + 1))
+    done
+    echo "  ❌ 命令执行失败：$*"
+    cat /tmp/fix_mail_permissions.last
+    return 1
+}
+
 echo "=========================================="
 echo "  TalentMail 邮件权限快速修复"
 echo "=========================================="
@@ -48,8 +68,8 @@ fi
 # 3. 配置 Postfix submission 端口支持 STARTTLS
 echo ""
 echo "📧 配置 SMTP submission 端口支持 STARTTLS..."
-docker exec "$CONTAINER_NAME" postconf -P "submission/inet/smtpd_tls_security_level=may"
-docker exec "$CONTAINER_NAME" postfix reload
+retry_docker_exec 12 2 postconf -P "submission/inet/smtpd_tls_security_level=may"
+retry_docker_exec 12 2 postfix reload
 echo "  ✅ STARTTLS 已启用"
 
 # 4. 配置 OpenDKIM 允许从 /tmp 加载密钥
