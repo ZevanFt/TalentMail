@@ -15,6 +15,20 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
+def _starttls_if_configured(server: smtplib.SMTP) -> None:
+    """
+    按配置尝试 STARTTLS；若服务端不支持则降级为明文 SMTP。
+    """
+    if not settings.MAIL_STARTTLS:
+        return
+    try:
+        logger.info("Starting TLS connection...")
+        server.starttls()
+    except smtplib.SMTPNotSupportedError:
+        logger.warning("SMTP server does not support STARTTLS, fallback to plain SMTP.")
+
+
 def _resolve_smtp_credentials(sender_email: str, per_user_identity: bool) -> tuple[Optional[str], Optional[str], str]:
     """
     返回 (smtp_login_username, smtp_login_password, envelope_from)。
@@ -98,9 +112,7 @@ async def send_email(
         server = smtplib.SMTP(settings.MAIL_SERVER, settings.SMTP_PORT, timeout=30)
 
         # If STARTTLS is configured (recommended for production)
-        if settings.MAIL_STARTTLS:
-            logger.info("Starting TLS connection...")
-            server.starttls()
+        _starttls_if_configured(server)
 
         # Login if credentials are provided
         smtp_user, smtp_password, from_addr = _resolve_smtp_credentials(sender_email, per_user_identity=True)
@@ -294,8 +306,7 @@ async def send_verification_code_email(
     try:
         server = smtplib.SMTP(settings.MAIL_SERVER, settings.SMTP_PORT, timeout=30)
 
-        if settings.MAIL_STARTTLS:
-            server.starttls()
+        _starttls_if_configured(server)
 
         smtp_user, smtp_password, from_addr = _resolve_smtp_credentials(sender_email, per_user_identity=False)
         if settings.USE_CREDENTIALS and smtp_user and smtp_password:
@@ -366,8 +377,7 @@ async def send_system_email(
     try:
         server = smtplib.SMTP(settings.MAIL_SERVER, settings.SMTP_PORT, timeout=30)
 
-        if settings.MAIL_STARTTLS:
-            server.starttls()
+        _starttls_if_configured(server)
 
         smtp_user, smtp_password, from_addr = _resolve_smtp_credentials(sender_email, per_user_identity=False)
         if settings.USE_CREDENTIALS and smtp_user and smtp_password:

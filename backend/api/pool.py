@@ -416,11 +416,10 @@ def get_mailbox_emails(
 
 def extract_verification_code(text: str) -> Optional[str]:
     patterns = [
-        r'验证码[：:]\s*([A-Za-z0-9]{4,8})',
-        r'verification code[：:\s]+([A-Za-z0-9]{4,8})',
+        r'验证码(?:是)?[：:\s]*([A-Za-z0-9]{4,8})',
+        r'verification code(?: is)?[：:\s]*([A-Za-z0-9]{4,8})',
         r'code[：:\s]+([A-Za-z0-9]{4,8})',
         r'(?:^|\s)(\d{4,8})(?:\s|$)',
-        r'([A-Z0-9]{6})',
     ]
 
     for pattern in patterns:

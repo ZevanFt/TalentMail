@@ -44,10 +44,34 @@ class ApiKey(Base):
     __table_args__ = {'comment': '存储用户生成的用于API访问的密钥'}
     id = Column(Integer, primary_key=True, comment="API密钥唯一标识符")
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="所属用户的ID")
-    key = Column(String, unique=True, index=True, nullable=False, comment="API密钥字符串")
-    permissions = Column(JSON, comment="密钥拥有的权限 (JSON格式)")
+    # 列名沿用历史 key，值已改为哈希，避免明文存储。
+    key_hash = Column("key", String, unique=True, index=True, nullable=False, comment="API密钥哈希值")
+    key_prefix = Column(String(32), index=True, nullable=False, comment="API密钥前缀，用于快速检索")
+    scopes = Column("permissions", JSON, nullable=False, default=list, comment="密钥拥有的权限范围 (JSON格式)")
+    expires_at = Column(DateTime(timezone=True), nullable=True, comment="密钥过期时间")
+    revoked_at = Column(DateTime(timezone=True), nullable=True, comment="密钥吊销时间")
+    rate_limit_per_minute = Column(Integer, nullable=False, default=120, comment="每分钟请求速率限制")
+    description = Column(String(255), nullable=True, comment="密钥用途描述")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="创建时间")
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), comment="更新时间")
     last_used_at = Column(DateTime(timezone=True), nullable=True, comment="最后使用时间")
+    user = relationship("User")
+
+
+class ApiKeyAuditLog(Base):
+    __tablename__ = "api_key_audit_logs"
+    __table_args__ = {'comment': 'API Key 调用审计日志'}
+    id = Column(BigInteger, primary_key=True, autoincrement=True, comment="审计日志唯一标识符")
+    api_key_id = Column(Integer, ForeignKey("api_keys.id", ondelete="SET NULL"), nullable=True, index=True, comment="关联的 API Key ID")
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True, comment="调用用户ID")
+    method = Column(String(16), nullable=True, comment="HTTP 方法")
+    path = Column(String(255), nullable=True, comment="请求路径")
+    ip_address = Column(String(64), nullable=True, comment="请求来源 IP")
+    status_code = Column(Integer, nullable=True, comment="响应状态码")
+    decision = Column(String(32), nullable=False, comment="决策结果: allow/deny")
+    error_code = Column(String(64), nullable=True, comment="错误类型标识")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True, comment="创建时间")
+    api_key = relationship("ApiKey")
     user = relationship("User")
 
 

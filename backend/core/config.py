@@ -35,6 +35,15 @@ class Settings(BaseSettings):
     MAIL_MASTER_USER: str = "sync_master"
     MAIL_MASTER_PASSWORD: Optional[str] = None
 
+    # API Key 平台配置
+    API_KEY_TOKEN_PREFIX: str = "tm_"
+    API_KEY_PREFIX_LENGTH: int = 16
+    API_KEY_DEFAULT_EXPIRES_DAYS: int = 90
+    API_KEY_MAX_EXPIRES_DAYS: int = 3650
+    API_KEY_DEFAULT_RATE_LIMIT_PER_MINUTE: int = 120
+    API_KEY_MIN_RATE_LIMIT_PER_MINUTE: int = 1
+    API_KEY_MAX_RATE_LIMIT_PER_MINUTE: int = 10000
+
     # --- Dynamically generated attributes ---
     DOMAIN: str = ""
     API_BASE_URL: str = ""
