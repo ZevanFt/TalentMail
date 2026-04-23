@@ -7,6 +7,8 @@ import '@vue-flow/core/dist/theme-default.css'
 
 const router = useRouter()
 const { getWorkflows, getWorkflow, updateWorkflow, deleteWorkflow: deleteWorkflowApi, getNodeTypes, publishWorkflow, getWorkflowExecutions } = useApi()
+const toast = useToast()
+const { confirm: confirmDialog } = useConfirmDialog()
 
 const loading = ref(false)
 const workflows = ref<any[]>([])
@@ -37,8 +39,9 @@ const loadWorkflows = async () => {
   loading.value = true
   try {
     workflows.value = await getWorkflows()
-  } catch (e) {
+  } catch (e: any) {
     console.error('加载工作流列表失败:', e)
+    toast.error(e.data?.detail || '加载工作流列表失败')
   } finally {
     loading.value = false
   }
@@ -69,15 +72,16 @@ const editWorkflow = (id: number) => {
 // 删除工作流
 const deleting = ref<number | null>(null)
 const deleteWorkflow = async (id: number) => {
-  if (!confirm('确定要删除这个工作流吗？此操作不可恢复。')) return
-  
+  const ok = await confirmDialog({ message: '确定要删除这个工作流吗？此操作不可恢复。', type: 'danger' })
+  if (!ok) return
+
   deleting.value = id
   try {
     await deleteWorkflowApi(id)
     workflows.value = workflows.value.filter(w => w.id !== id)
-  } catch (e) {
+  } catch (e: any) {
     console.error('删除失败:', e)
-    alert('删除失败')
+    toast.error(e.data?.detail || '删除失败')
   } finally {
     deleting.value = null
   }
@@ -98,7 +102,7 @@ const toggleWorkflowActive = async (workflow: any) => {
     }
   } catch (e: any) {
     console.error('切换状态失败:', e)
-    alert('操作失败：' + (e.data?.detail || e.message || '未知错误'))
+    toast.error('操作失败：' + (e.data?.detail || e.message || '未知错误'))
   } finally {
     togglingActive.value = null
   }
@@ -140,8 +144,9 @@ const openPreviewModal = async (workflow: any) => {
       markerEnd: MarkerType.ArrowClosed,
       label: e.label
     }))
-  } catch (e) {
+  } catch (e: any) {
     console.error('加载工作流预览失败:', e)
+    toast.error(e.data?.detail || '加载工作流预览失败')
   } finally {
     loadingPreview.value = false
   }
@@ -172,8 +177,9 @@ const getNodeColor = (category: string): string => {
 const loadNodeTypes = async () => {
   try {
     nodeTypes.value = await getNodeTypes()
-  } catch (e) {
+  } catch (e: any) {
     console.error('加载节点类型失败:', e)
+    toast.error(e.data?.detail || '加载节点类型失败')
   }
 }
 
@@ -186,6 +192,7 @@ const openExecutionModal = async (workflow: any) => {
     executions.value = await getWorkflowExecutions('user', workflow.id, undefined, 20)
   } catch (e: any) {
     console.error('加载执行记录失败:', e)
+    toast.error(e.data?.detail || '加载执行记录失败')
   } finally {
     loadingExecutions.value = false
   }
@@ -200,6 +207,7 @@ const openConfigModal = async (workflow: any) => {
     showConfigModal.value = true
   } catch (e: any) {
     console.error('加载配置失败:', e)
+    toast.error(e.data?.detail || '加载配置失败')
   }
 }
 
@@ -212,6 +220,7 @@ const saveConfig = async () => {
     showConfigModal.value = false
   } catch (e: any) {
     console.error('保存配置失败:', e)
+    toast.error(e.data?.detail || '保存配置失败')
   } finally {
     savingConfig.value = false
   }

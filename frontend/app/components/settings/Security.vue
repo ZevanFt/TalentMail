@@ -2,6 +2,8 @@
 import { KeyRound, Smartphone, ShieldCheck, History, Laptop, Globe, X, Monitor, Trash2, LogOut, Mail, Edit3, QrCode, Shield, ShieldOff } from 'lucide-vue-next'
 
 const { changePassword, getLoginSessions, revokeSession, revokeAllSessions, getMe, sendRecoveryEmailCode, updateRecoveryEmail, get2FAStatus, setup2FA, enable2FA, disable2FA } = useApi()
+const toast = useToast()
+const { confirm: confirmDialog } = useConfirmDialog()
 
 // 用户信息
 const user = ref<any>(null)
@@ -11,8 +13,9 @@ const loadUser = async () => {
     loadingUser.value = true
     try {
         user.value = await getMe()
-    } catch (e) {
+    } catch (e: any) {
         console.error('加载用户信息失败', e)
+        toast.error(e.data?.detail || '加载用户信息失败')
     } finally {
         loadingUser.value = false
     }
@@ -78,8 +81,9 @@ const load2FAStatus = async () => {
     loading2FA.value = true
     try {
         twoFAStatus.value = await get2FAStatus()
-    } catch (e) {
+    } catch (e: any) {
         console.error('加载 2FA 状态失败', e)
+        toast.error(e.data?.detail || '加载 2FA 状态失败')
     } finally {
         loading2FA.value = false
     }
@@ -90,8 +94,9 @@ const loadSessions = async () => {
     loadingSessions.value = true
     try {
         sessions.value = await getLoginSessions(10)
-    } catch (e) {
+    } catch (e: any) {
         console.error('加载登录会话失败', e)
+        toast.error(e.data?.detail || '加载登录会话失败')
     } finally {
         loadingSessions.value = false
     }
@@ -123,13 +128,15 @@ const getDeviceIcon = (os: string | null) => {
 
 // 撤销单个会话
 const handleRevokeSession = async (sessionId: number) => {
-    if (!confirm('确定要撤销此登录会话吗？')) return
+    const ok = await confirmDialog({ message: '确定要撤销此登录会话吗？', type: 'warning' })
+    if (!ok) return
     revokingSession.value = sessionId
     try {
         await revokeSession(sessionId)
         sessions.value = sessions.value.filter(s => s.id !== sessionId)
-    } catch (e) {
+    } catch (e: any) {
         console.error('撤销会话失败', e)
+        toast.error(e.data?.detail || '撤销会话失败')
     } finally {
         revokingSession.value = null
     }
@@ -137,12 +144,14 @@ const handleRevokeSession = async (sessionId: number) => {
 
 // 撤销所有会话
 const handleRevokeAll = async () => {
-    if (!confirm('确定要撤销所有登录会话吗？这将使所有设备退出登录。')) return
+    const ok = await confirmDialog({ message: '确定要撤销所有登录会话吗？这将使所有设备退出登录。', type: 'danger' })
+    if (!ok) return
     try {
         await revokeAllSessions()
         await loadSessions()
-    } catch (e) {
+    } catch (e: any) {
         console.error('撤销所有会话失败', e)
+        toast.error(e.data?.detail || '撤销所有会话失败')
     }
 }
 

@@ -6,6 +6,7 @@ import ComposePanel from './ComposePanel.vue'
 const { selectedEmailDetail, formatTime, toggleRead, removeEmail, startReply, startReplyAll, startForward, folders, currentFolderId, loadEmails, tags, loadTags, addTag, removeTag } = useEmails()
 const { isComposeOpen } = useGlobalModal()
 const { getTrackingStats, resendEmail, downloadAttachmentUrl, exportEmailUrl, token } = useApi()
+const toast = useToast()
 
 // 验证码检测和复制
 const detectedCode = ref<string | null>(null)
@@ -50,8 +51,9 @@ const copyCode = async () => {
     setTimeout(() => {
       codeCopied.value = false
     }, 2000)
-  } catch (err) {
+  } catch (err: any) {
     console.error('复制失败:', err)
+    toast.error('复制失败')
   }
 }
 

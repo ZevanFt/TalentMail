@@ -17,6 +17,7 @@ const emit = defineEmits<{
 
 const router = useRouter()
 const { getWorkflowTemplates, getWorkflowTemplateCategories, getWorkflowTemplateTags, useWorkflowTemplate, toggleWorkflowTemplateFavorite } = useApi()
+const toast = useToast()
 
 // 状态
 const loading = ref(true)
@@ -55,8 +56,9 @@ const loadData = async () => {
     templates.value = templatesRes
     categories.value = categoriesRes
     popularTags.value = tagsRes.slice(0, 10)
-  } catch (e) {
+  } catch (e: any) {
     console.error('加载模板失败:', e)
+    toast.error(e.data?.detail || '加载模板失败')
   } finally {
     loading.value = false
   }
@@ -136,6 +138,7 @@ const useTemplate = async (template: any) => {
     }
   } catch (e: any) {
     console.error('使用模板失败:', e)
+    toast.error(e.data?.detail || '使用模板失败')
   } finally {
     usingTemplate.value = false
   }
@@ -148,8 +151,9 @@ const toggleFavorite = async (template: any, event: Event) => {
     const result = await toggleWorkflowTemplateFavorite(template.id)
     template.is_favorited = result.is_favorited
     template.favorite_count = result.favorite_count
-  } catch (e) {
+  } catch (e: any) {
     console.error('收藏失败:', e)
+    toast.error(e.data?.detail || '收藏操作失败')
   }
 }
 

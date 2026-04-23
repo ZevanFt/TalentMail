@@ -2,6 +2,7 @@
 import { Paperclip, Send, Loader2, Eye, X, FileText } from 'lucide-vue-next'
 import TemplateSelector from './TemplateSelector.vue'
 
+const toastNotify = useToast()
 const { isComposeOpen } = useGlobalModal()
 const { sendEmail, saveDraft, updateDraft, deleteDraft, getDefaultSignature, uploadAttachment, deleteAttachment } = useApi()
 const { composeState, resetCompose, formatTime, folders, loadEmails, currentFolderId } = useEmails()
@@ -37,8 +38,9 @@ const loadDefaultSignature = async () => {
   try {
     const res = await getDefaultSignature()
     defaultSignature.value = res.signature || ''
-  } catch (e) {
+  } catch (e: any) {
     console.error('加载签名失败', e)
+    toastNotify.error('加载签名失败')
   }
 }
 
@@ -133,9 +135,10 @@ const handleFileSelect = async (e: Event) => {
       const res = await uploadAttachment(file)
       attachments.value.push({ id: res.id, filename: res.filename, size: res.size })
     }
-  } catch (e) {
+  } catch (e: any) {
     console.error('上传失败', e)
     error.value = '附件上传失败'
+    toastNotify.error('附件上传失败')
   } finally {
     uploading.value = false
     input.value = ''
@@ -146,8 +149,9 @@ const removeAttachment = async (att: UploadedFile) => {
   try {
     await deleteAttachment(att.id)
     attachments.value = attachments.value.filter(a => a.id !== att.id)
-  } catch (e) {
+  } catch (e: any) {
     console.error('删除附件失败', e)
+    toastNotify.error('删除附件失败')
   }
 }
 
@@ -181,29 +185,13 @@ const handleSend = async () => {
     if (draftId.value) {
       try {
         await deleteDraft(draftId.value)
-      } catch (e) {
+      } catch (e: any) {
         console.error('删除草稿失败', e)
+        toastNotify.error('删除草稿失败')
       }
     }
-    
-    // 显示成功提示（使用浏览器原生通知）
-    if (typeof window !== 'undefined') {
-      // 创建一个临时的成功提示元素
-      const toast = document.createElement('div')
-      toast.className = 'fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-slide-in'
-      toast.innerHTML = `
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-        </svg>
-        <span>邮件已加入发送队列，请在"已发送"文件夹查看发送状态</span>
-      `
-      document.body.appendChild(toast)
-      setTimeout(() => {
-        toast.style.opacity = '0'
-        toast.style.transition = 'opacity 0.3s'
-        setTimeout(() => document.body.removeChild(toast), 300)
-      }, 5000)
-    }
+
+    toastNotify.success('邮件已加入发送队列，请在"已发送"文件夹查看发送状态', 5000)
 
     closeAndReset()
 
@@ -215,23 +203,7 @@ const handleSend = async () => {
     }
   } catch (e: any) {
     error.value = e.data?.detail || '发送失败'
-    // 显示错误提示
-    if (typeof window !== 'undefined') {
-      const toast = document.createElement('div')
-      toast.className = 'fixed top-4 right-4 z-50 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2'
-      toast.innerHTML = `
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-        </svg>
-        <span>${error.value}</span>
-      `
-      document.body.appendChild(toast)
-      setTimeout(() => {
-        toast.style.opacity = '0'
-        toast.style.transition = 'opacity 0.3s'
-        setTimeout(() => document.body.removeChild(toast), 300)
-      }, 5000)
-    }
+    toastNotify.error(error.value)
   } finally {
     sending.value = false
   }
@@ -293,8 +265,9 @@ const handleSaveDraft = async () => {
     if (draftsFolder && currentFolderId.value === draftsFolder.id) {
       await loadEmails(draftsFolder.id)
     }
-  } catch (e) {
+  } catch (e: any) {
     console.error('保存草稿失败', e)
+    toastNotify.error('保存草稿失败')
   } finally {
     savingDraft.value = false
   }
@@ -305,8 +278,9 @@ const discardDraft = async () => {
   if (draftId.value) {
     try {
       await deleteDraft(draftId.value)
-    } catch (e) {
+    } catch (e: any) {
       console.error('删除草稿失败', e)
+      toastNotify.error('删除草稿失败')
     }
   }
   showDraftConfirm.value = false

@@ -2,6 +2,7 @@
 import { Plus, Trash2, Copy, Check, Users, AlertTriangle, RefreshCw } from 'lucide-vue-next'
 
 const { getInviteCodes, createInviteCode, deleteInviteCode, getInviteCodeUsages } = useApi()
+const toast = useToast()
 
 interface InviteCode {
     id: number
@@ -46,8 +47,9 @@ const loadCodes = async () => {
     loading.value = true
     try {
         codes.value = await getInviteCodes()
-    } catch (e) {
+    } catch (e: any) {
         console.error('加载邀请码失败', e)
+        toast.error(e.data?.detail || '加载邀请码失败')
     } finally {
         loading.value = false
     }
@@ -59,7 +61,7 @@ const handleCreate = async () => {
         await createInviteCode(newCode.maxUses, newCode.expiresDays || undefined)
         await loadCodes()
     } catch (e: any) {
-        alert(e.data?.detail || '创建失败')
+        toast.error(e.data?.detail || '创建失败')
     } finally {
         creating.value = false
     }
@@ -79,7 +81,7 @@ const handleDelete = async () => {
         showDeleteModal.value = false
         codeToDelete.value = null
     } catch (e: any) {
-        alert(e.data?.detail || '删除失败')
+        toast.error(e.data?.detail || '删除失败')
     } finally {
         deleting.value = false
     }
@@ -106,8 +108,9 @@ const showUsages = async (code: InviteCode) => {
     loadingUsages.value = true
     try {
         usages.value = await getInviteCodeUsages(code.id)
-    } catch (e) {
+    } catch (e: any) {
         console.error('加载使用记录失败', e)
+        toast.error(e.data?.detail || '加载使用记录失败')
         usages.value = []
     } finally {
         loadingUsages.value = false

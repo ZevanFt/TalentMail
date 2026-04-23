@@ -444,6 +444,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { Plus, ClipboardList, ChevronRight, Pencil, Rocket, Package, Trash2, AlertTriangle, FileText, X, ArrowDownUp, Github } from 'lucide-vue-next'
 
 const { getChangelogs, createChangelog, updateChangelog, deleteChangelog: apiDeleteChangelog, publishChangelog, unpublishChangelog, getMe } = useApi()
+const toast = useToast()
 
 interface Changelog {
   id: number
@@ -547,8 +548,9 @@ const loadData = async (reset = true) => {
       changelogs.value.push(...res.items)
     }
     hasMore.value = res.has_more
-  } catch (e) {
+  } catch (e: any) {
     console.error('加载更新日志失败:', e)
+    toast.error(e.data?.detail || '加载更新日志失败')
   } finally {
     loading.value = false
     loadingMore.value = false
@@ -609,9 +611,9 @@ const saveChangelog = async () => {
     showEditor.value = false
     loadData()
     resetForm()
-  } catch (e) {
+  } catch (e: any) {
     console.error('保存失败:', e)
-    alert('保存失败，请重试')
+    toast.error(e.data?.detail || '保存失败，请重试')
   } finally {
     saving.value = false
   }
@@ -647,9 +649,9 @@ const deleteLog = async () => {
     showDeleteConfirm.value = false
     deletingItem.value = null
     loadData()
-  } catch (e) {
+  } catch (e: any) {
     console.error('删除失败:', e)
-    alert('删除失败，请重试')
+    toast.error(e.data?.detail || '删除失败，请重试')
   } finally {
     deleting.value = false
   }
@@ -659,9 +661,9 @@ const publishLog = async (log: Changelog) => {
   try {
     await publishChangelog(log.id)
     loadData()
-  } catch (e) {
+  } catch (e: any) {
     console.error('发布失败:', e)
-    alert('发布失败，请重试')
+    toast.error(e.data?.detail || '发布失败，请重试')
   }
 }
 
@@ -669,9 +671,9 @@ const unpublishLog = async (log: Changelog) => {
   try {
     await unpublishChangelog(log.id)
     loadData()
-  } catch (e) {
+  } catch (e: any) {
     console.error('取消发布失败:', e)
-    alert('取消发布失败，请重试')
+    toast.error(e.data?.detail || '取消发布失败，请重试')
   }
 }
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Search, Plus, Pencil, Trash2, X, User } from 'lucide-vue-next'
-
+const toast = useToast()
+const { confirm: confirmDialog } = useConfirmDialog()
 const { getContacts, createContact, updateContact, deleteContact } = useApi()
 
 interface Contact { id: number; name: string | null; email: string | null; phone: string | null; notes: string | null }
@@ -13,7 +14,12 @@ const loading = ref(false)
 
 const loadContacts = async () => {
   loading.value = true
-  try { contacts.value = await getContacts(searchQuery.value || undefined) } catch {} finally { loading.value = false }
+  try {
+    contacts.value = await getContacts(searchQuery.value || undefined)
+  } catch (e: any) {
+    console.error('加载联系人失败', e)
+    toast.error(e.data?.detail || '加载联系人失败')
+  } finally { loading.value = false }
 }
 
 const openModal = (contact?: Contact) => {
@@ -35,12 +41,22 @@ const save = async () => {
     }
     showModal.value = false
     await loadContacts()
-  } catch {}
+  } catch (e: any) {
+    console.error('保存联系人失败', e)
+    toast.error(e.data?.detail || '保存失败')
+  }
 }
 
 const remove = async (id: number) => {
-  if (!confirm('确定删除此联系人？')) return
-  try { await deleteContact(id); await loadContacts() } catch {}
+  const ok = await confirmDialog({ message: '确定删除此联系人？', type: 'danger' })
+  if (!ok) return
+  try {
+    await deleteContact(id)
+    await loadContacts()
+  } catch (e: any) {
+    console.error('删除联系人失败', e)
+    toast.error(e.data?.detail || '删除失败')
+  }
 }
 
 let debounceTimer: any

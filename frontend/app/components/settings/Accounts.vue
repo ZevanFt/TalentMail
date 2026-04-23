@@ -3,6 +3,7 @@ import { User, Plus, Trash2, ToggleLeft, ToggleRight, Mail, RefreshCw, Settings 
 
 const { getMe, getAliases, createAlias, updateAlias, deleteAlias, getSubscriptionStatus, getExternalAccounts, createExternalAccount, deleteExternalAccount, testExternalAccount, getProviderPresets } = useApi()
 const config = useConfig()
+const toast = useToast()
 
 const loading = ref(true)
 const user = ref<any>(null)
@@ -36,6 +37,7 @@ const loadUser = async () => {
         user.value = await getMe()
     } catch (e: any) {
         console.error('加载用户信息失败', e)
+        toast.error(e.data?.detail || '加载用户信息失败')
     } finally {
         loading.value = false
     }
@@ -45,8 +47,9 @@ const loadAliases = async () => {
     loadingAliases.value = true
     try {
         aliases.value = await getAliases()
-    } catch (e) {
+    } catch (e: any) {
         console.error('加载别名失败', e)
+        toast.error(e.data?.detail || '加载别名失败')
     } finally {
         loadingAliases.value = false
     }
@@ -55,8 +58,9 @@ const loadAliases = async () => {
 const loadSubscription = async () => {
     try {
         subscription.value = await getSubscriptionStatus()
-    } catch (e) {
+    } catch (e: any) {
         console.error('加载订阅状态失败', e)
+        toast.error(e.data?.detail || '加载订阅状态失败')
     }
 }
 
@@ -64,8 +68,9 @@ const loadExternalAccounts = async () => {
     loadingExternal.value = true
     try {
         externalAccounts.value = await getExternalAccounts()
-    } catch (e) {
+    } catch (e: any) {
         console.error('加载外部账号失败', e)
+        toast.error(e.data?.detail || '加载外部账号失败')
     } finally {
         loadingExternal.value = false
     }
@@ -74,8 +79,9 @@ const loadExternalAccounts = async () => {
 const loadProviders = async () => {
     try {
         providers.value = await getProviderPresets()
-    } catch (e) {
+    } catch (e: any) {
         console.error('加载服务商失败', e)
+        toast.error(e.data?.detail || '加载服务商失败')
     }
 }
 
@@ -107,8 +113,9 @@ const handleToggleAlias = async (alias: any) => {
     try {
         const result = await updateAlias(alias.id, { is_active: !alias.is_active })
         alias.is_active = result.is_active
-    } catch (e) {
+    } catch (e: any) {
         console.error('更新失败', e)
+        toast.error(e.data?.detail || '更新失败')
     }
 }
 
@@ -116,8 +123,9 @@ const handleDeleteAlias = async (id: number) => {
     try {
         await deleteAlias(id)
         aliases.value = aliases.value.filter(a => a.id !== id)
-    } catch (e) {
+    } catch (e: any) {
         console.error('删除失败', e)
+        toast.error(e.data?.detail || '删除别名失败')
     }
 }
 
@@ -156,8 +164,9 @@ const handleDeleteAccount = async (id: number) => {
     try {
         await deleteExternalAccount(id)
         externalAccounts.value = externalAccounts.value.filter(a => a.id !== id)
-    } catch (e) {
+    } catch (e: any) {
         console.error('删除失败', e)
+        toast.error(e.data?.detail || '删除失败')
     }
 }
 
@@ -165,9 +174,13 @@ const handleTestAccount = async (id: number) => {
     testingAccount.value = id
     try {
         const result = await testExternalAccount(id)
-        alert(result.success ? '连接成功！' : `连接失败: ${result.message}`)
+        if (result.success) {
+            toast.success('连接成功！')
+        } else {
+            toast.error(`连接失败: ${result.message}`)
+        }
     } catch (e: any) {
-        alert('测试失败: ' + (e.data?.detail || '未知错误'))
+        toast.error('测试失败: ' + (e.data?.detail || '未知错误'))
     } finally {
         testingAccount.value = null
     }

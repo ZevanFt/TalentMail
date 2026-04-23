@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Upload, Trash2, Share2, Link, Copy, Check, Download, X, Lock, Unlock, FileText, Image, Film, Music, Archive, File } from 'lucide-vue-next'
-
+const toast = useToast()
+const { confirm: confirmDialog } = useConfirmDialog()
 const { getDriveFiles, uploadDriveFile, deleteDriveFile, createDriveShare, removeDriveShare, downloadDriveFileUrl, token } = useApi()
 const config = useConfig()
 
@@ -19,8 +20,9 @@ const loadFiles = async () => {
   loading.value = true
   try {
     files.value = await getDriveFiles()
-  } catch (e) {
+  } catch (e: any) {
     console.error('加载失败', e)
+    toast.error(e.data?.detail || '加载文件失败')
   } finally {
     loading.value = false
   }
@@ -37,7 +39,7 @@ const handleUpload = async (e: Event) => {
       files.value.unshift(result)
     }
   } catch (e: any) {
-    alert('上传失败: ' + (e.data?.detail || '未知错误'))
+    toast.error('上传失败: ' + (e.data?.detail || '未知错误'))
   } finally {
     uploading.value = false
     input.value = ''
@@ -45,12 +47,14 @@ const handleUpload = async (e: Event) => {
 }
 
 const handleDelete = async (id: number) => {
-  if (!confirm('确定删除此文件？')) return
+  const ok = await confirmDialog({ message: '确定删除此文件？', type: 'danger' })
+  if (!ok) return
   try {
     await deleteDriveFile(id)
     files.value = files.value.filter(f => f.id !== id)
-  } catch (e) {
+  } catch (e: any) {
     console.error('删除失败', e)
+    toast.error(e.data?.detail || '删除失败')
   }
 }
 
@@ -74,7 +78,7 @@ const handleShare = async () => {
     if (idx >= 0) files.value[idx] = result
     shareFile.value = result
   } catch (e: any) {
-    alert('分享失败: ' + (e.data?.detail || '未知错误'))
+    toast.error('分享失败: ' + (e.data?.detail || '未知错误'))
   } finally {
     sharing.value = false
   }
@@ -90,8 +94,9 @@ const handleRemoveShare = async () => {
       files.value[idx].is_public = false
     }
     showShareModal.value = false
-  } catch (e) {
+  } catch (e: any) {
     console.error('取消分享失败', e)
+    toast.error(e.data?.detail || '取消分享失败')
   }
 }
 
@@ -105,8 +110,9 @@ const copyShareUrl = async () => {
     await navigator.clipboard.writeText(getShareUrl(shareFile.value.share_code))
     copied.value = true
     setTimeout(() => copied.value = false, 2000)
-  } catch (e) {
+  } catch (e: any) {
     console.error('复制失败', e)
+    toast.error('复制失败')
   }
 }
 

@@ -3,6 +3,7 @@ import { Search, RefreshCw, Crown, Plus, Trash2, AlertTriangle } from 'lucide-vu
 
 const { getUsers, updateUserPermissions, adminCreateUser, adminDeleteUser, getPlans } = useApi()
 const config = useConfig()
+const toast = useToast()
 
 interface Plan {
     id: number
@@ -57,8 +58,9 @@ const deleting = ref(false)
 const loadPlans = async () => {
     try {
         plans.value = await getPlans()
-    } catch (e) {
+    } catch (e: any) {
         console.error('加载套餐失败', e)
+        toast.error(e.data?.detail || '加载套餐失败')
     }
 }
 
@@ -68,8 +70,9 @@ const loadUsers = async () => {
         const res = await getUsers(searchQuery.value || undefined, page.value, limit.value)
         users.value = res.items
         total.value = res.total
-    } catch (e) {
+    } catch (e: any) {
         console.error('加载用户失败', e)
+        toast.error(e.data?.detail || '加载用户失败')
     } finally {
         loading.value = false
     }
@@ -84,7 +87,7 @@ const updateRole = async (user: User, newRole: string) => {
             user.plan_name = '管理员 (无限)'
         }
     } catch (e: any) {
-        alert(e.data?.detail || '操作失败')
+        toast.error(e.data?.detail || '操作失败')
     }
 }
 
@@ -94,7 +97,7 @@ const togglePool = async (user: User) => {
         await updateUserPermissions(user.id, { pool_enabled: newValue })
         user.pool_enabled = newValue
     } catch (e: any) {
-        alert(e.data?.detail || '操作失败')
+        toast.error(e.data?.detail || '操作失败')
     }
 }
 
@@ -119,7 +122,7 @@ const savePlan = async () => {
         editingUser.value.subscription_expires_at = res.subscription_expires_at
         showPlanModal.value = false
     } catch (e: any) {
-        alert(e.data?.detail || '操作失败')
+        toast.error(e.data?.detail || '操作失败')
     }
 }
 
@@ -142,11 +145,11 @@ const openCreateModal = () => {
 
 const handleCreateUser = async () => {
     if (!createForm.emailPrefix.trim()) {
-        alert('请输入邮箱前缀')
+        toast.warning('请输入邮箱前缀')
         return
     }
     if (!createForm.password || createForm.password.length < 6) {
-        alert('密码至少6位')
+        toast.warning('密码至少6位')
         return
     }
     
@@ -164,7 +167,7 @@ const handleCreateUser = async () => {
         showCreateModal.value = false
         await loadUsers()
     } catch (e: any) {
-        alert(e.data?.detail || '创建失败')
+        toast.error(e.data?.detail || '创建失败')
     } finally {
         creating.value = false
     }
@@ -185,7 +188,7 @@ const handleDeleteUser = async () => {
         userToDelete.value = null
         await loadUsers()
     } catch (e: any) {
-        alert(e.data?.detail || '删除失败')
+        toast.error(e.data?.detail || '删除失败')
     } finally {
         deleting.value = false
     }

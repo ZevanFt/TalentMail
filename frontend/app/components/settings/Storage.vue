@@ -2,6 +2,7 @@
 import { HardDrive, Archive, Trash2, AlertTriangle, Mail, Crown, Ticket, Clock, Infinity } from 'lucide-vue-next'
 
 const { getStorageStats, getSubscriptionStatus, redeemCode, getRedemptionHistory, getMe, updateMe } = useApi()
+const toast = useToast()
 
 const loading = ref(true)
 const stats = ref({
@@ -28,6 +29,7 @@ const loadStats = async () => {
         stats.value = await getStorageStats()
     } catch (e: any) {
         console.error('加载存储统计失败', e)
+        toast.error(e.data?.detail || '加载存储统计失败')
     } finally {
         loading.value = false
     }
@@ -38,22 +40,25 @@ const loadSubscription = async () => {
         subscription.value = await getSubscriptionStatus()
     } catch (e: any) {
         console.error('加载订阅状态失败', e)
+        toast.error(e.data?.detail || '加载订阅状态失败')
     }
 }
 
 const loadUser = async () => {
     try {
         user.value = await getMe()
-    } catch (e) {
+    } catch (e: any) {
         console.error('加载用户信息失败', e)
+        toast.error(e.data?.detail || '加载用户信息失败')
     }
 }
 
 const loadHistory = async () => {
     try {
         history.value = await getRedemptionHistory()
-    } catch (e) {
+    } catch (e: any) {
         console.error('加载兑换历史失败', e)
+        toast.error(e.data?.detail || '加载兑换历史失败')
     }
 }
 
@@ -63,8 +68,9 @@ const updateCleanSetting = async (key: string, value: boolean) => {
     user.value[key] = value
     try {
         await updateMe({ [key]: value })
-    } catch (e) {
+    } catch (e: any) {
         console.error('更新设置失败', e)
+        toast.error(e.data?.detail || '更新设置失败')
         user.value[key] = oldValue
     }
 }

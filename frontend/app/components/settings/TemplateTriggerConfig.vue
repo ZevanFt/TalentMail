@@ -7,6 +7,7 @@
 import { X, Zap, Clock, Hand, ChevronDown, ChevronRight, Info, Loader2 } from 'lucide-vue-next'
 
 const { getAvailableEvents, getTemplateTriggerRules, createTemplateTriggerRule, deleteTemplateTriggerRule } = useApi()
+const toast = useToast()
 
 const props = defineProps<{
   modelValue: boolean
@@ -129,8 +130,9 @@ const loadAvailableEvents = async () => {
   try {
     const events = await getAvailableEvents()
     availableEvents.value = events
-  } catch (e) {
+  } catch (e: any) {
     console.error('加载事件类型失败:', e)
+    toast.error(e.data?.detail || '加载事件类型失败')
     // 使用默认事件列表作为后备
     availableEvents.value = [
       { value: 'user.registered', label: '用户注册成功', category: 'user', category_label: '👤 用户事件', variables: ['user_name', 'user_email', 'register_time'] },
@@ -164,8 +166,9 @@ const loadExistingRules = async () => {
         config.send_to_email = action.config.to || ''
       }
     }
-  } catch (e) {
+  } catch (e: any) {
     console.error('加载触发规则失败:', e)
+    toast.error(e.data?.detail || '加载触发规则失败')
   } finally {
     loading.value = false
   }

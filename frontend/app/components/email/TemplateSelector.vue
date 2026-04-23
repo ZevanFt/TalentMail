@@ -6,6 +6,7 @@
 import { FileText, Search, ChevronRight, X } from 'lucide-vue-next'
 
 const { getEmailTemplates, getTemplateMetadata, previewEmailTemplate } = useApi()
+const toast = useToast()
 
 interface TemplateVariable {
   key: string
@@ -105,8 +106,9 @@ const loadTemplates = async () => {
     // 这里应该调用一个专门获取可手动使用模板的 API
     // 暂时使用现有 API
     templates.value = await getEmailTemplates()
-  } catch (e) {
+  } catch (e: any) {
     console.error('加载模板失败:', e)
+    toast.error(e.data?.detail || '加载模板失败')
   } finally {
     loading.value = false
   }
@@ -155,8 +157,9 @@ const previewTemplate = async () => {
       renderedSubject: result.subject,
       renderedBody: result.body_html
     })
-  } catch (e) {
+  } catch (e: any) {
     console.error('预览失败:', e)
+    toast.error(e.data?.detail || '预览失败')
   } finally {
     previewing.value = false
   }

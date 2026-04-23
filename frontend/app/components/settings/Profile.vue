@@ -2,6 +2,7 @@
 import { Camera } from 'lucide-vue-next'
 
 const { getMe, updateMe } = useApi()
+const toast = useToast()
 
 const user = ref<any>(null)
 const loading = ref(true)
@@ -17,8 +18,9 @@ const loadUser = async () => {
     try {
         user.value = await getMe()
         form.displayName = user.value.display_name || ''
-    } catch (e) {
+    } catch (e: any) {
         console.error('加载用户信息失败', e)
+        toast.error(e.data?.detail || '加载用户信息失败')
     } finally {
         loading.value = false
     }

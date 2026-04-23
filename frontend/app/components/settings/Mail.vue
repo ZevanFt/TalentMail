@@ -3,6 +3,8 @@ import { PenTool, Calendar, Server, Plus, Trash2, Check, AtSign, Power, Loader2 
 
 const { getMe, updateMe, getSignatures, createSignature, updateSignature, deleteSignature, getAliases, createAlias, updateAlias, deleteAlias } = useApi()
 const { baseDomain } = useConfig()
+const toast = useToast()
+const { confirm: confirmDialog } = useConfirmDialog()
 
 // 邮件服务器配置
 const mailServer = computed(() => `mail.${baseDomain}`)
@@ -53,8 +55,9 @@ const loadSettings = async () => {
         settings.auto_reply_message = user.auto_reply_message || ''
         signatures.value = sigs
         aliases.value = aliasData
-    } catch (e) {
+    } catch (e: any) {
         console.error('加载设置失败', e)
+        toast.error(e.data?.detail || '加载设置失败')
     } finally {
         loading.value = false
     }
@@ -74,8 +77,9 @@ const saveSettings = async () => {
             auto_reply_end_date: settings.auto_reply_end_date || null,
             auto_reply_message: settings.auto_reply_message || null
         })
-    } catch (e) {
+    } catch (e: any) {
         console.error('保存设置失败', e)
+        toast.error(e.data?.detail || '保存设置失败')
     } finally {
         saving.value = false
     }
@@ -93,8 +97,9 @@ const addSignature = async () => {
         newSignatureName.value = ''
         newSignatureContent.value = ''
         showNewForm.value = false
-    } catch (e) {
+    } catch (e: any) {
         console.error('创建签名失败', e)
+        toast.error(e.data?.detail || '创建签名失败')
     }
 }
 
@@ -112,8 +117,9 @@ const saveEdit = async () => {
         const idx = signatures.value.findIndex(s => s.id === updated.id)
         if (idx >= 0) signatures.value[idx] = updated
         editingSignature.value = null
-    } catch (e) {
+    } catch (e: any) {
         console.error('更新签名失败', e)
+        toast.error(e.data?.detail || '更新签名失败')
     }
 }
 
@@ -121,18 +127,21 @@ const setDefault = async (sig: Signature) => {
     try {
         await updateSignature(sig.id, { is_default: true })
         signatures.value.forEach(s => s.is_default = s.id === sig.id)
-    } catch (e) {
+    } catch (e: any) {
         console.error('设置默认签名失败', e)
+        toast.error(e.data?.detail || '设置默认签名失败')
     }
 }
 
 const removeSig = async (sig: Signature) => {
-    if (!confirm('确定删除此签名？')) return
+    const ok = await confirmDialog({ message: '确定删除此签名？', type: 'danger' })
+    if (!ok) return
     try {
         await deleteSignature(sig.id)
         signatures.value = signatures.value.filter(s => s.id !== sig.id)
-    } catch (e) {
+    } catch (e: any) {
         console.error('删除签名失败', e)
+        toast.error(e.data?.detail || '删除签名失败')
     }
 }
 
@@ -159,18 +168,21 @@ const toggleAliasActive = async (alias: EmailAlias) => {
         const updated = await updateAlias(alias.id, { is_active: !alias.is_active })
         const idx = aliases.value.findIndex(a => a.id === updated.id)
         if (idx >= 0) aliases.value[idx] = updated
-    } catch (e) {
+    } catch (e: any) {
         console.error('切换别名状态失败', e)
+        toast.error(e.data?.detail || '切换别名状态失败')
     }
 }
 
 const removeAlias = async (alias: EmailAlias) => {
-    if (!confirm(`确定删除别名 ${alias.alias_email}？`)) return
+    const ok = await confirmDialog({ message: `确定删除别名 ${alias.alias_email}？`, type: 'danger' })
+    if (!ok) return
     try {
         await deleteAlias(alias.id)
         aliases.value = aliases.value.filter(a => a.id !== alias.id)
-    } catch (e) {
+    } catch (e: any) {
         console.error('删除别名失败', e)
+        toast.error(e.data?.detail || '删除别名失败')
     }
 }
 

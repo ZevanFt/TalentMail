@@ -2,6 +2,7 @@
 import { ShieldAlert, ImageOff, Plus, X, Trash2, ShieldCheck } from 'lucide-vue-next'
 
 const { getMe, updateMe, getBlockedSenders, addBlockedSender, removeBlockedSender, getWhitelist, addToWhitelist, removeFromWhitelist } = useApi()
+const toast = useToast()
 
 const user = ref<any>(null)
 const loading = ref(true)
@@ -29,8 +30,9 @@ const loadUser = async () => {
     loading.value = true
     try {
         user.value = await getMe()
-    } catch (e) {
+    } catch (e: any) {
         console.error('加载用户信息失败', e)
+        toast.error(e.data?.detail || '加载用户信息失败')
     } finally {
         loading.value = false
     }
@@ -40,8 +42,9 @@ const loadBlocklist = async () => {
     loadingBlocklist.value = true
     try {
         blockedSenders.value = await getBlockedSenders()
-    } catch (e) {
+    } catch (e: any) {
         console.error('加载黑名单失败', e)
+        toast.error(e.data?.detail || '加载黑名单失败')
     } finally {
         loadingBlocklist.value = false
     }
@@ -51,8 +54,9 @@ const loadWhitelist = async () => {
     loadingWhitelist.value = true
     try {
         whitelist.value = await getWhitelist()
-    } catch (e) {
+    } catch (e: any) {
         console.error('加载白名单失败', e)
+        toast.error(e.data?.detail || '加载白名单失败')
     } finally {
         loadingWhitelist.value = false
     }
@@ -68,8 +72,9 @@ const updateSettings = async (key: string, value: any) => {
     saving.value = true
     try {
         await updateMe({ [key]: value })
-    } catch (e) {
+    } catch (e: any) {
         console.error('更新设置失败', e)
+        toast.error(e.data?.detail || '更新设置失败')
         // 回滚
         user.value[key] = oldValue
     } finally {
@@ -99,8 +104,9 @@ const handleRemoveBlocked = async (id: number) => {
     try {
         await removeBlockedSender(id)
         blockedSenders.value = blockedSenders.value.filter(b => b.id !== id)
-    } catch (e) {
+    } catch (e: any) {
         console.error('移除失败', e)
+        toast.error(e.data?.detail || '移除黑名单失败')
     }
 }
 
@@ -126,8 +132,9 @@ const handleRemoveWhitelist = async (id: number) => {
     try {
         await removeFromWhitelist(id)
         whitelist.value = whitelist.value.filter(w => w.id !== id)
-    } catch (e) {
+    } catch (e: any) {
         console.error('移除失败', e)
+        toast.error(e.data?.detail || '移除白名单失败')
     }
 }
 

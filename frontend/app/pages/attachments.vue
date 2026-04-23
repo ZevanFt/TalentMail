@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Paperclip, Download, Trash2, FileText, Image, File, Upload, Link, Check } from 'lucide-vue-next'
-
+const toast = useToast()
+const { confirm: confirmDialog } = useConfirmDialog()
 const { downloadAttachmentUrl, deleteAttachment, token } = useApi()
 
 interface Attachment { id: number; filename: string; content_type: string; size: number; email_id?: number; email_subject?: string }
@@ -16,7 +17,10 @@ const loadAttachments = async () => {
       headers: { Authorization: `Bearer ${token.value}` }
     })
     attachments.value = res
-  } catch {} finally { loading.value = false }
+  } catch (e: any) {
+    console.error('加载附件失败', e)
+    toast.error(e.data?.detail || '加载附件失败')
+  } finally { loading.value = false }
 }
 
 const handleUpload = async (event: Event) => {
@@ -38,9 +42,9 @@ const handleUpload = async (event: Event) => {
       headers: { Authorization: `Bearer ${token.value}` }
     })
     await loadAttachments()
-  } catch (e) {
+  } catch (e: any) {
     console.error('上传失败', e)
-    alert('上传失败')
+    toast.error(e.data?.detail || '上传失败')
   } finally {
     uploading.value = false
     if (fileInput.value) fileInput.value.value = ''
@@ -59,8 +63,9 @@ const copyLink = async (id: number) => {
     await navigator.clipboard.writeText(url)
     copiedId.value = id
     setTimeout(() => copiedId.value = null, 2000)
-  } catch (e) {
+  } catch (e: any) {
     console.error('复制失败', e)
+    toast.error('复制失败')
   }
 }
 
@@ -85,8 +90,15 @@ const download = (id: number) => {
 }
 
 const remove = async (id: number) => {
-  if (!confirm('确定删除此附件？')) return
-  try { await deleteAttachment(id); await loadAttachments() } catch {}
+  const ok = await confirmDialog({ message: '确定删除此附件？', type: 'danger' })
+  if (!ok) return
+  try {
+    await deleteAttachment(id)
+    await loadAttachments()
+  } catch (e: any) {
+    console.error('删除附件失败', e)
+    toast.error(e.data?.detail || '删除附件失败')
+  }
 }
 
 onMounted(loadAttachments)

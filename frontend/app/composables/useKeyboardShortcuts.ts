@@ -66,6 +66,7 @@ export const useKeyboardShortcuts = () => {
   const { emails, selectedEmailId, selectedEmailDetail, loadEmailDetail, toggleRead, toggleStar, removeEmail, startReply, startReplyAll, startForward } = useEmails()
   const { isComposeOpen } = useGlobalModal()
   const { bulkArchiveEmails } = useApi()
+  const toast = useToast()
   const router = useRouter()
   const route = useRoute()
   
@@ -156,6 +157,7 @@ export const useKeyboardShortcuts = () => {
         }
       } catch (e) {
         console.error('归档失败:', e)
+        toast.error('归档失败')
       }
     }
   }

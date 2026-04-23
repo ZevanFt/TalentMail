@@ -87,10 +87,15 @@ watch(() => token.value, (newToken) => {
   
   <NuxtLayout>
     <NuxtPage />
-    
+
     <!-- 键盘快捷键帮助弹窗 -->
     <CommonKeyboardShortcutsHelp v-if="token" />
   </NuxtLayout>
+
+  <!-- 全局 Toast 通知 -->
+  <CommonAppToast />
+  <!-- 全局确认对话框 -->
+  <CommonConfirmDialog />
 </template>
 
 <style>

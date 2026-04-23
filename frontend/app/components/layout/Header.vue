@@ -5,6 +5,7 @@ const { isDark, toggleTheme } = useTheme()
 const { search, clearSearch, searchQuery, isSearching } = useEmails()
 const { getMe, getStorageStats, getSubscriptionStatus, logout } = useApi()
 const { showShortcutsHelp } = useKeyboardShortcuts()
+const toast = useToast()
 
 const localQuery = ref('')
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
@@ -75,8 +76,9 @@ const copyEmail = async () => {
     await navigator.clipboard.writeText(user.value.email)
     copied.value = true
     setTimeout(() => { copied.value = false }, 2000)
-  } catch (e) {
+  } catch (e: any) {
     console.error('复制失败:', e)
+    toast.error('复制失败')
   }
 }
 </script>

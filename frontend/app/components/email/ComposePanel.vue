@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { Paperclip, Send, Loader2, Eye, X, FileText, Bold, Italic, Underline, List, ListOrdered, Link2, Quote, Eraser } from 'lucide-vue-next'
+import { Paperclip, Send, Loader2, Eye, X, FileText } from 'lucide-vue-next'
 import TemplateSelector from './TemplateSelector.vue'
 
+const toastNotify = useToast()
 const { isComposeOpen, composeCloseGuard } = useGlobalModal()
 const { sendEmail, saveDraft, updateDraft, deleteDraft, getDefaultSignature, uploadAttachment, deleteAttachment } = useApi()
 const { composeState, resetCompose, formatTime, folders, loadEmails, currentFolderId } = useEmails()
@@ -29,7 +30,7 @@ const defaultSignature = ref('')
 const attachments = ref<UploadedFile[]>([])
 const uploading = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
-const editorRef = ref<HTMLDivElement | null>(null)
+const editorRef = ref<any>(null)
 
 const appliedTemplate = ref<any>(null)
 
@@ -37,8 +38,9 @@ const loadDefaultSignature = async () => {
   try {
     const res = await getDefaultSignature()
     defaultSignature.value = res.signature || ''
-  } catch (e) {
+  } catch (e: any) {
     console.error('加载签名失败', e)
+    toastNotify.error('加载签名失败')
   }
 }
 
@@ -123,49 +125,12 @@ const signatureHtml = computed(() => {
 })
 
 const setBodyHtml = async (html: string) => {
-  body.value = sanitizeHtml(html)
+  const safe = sanitizeHtml(html)
+  body.value = safe
   await nextTick()
-  if (editorRef.value) {
-    editorRef.value.innerHTML = body.value
-  }
+  editorRef.value?.setContent(safe)
 }
 
-const syncBodyFromEditor = () => {
-  body.value = sanitizeHtml(editorRef.value?.innerHTML || '')
-}
-
-const applyFormat = (command: string, value?: string) => {
-  if (!import.meta.client || !editorRef.value) return
-  editorRef.value.focus()
-  document.execCommand(command, false, value)
-  syncBodyFromEditor()
-}
-
-const insertLink = () => {
-  if (!import.meta.client) return
-  const link = window.prompt('请输入链接 URL')
-  if (!link) return
-  applyFormat('createLink', link)
-}
-
-const clearFormatting = () => {
-  applyFormat('removeFormat')
-}
-
-const handlePaste = (e: ClipboardEvent) => {
-  if (!import.meta.client) return
-  e.preventDefault()
-
-  const html = e.clipboardData?.getData('text/html')
-  const text = e.clipboardData?.getData('text/plain') || ''
-
-  const content = html
-    ? sanitizeHtml(html)
-    : escapeHtml(text).replace(/\n/g, '<br>')
-
-  document.execCommand('insertHTML', false, content)
-  syncBodyFromEditor()
-}
 
 watch(() => [isComposeOpen.value, composeState.value], async () => {
   if (!isComposeOpen.value) return
@@ -232,9 +197,10 @@ const handleFileSelect = async (e: Event) => {
       const res = await uploadAttachment(file)
       attachments.value.push({ id: res.id, filename: res.filename, size: res.size })
     }
-  } catch (e) {
+  } catch (e: any) {
     console.error('上传失败', e)
     error.value = '附件上传失败'
+    toastNotify.error('附件上传失败')
   } finally {
     uploading.value = false
     input.value = ''
@@ -245,8 +211,9 @@ const removeAttachment = async (att: UploadedFile) => {
   try {
     await deleteAttachment(att.id)
     attachments.value = attachments.value.filter(a => a.id !== att.id)
-  } catch (e) {
+  } catch (e: any) {
     console.error('删除附件失败', e)
+    toastNotify.error('删除附件失败')
   }
 }
 
@@ -257,8 +224,6 @@ const formatFileSize = (bytes: number) => {
 }
 
 const handleSend = async () => {
-  syncBodyFromEditor()
-
   if (!recipients.value || !subject.value) {
     error.value = '请填写收件人和主题'
     return
@@ -275,7 +240,7 @@ const handleSend = async () => {
       cc: ccRecipients.value || undefined,
       subject: subject.value,
       body_html: safeHtml,
-      body_text: stripHtml(safeHtml),
+      body_text: editorRef.value?.getText() || stripHtml(safeHtml),
       reply_to_id: (mode === 'reply' || mode === 'replyAll') && originalEmail ? originalEmail.id : undefined,
       is_tracked: isTracked.value,
       attachment_ids: attachments.value.map(a => a.id)
@@ -284,27 +249,13 @@ const handleSend = async () => {
     if (draftId.value) {
       try {
         await deleteDraft(draftId.value)
-      } catch (e) {
+      } catch (e: any) {
         console.error('删除草稿失败', e)
+        toastNotify.error('删除草稿失败')
       }
     }
 
-    if (typeof window !== 'undefined') {
-      const toast = document.createElement('div')
-      toast.className = 'fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-slide-in'
-      toast.innerHTML = `
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-        </svg>
-        <span>邮件已加入发送队列，请在"已发送"文件夹查看发送状态</span>
-      `
-      document.body.appendChild(toast)
-      setTimeout(() => {
-        toast.style.opacity = '0'
-        toast.style.transition = 'opacity 0.3s'
-        setTimeout(() => document.body.removeChild(toast), 300)
-      }, 5000)
-    }
+    toastNotify.success('邮件已加入发送队列，请在"已发送"文件夹查看发送状态', 5000)
 
     closeAndReset()
 
@@ -315,22 +266,7 @@ const handleSend = async () => {
     }
   } catch (e: any) {
     error.value = e.data?.detail || '发送失败'
-    if (typeof window !== 'undefined') {
-      const toast = document.createElement('div')
-      toast.className = 'fixed top-4 right-4 z-50 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2'
-      toast.innerHTML = `
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-        </svg>
-        <span>${error.value}</span>
-      `
-      document.body.appendChild(toast)
-      setTimeout(() => {
-        toast.style.opacity = '0'
-        toast.style.transition = 'opacity 0.3s'
-        setTimeout(() => document.body.removeChild(toast), 300)
-      }, 5000)
-    }
+    toastNotify.error(error.value)
   } finally {
     sending.value = false
   }
@@ -360,7 +296,6 @@ const resolveCloseRequest = (ok: boolean) => {
 }
 
 const requestCloseWithDraftGuard = async () => {
-  syncBodyFromEditor()
   if (!hasContent.value) {
     closeAndReset()
     return true
@@ -376,7 +311,6 @@ const tryClose = async () => {
 }
 
 const handleSaveDraft = async () => {
-  syncBodyFromEditor()
   savingDraft.value = true
   try {
     const safeHtml = sanitizeHtml(body.value)
@@ -402,8 +336,9 @@ const handleSaveDraft = async () => {
     if (draftsFolder && currentFolderId.value === draftsFolder.id) {
       await loadEmails(draftsFolder.id)
     }
-  } catch (e) {
+  } catch (e: any) {
     console.error('保存草稿失败', e)
+    toastNotify.error('保存草稿失败')
   } finally {
     savingDraft.value = false
   }
@@ -413,8 +348,9 @@ const discardDraft = async () => {
   if (draftId.value) {
     try {
       await deleteDraft(draftId.value)
-    } catch (e) {
+    } catch (e: any) {
       console.error('删除草稿失败', e)
+      toastNotify.error('删除草稿失败')
     }
   }
   draftDialogAction.value = 'discard'
@@ -433,9 +369,7 @@ const closeAndReset = () => {
   isTracked.value = false
   draftId.value = null
   attachments.value = []
-  if (editorRef.value) {
-    editorRef.value.innerHTML = ''
-  }
+  editorRef.value?.setContent('')
 }
 
 watch(showDraftConfirm, (open) => {
@@ -596,44 +530,12 @@ const handleTemplateClear = () => {
         <div class="absolute inset-0 -z-10 bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 rounded-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300"></div>
       </div>
 
-      <div class="border-2 border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden bg-gray-50 dark:bg-gray-900/50">
-        <div class="flex items-center gap-1 px-3 py-2 border-b border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-900/60">
-          <button class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800" type="button" title="加粗" @click="applyFormat('bold')">
-            <Bold class="w-4 h-4" />
-          </button>
-          <button class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800" type="button" title="斜体" @click="applyFormat('italic')">
-            <Italic class="w-4 h-4" />
-          </button>
-          <button class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800" type="button" title="下划线" @click="applyFormat('underline')">
-            <Underline class="w-4 h-4" />
-          </button>
-          <div class="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1"></div>
-          <button class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800" type="button" title="无序列表" @click="applyFormat('insertUnorderedList')">
-            <List class="w-4 h-4" />
-          </button>
-          <button class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800" type="button" title="有序列表" @click="applyFormat('insertOrderedList')">
-            <ListOrdered class="w-4 h-4" />
-          </button>
-          <button class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800" type="button" title="引用" @click="applyFormat('formatBlock', 'blockquote')">
-            <Quote class="w-4 h-4" />
-          </button>
-          <button class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800" type="button" title="插入链接" @click="insertLink">
-            <Link2 class="w-4 h-4" />
-          </button>
-          <button class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800" type="button" title="清除格式" @click="clearFormatting">
-            <Eraser class="w-4 h-4" />
-          </button>
-        </div>
-
-        <div
-          ref="editorRef"
-          class="min-h-[360px] px-4 py-3 bg-white dark:bg-gray-900 outline-none prose prose-sm dark:prose-invert max-w-none"
-          contenteditable="true"
-          @input="syncBodyFromEditor"
-          @blur="syncBodyFromEditor"
-          @paste="handlePaste"
-        ></div>
-      </div>
+      <EditorRichEditor
+        ref="editorRef"
+        v-model="body"
+        placeholder="撰写邮件内容..."
+        :min-height="360"
+      />
     </div>
 
     <div class="h-20 border-t border-gray-200/50 dark:border-gray-800/50 px-6 flex items-center gap-3 shrink-0">

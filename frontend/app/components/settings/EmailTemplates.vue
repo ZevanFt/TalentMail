@@ -1,6 +1,6 @@
 
 <script setup lang="ts">
-import { Plus, Edit, Trash2, Eye, X, Save, Bold, Italic, Underline, List, ListOrdered, Eraser, RotateCcw, Info, Zap, Variable, Settings, Send, Cog, Mail, Loader2 } from 'lucide-vue-next'
+import { Plus, Edit, Trash2, Eye, X, Save, RotateCcw, Info, Zap, Variable, Settings, Send, Cog, Mail, Loader2 } from 'lucide-vue-next'
 import TemplateTriggerConfig from './TemplateTriggerConfig.vue'
 
 const {
@@ -9,6 +9,7 @@ const {
   getTemplateMetadataList, getTemplateMetadata, getGlobalVariables, updateGlobalVariable, resetTemplateToDefault,
   sendTemplateEmail
 } = useApi()
+const toast = useToast()
 
 interface TemplateVariable {
   key: string
@@ -213,6 +214,7 @@ const loadGlobalVariables = async () => {
     globalVariables.value = await getGlobalVariables()
   } catch (e: any) {
     console.error('加载全局变量失败:', e)
+    toast.error(e.data?.detail || '加载全局变量失败')
   }
 }
 
@@ -294,7 +296,7 @@ const resetToDefault = async () => {
     editForm.subject = updated.subject
     editForm.body_html = updated.body_html
     editForm.body_text = updated.body_text || ''
-    if (editorRef.value) editorRef.value.innerHTML = updated.body_html
+    editorRef.value?.setContent(updated.body_html)
   } catch (e: any) {
     error.value = e.data?.detail || '重置失败'
   } finally {
@@ -418,18 +420,7 @@ const toggleTemplateActive = async (template: EmailTemplate) => {
 onMounted(() => { loadTemplates(); loadGlobalVariables() })
 watch(selectedCategory, () => { loadTemplates() })
 
-const editorRef = ref<HTMLElement | null>(null)
-const execCommand = (command: string, value: string | undefined = undefined) => {
-  document.execCommand(command, false, value)
-  updateHtmlContent()
-}
-const updateHtmlContent = () => {
-  if (editorRef.value) {
-    editForm.body_html = editorRef.value.innerHTML
-    // 自动从正文中提取变量
-    extractVariablesFromContent()
-  }
-}
+const editorRef = ref<any>(null)
 
 // 从模板内容中自动提取 {{variable}} 格式的变量
 const extractVariablesFromContent = () => {
@@ -453,44 +444,12 @@ const extractVariablesFromContent = () => {
   }
 }
 
-const insertVariable = (variable: string) => {
-  const text = `{{${variable}}}`
-  if (editorRef.value) {
-    editorRef.value.focus()
-    document.execCommand('insertText', false, text)
-    updateHtmlContent()
-  }
-}
-
-// 初始化编辑器内容 - 使用 nextTick 确保 DOM 已渲染
-const initEditorContent = () => {
-  nextTick(() => {
-    // 使用 requestAnimationFrame 确保在下一帧渲染后执行
-    requestAnimationFrame(() => {
-      if (editorRef.value && editForm.body_html) {
-        editorRef.value.innerHTML = editForm.body_html
-      }
-    })
-  })
-}
-
-// 监听弹窗打开，初始化编辑器内容和自定义变量
+// 监听弹窗打开，初始化自定义变量
 watch(() => showEditModal.value, (val) => {
   if (val) {
-    initEditorContent()
     initCustomVariables()
-    // 备用方案：如果第一次没生效，300ms后再试一次
-    setTimeout(initEditorContent, 300)
   }
 })
-
-// 也监听 editForm.body_html 变化（针对编辑现有模板的情况）
-watch(() => editForm.body_html, (newVal) => {
-  // 只在弹窗打开且编辑器存在时更新
-  if (showEditModal.value && editorRef.value && newVal !== editorRef.value.innerHTML) {
-    initEditorContent()
-  }
-}, { immediate: false })
 
 // 自定义变量列表（用于新建模板时）
 const customVariables = ref<TemplateVariable[]>([])
@@ -761,35 +720,18 @@ const getVariableTypeIcon = (type: string) => {
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">邮件内容</label>
-              <div class="flex flex-wrap items-center gap-1 p-2 border border-b-0 border-gray-200 dark:border-gray-700 rounded-t-lg bg-gray-50 dark:bg-gray-900">
-                <button @click="execCommand('bold')" class="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded" title="加粗"><Bold class="w-4 h-4" /></button>
-                <button @click="execCommand('italic')" class="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded" title="斜体"><Italic class="w-4 h-4" /></button>
-                <button @click="execCommand('underline')" class="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded" title="下划线"><Underline class="w-4 h-4" /></button>
-                <div class="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1"></div>
-                <button @click="execCommand('insertUnorderedList')" class="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded" title="无序列表"><List class="w-4 h-4" /></button>
-                <button @click="execCommand('insertOrderedList')" class="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded" title="有序列表"><ListOrdered class="w-4 h-4" /></button>
-                <button @click="execCommand('removeFormat')" class="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded" title="清除格式"><Eraser class="w-4 h-4" /></button>
-                <div class="ml-auto flex items-center gap-2">
-                  <span class="text-xs text-gray-500">插入变量:</span>
-                  <div class="flex gap-1 flex-wrap max-w-md">
-                    <button
-                      v-for="v in availableVariables"
-                      :key="v.key"
-                      @click="insertVariable(v.key)"
-                      class="group relative px-2 py-0.5 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
-                      :title="`${v.label} (${v.key})`"
-                    >
-                      <span class="font-medium">{{ v.label }}</span>
-                      <span v-if="v.label !== v.key" class="opacity-60 ml-0.5">({{ v.key }})</span>
-                    </button>
-                    <span v-if="availableVariables.length === 0" class="text-xs text-gray-400">请先定义变量</span>
-                  </div>
-                </div>
-              </div>
-              <div ref="editorRef" contenteditable="true" @input="updateHtmlContent" class="w-full h-64 px-4 py-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-b-lg text-sm overflow-y-auto focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"></div>
+              <EditorRichEditor
+                ref="editorRef"
+                v-model="editForm.body_html"
+                :show-variable-bar="true"
+                :variables="availableVariables.map(v => ({ key: v.key, label: v.label || v.key }))"
+                :min-height="256"
+                placeholder="编辑邮件模板内容..."
+                @update:model-value="extractVariablesFromContent"
+              />
               <details class="mt-2">
                 <summary class="text-xs text-gray-500 cursor-pointer hover:text-primary">查看 HTML 源码</summary>
-                <textarea v-model="editForm.body_html" @input="editorRef!.innerHTML = editForm.body_html" rows="5" class="w-full mt-2 px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-mono text-gray-600 dark:text-gray-400"></textarea>
+                <textarea v-model="editForm.body_html" @input="editorRef?.setContent(editForm.body_html)" rows="5" class="w-full mt-2 px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-mono text-gray-600 dark:text-gray-400"></textarea>
               </details>
             </div>
             <div>

@@ -62,7 +62,8 @@ const DEFAULT_FOLDERS: Folder[] = [
 
 export const useEmails = () => {
   const { getEmails, getEmail, getFolders, syncEmails, markEmailRead, deleteEmail, markEmailStarred, snoozeEmail, getAllEmails, getSnoozedEmails, searchEmails, getEmailsByTag, getTags, addTagToEmail, removeTagFromEmail } = useApi()
-  
+  const toast = useToast()
+
   const emails = useState<Email[]>('emails', () => [])
   const tags = useState<any[]>('tags', () => [])
   // 使用默认文件夹初始化，后端返回后会更新 id 和 unread_count
@@ -88,8 +89,9 @@ export const useEmails = () => {
       if (inbox && inbox.id && !currentFolderId.value) {
         currentFolderId.value = inbox.id
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('加载文件夹失败:', e)
+      toast.error(e.data?.detail || '加载文件夹失败')
     }
   }
 
@@ -98,8 +100,9 @@ export const useEmails = () => {
     try {
       const res = await getTags()
       tags.value = res
-    } catch (e) {
+    } catch (e: any) {
       console.error('加载标签失败:', e)
+      toast.error(e.data?.detail || '加载标签失败')
     }
   }
 
@@ -117,8 +120,9 @@ export const useEmails = () => {
       const res = await getEmails(id)
       emails.value = res.data.items
       currentFolderId.value = id
-    } catch (e) {
+    } catch (e: any) {
       console.error('加载邮件失败:', e)
+      toast.error(e.data?.detail || '加载邮件失败')
     } finally {
       loading.value = false
     }
@@ -136,8 +140,9 @@ export const useEmails = () => {
       if (email && !email.is_read) {
         email.is_read = true
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('加载邮件详情失败:', e)
+      toast.error(e.data?.detail || '加载邮件详情失败')
     }
   }
 
@@ -151,8 +156,9 @@ export const useEmails = () => {
       if (selectedEmailDetail.value?.id === id) {
         selectedEmailDetail.value.is_read = isRead
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('标记已读失败:', e)
+      toast.error(e.data?.detail || '标记已读失败')
     }
   }
 
@@ -166,8 +172,9 @@ export const useEmails = () => {
       if (selectedEmailDetail.value?.id === id) {
         selectedEmailDetail.value.is_starred = isStarred
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('标记星标失败:', e)
+      toast.error(e.data?.detail || '标记星标失败')
     }
   }
 
@@ -177,8 +184,9 @@ export const useEmails = () => {
       await snoozeEmail(id, snoozeUntil)
       // 从当前列表移除（因为已设为待办）
       emails.value = emails.value.filter(e => e.id !== id)
-    } catch (e) {
+    } catch (e: any) {
       console.error('设置待办失败:', e)
+      toast.error(e.data?.detail || '设置待办失败')
     }
   }
 
@@ -193,8 +201,9 @@ export const useEmails = () => {
         selectedEmailId.value = null
         selectedEmailDetail.value = null
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('删除邮件失败:', e)
+      toast.error(e.data?.detail || '删除邮件失败')
     }
   }
 
@@ -209,8 +218,9 @@ export const useEmails = () => {
         await loadFolders()
       }
       return res.data.new_emails
-    } catch (e) {
+    } catch (e: any) {
       console.error('同步邮件失败:', e)
+      toast.error(e.data?.detail || '同步邮件失败')
       return 0
     } finally {
       syncing.value = false
@@ -314,8 +324,9 @@ export const useEmails = () => {
       const inboxOnly = isRead === false
       const res = await getAllEmails(1, 50, isRead, isStarred, inboxOnly)
       emails.value = res.data.items
-    } catch (e) {
+    } catch (e: any) {
       console.error('加载筛选邮件失败:', e)
+      toast.error(e.data?.detail || '加载邮件失败')
     } finally {
       loading.value = false
     }
@@ -331,8 +342,9 @@ export const useEmails = () => {
     try {
       const res = await getSnoozedEmails()
       emails.value = res.data.items
-    } catch (e) {
+    } catch (e: any) {
       console.error('加载待办邮件失败:', e)
+      toast.error(e.data?.detail || '加载待办邮件失败')
     } finally {
       loading.value = false
     }
@@ -348,8 +360,9 @@ export const useEmails = () => {
     try {
       const res = await getAllEmails()
       emails.value = res.data.items
-    } catch (e) {
+    } catch (e: any) {
       console.error('加载所有邮件失败:', e)
+      toast.error(e.data?.detail || '加载邮件失败')
     } finally {
       loading.value = false
     }
@@ -369,8 +382,9 @@ export const useEmails = () => {
     try {
       const res = await getEmailsByTag(tagId)
       emails.value = res.items
-    } catch (e) {
+    } catch (e: any) {
       console.error('加载标签邮件失败:', e)
+      toast.error(e.data?.detail || '加载邮件失败')
     } finally {
       loading.value = false
     }
@@ -393,8 +407,9 @@ export const useEmails = () => {
           }
         }
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('添加标签失败:', e)
+      toast.error(e.data?.detail || '添加标签失败')
     }
   }
 
@@ -406,8 +421,9 @@ export const useEmails = () => {
       if (selectedEmailDetail.value?.id === emailId && selectedEmailDetail.value.tags) {
         selectedEmailDetail.value.tags = selectedEmailDetail.value.tags.filter((t: any) => t.id !== tagId)
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('移除标签失败:', e)
+      toast.error(e.data?.detail || '移除标签失败')
     }
   }
 
@@ -431,8 +447,9 @@ export const useEmails = () => {
     try {
       const res = await searchEmails(query)
       emails.value = res.data.items
-    } catch (e) {
+    } catch (e: any) {
       console.error('搜索邮件失败:', e)
+      toast.error(e.data?.detail || '搜索邮件失败')
     } finally {
       loading.value = false
     }

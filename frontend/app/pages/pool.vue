@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { Search, Plus, RefreshCw, Copy, Mail, History, BarChart, Trash2, Star, Box, ArrowLeft, Check } from 'lucide-vue-next'
+const toast = useToast()
+const { confirm: confirmDialog } = useConfirmDialog()
 const { isGenerateOpen, isHistoryOpen, isStatsOpen } = useGlobalModal()
 const { getPoolMailboxes, getPoolMailboxEmails, deletePoolMailbox, getPoolStats, getMe, markPoolEmailRead, extendPoolMailbox, restorePoolMailbox } = useApi()
 const router = useRouter()
@@ -55,6 +57,7 @@ const loadMailboxes = async () => {
             hasAccess.value = false
         }
         console.error('加载邮箱失败', e)
+        toast.error(e.data?.detail || '加载邮箱失败')
     } finally {
         loading.value = false
     }
@@ -74,8 +77,9 @@ const loadEmails = async () => {
         } else {
             selectedEmail.value = null
         }
-    } catch (e) {
+    } catch (e: any) {
         console.error('加载邮件失败', e)
+        toast.error(e.data?.detail || '加载邮件失败')
     }
 }
 
@@ -83,8 +87,9 @@ const loadEmails = async () => {
 const loadStats = async () => {
     try {
         stats.value = await getPoolStats()
-    } catch (e) {
+    } catch (e: any) {
         console.error('加载统计失败', e)
+        toast.error(e.data?.detail || '加载统计失败')
     }
 }
 
@@ -117,7 +122,7 @@ const handleExtendSelected = async () => {
         await extendPoolMailbox(selectedMailbox.value.id)
         await Promise.all([loadMailboxes(), loadStats()])
     } catch (e: any) {
-        alert(e.data?.detail || '续期失败')
+        toast.error(e.data?.detail || '续期失败')
     }
 }
 
@@ -127,7 +132,7 @@ const handleRestoreSelected = async () => {
         await restorePoolMailbox(selectedMailbox.value.id)
         await Promise.all([loadMailboxes(), loadStats()])
     } catch (e: any) {
-        alert(e.data?.detail || '恢复失败')
+        toast.error(e.data?.detail || '恢复失败')
     }
 }
 
@@ -142,15 +147,17 @@ const selectEmail = async (email: PoolEmail) => {
             if (selectedMailbox.value && selectedMailbox.value.unread_count > 0) {
                 selectedMailbox.value.unread_count--
             }
-        } catch (e) {
+        } catch (e: any) {
             console.error('标记已读失败', e)
+            toast.error('标记已读失败')
         }
     }
 }
 
 // 删除邮箱
 const handleDelete = async (mailbox: Mailbox) => {
-    if (!confirm(`确定删除 ${mailbox.email} 吗？`)) return
+    const ok = await confirmDialog({ message: `确定删除 ${mailbox.email} 吗？`, type: 'danger' })
+    if (!ok) return
     try {
         await deletePoolMailbox(mailbox.id)
         mailboxes.value = mailboxes.value.filter(m => m.id !== mailbox.id)
@@ -160,7 +167,7 @@ const handleDelete = async (mailbox: Mailbox) => {
         }
         loadStats()
     } catch (e: any) {
-        alert(e.data?.detail || '删除失败')
+        toast.error(e.data?.detail || '删除失败')
     }
 }
 

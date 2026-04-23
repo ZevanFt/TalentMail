@@ -2,6 +2,7 @@
 import { Mail, Inbox, MailOpen, Calendar } from 'lucide-vue-next'
 const { isStatsOpen } = useGlobalModal()
 const { getPoolStats } = useApi()
+const toast = useToast()
 
 interface Stats {
     total_mailboxes: number
@@ -25,8 +26,9 @@ const loadStats = async () => {
     loading.value = true
     try {
         stats.value = await getPoolStats()
-    } catch (e) {
+    } catch (e: any) {
         console.error('加载统计失败', e)
+        toast.error(e.data?.detail || '加载统计失败')
     } finally {
         loading.value = false
     }

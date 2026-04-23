@@ -4,6 +4,7 @@ import { Star, RefreshCw, Loader2, Circle, Clock, X, Send, CheckCircle, XCircle,
 const { emails, selectedEmailId, folders, currentFolderId, loading, syncing, loadFolders, loadEmails, loadEmailDetail, sync, formatTime, toggleRead, toggleStar, snooze, searchQuery, isSearching, clearSearch, startAutoSync, stopAutoSync, editDraft } = useEmails()
 const { isComposeOpen, requestCloseCompose } = useGlobalModal()
 const { getEmail, bulkMarkRead, bulkMarkStarred, bulkDeleteEmails, bulkArchiveEmails, bulkMoveEmails, markAsSpam, markAsNotSpam } = useApi()
+const toast = useToast()
 
 // 获取 Sidebar 中选中的虚拟文件夹 ID 和标签 ID
 const selectedVirtualId = useState<string | null>('selectedVirtualId', () => null)
@@ -60,8 +61,9 @@ const handleBulkMarkRead = async (isRead: boolean) => {
     await loadEmails()
     selectedEmailIds.value.clear()
     isSelectionMode.value = false
-  } catch (e) {
+  } catch (e: any) {
     console.error('批量标记失败', e)
+    toast.error(e.data?.detail || '批量标记失败')
   } finally {
     bulkLoading.value = false
   }
@@ -76,8 +78,9 @@ const handleBulkDelete = async () => {
     await loadEmails()
     selectedEmailIds.value.clear()
     isSelectionMode.value = false
-  } catch (e) {
+  } catch (e: any) {
     console.error('批量删除失败', e)
+    toast.error(e.data?.detail || '批量删除失败')
   } finally {
     bulkLoading.value = false
   }
@@ -92,8 +95,9 @@ const handleBulkArchive = async () => {
     await loadEmails()
     selectedEmailIds.value.clear()
     isSelectionMode.value = false
-  } catch (e) {
+  } catch (e: any) {
     console.error('批量归档失败', e)
+    toast.error(e.data?.detail || '批量归档失败')
   } finally {
     bulkLoading.value = false
   }
@@ -108,8 +112,9 @@ const handleBulkMarkSpam = async () => {
     await loadEmails()
     selectedEmailIds.value.clear()
     isSelectionMode.value = false
-  } catch (e) {
+  } catch (e: any) {
     console.error('批量标记垃圾邮件失败', e)
+    toast.error(e.data?.detail || '批量标记垃圾邮件失败')
   } finally {
     bulkLoading.value = false
   }
@@ -124,8 +129,9 @@ const handleBulkMarkNotSpam = async () => {
     await loadEmails()
     selectedEmailIds.value.clear()
     isSelectionMode.value = false
-  } catch (e) {
+  } catch (e: any) {
     console.error('批量标记非垃圾邮件失败', e)
+    toast.error(e.data?.detail || '标记非垃圾邮件失败')
   } finally {
     bulkLoading.value = false
   }

@@ -2,6 +2,8 @@
 import { Plus, Play, Pause, Trash2, Edit, Clock, Zap, Mail, User, ChevronRight, AlertCircle, CheckCircle, XCircle, RefreshCw } from 'lucide-vue-next'
 
 const { $api } = useNuxtApp()
+const toast = useToast()
+const { confirm: confirmDialog } = useConfirmDialog()
 
 // 状态
 const rules = ref<any[]>([])
@@ -26,8 +28,9 @@ const loadMetadata = async () => {
   try {
     const res = await $api('/api/automation/metadata')
     metadata.value = res
-  } catch (e) {
+  } catch (e: any) {
     console.error('加载元数据失败:', e)
+    toast.error(e.data?.detail || '加载元数据失败')
   }
 }
 
@@ -40,8 +43,9 @@ const loadRules = async () => {
     })
     rules.value = res.items
     total.value = res.total
-  } catch (e) {
+  } catch (e: any) {
     console.error('加载规则失败:', e)
+    toast.error(e.data?.detail || '加载规则失败')
   } finally {
     loading.value = false
   }
@@ -56,8 +60,9 @@ const loadLogs = async (ruleId?: number) => {
     const res = await $api('/api/automation/logs', { params })
     logs.value = res.items
     logsTotal.value = res.total
-  } catch (e) {
+  } catch (e: any) {
     console.error('加载日志失败:', e)
+    toast.error(e.data?.detail || '加载日志失败')
   } finally {
     logsLoading.value = false
   }
@@ -68,19 +73,22 @@ const toggleRule = async (rule: any) => {
   try {
     const res = await $api(`/api/automation/rules/${rule.id}/toggle`, { method: 'POST' })
     rule.is_active = res.is_active
-  } catch (e) {
+  } catch (e: any) {
     console.error('切换状态失败:', e)
+    toast.error(e.data?.detail || '切换状态失败')
   }
 }
 
 // 删除规则
 const deleteRule = async (rule: any) => {
-  if (!confirm(`确定要删除规则 "${rule.name}" 吗？`)) return
+  const ok = await confirmDialog({ message: `确定要删除规则 "${rule.name}" 吗？`, type: 'danger' })
+  if (!ok) return
   try {
     await $api(`/api/automation/rules/${rule.id}`, { method: 'DELETE' })
     await loadRules()
-  } catch (e) {
+  } catch (e: any) {
     console.error('删除失败:', e)
+    toast.error(e.data?.detail || '删除失败')
   }
 }
 
@@ -91,10 +99,14 @@ const triggerRule = async (rule: any) => {
       method: 'POST',
       body: { context: {} }
     })
-    alert(res.success ? '触发成功！' : `触发失败: ${res.error_message}`)
+    if (res.success) {
+      toast.success('触发成功！')
+    } else {
+      toast.error(`触发失败: ${res.error_message}`)
+    }
     await loadLogs(rule.id)
   } catch (e: any) {
-    alert('触发失败: ' + (e.data?.detail || e.message))
+    toast.error('触发失败: ' + (e.data?.detail || e.message))
   }
 }
 
@@ -136,7 +148,7 @@ const saveRule = async (ruleData: any) => {
     showEditor.value = false
     await loadRules()
   } catch (e: any) {
-    alert('保存失败: ' + (e.data?.detail || e.message))
+    toast.error('保存失败: ' + (e.data?.detail || e.message))
   }
 }
 

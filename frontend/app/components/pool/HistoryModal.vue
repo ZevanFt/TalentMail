@@ -2,6 +2,7 @@
 import { Plus, Trash2 } from 'lucide-vue-next'
 const { isHistoryOpen } = useGlobalModal()
 const { getPoolActivityLogs } = useApi()
+const toast = useToast()
 
 interface ActivityLog {
     id: number
@@ -19,8 +20,9 @@ const loadLogs = async () => {
     try {
         const res = await getPoolActivityLogs()
         logs.value = res.items
-    } catch (e) {
+    } catch (e: any) {
         console.error('加载日志失败', e)
+        toast.error(e.data?.detail || '加载日志失败')
     } finally {
         loading.value = false
     }

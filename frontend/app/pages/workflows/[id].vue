@@ -38,6 +38,7 @@ const systemWorkflowCode = computed(() => {
   return null
 })
 
+const { confirm: confirmDialog } = useConfirmDialog()
 const { getNodeTypes, createWorkflow, getWorkflow, updateWorkflow, saveWorkflowCanvas, publishWorkflow, getSystemWorkflow, getEmailTemplates, getWorkflowVersions, getWorkflowVersion, restoreWorkflowVersion, executeWorkflow, testWorkflow } = useApi()
 
 // 邮件模板列表（用于"发送邮件"节点的模板选择）
@@ -350,8 +351,9 @@ const loadNodeTypes = async () => {
 const loadEmailTemplates = async () => {
   try {
     emailTemplates.value = await getEmailTemplates()
-  } catch (e) {
+  } catch (e: any) {
     console.error('加载邮件模板失败:', e)
+    showMessage('error', '加载邮件模板失败')
   }
 }
 
@@ -863,7 +865,8 @@ const exitPreview = async () => {
 
 // 恢复到某个版本
 const restoreToVersion = async (version: any) => {
-  if (!confirm(`确定要恢复到版本 v${version.version} 吗？这将创建一个新版本。`)) return
+  const ok = await confirmDialog({ message: `确定要恢复到版本 v${version.version} 吗？这将创建一个新版本。`, type: 'warning' })
+  if (!ok) return
   
   restoringVersion.value = true
   try {

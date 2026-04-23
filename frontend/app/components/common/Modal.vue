@@ -12,20 +12,10 @@ const emit = defineEmits(['update:modelValue'])
 
 // 处理关闭逻辑
 const handleClose = () => {
-  console.log('Modal handleClose called')
-  console.log('beforeClose prop:', props.beforeClose)
-  console.log('beforeClose type:', typeof props.beforeClose)
-  
   if (props.beforeClose) {
-    console.log('Calling beforeClose...')
     const result = props.beforeClose()
-    console.log('beforeClose returned:', result)
-    if (result === false) {
-      console.log('Close prevented by beforeClose')
-      return
-    }
+    if (result === false) return
   }
-  console.log('Emitting update:modelValue false')
   emit('update:modelValue', false)
 }
 </script>

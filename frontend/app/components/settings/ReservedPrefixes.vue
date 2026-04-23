@@ -2,6 +2,7 @@
 import { Plus, Trash2, Edit2, Search, Filter, AlertTriangle, Check, X, Tag, User } from 'lucide-vue-next'
 
 const { getReservedPrefixes, createReservedPrefix, updateReservedPrefix, deleteReservedPrefix, getReservedPrefixCategories } = useApi()
+const toast = useToast()
 
 interface ReservedPrefix {
     id: number
@@ -83,8 +84,9 @@ const loadPrefixes = async () => {
         )
         prefixes.value = result.items as ReservedPrefix[]
         totalCount.value = result.total
-    } catch (e) {
+    } catch (e: any) {
         console.error('加载保留前缀失败', e)
+        toast.error(e.data?.detail || '加载保留前缀失败')
     } finally {
         loading.value = false
     }
@@ -93,8 +95,9 @@ const loadPrefixes = async () => {
 const loadCategories = async () => {
     try {
         categories.value = await getReservedPrefixCategories()
-    } catch (e) {
+    } catch (e: any) {
         console.error('加载分类失败', e)
+        toast.error(e.data?.detail || '加载分类失败')
     }
 }
 
@@ -130,7 +133,7 @@ const openEditModal = (prefix: ReservedPrefix) => {
 
 const handleSave = async () => {
     if (!formData.prefix.trim()) {
-        alert('请输入前缀')
+        toast.warning('请输入前缀')
         return
     }
     
@@ -154,7 +157,7 @@ const handleSave = async () => {
         await loadPrefixes()
         await loadCategories()
     } catch (e: any) {
-        alert(e.data?.detail || '保存失败')
+        toast.error(e.data?.detail || '保存失败')
     } finally {
         saving.value = false
     }
@@ -174,7 +177,7 @@ const handleDelete = async () => {
         prefixToDelete.value = null
         await loadPrefixes()
     } catch (e: any) {
-        alert(e.data?.detail || '删除失败')
+        toast.error(e.data?.detail || '删除失败')
     } finally {
         deleting.value = false
     }
@@ -187,7 +190,7 @@ const toggleActive = async (prefix: ReservedPrefix) => {
         })
         await loadPrefixes()
     } catch (e: any) {
-        alert(e.data?.detail || '更新失败')
+        toast.error(e.data?.detail || '更新失败')
     }
 }
 

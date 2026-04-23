@@ -2,6 +2,7 @@
 import { BellRing, Volume2, Smartphone, Loader2 } from 'lucide-vue-next'
 
 const { getMe, updateMe } = useApi()
+const toast = useToast()
 
 const loading = ref(true)
 const saving = ref(false)
@@ -17,8 +18,9 @@ const loadSettings = async () => {
         settings.enable_desktop_notifications = user.enable_desktop_notifications
         settings.enable_sound_notifications = user.enable_sound_notifications
         settings.enable_pool_notifications = user.enable_pool_notifications
-    } catch (e) {
+    } catch (e: any) {
         console.error('加载设置失败', e)
+        toast.error(e.data?.detail || '加载通知设置失败')
     } finally {
         loading.value = false
     }
@@ -30,6 +32,7 @@ const updateSetting = async (key: 'enable_desktop_notifications' | 'enable_sound
         await updateMe({ [key]: value } as any)
     } catch (e: any) {
         console.error('保存设置失败', e)
+        toast.error(e.data?.detail || '保存通知设置失败')
         // 回滚
         settings[key] = !value
     } finally {

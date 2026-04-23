@@ -2,6 +2,8 @@
 import { Plus, Trash2, Copy, Check, Package, Ticket, RefreshCw, Ban } from 'lucide-vue-next'
 
 const { getPlans, createPlan, updatePlan, deletePlan: deletePlanApi, getRedemptionCodes, generateRedemptionCodes, getRedemptionCodeStats, revokeRedemptionCode } = useApi()
+const toast = useToast()
+const { confirm: confirmDialog } = useConfirmDialog()
 
 // ==================== 类型定义 ====================
 interface Plan {
@@ -75,8 +77,9 @@ const loadPlans = async () => {
         if (plans.value.length > 0 && !codeForm.plan_id) {
             codeForm.plan_id = plans.value[0]?.id || 0
         }
-    } catch (e) {
+    } catch (e: any) {
         console.error('加载套餐失败', e)
+        toast.error(e.data?.detail || '加载套餐失败')
     }
 }
 
@@ -89,8 +92,9 @@ const loadCodes = async () => {
         ])
         codes.value = codesData
         codeStats.value = statsData
-    } catch (e) {
+    } catch (e: any) {
         console.error('加载兑换码失败', e)
+        toast.error(e.data?.detail || '加载兑换码失败')
     } finally {
         loading.value = false
     }
@@ -116,17 +120,18 @@ const savePlan = async () => {
         showPlanModal.value = false
         await loadPlans()
     } catch (e: any) {
-        alert(e.data?.detail || '保存失败')
+        toast.error(e.data?.detail || '保存失败')
     }
 }
 
 const handleDeletePlan = async (plan: Plan) => {
-    if (!confirm(`确定删除套餐 "${plan.name}"？`)) return
+    const ok = await confirmDialog({ message: `确定删除套餐 "${plan.name}"？`, type: 'danger' })
+    if (!ok) return
     try {
         await deletePlanApi(plan.id)
         await loadPlans()
     } catch (e: any) {
-        alert(e.data?.detail || '删除失败')
+        toast.error(e.data?.detail || '删除失败')
     }
 }
 
@@ -137,17 +142,18 @@ const generateCodes = async () => {
         showGeneratedModal.value = true
         await loadCodes()
     } catch (e: any) {
-        alert(e.data?.detail || '生成失败')
+        toast.error(e.data?.detail || '生成失败')
     }
 }
 
 const revokeCode = async (code: RedemptionCode) => {
-    if (!confirm('确定作废此兑换码？')) return
+    const ok = await confirmDialog({ message: '确定作废此兑换码？', type: 'warning' })
+    if (!ok) return
     try {
         await revokeRedemptionCode(code.id)
         await loadCodes()
     } catch (e: any) {
-        alert(e.data?.detail || '操作失败')
+        toast.error(e.data?.detail || '操作失败')
     }
 }
 

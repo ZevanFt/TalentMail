@@ -7,6 +7,8 @@ import '@vue-flow/core/dist/theme-default.css'
 
 const router = useRouter()
 const { getSystemWorkflows, getSystemWorkflowConfig, updateSystemWorkflowConfig, getWorkflowExecutions, getNodeTypes, updateSystemWorkflow } = useApi()
+const toast = useToast()
+const { confirm: confirmDialog } = useConfirmDialog()
 
 // 状态
 const loading = ref(true)
@@ -48,6 +50,7 @@ const loadWorkflows = async () => {
     workflows.value = await getSystemWorkflows()
   } catch (e: any) {
     console.error('加载工作流失败:', e)
+    toast.error(e.data?.detail || '加载工作流失败')
   } finally {
     loading.value = false
   }
@@ -62,7 +65,7 @@ const toggleWorkflowActive = async (workflow: any) => {
     workflow.is_active = newState
   } catch (e: any) {
     console.error('切换状态失败:', e)
-    alert('操作失败：' + (e.data?.detail || e.message || '未知错误'))
+    toast.error('操作失败：' + (e.data?.detail || e.message || '未知错误'))
   } finally {
     togglingActive.value = null
   }
@@ -76,10 +79,11 @@ const canDelete = (workflow: any): boolean => {
 // 删除系统工作流
 const deleteSystemWorkflow = async (workflow: any) => {
   if (!canDelete(workflow)) {
-    alert('该工作流为核心功能，无法删除')
+    toast.warning('该工作流为核心功能，无法删除')
     return
   }
-  if (!confirm(`确定要删除系统工作流 "${workflow.name}" 吗？此操作不可恢复。`)) return
+  const ok = await confirmDialog({ message: `确定要删除系统工作流 "${workflow.name}" 吗？此操作不可恢复。`, type: 'danger' })
+  if (!ok) return
 
   deleting.value = workflow.id
   try {
@@ -87,7 +91,7 @@ const deleteSystemWorkflow = async (workflow: any) => {
     workflows.value = workflows.value.filter(w => w.id !== workflow.id)
   } catch (e: any) {
     console.error('删除失败:', e)
-    alert('删除失败：' + (e.data?.detail || e.message || '未知错误'))
+    toast.error('删除失败：' + (e.data?.detail || e.message || '未知错误'))
   } finally {
     deleting.value = null
   }
@@ -102,6 +106,7 @@ const openConfigModal = async (workflow: any) => {
     showConfigModal.value = true
   } catch (e: any) {
     console.error('加载配置失败:', e)
+    toast.error(e.data?.detail || '加载配置失败')
   }
 }
 
@@ -114,6 +119,7 @@ const saveConfig = async () => {
     showConfigModal.value = false
   } catch (e: any) {
     console.error('保存配置失败:', e)
+    toast.error(e.data?.detail || '保存配置失败')
   } finally {
     savingConfig.value = false
   }
@@ -128,6 +134,7 @@ const openExecutionModal = async (workflow: any) => {
     executions.value = await getWorkflowExecutions('system', workflow.id, undefined, 20)
   } catch (e: any) {
     console.error('加载执行记录失败:', e)
+    toast.error(e.data?.detail || '加载执行记录失败')
   } finally {
     loadingExecutions.value = false
   }
@@ -269,8 +276,9 @@ const onTemplateUsed = (template: any) => {
 const loadNodeTypes = async () => {
   try {
     nodeTypes.value = await getNodeTypes()
-  } catch (e) {
+  } catch (e: any) {
     console.error('加载节点类型失败:', e)
+    toast.error(e.data?.detail || '加载节点类型失败')
   }
 }
 

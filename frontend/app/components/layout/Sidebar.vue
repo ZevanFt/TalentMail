@@ -6,6 +6,8 @@ import {
   FolderOpen, Tag, Clock, Paperclip, Users, Cloud, PlusCircle, X, Check, Pencil
 } from 'lucide-vue-next'
 
+const toast = useToast()
+const { confirm: confirmDialog } = useConfirmDialog()
 const { isComposeOpen, requestCloseCompose } = useGlobalModal()
 const { folders, currentFolderId, loadEmails, loadFolders, loadFilteredEmails, loadSnoozedEmails, loadAllEmails, currentFilter } = useEmails()
 const { token, getTags, createTag, updateTag, deleteTag, getExternalAccounts, createExternalAccount } = useApi()
@@ -82,12 +84,22 @@ const saveTag = async () => {
     }
     showTagModal.value = false
     await loadTags()
-  } catch {}
+  } catch (e: any) {
+    console.error('保存标签失败', e)
+    toast.error(e.data?.detail || '保存标签失败')
+  }
 }
 
 const removeTag = async (id: number) => {
-  if (!confirm('确定删除此标签？')) return
-  try { await deleteTag(id); await loadTags() } catch {}
+  const ok = await confirmDialog({ message: '确定删除此标签？', type: 'danger' })
+  if (!ok) return
+  try {
+    await deleteTag(id)
+    await loadTags()
+  } catch (e: any) {
+    console.error('删除标签失败', e)
+    toast.error(e.data?.detail || '删除标签失败')
+  }
 }
 
 // 文件夹角色 -> 中文名称 & 图标映射
