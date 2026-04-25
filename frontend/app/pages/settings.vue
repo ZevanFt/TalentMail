@@ -104,6 +104,9 @@ const handleLogout = () => {
 }
 
 // 动态 tab 组件映射 — 统一替代 17 个 v-if/v-else-if
+// 注意：Nuxt 自动导入的组件不在全局注册表里，
+// 用字符串传给 <component :is> 会导致渲染空白。
+// 必须用 resolveComponent() 在运行时解析为真正的组件对象。
 const settingsTabMap: Record<string, string> = {
   'profile': 'LazySettingsProfile',
   'accounts': 'LazySettingsAccounts',
@@ -128,8 +131,11 @@ const settingsTabMap: Record<string, string> = {
 // user-mgmt 使用全高度布局（overflow-hidden），其他 tab 使用滚动布局
 const isFullHeightTab = computed(() => activeTab.value === 'user-mgmt')
 
-// 当前活跃组件名
-const activeComponentName = computed(() => settingsTabMap[activeTab.value] || 'LazySettingsProfile')
+// 当前活跃组件 — 用 resolveComponent() 将字符串名转为组件对象
+const activeComponent = computed(() => {
+  const name = settingsTabMap[activeTab.value] || 'LazySettingsProfile'
+  return resolveComponent(name)
+})
 </script>
 
 <template>
@@ -277,7 +283,7 @@ const activeComponentName = computed(() => settingsTabMap[activeTab.value] || 'L
       >
         <div :class="isFullHeightTab ? 'max-w-5xl mx-auto h-full' : 'max-w-4xl mx-auto min-h-[600px] pb-20'">
           <Transition name="fade" mode="out-in">
-            <component :is="activeComponentName" :key="activeTab" />
+            <component :is="activeComponent" :key="activeTab" />
           </Transition>
         </div>
       </div>
