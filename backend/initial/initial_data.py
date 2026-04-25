@@ -9,6 +9,7 @@ from db.models.billing import Plan
 from db.models.system import ReservedPrefix, SystemEmailTemplate
 from initial.init_template_data import init_template_data
 from initial.init_workflow_templates import init_workflow_templates
+from initial.init_workflow_data import init_all_workflow_data
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -31,6 +32,7 @@ def init_db() -> None:
         db.flush()
         init_template_data(db)  # 初始化模板元数据和全局变量
         init_workflow_templates(db)  # 初始化工作流模板
+        init_all_workflow_data(db)  # 初始化节点类型 + 系统工作流
         _ensure_default_folders_for_all_users(db) # Add this line
         db.commit() # Commit the changes
     except Exception as e:
