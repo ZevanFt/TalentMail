@@ -19,6 +19,9 @@ from db.models.user import User
 from db.models.email import Email, Folder, TempMailbox
 from core.config import settings
 
+# 模块级事件队列：同步过程中收集新邮件元数据，由 periodic_sync 异步触发工作流
+_pending_email_events: list = []
+
 logger = logging.getLogger(__name__)
 
 # Dovecot Master 用户配置
@@ -163,6 +166,14 @@ def _sync_imap_inbox(
             db.add(new_email)
             existing_ids.add(msg_id)
             synced += 1
+            # 收集新邮件元数据，用于后续触发工作流事件
+            _pending_email_events.append({
+                "from_email": new_email.sender or "",
+                "to_email": mailbox_address,
+                "subject": new_email.subject or "",
+                "received_at": (new_email.received_at or datetime.utcnow()).isoformat(),
+                "source": "imap_sync"
+            })
 
         if synced > 0:
             db.commit()
@@ -259,5 +270,22 @@ async def periodic_sync(interval: int = 30):
             results = sync_all_mailboxes()
             if results["total"] > 0:
                 logger.info(f"邮件同步完成，共 {results['total']} 封新邮件")
+
+            # 触发收集到的邮件到达事件（限制每批最多 10 个防过载）
+            if _pending_email_events:
+                events_batch = _pending_email_events[:10]
+                _pending_email_events[:10] = []
+                try:
+                    from core.workflow_service import WorkflowService
+                    wf_db = SessionLocal()
+                    wf_service = WorkflowService(wf_db)
+                    for event_data in events_batch:
+                        try:
+                            await wf_service.trigger_event("email.received", event_data)
+                        except Exception as e:
+                            logger.warning(f"email.received 事件触发失败: {e}")
+                    wf_db.close()
+                except Exception as e:
+                    logger.error(f"批量触发 email.received 事件失败: {e}")
         except Exception as e:
             logger.error(f"定期同步失败: {e}")

@@ -235,14 +235,8 @@ def _create_default_email_templates(db: Session) -> None:
     包括验证码、欢迎邮件、密码重置等系统邮件
     """
     logger.info("检查默认邮件模板...")
-    
-    # 检查是否已有模板
-    existing_count = db.query(SystemEmailTemplate).count()
-    if existing_count > 0:
-        logger.info(f"已存在 {existing_count} 个邮件模板，跳过创建默认模板")
-        return
-    
-    # 默认邮件模板
+
+    # 默认邮件模板（按 code 逐个 upsert，支持增量添加新模板）
     default_templates = [
         {
             "code": "verification_code_register",
@@ -384,9 +378,127 @@ def _create_default_email_templates(db: Session) -> None:
             "body_text": "您的 TalentMail {{plan_name}} 套餐将于 {{expires_at}} 到期，请及时续费。",
             "variables": ["username", "plan_name", "expires_at", "renew_url"],
         },
+        # ===== 以下为新增模板 =====
+        {
+            "code": "email_received_notification",
+            "name": "新邮件到达通知",
+            "category": "notification",
+            "description": "用户收到新邮件时的通知",
+            "subject": "📬 您收到一封新邮件",
+            "body_html": """
+<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <h2 style="color: #3b82f6;">📬 您收到一封新邮件</h2>
+    <p>您好 {{username}}，</p>
+    <p>您收到了一封来自 <strong>{{from_email}}</strong> 的新邮件：</p>
+    <div style="background-color: #f3f4f6; padding: 16px; margin: 16px 0; border-radius: 8px; border-left: 4px solid #3b82f6;">
+        <p style="margin: 0; font-weight: bold; color: #1f2937;">{{subject}}</p>
+        <p style="margin: 4px 0 0; color: #6b7280; font-size: 14px;">接收时间：{{received_at}}</p>
+    </div>
+    <p>请登录 {{app_name}} 查看完整内容。</p>
+    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+    <p style="color: #9ca3af; font-size: 12px;">此邮件由系统自动发送，请勿回复。</p>
+</div>
+""",
+            "body_text": "您好 {{username}}，您收到一封来自 {{from_email}} 的新邮件，主题：{{subject}}，接收时间：{{received_at}}。",
+            "variables": ["username", "from_email", "subject", "received_at"],
+        },
+        {
+            "code": "storage_warning",
+            "name": "存储空间警告",
+            "category": "notification",
+            "description": "用户存储空间即将用尽时的警告",
+            "subject": "⚠️ 存储空间即将用尽",
+            "body_html": """
+<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <h2 style="color: #f59e0b;">⚠️ 存储空间警告</h2>
+    <p>您好 {{username}}，</p>
+    <p>您的邮箱存储已使用 <strong style="color: #ef4444;">{{usage_percent}}%</strong>（{{used_storage}} / {{total_storage}}）。</p>
+    <p>建议您：</p>
+    <ul style="color: #4b5563;">
+        <li>清理不需要的邮件或附件</li>
+        <li>下载并删除大型附件</li>
+        <li>清空垃圾箱和垃圾邮件</li>
+    </ul>
+    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+    <p style="color: #9ca3af; font-size: 12px;">此邮件由系统自动发送，请勿回复。</p>
+</div>
+""",
+            "body_text": "您好 {{username}}，您的邮箱存储已使用 {{usage_percent}}%（{{used_storage}} / {{total_storage}}），建议清理不需要的邮件。",
+            "variables": ["username", "usage_percent", "used_storage", "total_storage"],
+        },
+        {
+            "code": "account_deletion",
+            "name": "账户删除确认",
+            "category": "notification",
+            "description": "用户账户被删除后的确认通知",
+            "subject": "您的 TalentMail 账户已删除",
+            "body_html": """
+<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <h2 style="color: #ef4444;">账户删除确认</h2>
+    <p>您好 {{username}}，</p>
+    <p>您的 {{app_name}} 账户已于 <strong>{{deleted_at}}</strong> 成功删除。</p>
+    <p>所有邮件和个人数据将在 <strong>{{retention_days}}</strong> 天后永久清除。</p>
+    <div style="background-color: #fef2f2; padding: 12px; margin: 16px 0; border-radius: 8px; border-left: 4px solid #ef4444;">
+        <p style="margin: 0; color: #991b1b; font-size: 14px;">⚠️ 如果这不是您本人的操作，请立即联系支持团队。</p>
+    </div>
+    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+    <p style="color: #9ca3af; font-size: 12px;">此邮件由系统自动发送，请勿回复。</p>
+</div>
+""",
+            "body_text": "您好 {{username}}，您的账户已于 {{deleted_at}} 删除，数据将在 {{retention_days}} 天后永久清除。",
+            "variables": ["username", "deleted_at", "retention_days"],
+        },
+        {
+            "code": "invite_used_notification",
+            "name": "邀请注册成功通知",
+            "category": "notification",
+            "description": "被邀请用户成功注册后通知邀请者",
+            "subject": "🎉 您邀请的好友已注册",
+            "body_html": """
+<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <h2 style="color: #10b981;">🎉 邀请成功</h2>
+    <p>您好 {{inviter_name}}，</p>
+    <p>好消息！您邀请的用户 <strong>{{invitee_email}}</strong> 已成功注册 {{app_name}}。</p>
+    <p>感谢您的推荐！</p>
+    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+    <p style="color: #9ca3af; font-size: 12px;">此邮件由系统自动发送，请勿回复。</p>
+</div>
+""",
+            "body_text": "您好 {{inviter_name}}，您邀请的用户 {{invitee_email}} 已成功注册。",
+            "variables": ["inviter_name", "invitee_email"],
+        },
+        {
+            "code": "verification_code_update_recovery_email",
+            "name": "恢复邮箱验证码",
+            "category": "system",
+            "description": "用户更新恢复邮箱时发送的验证码",
+            "subject": "TalentMail 恢复邮箱验证码",
+            "body_html": """
+<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <h2 style="color: #3b82f6;">恢复邮箱验证</h2>
+    <p>您好，</p>
+    <p>您正在绑定恢复邮箱，请使用以下验证码完成验证：</p>
+    <div style="background-color: #f3f4f6; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
+        <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1f2937;">{{code}}</span>
+    </div>
+    <p style="color: #6b7280; font-size: 14px;">验证码有效期为 {{expires_minutes}} 分钟，请尽快完成验证。</p>
+    <p style="color: #6b7280; font-size: 14px;">如果您没有进行此操作，请忽略此邮件。</p>
+    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+    <p style="color: #9ca3af; font-size: 12px;">此邮件由系统自动发送，请勿回复。</p>
+</div>
+""",
+            "body_text": "您的恢复邮箱验证码是：{{code}}，有效期 {{expires_minutes}} 分钟。",
+            "variables": ["code", "expires_minutes"],
+        },
     ]
     
+    created = 0
     for template_data in default_templates:
+        existing = db.query(SystemEmailTemplate).filter(
+            SystemEmailTemplate.code == template_data["code"]
+        ).first()
+        if existing:
+            continue
         template = SystemEmailTemplate(
             code=template_data["code"],
             name=template_data["name"],
@@ -399,8 +511,12 @@ def _create_default_email_templates(db: Session) -> None:
             is_active=True
         )
         db.add(template)
-    
-    logger.info(f"创建了 {len(default_templates)} 个默认邮件模板")
+        created += 1
+
+    if created > 0:
+        logger.info(f"创建了 {created} 个新邮件模板（共 {len(default_templates)} 个模板定义）")
+    else:
+        logger.info(f"所有 {len(default_templates)} 个邮件模板已存在，无需创建")
 
 
 def _ensure_default_folders_for_all_users(db: Session) -> None:

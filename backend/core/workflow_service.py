@@ -100,8 +100,8 @@ class GenerateCodeHandler(NodeHandler):
 
 
 class SendTemplateEmailHandler(NodeHandler):
-    """发送模板邮件节点处理器 (Revamped)"""
-    
+    """发送模板邮件节点处理器"""
+
     async def execute(self, node_config: Dict[str, Any], context: RuntimeContext) -> Dict[str, Any]:
         """
         Input Config (Already Resolved):
@@ -109,44 +109,47 @@ class SendTemplateEmailHandler(NodeHandler):
           - template_code: str
           - variables: dict (mapped values)
         """
-        # 1. Get Params
+        import asyncio
+
         to_email = node_config.get('to')
         template_code = node_config.get('template_code')
-        # Here 'variables' are already resolved values (e.g. code="123456")
-        # passed from the workflow engine mapping
         template_vars = node_config.get('variables', {})
-        
+
         if not to_email:
-            raise ValueError("Recipient 'to' address is missing")
-        
+            raise ValueError("收件人地址 'to' 缺失")
+
         if not template_code:
-            raise ValueError("Template code is missing")
-            
-        # 2. Call Mail Service
-        # We reuse the existing MailService. It expects:
-        # - to_email
-        # - template_code (for loading template)
-        # - template_data (for rendering)
+            raise ValueError("模板代码 'template_code' 缺失")
+
         try:
             mail_service = MailService(self.db)
-            
-            # Use the high-level send_template_email which handles loading + rendering
-            await mail_service.send_template_email(
-                to=to_email,
+
+            # MailService.send_by_template() 是同步方法，用 asyncio.to_thread 包装
+            result = await asyncio.to_thread(
+                mail_service.send_by_template,
                 template_code=template_code,
-                template_data=template_vars
+                to_email=to_email,
+                context=template_vars
             )
-            
-            print(f"[SendTemplateEmailHandler] Sent {template_code} to {to_email}")
-            return {
-                'status': 'sent',
-                'to': to_email,
-                'template': template_code
-            }
+
+            if result:
+                logger.info(f"[SendTemplateEmailHandler] 已发送 {template_code} 到 {to_email}")
+                return {
+                    'status': 'sent',
+                    'to': to_email,
+                    'template': template_code
+                }
+            else:
+                logger.error(f"[SendTemplateEmailHandler] 发送失败: {template_code} -> {to_email}")
+                return {
+                    'status': 'failed',
+                    'to': to_email,
+                    'template': template_code,
+                    'error': '邮件发送返回 False，可能模板不存在或 SMTP 失败'
+                }
         except Exception as e:
-            logger.error(f"Failed to send template email: {e}")
-            # Re-raise so the engine catches it and marks node as failed
-            raise e
+            logger.error(f"发送模板邮件异常: {e}", exc_info=True)
+            raise
 
 
 class ConditionHandler(NodeHandler):
@@ -946,20 +949,28 @@ class WorkflowService:
             data: 上下文数据
             user_id: 关联用户
         """
-        logger.info(f"Triggering event: {event_name}")
-        
+        # 邮件通知防刷：email.received 事件每用户 5 分钟最多触发一次工作流
+        if event_name == "email.received":
+            from utils.rate_limit import email_notification_limiter
+            user_key = data.get("user_id") or data.get("to_email") or "unknown"
+            rate_key = f"email_received:{user_key}"
+            if not email_notification_limiter.allow(rate_key):
+                logger.debug(f"[trigger_event] email.received 被限流: {rate_key}")
+                return
+
         # Find workflows subscribed to this event
         workflows = self.db.query(SystemWorkflow).filter(
             SystemWorkflow.trigger_event == event_name,
             SystemWorkflow.is_active == True
         ).all()
-        
+
+        logger.info(f"[trigger_event] 事件: {event_name}, 匹配工作流数: {len(workflows)}")
+
         if not workflows:
-            logger.info(f"No active workflows found for event: {event_name}")
             return
-            
+
         for wf in workflows:
-            logger.info(f"Executing workflow {wf.code} for event {event_name}")
+            logger.info(f"[trigger_event] 触发工作流: {wf.code}")
             # Wrap trigger data
             trigger_payload = {
                 "event": event_name,
@@ -1055,20 +1066,42 @@ class WorkflowService:
                 edges=runtime_edges  # 传入边列表
             )
             
-            # 4. Prepare Handlers
-            # We initialize handlers with DB session injected
+            # 4. Prepare Handlers — 注册所有 18 个 handler
             handlers = {
+                # 触发器节点（统一用 TriggerHandler）
+                'trigger_form_submit': TriggerHandler(self.db).execute,
+                'trigger_email_received': TriggerHandler(self.db).execute,
+                'trigger_user_event': TriggerHandler(self.db).execute,
+                'trigger_manual': TriggerHandler(self.db).execute,
+                'trigger_api': TriggerHandler(self.db).execute,
+                'trigger_scheduled': TriggerHandler(self.db).execute,
+                'trigger_webhook': TriggerHandler(self.db).execute,
+                # 数据处理节点
                 'data_generate_code': GenerateCodeHandler(self.db).execute,
                 'data_verify_code': VerifyCodeHandler(self.db).execute,
                 'data_verify_password': VerifyPasswordHandler(self.db).execute,
                 'data_create_user': CreateUserHandler(self.db).execute,
+                'data_update_user': DataUpdateUserHandler(self.db).execute,
+                'data_validate': DataValidateHandler(self.db).execute,
+                # 邮件动作节点
                 'action_send_template': SendTemplateEmailHandler(self.db).execute,
+                'action_send_email': SendTemplateEmailHandler(self.db).execute,
+                'action_forward': self._create_forward_handler(),
+                # 逻辑节点
                 'logic_condition': ConditionHandler(self.db).execute,
+                'logic_switch': SwitchHandler(self.db).execute,
+                'logic_delay': DelayHandler(self.db).execute,
+                'logic_wait': WaitHandler(self.db).execute,
+                'logic_parallel': ParallelHandler(self.db).execute,
+                # 集成节点
                 'integration_log': LogHandler(self.db).execute,
-                # 邮件操作处理器
+                'integration_webhook': WebhookHandler(self.db).execute,
+                # 邮件操作节点
                 'operation_mark_starred': self._create_email_operation_handler('star'),
                 'operation_mark_read': self._create_email_operation_handler('read'),
-                'action_forward': self._create_forward_handler(),
+                # 结束节点
+                'end_success': EndHandler(self.db).execute,
+                'end_failure': EndHandler(self.db).execute,
             }
             
             # 5. Execute
@@ -1087,20 +1120,24 @@ class WorkflowService:
             self.db.commit()
             
             try:
+                logger.info(f"[WorkflowEngine] 开始执行系统工作流: {workflow.code} (trigger: {workflow.trigger_event})")
                 final_context = await engine.run(trigger_data)
-                
+
                 execution.status = 'success'
                 execution.finished_at = datetime.utcnow()
+                duration = (execution.finished_at - execution.started_at).total_seconds()
+                logger.info(f"[WorkflowEngine] 工作流 {workflow.code} 执行成功，耗时 {duration:.2f}s")
                 # Persist the final state
                 execution.result = final_context.data
                 self.db.commit()
-                
+
                 return True, final_context.data
-                
+
             except Exception as e:
                 execution.status = 'failed'
                 execution.error_message = str(e)
                 execution.finished_at = datetime.utcnow()
+                logger.error(f"[WorkflowEngine] 工作流 {workflow.code} 执行失败: {e}")
                 self.db.commit()
                 raise e
                 

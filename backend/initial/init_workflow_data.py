@@ -1375,6 +1375,365 @@ def init_system_workflows(db: Session):
             "default_config": {
                 "send_notification": True
             }
+        },
+        # ==================== 新增工作流 ====================
+        {
+            "code": "email_received_notification",
+            "name": "新邮件到达通知",
+            "name_en": "Email Received Notification",
+            "description": "收到新邮件时发送通知邮件（默认关闭，用户按需开启）",
+            "category": "notification",
+            "trigger_event": "email.received",
+            "is_active": False,
+            "nodes": [
+                {
+                    "node_id": "trigger_1",
+                    "node_type": "trigger",
+                    "node_subtype": "trigger_email_received",
+                    "name": "收到新邮件",
+                    "position_x": 250,
+                    "position_y": 50,
+                    "is_system": True,
+                    "is_required": True,
+                    "can_configure": False
+                },
+                {
+                    "node_id": "condition_spam",
+                    "node_type": "logic",
+                    "node_subtype": "logic_condition",
+                    "name": "非垃圾邮件？",
+                    "position_x": 250,
+                    "position_y": 150,
+                    "config": {
+                        "conditions": [
+                            {"field": "from_email", "operator": "not_contains", "value": "spam"},
+                            {"field": "from_email", "operator": "not_contains", "value": "noreply"}
+                        ],
+                        "logic": "and"
+                    }
+                },
+                {
+                    "node_id": "send_notification",
+                    "node_type": "action",
+                    "node_subtype": "action_send_template",
+                    "name": "发送通知邮件",
+                    "position_x": 250,
+                    "position_y": 250,
+                    "config": {
+                        "template_code": "email_received_notification",
+                        "to_type": "trigger_user"
+                    },
+                    "can_configure": True
+                },
+                {
+                    "node_id": "end_success",
+                    "node_type": "end",
+                    "node_subtype": "end_success",
+                    "name": "通知完成",
+                    "position_x": 250,
+                    "position_y": 350,
+                    "config": {
+                        "message": "邮件到达通知已发送"
+                    }
+                },
+                {
+                    "node_id": "end_skip",
+                    "node_type": "end",
+                    "node_subtype": "end_success",
+                    "name": "跳过通知",
+                    "position_x": 450,
+                    "position_y": 250,
+                    "config": {
+                        "message": "垃圾邮件，跳过通知"
+                    }
+                }
+            ],
+            "edges": [
+                {"edge_id": "e1", "source_node_id": "trigger_1", "target_node_id": "condition_spam"},
+                {"edge_id": "e2", "source_node_id": "condition_spam", "target_node_id": "send_notification", "source_handle": "true", "label": "是"},
+                {"edge_id": "e3", "source_node_id": "condition_spam", "target_node_id": "end_skip", "source_handle": "false", "label": "否"},
+                {"edge_id": "e4", "source_node_id": "send_notification", "target_node_id": "end_success"}
+            ],
+            "config_schema": {
+                "type": "object",
+                "properties": {
+                    "exclude_spam": {
+                        "type": "boolean",
+                        "title": "过滤垃圾邮件",
+                        "description": "是否过滤来自垃圾邮件地址的通知",
+                        "default": True
+                    },
+                    "notification_cooldown_minutes": {
+                        "type": "integer",
+                        "title": "通知冷却时间(分钟)",
+                        "description": "同一用户两次通知之间的最小间隔",
+                        "default": 5,
+                        "minimum": 1,
+                        "maximum": 60
+                    }
+                }
+            },
+            "default_config": {
+                "exclude_spam": True,
+                "notification_cooldown_minutes": 5
+            }
+        },
+        {
+            "code": "storage_warning_notification",
+            "name": "存储空间预警",
+            "name_en": "Storage Warning Notification",
+            "description": "当用户存储空间使用率超过阈值时发送预警邮件",
+            "category": "system",
+            "trigger_event": "storage.warning",
+            "is_active": True,
+            "nodes": [
+                {
+                    "node_id": "trigger_1",
+                    "node_type": "trigger",
+                    "node_subtype": "trigger_user_event",
+                    "name": "存储预警触发",
+                    "position_x": 250,
+                    "position_y": 50,
+                    "is_system": True,
+                    "is_required": True,
+                    "can_configure": False
+                },
+                {
+                    "node_id": "send_warning",
+                    "node_type": "action",
+                    "node_subtype": "action_send_template",
+                    "name": "发送预警邮件",
+                    "position_x": 250,
+                    "position_y": 150,
+                    "config": {
+                        "template_code": "storage_warning",
+                        "to_type": "trigger_user"
+                    },
+                    "can_configure": True
+                },
+                {
+                    "node_id": "log_event",
+                    "node_type": "integration",
+                    "node_subtype": "integration_log",
+                    "name": "记录预警日志",
+                    "position_x": 250,
+                    "position_y": 250,
+                    "config": {
+                        "level": "warning",
+                        "message": "用户 {{trigger.email}} 存储使用率超过 {{trigger.usage_percent}}%"
+                    }
+                },
+                {
+                    "node_id": "end_success",
+                    "node_type": "end",
+                    "node_subtype": "end_success",
+                    "name": "预警完成",
+                    "position_x": 250,
+                    "position_y": 350,
+                    "config": {
+                        "message": "存储预警通知已发送"
+                    }
+                }
+            ],
+            "edges": [
+                {"edge_id": "e1", "source_node_id": "trigger_1", "target_node_id": "send_warning"},
+                {"edge_id": "e2", "source_node_id": "send_warning", "target_node_id": "log_event"},
+                {"edge_id": "e3", "source_node_id": "log_event", "target_node_id": "end_success"}
+            ],
+            "config_schema": {
+                "type": "object",
+                "properties": {
+                    "warning_threshold_percent": {
+                        "type": "integer",
+                        "title": "预警阈值(%)",
+                        "description": "存储使用率超过此百分比时触发预警",
+                        "default": 80,
+                        "minimum": 50,
+                        "maximum": 95
+                    }
+                }
+            },
+            "default_config": {
+                "warning_threshold_percent": 80
+            }
+        },
+        {
+            "code": "account_deletion_notification",
+            "name": "账户删除确认通知",
+            "name_en": "Account Deletion Notification",
+            "description": "当用户账户被删除时发送确认通知",
+            "category": "system",
+            "trigger_event": "user.deleted",
+            "is_active": True,
+            "nodes": [
+                {
+                    "node_id": "trigger_1",
+                    "node_type": "trigger",
+                    "node_subtype": "trigger_user_event",
+                    "name": "账户已删除",
+                    "position_x": 250,
+                    "position_y": 50,
+                    "is_system": True,
+                    "is_required": True,
+                    "can_configure": False
+                },
+                {
+                    "node_id": "send_notification",
+                    "node_type": "action",
+                    "node_subtype": "action_send_template",
+                    "name": "发送删除确认",
+                    "position_x": 250,
+                    "position_y": 150,
+                    "config": {
+                        "template_code": "account_deletion",
+                        "to_type": "trigger_user"
+                    },
+                    "can_configure": True
+                },
+                {
+                    "node_id": "log_event",
+                    "node_type": "integration",
+                    "node_subtype": "integration_log",
+                    "name": "记录删除日志",
+                    "position_x": 250,
+                    "position_y": 250,
+                    "config": {
+                        "level": "info",
+                        "message": "用户 {{trigger.email}} 的账户已被删除"
+                    }
+                },
+                {
+                    "node_id": "end_success",
+                    "node_type": "end",
+                    "node_subtype": "end_success",
+                    "name": "通知完成",
+                    "position_x": 250,
+                    "position_y": 350,
+                    "config": {
+                        "message": "账户删除通知已发送"
+                    }
+                }
+            ],
+            "edges": [
+                {"edge_id": "e1", "source_node_id": "trigger_1", "target_node_id": "send_notification"},
+                {"edge_id": "e2", "source_node_id": "send_notification", "target_node_id": "log_event"},
+                {"edge_id": "e3", "source_node_id": "log_event", "target_node_id": "end_success"}
+            ],
+            "config_schema": {
+                "type": "object",
+                "properties": {
+                    "retention_days": {
+                        "type": "integer",
+                        "title": "数据保留天数",
+                        "description": "账户删除后数据保留的天数",
+                        "default": 30,
+                        "minimum": 7,
+                        "maximum": 90
+                    },
+                    "send_to_recovery": {
+                        "type": "boolean",
+                        "title": "发送到恢复邮箱",
+                        "description": "如果有恢复邮箱，也发送一份通知",
+                        "default": True
+                    }
+                }
+            },
+            "default_config": {
+                "retention_days": 30,
+                "send_to_recovery": True
+            }
+        },
+        {
+            "code": "invite_used_notification",
+            "name": "邀请注册成功通知",
+            "name_en": "Invite Used Notification",
+            "description": "当被邀请人成功注册时通知邀请人",
+            "category": "notification",
+            "trigger_event": "invite.used",
+            "is_active": True,
+            "nodes": [
+                {
+                    "node_id": "trigger_1",
+                    "node_type": "trigger",
+                    "node_subtype": "trigger_user_event",
+                    "name": "邀请码被使用",
+                    "position_x": 250,
+                    "position_y": 50,
+                    "is_system": True,
+                    "is_required": True,
+                    "can_configure": False
+                },
+                {
+                    "node_id": "condition_inviter",
+                    "node_type": "logic",
+                    "node_subtype": "logic_condition",
+                    "name": "邀请人邮箱存在？",
+                    "position_x": 250,
+                    "position_y": 150,
+                    "config": {
+                        "conditions": [
+                            {"field": "inviter_email", "operator": "is_not_empty", "value": ""}
+                        ],
+                        "logic": "and"
+                    }
+                },
+                {
+                    "node_id": "send_notification",
+                    "node_type": "action",
+                    "node_subtype": "action_send_template",
+                    "name": "通知邀请人",
+                    "position_x": 250,
+                    "position_y": 250,
+                    "config": {
+                        "template_code": "invite_used_notification",
+                        "to_type": "fixed_email",
+                        "to_email": "{{trigger.inviter_email}}"
+                    },
+                    "can_configure": True
+                },
+                {
+                    "node_id": "end_success",
+                    "node_type": "end",
+                    "node_subtype": "end_success",
+                    "name": "通知完成",
+                    "position_x": 250,
+                    "position_y": 350,
+                    "config": {
+                        "message": "邀请成功通知已发送"
+                    }
+                },
+                {
+                    "node_id": "end_skip",
+                    "node_type": "end",
+                    "node_subtype": "end_success",
+                    "name": "跳过通知",
+                    "position_x": 450,
+                    "position_y": 250,
+                    "config": {
+                        "message": "邀请人信息缺失，跳过通知"
+                    }
+                }
+            ],
+            "edges": [
+                {"edge_id": "e1", "source_node_id": "trigger_1", "target_node_id": "condition_inviter"},
+                {"edge_id": "e2", "source_node_id": "condition_inviter", "target_node_id": "send_notification", "source_handle": "true", "label": "是"},
+                {"edge_id": "e3", "source_node_id": "condition_inviter", "target_node_id": "end_skip", "source_handle": "false", "label": "否"},
+                {"edge_id": "e4", "source_node_id": "send_notification", "target_node_id": "end_success"}
+            ],
+            "config_schema": {
+                "type": "object",
+                "properties": {
+                    "notify_inviter": {
+                        "type": "boolean",
+                        "title": "通知邀请人",
+                        "description": "被邀请人注册成功后是否通知邀请人",
+                        "default": True
+                    }
+                }
+            },
+            "default_config": {
+                "notify_inviter": True
+            }
         }
     ]
     
@@ -1399,7 +1758,7 @@ def init_system_workflows(db: Session):
                 edges=data["edges"],
                 config_schema=data.get("config_schema"),
                 default_config=data.get("default_config", {}),
-                is_active=True
+                is_active=data.get('is_active', True)
             )
             db.add(workflow)
     

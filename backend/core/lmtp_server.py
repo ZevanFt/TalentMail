@@ -30,6 +30,19 @@ UPLOAD_DIR = "/app/uploads/attachments"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
+async def _fire_email_received_event(wf_service, wf_db, event_data: dict):
+    """触发邮件到达事件，独立 DB session，失败不影响主流程"""
+    try:
+        await wf_service.trigger_event("email.received", event_data)
+    except Exception as e:
+        logger.error(f"email.received 工作流执行失败: {e}", exc_info=True)
+    finally:
+        try:
+            wf_db.close()
+        except Exception:
+            pass
+
+
 def decode_mime_header(header: Optional[str]) -> str:
     """解码 MIME 编码的邮件头"""
     if not header:
@@ -246,7 +259,24 @@ class LMTPHandler:
                         }))
                     except Exception as e:
                         logger.warning(f"WebSocket 通知失败: {e}")
-                
+
+                    # 触发邮件到达工作流事件（fire-and-forget，不阻塞投递）
+                    try:
+                        from core.workflow_service import WorkflowService
+                        wf_db = SessionLocal()
+                        wf_service = WorkflowService(wf_db)
+                        asyncio.create_task(_fire_email_received_event(wf_service, wf_db, {
+                            "email_id": str(db_email.id),
+                            "from_email": sender,
+                            "to_email": rcpt_email,
+                            "subject": subject or "",
+                            "user_id": str(user.id),
+                            "has_attachments": str(len(attachments) > 0).lower(),
+                            "received_at": (db_email.received_at or datetime.utcnow()).isoformat()
+                        }))
+                    except Exception as e:
+                        logger.warning(f"触发 email.received 事件失败: {e}")
+
                 db.commit()
                 
             finally:

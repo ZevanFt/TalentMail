@@ -2,10 +2,13 @@
 工作流 API 端点
 提供工作流管理和执行的 REST API
 """
+import logging
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 from db.database import get_db
 from api.deps import get_current_user, get_current_admin_user
@@ -57,6 +60,13 @@ class SystemWorkflowResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+
+class SystemWorkflowUpdate(BaseModel):
+    """系统工作流元数据更新"""
+    is_active: Optional[bool] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
 
 
 class SystemWorkflowConfigUpdate(BaseModel):
@@ -152,11 +162,11 @@ async def list_system_workflows(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin_user)
 ):
-    """获取所有系统工作流（仅管理员）"""
-    query = db.query(SystemWorkflow).filter(SystemWorkflow.is_active == True)
+    """获取所有系统工作流（仅管理员）— 包含已停用的"""
+    query = db.query(SystemWorkflow)
     if category:
         query = query.filter(SystemWorkflow.category == category)
-    return query.all()
+    return query.order_by(SystemWorkflow.category, SystemWorkflow.code).all()
 
 
 @router.get("/system/{code}", response_model=SystemWorkflowResponse)
@@ -225,6 +235,30 @@ async def update_system_workflow_config(
     )
     
     return config
+
+
+@router.patch("/system/{code}", response_model=SystemWorkflowResponse)
+async def update_system_workflow(
+    code: str,
+    data: SystemWorkflowUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """更新系统工作流元数据（名称、描述、启用状态）— 仅管理员"""
+    workflow = db.query(SystemWorkflow).filter(SystemWorkflow.code == code).first()
+
+    if not workflow:
+        raise HTTPException(status_code=404, detail="系统工作流不存在")
+
+    update_data = data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(workflow, field, value)
+
+    db.commit()
+    db.refresh(workflow)
+
+    logger.info(f"系统工作流 {code} 已更新: {update_data} (操作人: {current_user.email})")
+    return workflow
 
 
 @router.post("/system/{code}/execute")

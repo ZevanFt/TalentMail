@@ -1,8 +1,11 @@
 from datetime import timedelta, datetime, timezone
 import hashlib
+import logging
 import random
 import re
 import string
+
+logger = logging.getLogger(__name__)
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -417,8 +420,20 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
             "registered_at": datetime.now(timezone.utc).isoformat()
         }))
     except Exception as e:
-        # 工作流触发失败不影响注册
-        print(f"[Register] Workflow trigger failed: {e}")
+        logger.warning(f"[Register] 触发注册事件失败: {e}")
+
+    # 触发邀请码使用通知
+    try:
+        import asyncio
+        if invite and invite.creator:
+            wf_service = WorkflowService(db)
+            asyncio.create_task(wf_service.trigger_event("invite.used", {
+                "inviter_email": invite.creator.email,
+                "inviter_name": invite.creator.display_name or invite.creator.email.split('@')[0],
+                "invitee_email": new_user.email
+            }))
+    except Exception as e:
+        logger.warning(f"[Register] 触发邀请通知失败: {e}")
 
     return {"status": "success", "user_id": new_user.id, "email": new_user.email}
 
@@ -488,7 +503,33 @@ def register_user_with_verification(
     # 使用邀请码（记录使用者）
     crud_user.use_invite_code(db, invite, user_id=new_user.id)
     db.commit()
-    
+
+    # 触发用户注册工作流事件（与 legacy register 保持一致）
+    try:
+        import asyncio
+        wf_service = WorkflowService(db)
+        asyncio.create_task(wf_service.trigger_event("user.registered", {
+            "user_id": new_user.id,
+            "email": new_user.email,
+            "display_name": new_user.display_name or new_user.email.split('@')[0],
+            "registered_at": datetime.now(timezone.utc).isoformat()
+        }))
+    except Exception as e:
+        logger.warning(f"[RegisterWithVerification] 触发注册事件失败: {e}")
+
+    # 触发邀请码使用通知
+    try:
+        import asyncio
+        if invite and invite.creator:
+            wf_service = WorkflowService(db)
+            asyncio.create_task(wf_service.trigger_event("invite.used", {
+                "inviter_email": invite.creator.email,
+                "inviter_name": invite.creator.display_name or invite.creator.email.split('@')[0],
+                "invitee_email": new_user.email
+            }))
+    except Exception as e:
+        logger.warning(f"[RegisterWithVerification] 触发邀请通知失败: {e}")
+
     return {"status": "success", "user_id": new_user.id, "email": new_user.email}
 
 
