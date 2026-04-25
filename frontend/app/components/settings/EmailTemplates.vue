@@ -123,8 +123,7 @@ const openTriggerConfig = (template: EmailTemplate) => {
   showTriggerConfig.value = true
 }
 
-const handleTriggerConfigSave = (config: any) => {
-  console.log('触发配置已保存:', config)
+const handleTriggerConfigSave = (_config: any) => {
   // 刷新模板列表（可能有规则数量变化）
   loadTemplates()
 }

@@ -120,13 +120,9 @@ const downloadFile = (id: number) => {
   window.open(`${downloadDriveFileUrl(id)}?token=${token.value}`, '_blank')
 }
 
-const formatSize = (bytes: number) => {
-  if (bytes < 1024) return bytes + ' B'
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
-}
+// formatSize 来自 utils/format.ts (Nuxt 自动导入)
 
-const formatDate = (date: string) => {
+const formatDateShort = (date: string) => {
   return new Date(date).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
@@ -177,7 +173,7 @@ onMounted(loadFiles)
               <div class="font-medium text-gray-900 dark:text-white truncate">{{ file.original_filename }}</div>
               <div class="text-xs text-gray-500 flex items-center gap-3">
                 <span>{{ formatSize(file.size) }}</span>
-                <span>{{ formatDate(file.created_at) }}</span>
+                <span>{{ formatDateShort(file.created_at) }}</span>
                 <span v-if="file.share_code" class="flex items-center gap-1 text-primary">
                   <Link class="w-3 h-3" /> 已分享
                   <span v-if="file.download_count">({{ file.download_count }}次下载)</span>

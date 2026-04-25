@@ -242,13 +242,7 @@ const isSpamFolder = computed(() => {
   return folder?.role === 'spam'
 })
 
-// 获取发件人首字母
-const getAvatar = (sender: string) => {
-  if (!sender) return '?'
-  const match = sender.match(/^([^<]+)/) || sender.match(/<([^>]+)>/)
-  const name = match?.[1]?.trim() || sender
-  return name.charAt(0).toUpperCase()
-}
+// getAvatar 来自 utils/format.ts (Nuxt 自动导入)
 
 // 选择邮件
 const selectEmail = async (id: number) => {

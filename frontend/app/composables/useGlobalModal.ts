@@ -17,5 +17,14 @@ export const useGlobalModal = () => {
     return true
   }
 
-  return { isComposeOpen, isGenerateOpen, isHistoryOpen, isStatsOpen, composeCloseGuard, requestCloseCompose }
+  // 打开新 compose 前的检查（用于 reply/forward/compose 等覆盖场景）
+  const requestOpenCompose = async () => {
+    if (!isComposeOpen.value) return true
+    if (composeCloseGuard.value) {
+      return await composeCloseGuard.value()
+    }
+    return true
+  }
+
+  return { isComposeOpen, isGenerateOpen, isHistoryOpen, isStatsOpen, composeCloseGuard, requestCloseCompose, requestOpenCompose }
 }

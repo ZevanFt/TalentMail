@@ -51,13 +51,10 @@ export const useBackground = () => {
   // 检查订阅权限
   const checkSubscription = async (): Promise<boolean> => {
     try {
-      console.log('[Background] Checking subscription status...')
       const status = await getSubscriptionStatus()
-      console.log('[Background] Subscription status:', status)
       
       // 管理员始终有权限
       if (status.is_admin) {
-        console.log('[Background] Admin user detected, granting full access')
         canUseBackground.value = true
         subscriptionChecked.value = true
         return true
@@ -67,10 +64,8 @@ export const useBackground = () => {
       if (status.has_subscription && status.plan?.features) {
         const features = status.plan.features as Record<string, any>
         canUseBackground.value = features.allow_custom_background === true
-        console.log('[Background] Subscription user, features:', features, 'canUse:', canUseBackground.value)
       } else {
         canUseBackground.value = false
-        console.log('[Background] No subscription or features, denying access')
       }
       
       subscriptionChecked.value = true
@@ -87,7 +82,6 @@ export const useBackground = () => {
   const initBackground = async () => {
     if (!import.meta.client) return
     
-    console.log('[Background] Initializing background system...')
     
     // 先从 localStorage 加载设置（无论权限如何，先加载再说）
     const saved = localStorage.getItem('backgroundSettings')
@@ -95,7 +89,6 @@ export const useBackground = () => {
       try {
         const parsed = JSON.parse(saved)
         settings.value = { ...defaultSettings, ...parsed }
-        console.log('[Background] Loaded settings from localStorage:', settings.value.enabled, !!settings.value.imageUrl)
         // 先应用背景（如果有保存的设置）
         if (settings.value.enabled && settings.value.imageUrl) {
           applyBackground()
@@ -132,7 +125,6 @@ export const useBackground = () => {
     
     if (!settings.value.enabled || !settings.value.imageUrl) {
       // 清除背景
-      console.log('[Background] Clearing background')
       root.style.removeProperty('--bg-custom-image')
       root.style.removeProperty('--bg-custom-opacity')
       root.style.removeProperty('--bg-custom-blur')
@@ -141,7 +133,6 @@ export const useBackground = () => {
       return
     }
 
-    console.log('[Background] Applying background, opacity:', settings.value.opacity)
     
     // 设置CSS变量
     root.style.setProperty('--bg-custom-image', `url(${settings.value.imageUrl})`)
@@ -158,14 +149,12 @@ export const useBackground = () => {
     root.classList.toggle('bg-area-main', settings.value.areas.main)
     root.classList.toggle('bg-area-panels', settings.value.areas.panels)
     
-    console.log('[Background] Applied! Classes:', root.classList.toString())
   }
 
   // 预览背景（临时应用，不保存）- 用于未订阅用户体验
   const previewBackground = (imageDataUrl: string) => {
     if (!import.meta.client) return
     
-    console.log('[Background] Previewing background')
     const root = document.documentElement
     root.style.setProperty('--bg-custom-image', `url(${imageDataUrl})`)
     root.style.setProperty('--bg-custom-opacity', `${settings.value.opacity / 100}`)
@@ -183,7 +172,6 @@ export const useBackground = () => {
   // 清除预览
   const clearPreview = () => {
     if (!import.meta.client) return
-    console.log('[Background] Clearing preview')
     // 如果没有保存的设置，清除所有
     if (!settings.value.enabled || !settings.value.imageUrl) {
       const root = document.documentElement

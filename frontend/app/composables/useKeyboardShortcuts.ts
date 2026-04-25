@@ -64,7 +64,7 @@ export const getShortcutsByCategory = () => {
 
 export const useKeyboardShortcuts = () => {
   const { emails, selectedEmailId, selectedEmailDetail, loadEmailDetail, toggleRead, toggleStar, removeEmail, startReply, startReplyAll, startForward } = useEmails()
-  const { isComposeOpen } = useGlobalModal()
+  const { isComposeOpen, requestOpenCompose } = useGlobalModal()
   const { bulkArchiveEmails } = useApi()
   const toast = useToast()
   const router = useRouter()
@@ -170,31 +170,36 @@ export const useKeyboardShortcuts = () => {
   }
   
   // 回复 (r)
-  const handleReply = () => {
-    if (selectedEmailDetail.value) {
-      startReply(selectedEmailDetail.value)
-      isComposeOpen.value = true
-    }
+  const handleReply = async () => {
+    if (!selectedEmailDetail.value) return
+    const canOpen = await requestOpenCompose()
+    if (!canOpen) return
+    startReply(selectedEmailDetail.value)
+    isComposeOpen.value = true
   }
-  
+
   // 回复全部 (a)
-  const handleReplyAll = () => {
-    if (selectedEmailDetail.value) {
-      startReplyAll(selectedEmailDetail.value)
-      isComposeOpen.value = true
-    }
+  const handleReplyAll = async () => {
+    if (!selectedEmailDetail.value) return
+    const canOpen = await requestOpenCompose()
+    if (!canOpen) return
+    startReplyAll(selectedEmailDetail.value)
+    isComposeOpen.value = true
   }
-  
+
   // 转发 (f)
-  const handleForward = () => {
-    if (selectedEmailDetail.value) {
-      startForward(selectedEmailDetail.value)
-      isComposeOpen.value = true
-    }
+  const handleForward = async () => {
+    if (!selectedEmailDetail.value) return
+    const canOpen = await requestOpenCompose()
+    if (!canOpen) return
+    startForward(selectedEmailDetail.value)
+    isComposeOpen.value = true
   }
-  
+
   // 写新邮件 (c)
   const handleCompose = async () => {
+    const canOpen = await requestOpenCompose()
+    if (!canOpen) return
     if (route.path !== '/') {
       await router.push('/')
     }

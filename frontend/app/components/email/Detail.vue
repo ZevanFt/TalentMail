@@ -4,8 +4,9 @@ import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
 import ComposePanel from './ComposePanel.vue'
 
 const { selectedEmailDetail, formatTime, toggleRead, removeEmail, startReply, startReplyAll, startForward, folders, currentFolderId, loadEmails, tags, loadTags, addTag, removeTag } = useEmails()
-const { isComposeOpen } = useGlobalModal()
-const { getTrackingStats, resendEmail, downloadAttachmentUrl, exportEmailUrl, token } = useApi()
+const { isComposeOpen, requestOpenCompose } = useGlobalModal()
+const { getTrackingStats, resendEmail, downloadAttachmentUrl, exportEmailUrl, token, bulkArchiveEmails } = useApi()
+const { sanitizeEmailHtml } = useSanitize()
 const toast = useToast()
 
 // 验证码检测和复制
@@ -123,27 +124,30 @@ const handleToggleRead = () => {
 }
 
 // 回复
-const handleReply = () => {
-  if (selectedEmailDetail.value) {
-    startReply(selectedEmailDetail.value)
-    isComposeOpen.value = true
-  }
+const handleReply = async () => {
+  if (!selectedEmailDetail.value) return
+  const canOpen = await requestOpenCompose()
+  if (!canOpen) return
+  startReply(selectedEmailDetail.value)
+  isComposeOpen.value = true
 }
 
 // 回复全部
-const handleReplyAll = () => {
-  if (selectedEmailDetail.value) {
-    startReplyAll(selectedEmailDetail.value)
-    isComposeOpen.value = true
-  }
+const handleReplyAll = async () => {
+  if (!selectedEmailDetail.value) return
+  const canOpen = await requestOpenCompose()
+  if (!canOpen) return
+  startReplyAll(selectedEmailDetail.value)
+  isComposeOpen.value = true
 }
 
 // 转发
-const handleForward = () => {
-  if (selectedEmailDetail.value) {
-    startForward(selectedEmailDetail.value)
-    isComposeOpen.value = true
-  }
+const handleForward = async () => {
+  if (!selectedEmailDetail.value) return
+  const canOpen = await requestOpenCompose()
+  if (!canOpen) return
+  startForward(selectedEmailDetail.value)
+  isComposeOpen.value = true
 }
 
 // 删除确认
@@ -156,14 +160,6 @@ const confirmDelete = () => {
     removeEmail(selectedEmailDetail.value.id)
   }
   showDeleteConfirm.value = false
-}
-
-// 获取发件人首字母
-const getAvatar = (sender: string) => {
-  if (!sender) return '?'
-  const match = sender.match(/^([^<]+)/) || sender.match(/<([^>]+)>/)
-  const name = match?.[1]?.trim() || sender
-  return name.charAt(0).toUpperCase()
 }
 
 // 格式化收件人显示
@@ -241,16 +237,31 @@ const hasRealHtmlContent = computed(() => {
 // 附件
 const attachments = computed(() => selectedEmailDetail.value?.attachments || [])
 
-const formatFileSize = (bytes: number) => {
-  if (bytes < 1024) return bytes + ' B'
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
-}
+// formatFileSize 来自 utils/format.ts (Nuxt 自动导入)
 
 const downloadAttachment = (id: number) => {
   const url = downloadAttachmentUrl(id)
   window.open(`${url}?token=${token.value}`, '_blank')
 }
+
+// 归档邮件
+const handleArchive = async () => {
+  if (!selectedEmailDetail.value) return
+  try {
+    await bulkArchiveEmails([selectedEmailDetail.value.id])
+    toast.success('已归档')
+  } catch (e: any) {
+    console.error('归档失败:', e)
+    toast.error('归档失败')
+  }
+}
+
+// 消毒后的 HTML（防 XSS）
+const sanitizedBodyHtml = computed(() => {
+  const html = selectedEmailDetail.value?.body_html
+  if (!html) return ''
+  return sanitizeEmailHtml(html)
+})
 
 // 导出邮件
 const exportEmail = (format: 'eml' | 'pdf') => {
@@ -276,7 +287,7 @@ const exportEmail = (format: 'eml' | 'pdf') => {
             <MailOpen v-if="selectedEmailDetail.is_read" class="w-5 h-5 group-hover:scale-110 transition-transform" />
             <Mail v-else class="w-5 h-5 group-hover:scale-110 transition-transform" />
           </button>
-          <button class="btn-icon group" title="归档">
+          <button class="btn-icon group" @click="handleArchive" title="归档">
             <Archive class="w-5 h-5 group-hover:scale-110 transition-transform" />
           </button>
           <button class="btn-icon group hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30" @click="handleDelete" title="删除">
@@ -476,7 +487,7 @@ const exportEmail = (format: 'eml' | 'pdf') => {
           <!-- 正文 -->
           <div v-if="hasRealHtmlContent"
             class="prose prose-zinc dark:prose-invert max-w-none"
-            v-html="selectedEmailDetail.body_html">
+            v-html="sanitizedBodyHtml">
           </div>
           <template v-else>
             <div v-if="selectedEmailDetail.body_text"
@@ -487,7 +498,7 @@ const exportEmail = (format: 'eml' | 'pdf') => {
               (无正文内容)
             </div>
             <!-- 隐藏的追踪像素（确保追踪功能正常工作） -->
-            <div v-if="selectedEmailDetail.body_html" v-html="selectedEmailDetail.body_html" class="hidden"></div>
+            <div v-if="selectedEmailDetail.body_html" v-html="sanitizedBodyHtml" class="hidden"></div>
           </template>
         </div>
       </div>

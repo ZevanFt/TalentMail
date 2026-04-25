@@ -201,10 +201,7 @@ const formatBytes = (bytes: number) => {
     return `${bytes} B`
 }
 
-const formatDate = (date: string | null) => {
-    if (!date) return '-'
-    return new Date(date).toLocaleDateString('zh-CN')
-}
+// formatDate 来自 utils/format.ts (Nuxt 自动导入)
 
 const getPlanName = (planId: number) => {
     return plans.value.find(p => p.id === planId)?.name || '未知'

@@ -217,11 +217,7 @@ const removeAttachment = async (att: UploadedFile) => {
   }
 }
 
-const formatFileSize = (bytes: number) => {
-  if (bytes < 1024) return bytes + ' B'
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
-}
+// formatFileSize 来自 utils/format.ts (Nuxt 自动导入)
 
 const handleSend = async () => {
   if (!recipients.value || !subject.value) {
@@ -384,6 +380,9 @@ watch(showDraftConfirm, (open) => {
 
 onMounted(() => {
   composeCloseGuard.value = requestCloseWithDraftGuard
+  if (import.meta.client) {
+    window.addEventListener('beforeunload', beforeUnloadHandler)
+  }
 })
 
 onUnmounted(() => {
@@ -391,6 +390,13 @@ onUnmounted(() => {
     composeCloseGuard.value = null
   }
   resolveCloseRequest(false)
+  if (import.meta.client) {
+    window.removeEventListener('beforeunload', beforeUnloadHandler)
+  }
+  if (autoSaveTimer) {
+    clearTimeout(autoSaveTimer)
+    autoSaveTimer = null
+  }
 })
 
 watch(() => composeState.value, async (state) => {
@@ -425,6 +431,51 @@ const handleTemplateSelect = async (data: {
 
 const handleTemplateClear = () => {
   appliedTemplate.value = null
+}
+
+// ========== 自动保存草稿（30 秒防抖） ==========
+let autoSaveTimer: ReturnType<typeof setTimeout> | null = null
+
+const autoSaveDraft = async () => {
+  if (!hasContent.value || sending.value || savingDraft.value) return
+  try {
+    const safeHtml = sanitizeHtml(body.value)
+    const data = {
+      to: recipients.value,
+      cc: ccRecipients.value,
+      subject: subject.value,
+      body_text: stripHtml(safeHtml),
+      body_html: safeHtml
+    }
+    if (draftId.value) {
+      await updateDraft(draftId.value, data)
+    } else {
+      const res = await saveDraft(data)
+      draftId.value = res.data.id
+    }
+  } catch (e) {
+    // 静默失败，不打扰用户
+    console.error('自动保存草稿失败', e)
+  }
+}
+
+watch(
+  [recipients, ccRecipients, subject, body],
+  () => {
+    if (autoSaveTimer) clearTimeout(autoSaveTimer)
+    if (!isComposeOpen.value) return
+    autoSaveTimer = setTimeout(autoSaveDraft, 30000)
+  },
+  { deep: false }
+)
+
+// ========== beforeunload 保护 ==========
+const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
+  if (isComposeOpen.value && hasContent.value) {
+    e.preventDefault()
+    // 现代浏览器忽略自定义消息，但需要赋值才能触发对话框
+    e.returnValue = ''
+  }
 }
 </script>
 

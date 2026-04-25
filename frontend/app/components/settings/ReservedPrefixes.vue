@@ -204,10 +204,7 @@ const handleFilterChange = () => {
     loadPrefixes()
 }
 
-const formatDate = (date: string | null) => {
-    if (!date) return '-'
-    return new Date(date).toLocaleDateString('zh-CN')
-}
+// formatDate 来自 utils/format.ts (Nuxt 自动导入)
 
 // 计算总页数
 const totalPages = computed(() => Math.ceil(totalCount.value / pageSize.value))

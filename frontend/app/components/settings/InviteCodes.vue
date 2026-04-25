@@ -93,14 +93,12 @@ const copyCode = async (code: InviteCode) => {
     setTimeout(() => copiedId.value = null, 2000)
 }
 
-const formatDate = (date: string | null) => {
+const formatExpireDate = (date: string | null) => {
     if (!date) return '永不过期'
     return new Date(date).toLocaleDateString('zh-CN')
 }
 
-const formatDateTime = (date: string) => {
-    return new Date(date).toLocaleString('zh-CN')
-}
+// formatDateTime 来自 utils/format.ts (Nuxt 自动导入)
 
 const showUsages = async (code: InviteCode) => {
     selectedCode.value = code
@@ -201,7 +199,7 @@ onMounted(loadCodes)
                                 {{ code.used_count }} / {{ code.max_uses || '∞' }}
                             </span>
                         </td>
-                        <td class="td text-gray-500">{{ formatDate(code.expires_at) }}</td>
+                        <td class="td text-gray-500">{{ formatExpireDate(code.expires_at) }}</td>
                         <td class="td">
                             <div class="flex gap-2">
                                 <button @click="copyCode(code)" class="icon-btn" title="复制">

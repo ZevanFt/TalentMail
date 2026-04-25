@@ -8,7 +8,7 @@ import {
 
 const toast = useToast()
 const { confirm: confirmDialog } = useConfirmDialog()
-const { isComposeOpen, requestCloseCompose } = useGlobalModal()
+const { isComposeOpen, requestCloseCompose, requestOpenCompose } = useGlobalModal()
 const { folders, currentFolderId, loadEmails, loadFolders, loadFilteredEmails, loadSnoozedEmails, loadAllEmails, currentFilter } = useEmails()
 const { token, getTags, createTag, updateTag, deleteTag, getExternalAccounts, createExternalAccount } = useApi()
 const route = useRoute()
@@ -160,12 +160,26 @@ const selectedVirtualId = useState<string | null>('selectedVirtualId', () => nul
 const selectedTagId = useState<number | null>('selectedTagId', () => null)
 
 const openComposePanel = async () => {
+  // 如果已有 compose 打开，先走 guard（保存草稿 / 丢弃 / 取消）
+  if (isComposeOpen.value) {
+    const canOpen = await requestOpenCompose()
+    if (!canOpen) return
+  }
   selectedTagId.value = null
   selectedVirtualId.value = null
   if (route.path !== '/') {
     await router.push('/')
   }
   isComposeOpen.value = true
+}
+
+// 导航到其他页面前检查 compose 状态
+const navigateTo = async (path: string) => {
+  if (isComposeOpen.value) {
+    const canClose = await requestCloseCompose()
+    if (!canClose) return
+  }
+  router.push(path)
 }
 
 // 切换文件夹
@@ -378,11 +392,12 @@ const isActive = (path: string) => route.path === path
 
         <Transition name="slide">
           <div v-if="isOpen.tools" class="overflow-hidden space-y-0.5">
-            <NuxtLink v-for="item in tools" :key="item.name" :to="item.to" class="sub-item group" active-class="active">
+            <a v-for="item in tools" :key="item.name" @click="navigateTo(item.to)"
+              class="sub-item group cursor-pointer" :class="{ active: isActive(item.to) }">
               <component :is="item.icon" class="w-4 h-4 shrink-0 transition-colors text-inherit"
                 :class="isActive(item.to) ? 'text-primary' : ''" />
               <span class="flex-1 truncate">{{ item.name }}</span>
-            </NuxtLink>
+            </a>
           </div>
         </Transition>
       </div>
@@ -391,13 +406,13 @@ const isActive = (path: string) => route.path === path
 
     <!-- 底部账号池 -->
     <div class="p-3 mt-auto border-t border-gray-200 dark:border-gray-800">
-      <NuxtLink to="/pool"
-        class="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-white dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-all shadow-sm hover:shadow border border-gray-200/50 hover:border-gray-200 dark:border-gray-800 dark:hover:border-gray-700 group bg-white dark:bg-gray-900">
+      <a @click="navigateTo('/pool')"
+        class="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-white dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-all shadow-sm hover:shadow border border-gray-200/50 hover:border-gray-200 dark:border-gray-800 dark:hover:border-gray-700 group bg-white dark:bg-gray-900 cursor-pointer">
         <div class="p-1 bg-primary/10 rounded-md shrink-0">
           <Box class="w-4 h-4 text-primary group-hover:scale-105 transition-transform" />
         </div>
         <span class="font-bold text-sm truncate">账号池</span>
-      </NuxtLink>
+      </a>
     </div>
   </aside>
 

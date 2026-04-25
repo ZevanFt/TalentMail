@@ -201,10 +201,6 @@ const hasBackgroundImage = computed(() => {
     return !!(previewImage.value || bgSettings.value.imageUrl)
 })
 
-// 在组件挂载时输出调试信息（开发调试用）
-onMounted(() => {
-    console.log('[Theme] Mounted - canUseBackground:', canUseBackground.value, 'subscriptionChecked:', subscriptionChecked.value)
-})
 </script>
 
 <template>

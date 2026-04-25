@@ -38,11 +38,7 @@ const download = () => {
   setTimeout(() => downloading.value = false, 1000)
 }
 
-const formatSize = (bytes: number) => {
-  if (bytes < 1024) return bytes + ' B'
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
-}
+// formatSize 来自 utils/format.ts (Nuxt 自动导入)
 
 const getFileIcon = (contentType: string | null) => {
   if (!contentType) return File

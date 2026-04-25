@@ -110,10 +110,7 @@ const usagePercent = computed(() => {
     return Math.round((stats.value.storage_used_bytes / limit) * 100)
 })
 
-const formatDate = (date: string | null) => {
-    if (!date) return '-'
-    return new Date(date).toLocaleDateString('zh-CN')
-}
+// formatDate 来自 utils/format.ts (Nuxt 自动导入)
 
 onMounted(async () => {
     await Promise.all([loadStats(), loadSubscription(), loadHistory(), loadUser()])

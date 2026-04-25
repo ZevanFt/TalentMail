@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Plus, Play, Pause, Trash2, Edit, Clock, Zap, Mail, User, ChevronRight, AlertCircle, CheckCircle, XCircle, RefreshCw } from 'lucide-vue-next'
 
-const { $api } = useNuxtApp()
+const { api } = useApi()
 const toast = useToast()
 const { confirm: confirmDialog } = useConfirmDialog()
 
@@ -26,7 +26,7 @@ const logsTotal = ref(0)
 // 加载元数据
 const loadMetadata = async () => {
   try {
-    const res = await $api('/api/automation/metadata')
+    const res = await api<any>('/automation/metadata')
     metadata.value = res
   } catch (e: any) {
     console.error('加载元数据失败:', e)
@@ -38,9 +38,7 @@ const loadMetadata = async () => {
 const loadRules = async () => {
   loading.value = true
   try {
-    const res = await $api('/api/automation/rules', {
-      params: { page: page.value, page_size: pageSize.value }
-    })
+    const res = await api<any>(`/automation/rules?page=${page.value}&page_size=${pageSize.value}`)
     rules.value = res.items
     total.value = res.total
   } catch (e: any) {
@@ -55,9 +53,9 @@ const loadRules = async () => {
 const loadLogs = async (ruleId?: number) => {
   logsLoading.value = true
   try {
-    const params: any = { page: logsPage.value, page_size: 10 }
-    if (ruleId) params.rule_id = ruleId
-    const res = await $api('/api/automation/logs', { params })
+    let url = `/automation/logs?page=${logsPage.value}&page_size=10`
+    if (ruleId) url += `&rule_id=${ruleId}`
+    const res = await api<any>(url)
     logs.value = res.items
     logsTotal.value = res.total
   } catch (e: any) {
@@ -71,7 +69,7 @@ const loadLogs = async (ruleId?: number) => {
 // 切换规则状态
 const toggleRule = async (rule: any) => {
   try {
-    const res = await $api(`/api/automation/rules/${rule.id}/toggle`, { method: 'POST' })
+    const res = await api<any>(`/automation/rules/${rule.id}/toggle`, 'POST')
     rule.is_active = res.is_active
   } catch (e: any) {
     console.error('切换状态失败:', e)
@@ -84,7 +82,7 @@ const deleteRule = async (rule: any) => {
   const ok = await confirmDialog({ message: `确定要删除规则 "${rule.name}" 吗？`, type: 'danger' })
   if (!ok) return
   try {
-    await $api(`/api/automation/rules/${rule.id}`, { method: 'DELETE' })
+    await api(`/automation/rules/${rule.id}`, 'DELETE')
     await loadRules()
   } catch (e: any) {
     console.error('删除失败:', e)
@@ -95,10 +93,7 @@ const deleteRule = async (rule: any) => {
 // 手动触发规则
 const triggerRule = async (rule: any) => {
   try {
-    const res = await $api(`/api/automation/rules/${rule.id}/trigger`, {
-      method: 'POST',
-      body: { context: {} }
-    })
+    const res = await api<any>(`/automation/rules/${rule.id}/trigger`, 'POST', { context: {} })
     if (res.success) {
       toast.success('触发成功！')
     } else {
@@ -135,15 +130,9 @@ const createRule = () => {
 const saveRule = async (ruleData: any) => {
   try {
     if (ruleData.id) {
-      await $api(`/api/automation/rules/${ruleData.id}`, {
-        method: 'PUT',
-        body: ruleData
-      })
+      await api(`/automation/rules/${ruleData.id}`, 'PUT', ruleData)
     } else {
-      await $api('/api/automation/rules', {
-        method: 'POST',
-        body: ruleData
-      })
+      await api('/automation/rules', 'POST', ruleData)
     }
     showEditor.value = false
     await loadRules()

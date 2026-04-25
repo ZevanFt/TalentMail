@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Paperclip, Download, Trash2, FileText, Image, File, Upload, Link, Check } from 'lucide-vue-next'
+import { Paperclip, Download, Trash2, FileText, Image, File, Upload, Link, Check, Loader2 } from 'lucide-vue-next'
 const toast = useToast()
 const { confirm: confirmDialog } = useConfirmDialog()
 const { downloadAttachmentUrl, deleteAttachment, token } = useApi()
@@ -73,11 +73,7 @@ const copyLink = async (id: number) => {
 const transferFiles = computed(() => attachments.value.filter(a => !a.email_id))
 const emailAttachments = computed(() => attachments.value.filter(a => a.email_id))
 
-const formatSize = (bytes: number) => {
-  if (bytes < 1024) return bytes + ' B'
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
-}
+// formatSize 来自 utils/format.ts (Nuxt 自动导入)
 
 const getIcon = (type: string) => {
   if (type.startsWith('image/')) return Image

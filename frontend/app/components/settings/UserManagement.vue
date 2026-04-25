@@ -200,10 +200,7 @@ const changeLimit = (newLimit: number) => {
     loadUsers()
 }
 
-const formatDate = (date: string | null) => {
-    if (!date) return '-'
-    return new Date(date).toLocaleDateString('zh-CN')
-}
+// formatDate 来自 utils/format.ts (Nuxt 自动导入)
 
 const totalPages = computed(() => Math.ceil(total.value / limit.value))
 

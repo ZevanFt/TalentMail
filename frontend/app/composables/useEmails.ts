@@ -235,12 +235,13 @@ export const useEmails = () => {
     if (!token.value || ws.value) return
     
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const wsUrl = `${protocol}//${window.location.hostname}:8000/ws/${token.value}`
+    const host = window.location.host // 自适应 hostname:port
+    const wsUrl = `${protocol}//${host}/ws/${token.value}`
     
     ws.value = new WebSocket(wsUrl)
     
     ws.value.onopen = () => {
-      console.log('WebSocket 已连接')
+      // 连接成功
     }
     
     ws.value.onmessage = async (event) => {
@@ -253,7 +254,6 @@ export const useEmails = () => {
     }
     
     ws.value.onclose = () => {
-      console.log('WebSocket 已断开')
       ws.value = null
       // 3秒后重连
       setTimeout(connectWebSocket, 3000)
