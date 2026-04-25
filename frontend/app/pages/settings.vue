@@ -102,6 +102,34 @@ const handleLogout = () => {
   logout()
   router.push('/login')
 }
+
+// 动态 tab 组件映射 — 统一替代 17 个 v-if/v-else-if
+const settingsTabMap: Record<string, string> = {
+  'profile': 'SettingsProfile',
+  'accounts': 'SettingsAccounts',
+  'theme': 'SettingsTheme',
+  'mail': 'SettingsMail',
+  'my-workflows': 'SettingsMyWorkflows',
+  'notifications': 'SettingsNotifications',
+  'privacy': 'SettingsPrivacy',
+  'security': 'SettingsSecurity',
+  'storage': 'SettingsStorage',
+  'billing': 'SettingsBilling',
+  'invites': 'SettingsInviteCodes',
+  'prefixes': 'SettingsReservedPrefixes',
+  'email-templates': 'SettingsEmailTemplates',
+  'system-workflows': 'SettingsSystemWorkflows',
+  'temp-mail-policy': 'SettingsTempMailboxPolicy',
+  'changelog': 'SettingsChangelog',
+  'about': 'SettingsAbout',
+  'user-mgmt': 'SettingsUserManagement',
+}
+
+// user-mgmt 使用全高度布局（overflow-hidden），其他 tab 使用滚动布局
+const isFullHeightTab = computed(() => activeTab.value === 'user-mgmt')
+
+// 当前活跃组件名
+const activeComponentName = computed(() => settingsTabMap[activeTab.value] || 'SettingsProfile')
 </script>
 
 <template>
@@ -241,35 +269,15 @@ const handleLogout = () => {
       </div>
     </div>
 
-    <!-- 2. 内容主区域 -->
+    <!-- 2. 内容主区域（动态组件替代 17 个 v-if/v-else-if） -->
     <div class="settings-content flex-1 flex flex-col overflow-hidden bg-gray-50 dark:bg-bg-dark">
-      <!-- 用户权限管理使用全高度布局 -->
-      <div v-if="activeTab === 'user-mgmt'" class="flex-1 p-4 lg:p-8 xl:p-12 overflow-hidden">
-        <div class="max-w-5xl mx-auto h-full">
-          <SettingsUserManagement />
-        </div>
-      </div>
-      <!-- 其他页面使用滚动布局 -->
-      <div v-else class="flex-1 overflow-y-auto p-4 lg:p-8 xl:p-12">
-        <div class="max-w-4xl mx-auto min-h-[600px] pb-20">
+      <div
+        class="flex-1 p-4 lg:p-8 xl:p-12"
+        :class="isFullHeightTab ? 'overflow-hidden' : 'overflow-y-auto'"
+      >
+        <div :class="isFullHeightTab ? 'max-w-5xl mx-auto h-full' : 'max-w-4xl mx-auto min-h-[600px] pb-20'">
           <Transition name="fade" mode="out-in">
-            <SettingsProfile v-if="activeTab === 'profile'" />
-            <SettingsAccounts v-else-if="activeTab === 'accounts'" />
-            <SettingsTheme v-else-if="activeTab === 'theme'" />
-            <SettingsMail v-else-if="activeTab === 'mail'" />
-            <SettingsMyWorkflows v-else-if="activeTab === 'my-workflows'" />
-            <SettingsNotifications v-else-if="activeTab === 'notifications'" />
-            <SettingsPrivacy v-else-if="activeTab === 'privacy'" />
-            <SettingsSecurity v-else-if="activeTab === 'security'" />
-            <SettingsStorage v-else-if="activeTab === 'storage'" />
-            <SettingsBilling v-else-if="activeTab === 'billing'" />
-            <SettingsInviteCodes v-else-if="activeTab === 'invites'" />
-            <SettingsReservedPrefixes v-else-if="activeTab === 'prefixes'" />
-            <SettingsEmailTemplates v-else-if="activeTab === 'email-templates'" />
-            <SettingsSystemWorkflows v-else-if="activeTab === 'system-workflows'" />
-            <SettingsTempMailboxPolicy v-else-if="activeTab === 'temp-mail-policy'" />
-            <SettingsChangelog v-else-if="activeTab === 'changelog'" />
-            <SettingsAbout v-else-if="activeTab === 'about'" />
+            <component :is="activeComponentName" :key="activeTab" />
           </Transition>
         </div>
       </div>

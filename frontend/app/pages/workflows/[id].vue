@@ -8,7 +8,7 @@ import '@vue-flow/core/dist/theme-default.css'
 import '@vue-flow/controls/dist/style.css'
 import '@vue-flow/minimap/dist/style.css'
 import {
-  ArrowLeft, Save, Play, Plus, Settings, Trash2, GripVertical, Send, Check, X, BookOpen,
+  ArrowLeft, Save, Play, Settings, Trash2, Send, Check, X, BookOpen,
   // 节点图标
   Mail, User, Clock, Link, MousePointer, FileText, FileCode,
   GitBranch, ListFilter, Timer, GitMerge, Pause,
@@ -17,7 +17,7 @@ import {
   Globe, ScrollText, Zap, Bell, Database, Flag,
   CircleCheck, CircleX, Package, XCircle,
   // 版本历史
-  History, RotateCcw, Eye,
+  History,
   // 执行相关
   PlayCircle, Bug, AlertCircle, CheckCircle2, Loader2
 } from 'lucide-vue-next'
@@ -56,7 +56,6 @@ const workflow = ref<any>({
 
 // 新建工作流触发器选择弹窗
 const showTriggerSelector = ref(false)
-const selectedTriggerType = ref<any>(null)
 
 // 获取触发器类型列表
 const triggerTypes = computed(() => {
@@ -328,6 +327,9 @@ const getNodeConfigFields = (nodeId: string): Array<{ key: string; title: string
   }))
 }
 
+// Provide for child components
+provide('getNodeConfigFields', getNodeConfigFields)
+
 // 消息提示
 const message = ref<{ type: 'success' | 'error'; text: string } | null>(null)
 const showMessage = (type: 'success' | 'error', text: string) => {
@@ -368,11 +370,10 @@ const goToTutorial = () => {
   window.open('/workflows/tutorial', '_blank')
 }
 
-// 确认选择触发器并添加到画布
-const confirmTriggerSelection = () => {
-  if (!selectedTriggerType.value) return
-  
-  const trigger = selectedTriggerType.value
+// 确认选择触发器并添加到画布（trigger 由 TriggerSelectorModal @select 传入）
+const confirmTriggerSelection = (trigger: any) => {
+  if (!trigger) return
+
   addNodes([
     {
       id: 'trigger_1',
@@ -389,9 +390,8 @@ const confirmTriggerSelection = () => {
       }
     }
   ])
-  
+
   showTriggerSelector.value = false
-  selectedTriggerType.value = null
 }
 
 // 加载工作流数据
@@ -929,34 +929,15 @@ definePageMeta({
         />
       </div>
 
-      <!-- 节点列表 - 添加 min-h-0 确保 flex 子元素可以滚动 -->
-      <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 custom-scrollbar">
-        <div v-for="category in sortedCategories" :key="category" class="space-y-2">
-          <h3 class="flex items-center gap-1.5 text-xs font-bold text-gray-400 uppercase tracking-wider">
-            <component :is="getIconComponent(categoryLabels[category]?.icon || 'Package')" class="w-3.5 h-3.5" />
-            {{ categoryLabels[category]?.label || category }}
-          </h3>
-          <div class="space-y-1">
-            <div
-              v-for="nodeType in nodeTypesByCategory[category]"
-              :key="nodeType.code"
-              draggable="true"
-              @dragstart="(e) => onDragStart(e, nodeType)"
-              class="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-grab active:cursor-grabbing transition-colors group"
-            >
-              <component :is="getIconComponent(nodeType.icon)" class="w-4 h-4" :style="{ color: nodeType.color }" />
-              <span class="text-sm text-gray-700 dark:text-gray-300 flex-1">{{ nodeType.name }}</span>
-              <GripVertical class="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-            </div>
-          </div>
-        </div>
-        
-        <!-- 空状态 -->
-        <div v-if="nodeTypes.length === 0" class="text-center py-8">
-          <div class="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto"></div>
-          <p class="text-sm text-gray-500 mt-2">加载节点类型...</p>
-        </div>
-      </div>
+      <!-- 节点列表 -->
+      <WorkflowNodePalette
+        :sorted-categories="sortedCategories"
+        :node-types-by-category="nodeTypesByCategory"
+        :category-labels="categoryLabels"
+        :icon-components="iconComponents"
+        :node-types="nodeTypes"
+        @drag-start="onDragStart"
+      />
     </div>
 
     <!-- 中间画布区域 -->
@@ -1163,619 +1144,51 @@ definePageMeta({
 
     <!-- 右侧配置面板 -->
     <Transition name="slide">
-      <div
+      <WorkflowNodeConfigPanel
         v-if="showNodeConfig && selectedNode"
-        class="w-80 bg-white dark:bg-bg-panelDark border-l border-gray-200 dark:border-border-dark flex flex-col shrink-0"
-      >
-        <!-- 标题 -->
-        <div class="h-14 flex items-center justify-between px-4 border-b border-gray-100 dark:border-gray-800">
-          <div class="flex items-center gap-2">
-            <component :is="getIconComponent(selectedNode.data.icon)" class="w-5 h-5" :style="{ color: selectedNode.data.color }" />
-            <span class="font-bold text-gray-900 dark:text-white text-sm">{{ selectedNode.data.label }}</span>
-          </div>
-          <button
-            @click="showNodeConfig = false"
-            class="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-          >
-            <X class="w-5 h-5 text-gray-500" />
-          </button>
-        </div>
-
-        <!-- 配置表单 -->
-        <div class="flex-1 overflow-y-auto p-4 space-y-4">
-          <!-- 节点名称 -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              节点名称
-            </label>
-            <input
-              v-model="selectedNode.data.label"
-              class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
-            />
-          </div>
-
-          <!-- 节点类型信息 -->
-          <div class="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-            <p class="text-xs text-gray-500 dark:text-gray-400">节点类型</p>
-            <p class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ selectedNode.data.nodeSubtype }}</p>
-          </div>
-
-          <!-- 动态配置项 -->
-          <template v-if="selectedNodeConfigSchema?.properties">
-            <div
-              v-for="(prop, key) in selectedNodeConfigSchema.properties"
-              :key="key"
-              class="space-y-1"
-            >
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                {{ prop.title || key }}
-                <span v-if="selectedNodeConfigSchema.required?.includes(key)" class="text-red-500">*</span>
-              </label>
-              <p v-if="prop.description" class="text-xs text-gray-500 dark:text-gray-400">
-                {{ prop.description }}
-              </p>
-              
-              <!-- 邮件模板选择（特殊处理 template_code 字段） -->
-              <select
-                v-if="key === 'template_code'"
-                v-model="selectedNode.data.config[key]"
-                class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
-              >
-                <option value="">请选择邮件模板</option>
-                <option v-for="template in emailTemplates" :key="template.code" :value="template.code">
-                  {{ template.name }} ({{ template.code }})
-                </option>
-              </select>
-              
-              <!-- 布尔类型 -->
-              <CommonToggle
-                v-else-if="prop.type === 'boolean'"
-                v-model="selectedNode.data.config[key]"
-              />
-              
-              <!-- 数字类型 -->
-              <input
-                v-else-if="prop.type === 'integer' || prop.type === 'number'"
-                v-model.number="selectedNode.data.config[key]"
-                type="number"
-                :min="prop.minimum"
-                :max="prop.maximum"
-                class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
-              />
-              
-              <!-- 枚举类型 -->
-              <select
-                v-else-if="prop.enum"
-                v-model="selectedNode.data.config[key]"
-                class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
-              >
-                <option v-for="(opt, idx) in prop.enum" :key="opt" :value="opt">
-                  {{ prop.enumNames?.[idx] || opt }}
-                </option>
-              </select>
-              
-              <!-- 多行文本 -->
-              <textarea
-                v-else-if="prop.format === 'html' || prop.format === 'textarea'"
-                v-model="selectedNode.data.config[key]"
-                rows="4"
-                class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
-              />
-              
-              <!-- 普通文本 -->
-              <input
-                v-else
-                v-model="selectedNode.data.config[key]"
-                type="text"
-                class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
-              />
-            </div>
-          </template>
-          
-          <!-- 无配置项 -->
-          <div v-else class="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">
-            此节点无需配置
-          </div>
-        </div>
-
-        <!-- 删除按钮 -->
-        <div class="p-4 border-t border-gray-100 dark:border-gray-800">
-          <button
-            @click="deleteSelectedNode"
-            class="w-full flex items-center justify-center gap-2 px-4 py-2 text-red-600 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-          >
-            <Trash2 class="w-4 h-4" />
-            删除节点
-          </button>
-        </div>
-      </div>
+        :selected-node="selectedNode"
+        :config-schema="selectedNodeConfigSchema"
+        :email-templates="emailTemplates"
+        :icon-components="iconComponents"
+        @close="showNodeConfig = false"
+        @delete="deleteSelectedNode"
+      />
     </Transition>
 
     <!-- 工作流设置面板 -->
-    <Teleport to="body">
-      <Transition name="fade">
-        <div
-          v-if="showWorkflowSettings"
-          class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          @click.self="showWorkflowSettings = false"
-        >
-          <div class="bg-white dark:bg-bg-panelDark rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
-            <!-- 头部 -->
-            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Settings class="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <h3 class="text-lg font-semibold text-gray-900 dark:text-white">工作流设置</h3>
-                  <p class="text-sm text-gray-500 dark:text-gray-400">配置工作流的基本信息和全局配置项</p>
-                </div>
-              </div>
-              <button
-                @click="showWorkflowSettings = false"
-                class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-              >
-                <X class="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
+    <WorkflowSettingsModal
+      v-model="showWorkflowSettings"
+      :workflow="workflow"
+      :nodes="nodes"
+      :saving-settings="savingSettings"
+      @save="saveWorkflowSettings"
+      @add-config-item="addCustomConfigItem"
+      @remove-config-item="removeConfigItem"
+      @add-config-binding="addConfigBinding"
+      @remove-config-binding="removeConfigBinding"
+    />
 
-            <!-- 内容 -->
-            <div class="flex-1 overflow-y-auto p-6 space-y-6">
-              <!-- 基础信息 -->
-              <div class="space-y-4">
-                <h4 class="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                  <span class="w-1 h-4 bg-primary rounded-full"></span>
-                  基础信息
-                </h4>
-                <div class="grid gap-4">
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">工作流名称</label>
-                    <input
-                      v-model="workflow.name"
-                      type="text"
-                      class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">描述</label>
-                    <textarea
-                      v-model="workflow.description"
-                      rows="3"
-                      class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <!-- 全局配置项 -->
-              <div class="space-y-4">
-                <div class="flex items-center justify-between">
-                  <h4 class="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                    <span class="w-1 h-4 bg-primary rounded-full"></span>
-                    全局配置项
-                  </h4>
-                  <button
-                    @click="addCustomConfigItem"
-                    class="flex items-center gap-1.5 px-3 py-1.5 text-sm text-primary hover:bg-primary/10 rounded-lg transition-colors"
-                  >
-                    <Plus class="w-4 h-4" />
-                    添加配置项
-                  </button>
-                </div>
-                <p class="text-xs text-gray-500 dark:text-gray-400">
-                  这些配置项会在工作流列表的「配置」按钮中显示，并会同步到关联的节点配置
-                </p>
-
-                <!-- 已有配置项 -->
-                <div v-if="workflow.config_schema?.properties && Object.keys(workflow.config_schema.properties).length > 0" class="space-y-4">
-                  <div
-                    v-for="(prop, key) in workflow.config_schema.properties"
-                    :key="key"
-                    class="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg space-y-4"
-                  >
-                    <!-- 基本信息 -->
-                    <div class="flex items-start gap-4">
-                      <div class="flex-1 grid grid-cols-2 gap-4">
-                        <div>
-                          <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">配置名称</label>
-                          <input
-                            v-model="prop.title"
-                            type="text"
-                            placeholder="例如：需要邮箱验证"
-                            class="w-full px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                          />
-                        </div>
-                        <div>
-                          <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">类型</label>
-                          <select
-                            v-model="prop.type"
-                            class="w-full px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                          >
-                            <option value="boolean">开关（布尔值）</option>
-                            <option value="string">文本</option>
-                            <option value="integer">数字</option>
-                          </select>
-                        </div>
-                        <div class="col-span-2">
-                          <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">描述</label>
-                          <input
-                            v-model="prop.description"
-                            type="text"
-                            placeholder="配置项说明..."
-                            class="w-full px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                          />
-                        </div>
-                        <div>
-                          <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">默认值</label>
-                          <template v-if="prop.type === 'boolean'">
-                            <select
-                              v-model="workflow.default_config[key]"
-                              class="w-full px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                            >
-                              <option :value="true">开启</option>
-                              <option :value="false">关闭</option>
-                            </select>
-                          </template>
-                          <template v-else-if="prop.type === 'integer'">
-                            <input
-                              v-model.number="workflow.default_config[key]"
-                              type="number"
-                              class="w-full px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                            />
-                          </template>
-                          <template v-else>
-                            <input
-                              v-model="workflow.default_config[key]"
-                              type="text"
-                              class="w-full px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                            />
-                          </template>
-                        </div>
-                      </div>
-                      <button
-                        @click="removeConfigItem(key as string)"
-                        class="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                        title="删除配置项"
-                      >
-                        <Trash2 class="w-4 h-4" />
-                      </button>
-                    </div>
-
-                    <!-- 节点绑定 -->
-                    <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
-                      <div class="flex items-center justify-between mb-2">
-                        <label class="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1.5">
-                          <Link class="w-3.5 h-3.5" />
-                          关联节点配置
-                        </label>
-                        <button
-                          @click="addConfigBinding(key as string)"
-                          class="text-xs text-primary hover:text-primary/80 flex items-center gap-1"
-                        >
-                          <Plus class="w-3 h-3" />
-                          添加关联
-                        </button>
-                      </div>
-                      <p class="text-xs text-gray-400 dark:text-gray-500 mb-2">
-                        当此配置项的值改变时，会自动同步到关联的节点配置字段
-                      </p>
-
-                      <!-- 绑定列表 -->
-                      <div v-if="prop.bindings && prop.bindings.length > 0" class="space-y-2">
-                        <div
-                          v-for="(binding, bIndex) in prop.bindings"
-                          :key="bIndex"
-                          class="flex items-center gap-2 p-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
-                        >
-                          <select
-                            v-model="binding.nodeId"
-                            class="flex-1 px-2 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                          >
-                            <option value="">选择节点...</option>
-                            <option v-for="node in nodes" :key="node.id" :value="node.id">
-                              {{ node.data?.label || node.id }}
-                            </option>
-                          </select>
-                          <span class="text-gray-400 text-xs">→</span>
-                          <select
-                            v-model="binding.field"
-                            :disabled="!binding.nodeId"
-                            class="flex-1 px-2 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
-                          >
-                            <option value="">选择字段...</option>
-                            <option
-                              v-for="field in getNodeConfigFields(binding.nodeId)"
-                              :key="field.key"
-                              :value="field.key"
-                            >
-                              {{ field.title }}
-                            </option>
-                          </select>
-                          <button
-                            @click="removeConfigBinding(key as string, bIndex as number)"
-                            class="p-1 text-gray-400 hover:text-red-500 transition-colors"
-                          >
-                            <X class="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                      <div v-else class="text-xs text-gray-400 dark:text-gray-500 italic">
-                        暂无关联，配置值不会同步到任何节点
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- 空状态 -->
-                <div v-else class="text-center py-8 text-gray-500 dark:text-gray-400">
-                  <Settings class="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p class="text-sm">暂无配置项</p>
-                  <p class="text-xs mt-1">点击上方「添加配置项」按钮来创建</p>
-                </div>
-              </div>
-            </div>
-
-            <!-- 底部按钮 -->
-            <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-              <button
-                @click="showWorkflowSettings = false"
-                class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-              >
-                取消
-              </button>
-              <button
-                @click="saveWorkflowSettings"
-                :disabled="savingSettings"
-                class="flex items-center gap-2 px-4 py-2 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
-              >
-                <Save class="w-4 h-4" />
-                {{ savingSettings ? '保存中...' : '保存设置' }}
-              </button>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
-
-    <!-- 触发器选择弹窗（新建工作流时显示） -->
-    <Teleport to="body">
-      <Transition name="fade">
-        <div
-          v-if="showTriggerSelector"
-          class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-        >
-          <div class="bg-white dark:bg-bg-panelDark rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
-            <!-- 头部 -->
-            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                  <Zap class="w-5 h-5 text-green-600 dark:text-green-400" />
-                </div>
-                <div>
-                  <h3 class="text-lg font-semibold text-gray-900 dark:text-white">选择触发器类型</h3>
-                  <p class="text-sm text-gray-500 dark:text-gray-400">选择工作流的启动方式</p>
-                </div>
-              </div>
-              <button
-                @click="goBack"
-                class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                title="取消并返回"
-              >
-                <X class="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-
-            <!-- 触发器列表 -->
-            <div class="flex-1 overflow-y-auto p-6">
-              <div class="grid grid-cols-2 gap-4">
-                <button
-                  v-for="trigger in triggerTypes"
-                  :key="trigger.code"
-                  @click="selectedTriggerType = trigger"
-                  :class="[
-                    'flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all hover:shadow-md',
-                    selectedTriggerType?.code === trigger.code
-                      ? 'border-primary bg-primary/5 shadow-md'
-                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                  ]"
-                >
-                  <div
-                    class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                    :style="{ backgroundColor: (trigger.color || '#10b981') + '20' }"
-                  >
-                    <component
-                      :is="getIconComponent(trigger.icon)"
-                      class="w-5 h-5"
-                      :style="{ color: trigger.color || '#10b981' }"
-                    />
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <h4 class="font-medium text-gray-900 dark:text-white text-sm">{{ trigger.name }}</h4>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
-                      {{ trigger.description || '暂无描述' }}
-                    </p>
-                  </div>
-                  <div
-                    v-if="selectedTriggerType?.code === trigger.code"
-                    class="w-5 h-5 rounded-full bg-primary flex items-center justify-center flex-shrink-0"
-                  >
-                    <Check class="w-3 h-3 text-white" />
-                  </div>
-                </button>
-              </div>
-
-              <!-- 空状态 -->
-              <div v-if="triggerTypes.length === 0" class="text-center py-12">
-                <div class="animate-spin w-8 h-8 border-3 border-primary border-t-transparent rounded-full mx-auto"></div>
-                <p class="text-sm text-gray-500 mt-3">加载触发器类型...</p>
-              </div>
-            </div>
-
-            <!-- 底部按钮 -->
-            <div class="flex items-center justify-between px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-              <button
-                @click="goBack"
-                class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-              >
-                取消
-              </button>
-              <button
-                @click="confirmTriggerSelection"
-                :disabled="!selectedTriggerType"
-                class="flex items-center gap-2 px-5 py-2 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Check class="w-4 h-4" />
-                确认选择
-              </button>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
+    <!-- 触发器选择弹窗 -->
+    <WorkflowTriggerSelectorModal
+      v-model="showTriggerSelector"
+      :trigger-types="triggerTypes"
+      :icon-components="iconComponents"
+      @select="confirmTriggerSelection"
+      @cancel="goBack"
+    />
 
     <!-- 版本历史面板 -->
-    <Teleport to="body">
-      <Transition name="fade">
-        <div
-          v-if="showVersionHistory"
-          class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          @click.self="showVersionHistory = false"
-        >
-          <div class="bg-white dark:bg-bg-panelDark rounded-xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
-            <!-- 头部 -->
-            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                  <History class="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div>
-                  <h3 class="text-lg font-semibold text-gray-900 dark:text-white">版本历史</h3>
-                  <p class="text-sm text-gray-500 dark:text-gray-400">
-                    {{ previewingVersion ? `正在预览 v${previewingVersion.version}` : '查看和恢复历史版本' }}
-                  </p>
-                </div>
-              </div>
-              <button
-                @click="showVersionHistory = false; previewingVersion = null"
-                class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-              >
-                <X class="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-
-            <!-- 预览模式提示 -->
-            <div v-if="previewingVersion" class="px-6 py-3 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2 text-amber-700 dark:text-amber-400">
-                  <Eye class="w-4 h-4" />
-                  <span class="text-sm font-medium">预览模式</span>
-                  <span class="text-xs text-amber-600 dark:text-amber-500">- 画布显示的是 v{{ previewingVersion.version }} 的内容</span>
-                </div>
-                <button
-                  @click="exitPreview"
-                  class="text-xs px-2 py-1 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/30 rounded transition-colors"
-                >
-                  退出预览
-                </button>
-              </div>
-            </div>
-
-            <!-- 版本列表 -->
-            <div class="flex-1 overflow-y-auto p-4">
-              <!-- 加载状态 -->
-              <div v-if="loadingVersions" class="flex items-center justify-center py-12">
-                <div class="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full"></div>
-              </div>
-
-              <!-- 版本列表 -->
-              <div v-else-if="versions.length > 0" class="space-y-2">
-                <div
-                  v-for="version in versions"
-                  :key="version.version"
-                  :class="[
-                    'p-4 rounded-lg border-2 transition-all',
-                    previewingVersion?.version === version.version
-                      ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/10'
-                      : version.version === workflow.version
-                        ? 'border-primary bg-primary/5'
-                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                  ]"
-                >
-                  <div class="flex items-start justify-between">
-                    <div class="flex-1">
-                      <div class="flex items-center gap-2">
-                        <span class="font-semibold text-gray-900 dark:text-white">v{{ version.version }}</span>
-                        <span v-if="version.version === workflow.version" class="px-2 py-0.5 text-xs bg-primary/20 text-primary rounded-full">
-                          当前版本
-                        </span>
-                        <span v-if="previewingVersion?.version === version.version" class="px-2 py-0.5 text-xs bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200 rounded-full">
-                          预览中
-                        </span>
-                      </div>
-                      <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        {{ formatTime(version.created_at) }}
-                      </p>
-                      <p v-if="version.change_summary" class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                        {{ version.change_summary }}
-                      </p>
-                      <div class="flex items-center gap-3 mt-2 text-xs text-gray-400">
-                        <span>{{ version.nodes_count || 0 }} 个节点</span>
-                        <span>{{ version.edges_count || 0 }} 条连接</span>
-                      </div>
-                    </div>
-                    <div class="flex items-center gap-1">
-                      <!-- 预览按钮 -->
-                      <button
-                        v-if="version.version !== workflow.version"
-                        @click="previewVersion(version)"
-                        class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                        title="预览此版本"
-                      >
-                        <Eye class="w-4 h-4" />
-                      </button>
-                      <!-- 恢复按钮 -->
-                      <button
-                        v-if="version.version !== workflow.version"
-                        @click="restoreToVersion(version)"
-                        :disabled="restoringVersion"
-                        class="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors disabled:opacity-50"
-                        title="恢复到此版本"
-                      >
-                        <RotateCcw class="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 空状态 -->
-              <div v-else class="text-center py-12 text-gray-500 dark:text-gray-400">
-                <History class="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p class="text-sm">暂无版本历史</p>
-                <p class="text-xs mt-1">保存工作流后会自动创建版本记录</p>
-              </div>
-            </div>
-
-            <!-- 底部 -->
-            <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-              <button
-                v-if="previewingVersion"
-                @click="exitPreview"
-                class="px-4 py-2 text-sm text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors"
-              >
-                退出预览
-              </button>
-              <button
-                @click="showVersionHistory = false; if (previewingVersion) exitPreview()"
-                class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-              >
-                关闭
-              </button>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
+    <WorkflowVersionHistoryModal
+      v-model="showVersionHistory"
+      :versions="versions"
+      :current-version="workflow.version"
+      :previewing-version="previewingVersion"
+      :loading-versions="loadingVersions"
+      :restoring-version="restoringVersion"
+      @preview="previewVersion"
+      @exit-preview="exitPreview"
+      @restore="restoreToVersion"
+    />
 
     <!-- 执行结果弹窗 -->
     <Teleport to="body">
