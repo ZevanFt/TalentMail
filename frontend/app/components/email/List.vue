@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { Star, RefreshCw, Loader2, Circle, Clock, X, Send, CheckCircle, XCircle, Eye, Paperclip, SquareCheck, Square, Trash2, Archive, FolderInput, CheckCheck, CircleDot, MoreHorizontal } from 'lucide-vue-next'
 
-const { emails, selectedEmailId, folders, currentFolderId, loading, syncing, loadFolders, loadEmails, loadEmailDetail, sync, formatTime, toggleRead, toggleStar, snooze, searchQuery, isSearching, clearSearch, startAutoSync, stopAutoSync, editDraft } = useEmails()
+const { emails, selectedEmailId, folders, currentFolderId, loading, syncing, loadFolders, loadEmails, loadEmailDetail, sync, formatTime, toggleRead, toggleStar, snooze, searchQuery, isSearching, clearSearch, startAutoSync, stopAutoSync, editDraft, emailHasMore, loadingMore, loadMoreEmails, emailTotal } = useEmails()
 const { isComposeOpen, requestCloseCompose } = useGlobalModal()
 const { getEmail, bulkMarkRead, bulkMarkStarred, bulkDeleteEmails, bulkArchiveEmails, bulkMoveEmails, markAsSpam, markAsNotSpam } = useApi()
+const { showEmailDetail } = useResponsive()
 const toast = useToast()
 
 // 获取 Sidebar 中选中的虚拟文件夹 ID 和标签 ID
@@ -260,6 +261,7 @@ const selectEmail = async (id: number) => {
   }
   selectedEmailId.value = id
   loadEmailDetail(id)
+  showEmailDetail()
 }
 
 // 初始化加载（只在有 token 时）
@@ -277,13 +279,38 @@ onMounted(async () => {
   }
 })
 
+// 无限滚动
+const scrollContainer = ref<HTMLElement | null>(null)
+const sentinel = ref<HTMLElement | null>(null)
+let observer: IntersectionObserver | null = null
+
+const setupInfiniteScroll = () => {
+  observer?.disconnect()
+  if (!sentinel.value || !scrollContainer.value) return
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (entries[0]?.isIntersecting && emailHasMore.value && !loadingMore.value) {
+        loadMoreEmails()
+      }
+    },
+    { root: scrollContainer.value, rootMargin: '200px' }
+  )
+  observer.observe(sentinel.value)
+}
+
+// 邮件列表渲染后挂载 observer
+watch([sentinel, scrollContainer], () => {
+  nextTick(setupInfiniteScroll)
+})
+
 onUnmounted(() => {
   stopAutoSync()
+  observer?.disconnect()
 })
 </script>
 
 <template>
-  <div class="w-80 h-full email-list-container border-r border-gray-200/50 dark:border-border-dark/50 flex flex-col shrink-0">
+  <div class="h-full email-list-container border-r border-gray-200/50 dark:border-border-dark/50 flex flex-col">
     <!-- 标题栏 -->
     <div class="h-12 px-4 text-xs font-bold text-gray-600 dark:text-gray-400 border-b border-gray-200/50 dark:border-gray-800/50 flex items-center justify-between">
       <span class="truncate flex-1 tracking-wide">{{ currentFolderName }} <span class="text-gray-400 font-normal">({{ emails.length }})</span></span>
@@ -394,7 +421,7 @@ onUnmounted(() => {
     </div>
 
     <!-- 邮件列表 -->
-    <div v-else class="flex-1 overflow-y-auto px-2 py-1">
+    <div v-else ref="scrollContainer" class="flex-1 overflow-y-auto px-2 py-1">
       <div v-for="email in emails" :key="email.id" @click="selectEmail(email.id)"
         :data-email-id="email.id"
         class="email-item px-3 py-3 mb-1.5 cursor-pointer rounded-lg transition-all duration-200 relative group"
@@ -495,6 +522,17 @@ onUnmounted(() => {
           </div>
         </div>
       </div>
+
+      <!-- 无限滚动：加载更多指示器 -->
+      <div v-if="loadingMore" class="flex items-center justify-center py-4 gap-2">
+        <Loader2 class="w-4 h-4 animate-spin text-primary" />
+        <span class="text-xs text-gray-500">加载更多...</span>
+      </div>
+      <div v-else-if="!emailHasMore && emails.length >= 50" class="text-center py-3">
+        <span class="text-xs text-gray-400">已加载全部 {{ emailTotal }} 封邮件</span>
+      </div>
+      <!-- IntersectionObserver 哨兵 -->
+      <div ref="sentinel" class="h-1"></div>
     </div>
 
     <!-- 待办时间选择对话框 -->

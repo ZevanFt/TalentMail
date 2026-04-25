@@ -74,6 +74,13 @@ export const useEmails = () => {
   const loading = useState('emailsLoading', () => false)
   const syncing = useState('emailsSyncing', () => false)
 
+  // 分页状态
+  const PAGE_SIZE = 50
+  const emailPage = useState('emailPage', () => 1)
+  const emailTotal = useState('emailTotal', () => 0)
+  const loadingMore = useState('loadingMore', () => false)
+  const emailHasMore = computed(() => emailPage.value * PAGE_SIZE < emailTotal.value)
+
   // 加载文件夹列表（更新 id 和 unread_count）
   const loadFolders = async () => {
     try {
@@ -110,15 +117,17 @@ export const useEmails = () => {
   const loadEmails = async (folderId?: number) => {
     const id = folderId || currentFolderId.value
     if (!id) return
-    
+
     // 切换文件夹时清空选中的邮件
     selectedEmailId.value = null
     selectedEmailDetail.value = null
-    
+    emailPage.value = 1
+
     loading.value = true
     try {
-      const res = await getEmails(id)
+      const res = await getEmails(id, 1, PAGE_SIZE)
       emails.value = res.data.items
+      emailTotal.value = res.data.total
       currentFolderId.value = id
     } catch (e: any) {
       console.error('加载邮件失败:', e)
@@ -313,7 +322,8 @@ export const useEmails = () => {
     // 清空选中的邮件
     selectedEmailId.value = null
     selectedEmailDetail.value = null
-    
+    emailPage.value = 1
+
     loading.value = true
     currentFilter.value = filter
     try {
@@ -322,8 +332,9 @@ export const useEmails = () => {
       const isStarred = 'is_starred' in filter ? filter.is_starred : undefined
       // 未读邮件只查询收件箱
       const inboxOnly = isRead === false
-      const res = await getAllEmails(1, 50, isRead, isStarred, inboxOnly)
+      const res = await getAllEmails(1, PAGE_SIZE, isRead, isStarred, inboxOnly)
       emails.value = res.data.items
+      emailTotal.value = res.data.total
     } catch (e: any) {
       console.error('加载筛选邮件失败:', e)
       toast.error(e.data?.detail || '加载邮件失败')
@@ -337,11 +348,13 @@ export const useEmails = () => {
     // 清空选中的邮件
     selectedEmailId.value = null
     selectedEmailDetail.value = null
-    
+    emailPage.value = 1
+
     loading.value = true
     try {
-      const res = await getSnoozedEmails()
+      const res = await getSnoozedEmails(1, PAGE_SIZE)
       emails.value = res.data.items
+      emailTotal.value = res.data.total
     } catch (e: any) {
       console.error('加载待办邮件失败:', e)
       toast.error(e.data?.detail || '加载待办邮件失败')
@@ -355,11 +368,13 @@ export const useEmails = () => {
     // 清空选中的邮件
     selectedEmailId.value = null
     selectedEmailDetail.value = null
-    
+    emailPage.value = 1
+
     loading.value = true
     try {
-      const res = await getAllEmails()
+      const res = await getAllEmails(1, PAGE_SIZE)
       emails.value = res.data.items
+      emailTotal.value = res.data.total
     } catch (e: any) {
       console.error('加载所有邮件失败:', e)
       toast.error(e.data?.detail || '加载邮件失败')
@@ -375,13 +390,15 @@ export const useEmails = () => {
   const loadEmailsByTag = async (tagId: number) => {
     selectedEmailId.value = null
     selectedEmailDetail.value = null
+    emailPage.value = 1
     loading.value = true
     // 设置当前标签名称
     const tag = tags.value.find(t => t.id === tagId)
     currentTagName.value = tag?.name || null
     try {
-      const res = await getEmailsByTag(tagId)
+      const res = await getEmailsByTag(tagId, 1, PAGE_SIZE)
       emails.value = res.items
+      emailTotal.value = res.total
     } catch (e: any) {
       console.error('加载标签邮件失败:', e)
       toast.error(e.data?.detail || '加载邮件失败')
@@ -440,18 +457,77 @@ export const useEmails = () => {
       await loadEmails()
       return
     }
-    
+
     loading.value = true
     searchQuery.value = query
     isSearching.value = true
+    emailPage.value = 1
     try {
-      const res = await searchEmails(query)
+      const res = await searchEmails(query, 1, PAGE_SIZE)
       emails.value = res.data.items
+      emailTotal.value = res.data.total
     } catch (e: any) {
       console.error('搜索邮件失败:', e)
       toast.error(e.data?.detail || '搜索邮件失败')
     } finally {
       loading.value = false
+    }
+  }
+
+  // 加载更多邮件（追加分页）
+  const selectedVirtualId = useState<string | null>('selectedVirtualId', () => null)
+  const selectedTagId = useState<number | null>('selectedTagId', () => null)
+
+  const loadMoreEmails = async () => {
+    if (!emailHasMore.value || loadingMore.value) return
+
+    loadingMore.value = true
+    const nextPage = emailPage.value + 1
+    try {
+      let newItems: Email[] = []
+
+      if (isSearching.value && searchQuery.value) {
+        // 搜索模式
+        const res = await searchEmails(searchQuery.value, nextPage, PAGE_SIZE)
+        newItems = res.data.items
+        emailTotal.value = res.data.total
+      } else if (selectedTagId.value) {
+        // 标签模式
+        const res = await getEmailsByTag(selectedTagId.value, nextPage, PAGE_SIZE)
+        newItems = res.items
+        emailTotal.value = res.total
+      } else if (selectedVirtualId.value === 'snoozed') {
+        const res = await getSnoozedEmails(nextPage, PAGE_SIZE)
+        newItems = res.data.items
+        emailTotal.value = res.data.total
+      } else if (selectedVirtualId.value === 'all') {
+        const res = await getAllEmails(nextPage, PAGE_SIZE)
+        newItems = res.data.items
+        emailTotal.value = res.data.total
+      } else if (currentFilter.value) {
+        // 虚拟文件夹（未读/星标等）
+        const isRead = 'is_read' in currentFilter.value ? currentFilter.value.is_read : undefined
+        const isStarred = 'is_starred' in currentFilter.value ? currentFilter.value.is_starred : undefined
+        const inboxOnly = isRead === false
+        const res = await getAllEmails(nextPage, PAGE_SIZE, isRead, isStarred, inboxOnly)
+        newItems = res.data.items
+        emailTotal.value = res.data.total
+      } else if (currentFolderId.value) {
+        // 普通文件夹
+        const res = await getEmails(currentFolderId.value, nextPage, PAGE_SIZE)
+        newItems = res.data.items
+        emailTotal.value = res.data.total
+      }
+
+      if (newItems.length > 0) {
+        emails.value = [...emails.value, ...newItems]
+        emailPage.value = nextPage
+      }
+    } catch (e: any) {
+      console.error('加载更多邮件失败:', e)
+      toast.error(e.data?.detail || '加载更多邮件失败')
+    } finally {
+      loadingMore.value = false
     }
   }
 
@@ -496,7 +572,9 @@ export const useEmails = () => {
   return {
     emails, folders, tags, currentFolderId, selectedEmailId, selectedEmailDetail,
     loading, syncing, currentFilter, composeState, searchQuery, isSearching, currentTagName,
+    emailHasMore, loadingMore, emailTotal,
     loadFolders, loadTags, loadEmails, loadEmailDetail, loadFilteredEmails, loadSnoozedEmails, loadAllEmails, loadEmailsByTag,
+    loadMoreEmails,
     sync, formatTime, toggleRead, toggleStar, snooze, removeEmail, addTag, removeTag,
     startReply, startReplyAll, startForward, editDraft, resetCompose, search, clearSearch,
     startAutoSync, stopAutoSync

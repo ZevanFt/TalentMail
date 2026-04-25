@@ -1,26 +1,17 @@
-<!-- <template> -->
-  <!-- 
-    核心修复：
-    1. 使用 flex w-full h-full 确保撑满父容器
-    2. EmailEmailList 和 EmailEmailDetail 是 Nuxt 根据 components/email/ 目录自动生成的组件名
-  -->
-  <!-- <div class="flex w-full h-full bg-white dark:bg-bg-dark overflow-hidden"> -->
-    <!-- 第二栏：邮件列表 (固定宽度 320px) -->
-    <!-- <EmailEmailList /> -->
-    
-    <!-- 第三栏：邮件详情 (自适应剩余空间) -->
-    <!-- <EmailEmailDetail /> -->
-  <!-- </div> -->
-<!-- </template> -->
+<script setup lang="ts">
+const { isMobile, isDesktop, mobileShowDetail, showEmailList } = useResponsive()
+const { selectedEmailId } = useEmails()
+
+// 清空选中邮件时自动回到列表视图
+watch(() => selectedEmailId.value, (id) => {
+  if (!id) showEmailList()
+})
+</script>
 
 <template>
   <div class="flex w-full h-full main-container overflow-hidden">
-    <!-- 
-      修复：组件名变了！
-      Email (文件夹名) + List (文件名) = EmailList
-    -->
-    <EmailList />
-    
-    <EmailDetail />
+    <!-- 桌面端：双栏并排 / 移动端：v-show 切换 -->
+    <EmailList v-show="isDesktop || !mobileShowDetail" :class="isDesktop ? 'w-80 shrink-0' : 'w-full'" />
+    <EmailDetail v-show="isDesktop || mobileShowDetail" :class="isDesktop ? '' : 'w-full'" />
   </div>
 </template>

@@ -3,11 +3,19 @@ import { ArrowLeft, Trash2, Archive, Star, Reply, Forward, MoreHorizontal, Mail,
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
 import ComposePanel from './ComposePanel.vue'
 
-const { selectedEmailDetail, formatTime, toggleRead, removeEmail, startReply, startReplyAll, startForward, folders, currentFolderId, loadEmails, tags, loadTags, addTag, removeTag } = useEmails()
+const { selectedEmailDetail, selectedEmailId, formatTime, toggleRead, removeEmail, startReply, startReplyAll, startForward, folders, currentFolderId, loadEmails, tags, loadTags, addTag, removeTag } = useEmails()
 const { isComposeOpen, requestOpenCompose } = useGlobalModal()
 const { getTrackingStats, resendEmail, downloadAttachmentUrl, exportEmailUrl, token, bulkArchiveEmails } = useApi()
 const { sanitizeEmailHtml } = useSanitize()
+const { isMobile, showEmailList } = useResponsive()
 const toast = useToast()
+
+// 返回列表（移动端）
+const handleBack = () => {
+  selectedEmailId.value = null
+  selectedEmailDetail.value = null
+  showEmailList()
+}
 
 // 验证码检测和复制
 const detectedCode = ref<string | null>(null)
@@ -277,9 +285,9 @@ const exportEmail = (format: 'eml' | 'pdf') => {
 
     <template v-else-if="selectedEmailDetail">
       <!-- 顶部工具栏 -->
-      <div class="h-16 border-b border-gray-200/50 dark:border-gray-800/50 flex items-center px-6 justify-between shrink-0">
-        <div class="flex items-center gap-2">
-          <button class="btn-icon" title="返回">
+      <div class="h-14 lg:h-16 border-b border-gray-200/50 dark:border-gray-800/50 flex items-center px-3 lg:px-6 justify-between shrink-0">
+        <div class="flex items-center gap-1 lg:gap-2">
+          <button v-if="isMobile" class="btn-icon" title="返回列表" @click="handleBack">
             <ArrowLeft class="w-5 h-5" />
           </button>
           <div class="w-px h-5 bg-gray-300 dark:bg-gray-600 mx-1"></div>
@@ -338,11 +346,11 @@ const exportEmail = (format: 'eml' | 'pdf') => {
       </div>
 
       <!-- 滚动内容区 -->
-      <div class="flex-1 overflow-y-auto p-8 custom-scrollbar">
+      <div class="flex-1 overflow-y-auto p-4 lg:p-8 custom-scrollbar">
         <div class="max-w-4xl mx-auto">
           <!-- 邮件标题 -->
-          <div class="flex items-start justify-between gap-4 mb-6">
-            <h1 class="text-2xl font-bold text-gray-900 dark:text-white leading-tight flex-1">
+          <div class="flex flex-col lg:flex-row lg:items-start justify-between gap-2 lg:gap-4 mb-4 lg:mb-6">
+            <h1 class="text-xl lg:text-2xl font-bold text-gray-900 dark:text-white leading-tight flex-1">
               {{ selectedEmailDetail.subject }}
             </h1>
             
@@ -503,27 +511,31 @@ const exportEmail = (format: 'eml' | 'pdf') => {
         </div>
       </div>
 
-      <!-- 底部浮动栏 - 改进样式 -->
-      <div class="absolute bottom-8 right-8 flex gap-3 z-20">
+      <!-- 底部浮动栏 - 桌面端绝对定位右下角，移动端 sticky 底部全宽 -->
+      <div class="flex gap-2 lg:gap-3 z-20"
+        :class="isMobile
+          ? 'sticky bottom-0 left-0 right-0 p-3 bg-white/90 dark:bg-bg-dark/90 backdrop-blur-md border-t border-gray-200/50 dark:border-gray-800/50 justify-center'
+          : 'absolute bottom-8 right-8'">
         <button @click="handleForward"
-          class="flex items-center gap-2.5 px-6 py-3 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300
-                 rounded-2xl hover:bg-gray-50 dark:hover:bg-gray-700 active:scale-95
+          class="flex items-center gap-1.5 lg:gap-2.5 px-4 lg:px-6 py-2.5 lg:py-3 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300
+                 rounded-xl lg:rounded-2xl hover:bg-gray-50 dark:hover:bg-gray-700 active:scale-95
                  transition-all duration-200 text-sm font-semibold border-2 border-gray-200 dark:border-gray-700
                  shadow-lg hover:shadow-xl hover:-translate-y-0.5 group">
           <Forward class="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
           <span>转发</span>
         </button>
         <button @click="handleReplyAll"
-          class="flex items-center gap-2.5 px-6 py-3 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300
-                 rounded-2xl hover:bg-gray-50 dark:hover:bg-gray-700 active:scale-95
+          class="flex items-center gap-1.5 lg:gap-2.5 px-4 lg:px-6 py-2.5 lg:py-3 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300
+                 rounded-xl lg:rounded-2xl hover:bg-gray-50 dark:hover:bg-gray-700 active:scale-95
                  transition-all duration-200 text-sm font-semibold border-2 border-gray-200 dark:border-gray-700
                  shadow-lg hover:shadow-xl hover:-translate-y-0.5 group">
           <ReplyAll class="w-4 h-4 group-hover:-rotate-12 transition-transform" />
-          <span>回复全部</span>
+          <span class="hidden lg:inline">回复全部</span>
+          <span class="lg:hidden">全部</span>
         </button>
         <button @click="handleReply"
-          class="flex items-center gap-2.5 px-7 py-3 bg-gradient-to-r from-primary to-primary-hover text-white
-                 rounded-2xl hover:shadow-2xl hover:shadow-primary/40 active:scale-95
+          class="flex items-center gap-1.5 lg:gap-2.5 px-5 lg:px-7 py-2.5 lg:py-3 bg-gradient-to-r from-primary to-primary-hover text-white
+                 rounded-xl lg:rounded-2xl hover:shadow-2xl hover:shadow-primary/40 active:scale-95
                  transition-all duration-200 text-sm font-bold
                  hover:-translate-y-1 group ring-2 ring-primary/20">
           <Reply class="w-4 h-4 group-hover:-rotate-12 transition-transform" />

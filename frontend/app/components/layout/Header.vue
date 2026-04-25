@@ -1,11 +1,18 @@
 <script setup lang="ts">
-import { Search, Moon, Sun, Settings, Mail, X, LogOut, Crown, HardDrive, Copy, Check, Keyboard } from 'lucide-vue-next'
+import { Search, Moon, Sun, Settings, Mail, X, LogOut, Crown, HardDrive, Copy, Check, Keyboard, Menu as MenuIcon } from 'lucide-vue-next'
 const router = useRouter()
 const { isDark, toggleTheme } = useTheme()
 const { search, clearSearch, searchQuery, isSearching } = useEmails()
 const { getMe, getStorageStats, getSubscriptionStatus, logout } = useApi()
 const { showShortcutsHelp } = useKeyboardShortcuts()
+const { isMobile, toggleSidebar } = useResponsive()
 const toast = useToast()
+
+// 是否有侧边栏（由 layout 通过 provide 提供）
+const hasSidebar = inject('hasSidebar', false)
+
+// 移动端搜索展开状态
+const mobileSearchOpen = ref(false)
 
 const localQuery = ref('')
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
@@ -87,27 +94,45 @@ const copyEmail = async () => {
     <header
         class="header-glass h-14 border-b border-gray-200/50 dark:border-border-dark/50 flex items-center justify-between px-4 shrink-0 transition-colors duration-200 z-20 relative">
 
-        <!-- 左侧 Logo -->
-        <NuxtLink to="/" class="w-64 flex items-center gap-2 shrink-0 hover:opacity-80 transition-opacity">
-            <Mail class="w-6 h-6 text-primary fill-primary/10" stroke-width="2.5" />
-            <span class="font-bold text-xl text-gray-900 dark:text-white tracking-tight font-sans">TalentMail</span>
-        </NuxtLink>
+        <!-- 左侧：汉堡按钮(移动端) + Logo -->
+        <div class="flex items-center gap-2 shrink-0 w-auto lg:w-64">
+            <!-- 汉堡按钮：仅移动端 + 有侧边栏的布局 -->
+            <button v-if="isMobile && hasSidebar" @click="toggleSidebar"
+                class="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
+                title="菜单">
+                <MenuIcon class="w-5 h-5" />
+            </button>
+            <NuxtLink to="/" class="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                <Mail class="w-6 h-6 text-primary fill-primary/10" stroke-width="2.5" />
+                <span class="font-bold text-xl text-gray-900 dark:text-white tracking-tight font-sans hidden lg:block">TalentMail</span>
+            </NuxtLink>
+        </div>
 
-        <!-- 搜索框 -->
-        <div class="flex-1 flex justify-center max-w-xl px-4">
+        <!-- 搜索框：桌面端常驻，移动端点击展开 -->
+        <div v-if="!isMobile || mobileSearchOpen" class="flex-1 flex justify-center max-w-xl px-4"
+            :class="isMobile ? 'absolute inset-x-0 top-0 h-14 items-center bg-white dark:bg-bg-dark z-30 px-3' : ''">
             <div class="relative w-full group">
                 <Search
                     class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors" />
-                <input v-model="localQuery" @input="handleInput" @keyup.enter="handleEnter" type="text" placeholder="搜索邮件... (按 / 聚焦)"
+                <input v-model="localQuery" @input="handleInput" @keyup.enter="handleEnter" type="text" placeholder="搜索邮件..."
                     data-search-input
                     class="w-full bg-gray-100 dark:bg-gray-800 border-transparent focus:bg-white dark:focus:bg-gray-900 border border-transparent focus:border-primary/20 rounded-lg py-1.5 pl-9 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all text-gray-900 dark:text-white placeholder-gray-400">
-                <button v-if="localQuery" @click="handleClear" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <button v-if="localQuery || isMobile" @click="isMobile ? (mobileSearchOpen = false, handleClear()) : handleClear()"
+                    class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                     <X class="w-4 h-4" />
                 </button>
             </div>
         </div>
+        <!-- 移动端：搜索图标占位，防止右侧按钮跳左 -->
+        <div v-if="isMobile && !mobileSearchOpen" class="flex-1"></div>
 
-        <div class="flex items-center gap-1.5 justify-end shrink-0 w-64">
+        <div class="flex items-center gap-1.5 justify-end shrink-0 w-auto lg:w-64">
+            <!-- 移动端：搜索按钮 -->
+            <button v-if="isMobile && !mobileSearchOpen" @click="mobileSearchOpen = true"
+                class="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
+                title="搜索">
+                <Search class="w-4 h-4" />
+            </button>
             <button @click="toggleTheme"
                 class="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
                 title="切换主题">
@@ -115,12 +140,12 @@ const copyEmail = async () => {
                 <Moon v-else class="w-4 h-4" />
             </button>
             <button @click="showShortcutsHelp = true"
-                class="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
+                class="hidden lg:block p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
                 title="快捷键 (按 ? 查看)">
                 <Keyboard class="w-4 h-4" />
             </button>
             <button @click="router.push('/settings')"
-                class="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
+                class="hidden lg:block p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
                 title="设置">
                 <Settings class="w-4 h-4" />
             </button>

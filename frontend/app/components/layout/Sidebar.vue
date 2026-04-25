@@ -11,6 +11,7 @@ const { confirm: confirmDialog } = useConfirmDialog()
 const { isComposeOpen, requestCloseCompose, requestOpenCompose } = useGlobalModal()
 const { folders, currentFolderId, loadEmails, loadFolders, loadFilteredEmails, loadSnoozedEmails, loadAllEmails, currentFilter } = useEmails()
 const { token, getTags, createTag, updateTag, deleteTag, getExternalAccounts, createExternalAccount } = useApi()
+const { isMobile, closeSidebar } = useResponsive()
 const route = useRoute()
 const router = useRouter()
 
@@ -171,6 +172,7 @@ const openComposePanel = async () => {
     await router.push('/')
   }
   isComposeOpen.value = true
+  closeSidebar()
 }
 
 // 导航到其他页面前检查 compose 状态
@@ -179,6 +181,7 @@ const navigateTo = async (path: string) => {
     const canClose = await requestCloseCompose()
     if (!canClose) return
   }
+  closeSidebar()
   router.push(path)
 }
 
@@ -205,6 +208,8 @@ const selectFolder = async (folder: any) => {
     await nextTick()
   }
   
+  closeSidebar()
+
   if (folder.id === 'snoozed') {
     // 待办邮件
     await loadSnoozedEmails()
@@ -239,6 +244,8 @@ const selectTag = async (tag: TagItem) => {
     await nextTick()
   }
   
+  closeSidebar()
+
   // 加载标签邮件
   await loadEmailsByTag(tag.id)
 }
