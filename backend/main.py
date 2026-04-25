@@ -12,6 +12,7 @@ from core.mailserver_sync import sync_users_to_mailserver
 from core.lmtp_server import start_lmtp_server, stop_lmtp_server
 from core.mail_sync import periodic_sync
 from core.temp_mailbox_lifecycle import run_temp_mailbox_maintenance
+from core.scheduled_sender import check_scheduled_emails
 from core.config import settings
 from core import websocket as ws_manager
 import logging
@@ -24,6 +25,7 @@ logger = logging.getLogger(__name__)
 sync_task = None
 cleanup_task = None
 temp_mailbox_cleanup_task = None
+scheduled_sender_task = None
 
 
 async def periodic_session_cleanup(interval: int = 86400):
@@ -69,7 +71,7 @@ async def periodic_temp_mailbox_cleanup(interval: int = 600):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global sync_task, cleanup_task, temp_mailbox_cleanup_task
+    global sync_task, cleanup_task, temp_mailbox_cleanup_task, scheduled_sender_task
     # Initialize the database and create the initial admin user
     initial_data.init_db()
 
@@ -104,6 +106,10 @@ async def lifespan(app: FastAPI):
     logger.info("启动临时邮箱生命周期维护任务（检查间隔10分钟）...")
     temp_mailbox_cleanup_task = asyncio.create_task(periodic_temp_mailbox_cleanup(interval=600))
 
+    # 启动定时邮件发送调度器（每60秒检查到期的定时邮件）
+    logger.info("启动定时邮件发送调度器（间隔60秒）...")
+    scheduled_sender_task = asyncio.create_task(check_scheduled_emails(interval=60))
+
     # 启动时先执行一次清理
     try:
         db = SessionLocal()
@@ -137,6 +143,12 @@ async def lifespan(app: FastAPI):
         temp_mailbox_cleanup_task.cancel()
         try:
             await temp_mailbox_cleanup_task
+        except asyncio.CancelledError:
+            pass
+    if scheduled_sender_task:
+        scheduled_sender_task.cancel()
+        try:
+            await scheduled_sender_task
         except asyncio.CancelledError:
             pass
 

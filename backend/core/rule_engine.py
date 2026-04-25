@@ -340,7 +340,7 @@ class RuleEngine:
             
             # 更新规则统计
             rule.execution_count = (rule.execution_count or 0) + 1
-            rule.last_executed_at = datetime.utcnow()
+            rule.last_executed_at = datetime.now(timezone.utc)
             
         except Exception as e:
             logger.error(f"Rule execution failed: {e}")
@@ -846,7 +846,7 @@ To: {email.recipient_email}
             email.folder_id = trash_folder.id
         else:
             # 硬删除
-            email.deleted_at = datetime.utcnow()
+            email.deleted_at = datetime.now(timezone.utc)
         
         return {"deleted": True}
     

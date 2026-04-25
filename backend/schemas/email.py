@@ -21,6 +21,7 @@ class EmailCreate(BaseModel):
     reply_to_id: Optional[int] = None  # 回复的邮件ID
     is_tracked: bool = False  # 是否启用追踪
     attachment_ids: Optional[List[int]] = []  # 附件ID列表
+    scheduled_send_at: Optional[datetime] = None  # 定时发送时间（UTC）
 
 class EmailRead(BaseModel):
     """Schema for reading email data (output)."""

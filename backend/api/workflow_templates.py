@@ -444,7 +444,7 @@ async def create_template(
         edges=data.edges,
         default_config=data.default_config,
         review_status='approved',
-        reviewed_at=datetime.utcnow(),
+        reviewed_at=datetime.now(timezone.utc),
         reviewed_by=current_user.id
     )
     db.add(template)
@@ -665,7 +665,7 @@ async def review_template(
     else:
         raise HTTPException(status_code=400, detail="Invalid action")
     
-    template.reviewed_at = datetime.utcnow()
+    template.reviewed_at = datetime.now(timezone.utc)
     template.reviewed_by = current_user.id
     
     db.commit()

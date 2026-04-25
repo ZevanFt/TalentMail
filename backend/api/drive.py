@@ -4,7 +4,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 import os
 import uuid
 import secrets
@@ -89,7 +89,7 @@ def create_share(file_id: int, settings: ShareSettings, db: Session = Depends(ge
     file.is_public = settings.is_public
     file.share_password = settings.password
     if settings.expires_days:
-        file.share_expires_at = datetime.utcnow() + timedelta(days=settings.expires_days)
+        file.share_expires_at = datetime.now(timezone.utc) + timedelta(days=settings.expires_days)
     else:
         file.share_expires_at = None
     
@@ -150,7 +150,7 @@ def get_share_info(share_code: str, password: Optional[str] = None, db: Session 
     if not file:
         raise HTTPException(404, "分享不存在或已失效")
     
-    if file.share_expires_at and file.share_expires_at < datetime.utcnow():
+    if file.share_expires_at and file.share_expires_at < datetime.now(timezone.utc):
         raise HTTPException(410, "分享已过期")
     
     # 如果有密码保护，需要验证密码
@@ -176,7 +176,7 @@ def download_shared_file(share_code: str, password: Optional[str] = None, db: Se
     if not file:
         raise HTTPException(404, "分享不存在或已失效")
     
-    if file.share_expires_at and file.share_expires_at < datetime.utcnow():
+    if file.share_expires_at and file.share_expires_at < datetime.now(timezone.utc):
         raise HTTPException(410, "分享已过期")
     
     if file.share_password and file.share_password != password:

@@ -8,7 +8,6 @@ LMTP 邮件接收服务
 - Dovecot 负责 IMAP 客户端访问
 """
 import email
-from email.header import decode_header
 from email.utils import parsedate_to_datetime
 from datetime import datetime
 from typing import Optional, List, Tuple
@@ -43,73 +42,7 @@ async def _fire_email_received_event(wf_service, wf_db, event_data: dict):
             pass
 
 
-def decode_mime_header(header: Optional[str]) -> str:
-    """解码 MIME 编码的邮件头"""
-    if not header:
-        return ""
-    decoded_parts = []
-    for part, charset in decode_header(header):
-        if isinstance(part, bytes):
-            decoded_parts.append(part.decode(charset or 'utf-8', errors='replace'))
-        else:
-            decoded_parts.append(part)
-    return ''.join(decoded_parts)
-
-
-def get_email_body_and_attachments(msg: email.message.Message) -> Tuple[str, str, List[dict]]:
-    """提取邮件正文 (HTML 和纯文本) 和附件"""
-    body_html = ""
-    body_text = ""
-    attachments = []
-    
-    if msg.is_multipart():
-        for part in msg.walk():
-            content_type = part.get_content_type()
-            content_disposition = str(part.get("Content-Disposition", ""))
-            filename = part.get_filename()
-            
-            # 解码文件名
-            if filename:
-                filename = decode_mime_header(filename)
-            
-            # 附件处理
-            if "attachment" in content_disposition or (filename and content_type not in ["text/plain", "text/html"]):
-                payload = part.get_payload(decode=True)
-                if payload and filename:
-                    attachments.append({
-                        "filename": filename,
-                        "content_type": content_type,
-                        "data": payload
-                    })
-                continue
-                
-            if content_type == "text/html":
-                payload = part.get_payload(decode=True)
-                charset = part.get_content_charset() or 'utf-8'
-                body_html = payload.decode(charset, errors='replace') if payload else ""
-            elif content_type == "text/plain":
-                payload = part.get_payload(decode=True)
-                charset = part.get_content_charset() or 'utf-8'
-                body_text = payload.decode(charset, errors='replace') if payload else ""
-    else:
-        content_type = msg.get_content_type()
-        payload = msg.get_payload(decode=True)
-        charset = msg.get_content_charset() or 'utf-8'
-        content = payload.decode(charset, errors='replace') if payload else ""
-        
-        if content_type == "text/html":
-            body_html = content
-        else:
-            body_text = content
-    
-    return body_html, body_text, attachments
-
-
-def extract_email_address(addr: str) -> str:
-    """从 'Name <email@domain>' 格式中提取邮箱地址"""
-    if '<' in addr and '>' in addr:
-        return addr.split('<')[1].split('>')[0].strip().lower()
-    return addr.strip().lower()
+from core.email_parser import decode_mime_header, get_email_body_and_attachments, extract_email_address
 
 
 class LMTPHandler:
@@ -160,7 +93,7 @@ class LMTPHandler:
             cc_header = decode_mime_header(msg.get("Cc", ""))
             
             date_str = msg.get("Date")
-            received_at = datetime.utcnow()
+            received_at = datetime.now(timezone.utc)
             if date_str:
                 try:
                     received_at = parsedate_to_datetime(date_str)
@@ -198,26 +131,63 @@ class LMTPHandler:
                         Folder.user_id == user.id,
                         Folder.role == "inbox"
                     ).first()
-                    
+
                     if not inbox:
                         logger.error(f"LMTP: 用户 {user.id} 没有收件箱")
                         continue
-                    
-                    # 检查是否已存在（通过 message_id 去重）
+
+                    # 黑名单检查：拦截的邮件投入 spam 文件夹
+                    target_folder = inbox
+                    sender_addr = extract_email_address(sender) if sender else ""
+                    if sender_addr:
+                        try:
+                            from api.spam import is_sender_blocked
+                            if is_sender_blocked(db, user.id, sender_addr):
+                                spam_folder = db.query(Folder).filter(
+                                    Folder.user_id == user.id,
+                                    Folder.role == "spam"
+                                ).first()
+                                if spam_folder:
+                                    target_folder = spam_folder
+                                logger.info(f"LMTP: 黑名单发件人 {sender_addr} → spam 文件夹")
+                        except Exception as e:
+                            logger.warning(f"LMTP: 黑名单检查失败: {e}")
+
+                    # 检查是否已存在（通过 message_id 去重，检查 inbox 和 spam 两个文件夹）
                     if message_id:
                         existing = db.query(Email).filter(
-                            Email.folder_id == inbox.id,
-                            Email.message_id == message_id
+                            Email.message_id == message_id,
+                            Email.folder_id.in_(
+                                db.query(Folder.id).filter(Folder.user_id == user.id)
+                            )
                         ).first()
                         if existing:
                             logger.info(f"LMTP: 邮件已存在，跳过 message_id={message_id}")
                             continue
-                    
+
+                    # 提取线程信息
+                    in_reply_to_header = msg.get("In-Reply-To", "")
+                    if in_reply_to_header:
+                        in_reply_to_header = in_reply_to_header.strip().strip("<>")
+                    references_header = msg.get("References", "")
+                    thread_id = None
+                    if in_reply_to_header:
+                        parent = db.query(Email.thread_id, Email.message_id).filter(
+                            Email.message_id == in_reply_to_header
+                        ).first()
+                        if parent and parent.thread_id:
+                            thread_id = parent.thread_id
+                        else:
+                            thread_id = in_reply_to_header
+
                     # 创建邮件记录
                     db_email = Email(
-                        folder_id=inbox.id,
+                        folder_id=target_folder.id,
                         mailbox_address=rcpt_email,
                         message_id=message_id or None,
+                        in_reply_to=in_reply_to_header or None,
+                        references=references_header or None,
+                        thread_id=thread_id,
                         subject=subject,
                         sender=sender,
                         recipients=to_header,
@@ -272,7 +242,7 @@ class LMTPHandler:
                             "subject": subject or "",
                             "user_id": str(user.id),
                             "has_attachments": str(len(attachments) > 0).lower(),
-                            "received_at": (db_email.received_at or datetime.utcnow()).isoformat()
+                            "received_at": (db_email.received_at or datetime.now(timezone.utc)).isoformat()
                         }))
                     except Exception as e:
                         logger.warning(f"触发 email.received 事件失败: {e}")

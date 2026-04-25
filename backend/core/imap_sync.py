@@ -4,64 +4,16 @@ IMAP 邮件同步服务
 """
 import imaplib
 import email
-from email.header import decode_header
 from email.utils import parsedate_to_datetime
 from typing import Optional, List, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from db.models.email import Email, Folder
 from core.config import settings
+from core.email_parser import decode_mime_header, get_email_body
 import logging
 
 logger = logging.getLogger(__name__)
-
-
-def decode_mime_header(header: Optional[str]) -> str:
-    """解码 MIME 编码的邮件头"""
-    if not header:
-        return ""
-    decoded_parts = []
-    for part, charset in decode_header(header):
-        if isinstance(part, bytes):
-            decoded_parts.append(part.decode(charset or 'utf-8', errors='replace'))
-        else:
-            decoded_parts.append(part)
-    return ''.join(decoded_parts)
-
-
-def get_email_body(msg: email.message.Message) -> Tuple[str, str]:
-    """提取邮件正文 (HTML 和纯文本)"""
-    body_html = ""
-    body_text = ""
-    
-    if msg.is_multipart():
-        for part in msg.walk():
-            content_type = part.get_content_type()
-            content_disposition = str(part.get("Content-Disposition", ""))
-            
-            if "attachment" in content_disposition:
-                continue
-                
-            if content_type == "text/html":
-                payload = part.get_payload(decode=True)
-                charset = part.get_content_charset() or 'utf-8'
-                body_html = payload.decode(charset, errors='replace') if payload else ""
-            elif content_type == "text/plain":
-                payload = part.get_payload(decode=True)
-                charset = part.get_content_charset() or 'utf-8'
-                body_text = payload.decode(charset, errors='replace') if payload else ""
-    else:
-        content_type = msg.get_content_type()
-        payload = msg.get_payload(decode=True)
-        charset = msg.get_content_charset() or 'utf-8'
-        content = payload.decode(charset, errors='replace') if payload else ""
-        
-        if content_type == "text/html":
-            body_html = content
-        else:
-            body_text = content
-    
-    return body_html, body_text
 
 
 def parse_email_message(raw_email: bytes) -> dict:
@@ -80,11 +32,11 @@ def parse_email_message(raw_email: bytes) -> dict:
         try:
             received_at = parsedate_to_datetime(date_str)
         except Exception:
-            received_at = datetime.utcnow()
+            received_at = datetime.now(timezone.utc)
     else:
-        received_at = datetime.utcnow()
+        received_at = datetime.now(timezone.utc)
     
-    body_html, body_text = get_email_body(msg)
+    body_text, body_html = get_email_body(msg)
     
     return {
         "message_id": message_id.strip("<>") if message_id else None,

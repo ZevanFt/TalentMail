@@ -162,7 +162,7 @@ class EventPublisher:
             # 添加通用变量
             enriched_data = {
                 "event_type": event_type,
-                "event_time": datetime.utcnow().isoformat(),
+                "event_time": datetime.now(timezone.utc).isoformat(),
                 **data
             }
             

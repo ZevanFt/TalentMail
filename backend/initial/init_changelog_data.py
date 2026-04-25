@@ -159,7 +159,7 @@ def init_changelog_data(db: Session = None, force_update: bool = False):
                 if force_update:
                     for key, value in data.items():
                         setattr(existing, key, value)
-                    existing.published_at = datetime.utcnow()
+                    existing.published_at = datetime.now(timezone.utc)
                     logger.info(f"更新更新日志: v{version}")
                 else:
                     logger.debug(f"更新日志已存在，跳过: v{version}")
@@ -169,7 +169,7 @@ def init_changelog_data(db: Session = None, force_update: bool = False):
             # 使用数据中的 published_at，如果没有则使用当前时间
             changelog = Changelog(**data)
             if not changelog.published_at:
-                changelog.published_at = datetime.utcnow()
+                changelog.published_at = datetime.now(timezone.utc)
             db.add(changelog)
             created_count += 1
             logger.info(f"创建更新日志: v{version}")

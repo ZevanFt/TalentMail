@@ -474,7 +474,7 @@ def get_pool_stats(
             models.Email.is_read == False
         ).count()
 
-        today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
         today_emails = db.query(models.Email).filter(
             models.Email.mailbox_address.in_(mailbox_emails),
             models.Email.received_at >= today

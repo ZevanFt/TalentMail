@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 import asyncio
 
@@ -378,7 +378,7 @@ async def train_spamassassin(
                     trainer(report, current_type)
                     report.learned = True
                     report.learn_error = None
-                    report.learned_at = datetime.utcnow()
+                    report.learned_at = datetime.now(timezone.utc)
                     db.commit()
                     logger.info(
                         "[SpamAssassin] 单条训练成功",

@@ -75,7 +75,7 @@ class GenerateCodeHandler(NodeHandler):
         else:
             code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
         
-        expire_time = datetime.utcnow() + timedelta(minutes=expire_minutes)
+        expire_time = datetime.now(timezone.utc) + timedelta(minutes=expire_minutes)
         
         # 3. DB Persistence
         if email:
@@ -269,14 +269,14 @@ class VerifyCodeHandler(NodeHandler):
                 VerificationCode.code == code,
                 VerificationCode.purpose == purpose,
                 VerificationCode.is_used == False,
-                VerificationCode.expires_at > datetime.utcnow()
+                VerificationCode.expires_at > datetime.now(timezone.utc)
             )
         ).first()
         
         if verification:
             # 标记为已使用
             verification.is_used = True
-            verification.used_at = datetime.utcnow()
+            verification.used_at = datetime.now(timezone.utc)
             self.db.commit()
             return True, {'valid': True}, 'valid'
         else:
@@ -622,7 +622,7 @@ class TriggerHandler(NodeHandler):
         # 触发器节点的主要作用是记录触发信息
         return {
             'trigger_type': trigger_type,
-            'triggered_at': datetime.utcnow().isoformat(),
+            'triggered_at': datetime.now(timezone.utc).isoformat(),
             'trigger_data': context.trigger_data if hasattr(context, 'trigger_data') else {}
         }
 
@@ -811,7 +811,7 @@ class EndHandler(NodeHandler):
             'end': True,
             'status': end_status,
             'message': message,
-            'completed_at': datetime.utcnow().isoformat()
+            'completed_at': datetime.now(timezone.utc).isoformat()
         }
 
         if error_code:
@@ -1114,7 +1114,7 @@ class WorkflowService:
                 user_id=user_id,
                 trigger_data=trigger_data,
                 status='running',
-                started_at=datetime.utcnow()
+                started_at=datetime.now(timezone.utc)
             )
             self.db.add(execution)
             self.db.commit()
@@ -1124,7 +1124,7 @@ class WorkflowService:
                 final_context = await engine.run(trigger_data)
 
                 execution.status = 'success'
-                execution.finished_at = datetime.utcnow()
+                execution.finished_at = datetime.now(timezone.utc)
                 duration = (execution.finished_at - execution.started_at).total_seconds()
                 logger.info(f"[WorkflowEngine] 工作流 {workflow.code} 执行成功，耗时 {duration:.2f}s")
                 # Persist the final state
@@ -1136,7 +1136,7 @@ class WorkflowService:
             except Exception as e:
                 execution.status = 'failed'
                 execution.error_message = str(e)
-                execution.finished_at = datetime.utcnow()
+                execution.finished_at = datetime.now(timezone.utc)
                 logger.error(f"[WorkflowEngine] 工作流 {workflow.code} 执行失败: {e}")
                 self.db.commit()
                 raise e

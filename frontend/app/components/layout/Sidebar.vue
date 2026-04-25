@@ -10,7 +10,7 @@ const toast = useToast()
 const { confirm: confirmDialog } = useConfirmDialog()
 const { isComposeOpen, requestCloseCompose, requestOpenCompose } = useGlobalModal()
 const { folders, currentFolderId, loadEmails, loadFolders, loadFilteredEmails, loadSnoozedEmails, loadAllEmails, currentFilter } = useEmails()
-const { token, getTags, createTag, updateTag, deleteTag, getExternalAccounts, createExternalAccount } = useApi()
+const { token, getTags, createTag, updateTag, deleteTag, getExternalAccounts, createExternalAccount, createFolder, updateFolder, deleteFolder } = useApi()
 const { isMobile, closeSidebar } = useResponsive()
 const route = useRoute()
 const router = useRouter()
@@ -155,6 +155,69 @@ const moreFolders = computed(() => [
   })),
   { id: 'all', name: '所有邮件', icon: FolderOpen, virtual: true, unread_count: 0 }
 ])
+
+// 用户自定义文件夹
+const customFolders = computed(() =>
+  folders.value.filter(f => f.role === 'user').map(f => ({
+    ...f,
+    icon: FolderOpen
+  }))
+)
+
+// 自定义文件夹管理状态
+const showCreateFolder = ref(false)
+const newFolderName = ref('')
+const editingFolderId = ref<number | null>(null)
+const editingFolderName = ref('')
+
+const handleCreateFolder = async () => {
+  const name = newFolderName.value.trim()
+  if (!name) return
+  try {
+    await createFolder({ name })
+    newFolderName.value = ''
+    showCreateFolder.value = false
+    await loadFolders()
+    toast.success('文件夹创建成功')
+  } catch (e: any) {
+    toast.error(e?.data?.detail || '创建失败')
+  }
+}
+
+const startRenameFolder = (folder: any) => {
+  editingFolderId.value = folder.id
+  editingFolderName.value = folder.name
+}
+
+const handleRenameFolder = async () => {
+  if (!editingFolderId.value || !editingFolderName.value.trim()) return
+  try {
+    await updateFolder(editingFolderId.value, { name: editingFolderName.value.trim() })
+    editingFolderId.value = null
+    editingFolderName.value = ''
+    await loadFolders()
+    toast.success('文件夹重命名成功')
+  } catch (e: any) {
+    toast.error(e?.data?.detail || '重命名失败')
+  }
+}
+
+const handleDeleteFolder = async (folder: any) => {
+  const ok = await confirmDialog({
+    title: '删除文件夹',
+    message: `确定删除「${folder.name}」？文件夹内的邮件将移回收件箱。`,
+    confirmText: '删除',
+    cancelText: '取消'
+  })
+  if (!ok) return
+  try {
+    await deleteFolder(folder.id)
+    await loadFolders()
+    toast.success('文件夹已删除')
+  } catch (e: any) {
+    toast.error(e?.data?.detail || '删除失败')
+  }
+}
 
 // 当前选中的虚拟文件夹 ID
 const selectedVirtualId = useState<string | null>('selectedVirtualId', () => null)
@@ -328,6 +391,67 @@ const isActive = (path: string) => route.path === path
             </button>
           </div>
         </Transition>
+      </div>
+
+      <!-- 2.5 自定义文件夹 -->
+      <div v-if="customFolders.length > 0 || showCreateFolder" class="mt-1">
+        <div class="flex items-center px-3 py-1">
+          <span class="flex-1 text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">自定义文件夹</span>
+          <button @click="showCreateFolder = !showCreateFolder" class="text-gray-400 hover:text-primary transition-colors" title="新建文件夹">
+            <Plus class="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <!-- 新建输入框 -->
+        <div v-if="showCreateFolder" class="flex items-center gap-1 px-3 py-1">
+          <input
+            v-model="newFolderName"
+            @keydown.enter="handleCreateFolder"
+            @keydown.escape="showCreateFolder = false"
+            placeholder="文件夹名称"
+            class="flex-1 text-sm bg-transparent border border-gray-300 dark:border-border-dark rounded px-2 py-1 focus:outline-none focus:border-primary"
+            autofocus
+          />
+          <button @click="handleCreateFolder" class="text-green-500 hover:text-green-400"><Check class="w-4 h-4" /></button>
+          <button @click="showCreateFolder = false" class="text-gray-400 hover:text-gray-300"><X class="w-4 h-4" /></button>
+        </div>
+
+        <!-- 自定义文件夹列表 -->
+        <div class="space-y-0.5">
+          <div v-for="folder in customFolders" :key="folder.id" class="group relative">
+            <!-- 重命名模式 -->
+            <div v-if="editingFolderId === folder.id" class="flex items-center gap-1 px-3 py-1">
+              <input
+                v-model="editingFolderName"
+                @keydown.enter="handleRenameFolder"
+                @keydown.escape="editingFolderId = null"
+                class="flex-1 text-sm bg-transparent border border-gray-300 dark:border-border-dark rounded px-2 py-1 focus:outline-none focus:border-primary"
+                autofocus
+              />
+              <button @click="handleRenameFolder" class="text-green-500 hover:text-green-400"><Check class="w-4 h-4" /></button>
+              <button @click="editingFolderId = null" class="text-gray-400 hover:text-gray-300"><X class="w-4 h-4" /></button>
+            </div>
+            <!-- 正常模式 -->
+            <button v-else @click="selectFolder(folder)" class="sub-item group w-full text-left" :class="{ active: isSelected(folder) }">
+              <FolderOpen class="w-4 h-4 shrink-0 transition-colors text-inherit" :class="isSelected(folder) ? 'text-primary' : ''" />
+              <span class="flex-1 truncate">{{ folder.name }}</span>
+              <span v-if="folder.unread_count" class="text-xs text-gray-400">{{ folder.unread_count }}</span>
+              <!-- 操作按钮 -->
+              <span class="hidden group-hover:flex items-center gap-0.5 shrink-0">
+                <button @click.stop="startRenameFolder(folder)" class="text-gray-400 hover:text-primary" title="重命名"><Pencil class="w-3 h-3" /></button>
+                <button @click.stop="handleDeleteFolder(folder)" class="text-gray-400 hover:text-red-500" title="删除"><Trash2 class="w-3 h-3" /></button>
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 新建文件夹入口（当没有自定义文件夹时也显示） -->
+      <div v-if="customFolders.length === 0 && !showCreateFolder" class="mt-1 px-3">
+        <button @click="showCreateFolder = true" class="text-xs text-gray-400 dark:text-gray-500 hover:text-primary transition-colors flex items-center gap-1">
+          <PlusCircle class="w-3.5 h-3.5" />
+          <span>新建文件夹</span>
+        </button>
       </div>
 
       <!-- 3. 邮件标签 -->

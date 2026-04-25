@@ -45,6 +45,13 @@ async def send_email_endpoint(
     background_tasks: BackgroundTasks = BackgroundTasks(),
 ):
     logger.info(f"用户 {current_user.email} 请求发送邮件，数据: {email_in.model_dump_json()}")
+
+    # 发送频率限流（每用户约 10 封/分钟）
+    from utils.rate_limit import email_send_limiter
+    rate_key = f"send:{current_user.id}"
+    if not email_send_limiter.allow(rate_key):
+        raise HTTPException(status_code=429, detail="发送过于频繁，请稍后再试")
+
     try:
         # Get the user's "Sent" folder
         sent_folder = get_user_folder_by_role(db, user_id=current_user.id, role="sent")
@@ -86,8 +93,12 @@ async def send_email_endpoint(
             references=references,
             thread_id=thread_id,
         )
-        # 设置初始投递状态
-        db_email.delivery_status = "pending"
+        # 设置初始投递状态 + 定时发送
+        if email_in.scheduled_send_at:
+            db_email.delivery_status = "scheduled"
+            db_email.scheduled_send_at = email_in.scheduled_send_at
+        else:
+            db_email.delivery_status = "pending"
         db.commit()
         logger.info(f"成功在数据库中创建邮件记录, ID: {db_email.id}。")
 
@@ -165,8 +176,12 @@ async def send_email_endpoint(
                 logger.critical(f"后台邮件发送任务发生致命错误 (DB ID: {email_id}): {e}", exc_info=True)
 
 
-        background_tasks.add_task(send_email_task)
-        logger.info(f"邮件发送任务已成功加入后台队列。")
+        # 定时发送：不立即发送，等调度器处理
+        if email_in.scheduled_send_at:
+            logger.info(f"邮件已安排定时发送: {email_in.scheduled_send_at} (DB ID: {db_email.id})")
+        else:
+            background_tasks.add_task(send_email_task)
+            logger.info(f"邮件发送任务已成功加入后台队列。")
 
         # 3. Return the initial DB record immediately
         logger.info(f"立即向客户端返回已创建的邮件记录 (ID: {db_email.id})。")
@@ -862,6 +877,16 @@ class BulkActionResponse(BaseModel):
     failed_ids: list[int] = []
 
 
+def _get_user_owned_email_ids(db: Session, user_id: int, email_ids: list[int]) -> set[int]:
+    """获取属于该用户的邮件 ID 集合（单条 SQL，用于批量操作权限校验）"""
+    user_folder_ids = db.query(Folder.id).filter(Folder.user_id == user_id)
+    owned = db.query(Email.id).filter(
+        Email.id.in_(email_ids),
+        Email.folder_id.in_(user_folder_ids)
+    ).all()
+    return {row[0] for row in owned}
+
+
 @router.post("/bulk/read", response_model=BulkActionResponse)
 def bulk_mark_read(
     data: BulkActionRequest,
@@ -870,27 +895,18 @@ def bulk_mark_read(
     current_user: User = Depends(deps.get_current_active_user),
 ):
     """批量标记邮件已读/未读"""
-    success_count = 0
-    failed_ids = []
-
-    for email_id in data.email_ids:
-        email = db.query(Email).join(Folder).filter(
-            Email.id == email_id,
-            Folder.user_id == current_user.id
-        ).first()
-
-        if email:
-            email.is_read = is_read
-            success_count += 1
-        else:
-            failed_ids.append(email_id)
-
+    user_folder_ids = db.query(Folder.id).filter(Folder.user_id == current_user.id)
+    success_count = db.query(Email).filter(
+        Email.id.in_(data.email_ids),
+        Email.folder_id.in_(user_folder_ids)
+    ).update({Email.is_read: is_read}, synchronize_session=False)
     db.commit()
 
+    failed_ids = list(set(data.email_ids) - _get_user_owned_email_ids(db, current_user.id, data.email_ids)) if success_count < len(data.email_ids) else []
     return BulkActionResponse(
         status="success",
         success_count=success_count,
-        failed_count=len(failed_ids),
+        failed_count=len(data.email_ids) - success_count,
         failed_ids=failed_ids
     )
 
@@ -903,27 +919,18 @@ def bulk_mark_starred(
     current_user: User = Depends(deps.get_current_active_user),
 ):
     """批量标记邮件星标"""
-    success_count = 0
-    failed_ids = []
-
-    for email_id in data.email_ids:
-        email = db.query(Email).join(Folder).filter(
-            Email.id == email_id,
-            Folder.user_id == current_user.id
-        ).first()
-
-        if email:
-            email.is_starred = is_starred
-            success_count += 1
-        else:
-            failed_ids.append(email_id)
-
+    user_folder_ids = db.query(Folder.id).filter(Folder.user_id == current_user.id)
+    success_count = db.query(Email).filter(
+        Email.id.in_(data.email_ids),
+        Email.folder_id.in_(user_folder_ids)
+    ).update({Email.is_starred: is_starred}, synchronize_session=False)
     db.commit()
 
+    failed_ids = list(set(data.email_ids) - _get_user_owned_email_ids(db, current_user.id, data.email_ids)) if success_count < len(data.email_ids) else []
     return BulkActionResponse(
         status="success",
         success_count=success_count,
-        failed_count=len(failed_ids),
+        failed_count=len(data.email_ids) - success_count,
         failed_ids=failed_ids
     )
 
@@ -940,31 +947,21 @@ def bulk_move_emails(
         Folder.id == data.folder_id,
         Folder.user_id == current_user.id
     ).first()
-
     if not target_folder:
         raise HTTPException(status_code=404, detail="目标文件夹不存在")
 
-    success_count = 0
-    failed_ids = []
-
-    for email_id in data.email_ids:
-        email = db.query(Email).join(Folder).filter(
-            Email.id == email_id,
-            Folder.user_id == current_user.id
-        ).first()
-
-        if email:
-            email.folder_id = data.folder_id
-            success_count += 1
-        else:
-            failed_ids.append(email_id)
-
+    user_folder_ids = db.query(Folder.id).filter(Folder.user_id == current_user.id)
+    success_count = db.query(Email).filter(
+        Email.id.in_(data.email_ids),
+        Email.folder_id.in_(user_folder_ids)
+    ).update({Email.folder_id: data.folder_id}, synchronize_session=False)
     db.commit()
 
+    failed_ids = list(set(data.email_ids) - _get_user_owned_email_ids(db, current_user.id, data.email_ids)) if success_count < len(data.email_ids) else []
     return BulkActionResponse(
         status="success",
         success_count=success_count,
-        failed_count=len(failed_ids),
+        failed_count=len(data.email_ids) - success_count,
         failed_ids=failed_ids
     )
 
@@ -977,47 +974,31 @@ def bulk_delete_emails(
     current_user: User = Depends(deps.get_current_active_user),
 ):
     """批量删除邮件"""
-    success_count = 0
-    failed_ids = []
+    user_folder_ids = db.query(Folder.id).filter(Folder.user_id == current_user.id)
+    base_filter = [Email.id.in_(data.email_ids), Email.folder_id.in_(user_folder_ids)]
 
     if permanent:
-        # 永久删除
-        for email_id in data.email_ids:
-            email = db.query(Email).join(Folder).filter(
-                Email.id == email_id,
-                Folder.user_id == current_user.id
-            ).first()
-
-            if email:
-                email.is_purged = True
-                success_count += 1
-            else:
-                failed_ids.append(email_id)
+        success_count = db.query(Email).filter(
+            *base_filter
+        ).update({Email.is_purged: True}, synchronize_session=False)
     else:
-        # 移到垃圾箱
         trash_folder = get_user_folder_by_role(db, user_id=current_user.id, role="trash")
         if not trash_folder:
             raise HTTPException(status_code=404, detail="垃圾箱文件夹不存在")
-
-        for email_id in data.email_ids:
-            email = db.query(Email).join(Folder).filter(
-                Email.id == email_id,
-                Folder.user_id == current_user.id
-            ).first()
-
-            if email:
-                email.folder_id = trash_folder.id
-                email.deleted_at = datetime.now(timezone.utc)
-                success_count += 1
-            else:
-                failed_ids.append(email_id)
+        success_count = db.query(Email).filter(
+            *base_filter
+        ).update({
+            Email.folder_id: trash_folder.id,
+            Email.deleted_at: datetime.now(timezone.utc)
+        }, synchronize_session=False)
 
     db.commit()
 
+    failed_ids = list(set(data.email_ids) - _get_user_owned_email_ids(db, current_user.id, data.email_ids)) if success_count < len(data.email_ids) else []
     return BulkActionResponse(
         status="success",
         success_count=success_count,
-        failed_count=len(failed_ids),
+        failed_count=len(data.email_ids) - success_count,
         failed_ids=failed_ids
     )
 
@@ -1033,27 +1014,18 @@ def bulk_archive_emails(
     if not archive_folder:
         raise HTTPException(status_code=404, detail="归档文件夹不存在")
 
-    success_count = 0
-    failed_ids = []
-
-    for email_id in data.email_ids:
-        email = db.query(Email).join(Folder).filter(
-            Email.id == email_id,
-            Folder.user_id == current_user.id
-        ).first()
-
-        if email:
-            email.folder_id = archive_folder.id
-            success_count += 1
-        else:
-            failed_ids.append(email_id)
-
+    user_folder_ids = db.query(Folder.id).filter(Folder.user_id == current_user.id)
+    success_count = db.query(Email).filter(
+        Email.id.in_(data.email_ids),
+        Email.folder_id.in_(user_folder_ids)
+    ).update({Email.folder_id: archive_folder.id}, synchronize_session=False)
     db.commit()
 
+    failed_ids = list(set(data.email_ids) - _get_user_owned_email_ids(db, current_user.id, data.email_ids)) if success_count < len(data.email_ids) else []
     return BulkActionResponse(
         status="success",
         success_count=success_count,
-        failed_count=len(failed_ids),
+        failed_count=len(data.email_ids) - success_count,
         failed_ids=failed_ids
     )
 
@@ -1118,7 +1090,7 @@ def export_as_eml(email: Email, db: Session) -> Response:
                 msg['To'] = ', '.join(to_list)
             if cc_list:
                 msg['Cc'] = ', '.join(cc_list)
-        except:
+        except Exception:
             msg['To'] = email.recipients
     
     # 设置日期
@@ -1211,7 +1183,7 @@ def export_as_pdf(email: Email, db: Session, user_timezone: str = "Asia/Shanghai
                 recipients_str += f"收件人: {', '.join(to_list)}"
             if cc_list:
                 recipients_str += f"<br>抄送: {', '.join(cc_list)}"
-        except:
+        except Exception:
             recipients_str = f"收件人: {email.recipients}"
     
     # 格式化日期（转换为用户时区）

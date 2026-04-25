@@ -137,7 +137,7 @@ async def send_email(
         if server:
             try:
                 server.quit()
-            except:
+            except Exception:
                 pass
 
 
@@ -323,7 +323,7 @@ async def send_verification_code_email(
         if server:
             try:
                 server.quit()
-            except:
+            except Exception:
                 pass
 
 
@@ -394,5 +394,5 @@ async def send_system_email(
         if server:
             try:
                 server.quit()
-            except:
+            except Exception:
                 pass

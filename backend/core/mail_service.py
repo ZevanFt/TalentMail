@@ -137,5 +137,5 @@ class MailService:
             if server:
                 try:
                     server.quit()
-                except:
+                except Exception:
                     pass

@@ -784,7 +784,7 @@ async def execute_user_workflow(
         trigger_type='manual',
         trigger_data=data.trigger_data,
         status='running',
-        started_at=datetime.utcnow()
+        started_at=datetime.now(timezone.utc)
     )
     db.add(execution)
     db.commit()
@@ -792,10 +792,10 @@ async def execute_user_workflow(
     
     try:
         # 执行工作流
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
         engine = RuntimeEngine(definition, handlers=handlers)
         final_context = await engine.run(data.trigger_data)
-        end_time = datetime.utcnow()
+        end_time = datetime.now(timezone.utc)
         
         # 计算执行时间
         duration_ms = int((end_time - start_time).total_seconds() * 1000)
@@ -821,7 +821,7 @@ async def execute_user_workflow(
         }
         
     except Exception as e:
-        end_time = datetime.utcnow()
+        end_time = datetime.now(timezone.utc)
         duration_ms = int((end_time - execution.started_at).total_seconds() * 1000)
         
         # 更新执行记录为失败
@@ -946,10 +946,10 @@ async def test_user_workflow(
     
     try:
         from datetime import datetime
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
         engine = RuntimeEngine(definition, handlers=handlers)
         final_context = await engine.run(data.trigger_data)
-        end_time = datetime.utcnow()
+        end_time = datetime.now(timezone.utc)
         
         # 计算执行时间
         duration_ms = int((end_time - start_time).total_seconds() * 1000)

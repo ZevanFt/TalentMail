@@ -4,16 +4,30 @@ from sqlalchemy.orm import Session
 from typing import List
 import os
 import uuid
+import logging
 from pydantic import BaseModel
 
 from api import deps
 from db import models
 from db.models.email import Attachment, Email, Folder
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 UPLOAD_DIR = "/app/uploads/attachments"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# 附件安全限制
+MAX_ATTACHMENT_SIZE = 25 * 1024 * 1024  # 25MB
+CHUNK_SIZE = 8192  # 8KB 流式读取
+BLOCKED_EXTENSIONS = {
+    '.exe', '.sh', '.bat', '.ps1', '.vbs', '.scr', '.cmd',
+    '.msi', '.dll', '.com', '.pif', '.cpl', '.hta', '.inf',
+}
+BLOCKED_CONTENT_TYPES = {
+    'application/x-executable', 'application/x-msdos-program',
+    'application/x-msdownload', 'application/x-sh',
+}
 
 
 class AttachmentRead(BaseModel):
@@ -34,28 +48,59 @@ async def upload_attachment(
     current_user: models.User = Depends(deps.get_current_active_user)
 ):
     """上传附件（先上传，发送邮件时关联）"""
-    # 生成唯一文件名
-    ext = os.path.splitext(file.filename)[1] if file.filename else ""
+    # 1. 文件扩展名黑名单检查
+    ext = os.path.splitext(file.filename)[1].lower() if file.filename else ""
+    if ext in BLOCKED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail=f"不允许上传 {ext} 类型的文件")
+
+    # 2. Content-Type 黑名单检查
+    content_type = (file.content_type or "application/octet-stream").lower()
+    if content_type in BLOCKED_CONTENT_TYPES:
+        raise HTTPException(status_code=400, detail=f"不允许上传 {content_type} 类型的文件")
+
+    # 3. 流式写入 + 大小限制检查
     unique_name = f"{uuid.uuid4()}{ext}"
     file_path = os.path.join(UPLOAD_DIR, unique_name)
-    
-    # 保存文件
-    content = await file.read()
-    with open(file_path, "wb") as f:
-        f.write(content)
-    
-    # 创建数据库记录
+    total_size = 0
+
+    try:
+        with open(file_path, "wb") as f:
+            while True:
+                chunk = await file.read(CHUNK_SIZE)
+                if not chunk:
+                    break
+                total_size += len(chunk)
+                if total_size > MAX_ATTACHMENT_SIZE:
+                    # 超限：删除已写入的部分文件
+                    f.close()
+                    os.remove(file_path)
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"文件大小超过限制（最大 {MAX_ATTACHMENT_SIZE // 1024 // 1024}MB）"
+                    )
+                f.write(chunk)
+    except HTTPException:
+        raise
+    except Exception as e:
+        # 写入失败时清理
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        logger.error(f"附件上传写入失败: {e}")
+        raise HTTPException(status_code=500, detail="文件上传失败")
+
+    # 4. 创建数据库记录
     attachment = Attachment(
         user_id=current_user.id,
         filename=file.filename or "unnamed",
-        content_type=file.content_type or "application/octet-stream",
-        size=len(content),
+        content_type=content_type,
+        size=total_size,
         file_path=file_path
     )
     db.add(attachment)
     db.commit()
     db.refresh(attachment)
-    
+
+    logger.info(f"附件上传成功: user={current_user.id} file={file.filename} size={total_size}")
     return attachment
 
 

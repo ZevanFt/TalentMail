@@ -9,8 +9,6 @@ import email
 import hashlib
 import asyncio
 import logging
-from email.header import decode_header
-from email.utils import parsedate_to_datetime
 from datetime import datetime
 from typing import Optional
 from sqlalchemy.orm import Session
@@ -18,6 +16,7 @@ from db.database import SessionLocal
 from db.models.user import User
 from db.models.email import Email, Folder, TempMailbox
 from core.config import settings
+from core.email_parser import decode_mime_header, parse_email_date, get_email_body
 
 # 模块级事件队列：同步过程中收集新邮件元数据，由 periodic_sync 异步触发工作流
 _pending_email_events: list = []
@@ -27,57 +26,6 @@ logger = logging.getLogger(__name__)
 # Dovecot Master 用户配置
 MASTER_USER = settings.MAIL_MASTER_USER
 MASTER_PASSWORD = settings.MAIL_MASTER_PASSWORD or settings.ADMIN_PASSWORD
-
-
-def decode_mime_header(header: str) -> str:
-    """解码 MIME 编码的邮件头"""
-    if not header:
-        return ""
-    decoded_parts = []
-    for part, charset in decode_header(header):
-        if isinstance(part, bytes):
-            decoded_parts.append(part.decode(charset or 'utf-8', errors='replace'))
-        else:
-            decoded_parts.append(part)
-    return ''.join(decoded_parts)
-
-
-def parse_email_date(date_str: str) -> Optional[datetime]:
-    """解析邮件日期"""
-    if not date_str:
-        return None
-    try:
-        return parsedate_to_datetime(date_str)
-    except Exception:
-        return None
-
-
-def get_email_body(msg: email.message.Message) -> tuple:
-    """提取邮件正文 (text, html)"""
-    body_text, body_html = "", ""
-    if msg.is_multipart():
-        for part in msg.walk():
-            ctype = part.get_content_type()
-            if "attachment" in str(part.get("Content-Disposition", "")):
-                continue
-            payload = part.get_payload(decode=True)
-            if payload:
-                charset = part.get_content_charset() or 'utf-8'
-                content = payload.decode(charset, errors='replace')
-                if ctype == "text/plain":
-                    body_text = content
-                elif ctype == "text/html":
-                    body_html = content
-    else:
-        payload = msg.get_payload(decode=True)
-        if payload:
-            charset = msg.get_content_charset() or 'utf-8'
-            content = payload.decode(charset, errors='replace')
-            if msg.get_content_type() == "text/html":
-                body_html = content
-            else:
-                body_text = content
-    return body_text, body_html
 
 
 def _connect_imap() -> imaplib.IMAP4:
@@ -98,6 +46,7 @@ def _sync_imap_inbox(
     imap_email: str,
     folder_id: int,
     mailbox_address: str,
+    user_id: Optional[int] = None,
 ) -> int:
     """通用 IMAP 同步：从 imap_email 的 INBOX 同步到指定 folder，标记为 mailbox_address。
 
@@ -149,16 +98,54 @@ def _sync_imap_inbox(
 
             body_text, body_html = get_email_body(msg)
 
+            # 提取线程信息
+            in_reply_to_raw = msg.get("In-Reply-To", "")
+            if in_reply_to_raw:
+                in_reply_to_raw = in_reply_to_raw.strip().strip("<>")
+            references_raw = msg.get("References", "")
+            thread_id = None
+            if in_reply_to_raw:
+                parent = db.query(Email.thread_id, Email.message_id).filter(
+                    Email.message_id == in_reply_to_raw
+                ).first()
+                if parent and parent.thread_id:
+                    thread_id = parent.thread_id
+                else:
+                    thread_id = in_reply_to_raw
+
+            # 黑名单检查：被拦截的邮件投入 spam 文件夹
+            target_folder_id = folder_id
+            if user_id:
+                try:
+                    from api.spam import is_sender_blocked
+                    sender_raw = decode_mime_header(msg.get("From", ""))
+                    sender_addr = sender_raw
+                    if '<' in sender_addr and '>' in sender_addr:
+                        sender_addr = sender_addr.split('<')[1].split('>')[0].strip().lower()
+                    if sender_addr and is_sender_blocked(db, user_id, sender_addr):
+                        spam_folder = db.query(Folder).filter(
+                            Folder.user_id == user_id,
+                            Folder.role == "spam"
+                        ).first()
+                        if spam_folder:
+                            target_folder_id = spam_folder.id
+                        logger.info(f"IMAP 同步: 黑名单发件人 {sender_addr} → spam 文件夹")
+                except Exception as e:
+                    logger.warning(f"IMAP 同步: 黑名单检查失败: {e}")
+
             new_email = Email(
-                folder_id=folder_id,
+                folder_id=target_folder_id,
                 mailbox_address=mailbox_address,
                 message_id=msg_id,
+                in_reply_to=in_reply_to_raw or None,
+                references=references_raw or None,
+                thread_id=thread_id,
                 subject=decode_mime_header(msg.get("Subject")),
                 sender=decode_mime_header(msg.get("From")),
                 recipients=decode_mime_header(msg.get("To", "")),
                 body_text=body_text,
                 body_html=body_html,
-                received_at=parse_email_date(msg.get("Date")) or datetime.utcnow(),
+                received_at=parse_email_date(msg.get("Date")) or datetime.now(timezone.utc),
                 is_read=False,
                 is_starred=False,
                 is_draft=False,
@@ -171,7 +158,7 @@ def _sync_imap_inbox(
                 "from_email": new_email.sender or "",
                 "to_email": mailbox_address,
                 "subject": new_email.subject or "",
-                "received_at": (new_email.received_at or datetime.utcnow()).isoformat(),
+                "received_at": (new_email.received_at or datetime.now(timezone.utc)).isoformat(),
                 "source": "imap_sync"
             })
 
@@ -210,7 +197,7 @@ def sync_user_mailbox(db: Session, user: User) -> int:
         logger.warning(f"用户 {user.email} 没有收件箱")
         return 0
 
-    return _sync_imap_inbox(db, user.email, inbox.id, user.email)
+    return _sync_imap_inbox(db, user.email, inbox.id, user.email, user_id=user.id)
 
 
 def sync_temp_mailbox(db: Session, temp_mailbox: TempMailbox) -> int:
@@ -233,7 +220,7 @@ def sync_temp_mailbox(db: Session, temp_mailbox: TempMailbox) -> int:
         logger.warning(f"所有者 {owner.email} 没有收件箱")
         return 0
 
-    return _sync_imap_inbox(db, temp_mailbox.email, inbox.id, temp_mailbox.email)
+    return _sync_imap_inbox(db, temp_mailbox.email, inbox.id, temp_mailbox.email, user_id=owner.id)
 
 
 def sync_all_mailboxes() -> dict:

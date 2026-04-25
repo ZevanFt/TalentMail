@@ -35,7 +35,7 @@ def get_optional_user(
     try:
         user = get_current_user_from_token(db, credentials.credentials)
         return user
-    except:
+    except Exception:
         return None
 
 
@@ -142,7 +142,7 @@ async def create_changelog(
         category=data.category,
         is_major=data.is_major,
         is_published=data.is_published,
-        published_at=datetime.utcnow() if data.is_published else None,
+        published_at=datetime.now(timezone.utc) if data.is_published else None,
         author=data.author or current_user.display_name or current_user.email,
         tags=data.tags,
         breaking_changes=data.breaking_changes,
@@ -174,7 +174,7 @@ async def update_changelog(
     
     # 如果从未发布变为已发布，设置发布时间
     if "is_published" in update_data and update_data["is_published"] and not changelog.is_published:
-        update_data["published_at"] = datetime.utcnow()
+        update_data["published_at"] = datetime.now(timezone.utc)
     
     for field, value in update_data.items():
         setattr(changelog, field, value)
@@ -219,7 +219,7 @@ async def publish_changelog(
         raise HTTPException(status_code=400, detail="该日志已发布")
     
     changelog.is_published = True
-    changelog.published_at = datetime.utcnow()
+    changelog.published_at = datetime.now(timezone.utc)
     
     db.commit()
     db.refresh(changelog)

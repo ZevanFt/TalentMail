@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Paperclip, Send, Loader2, Eye, X, FileText } from 'lucide-vue-next'
+import { Paperclip, Send, Loader2, Eye, X, FileText, Clock, ChevronDown } from 'lucide-vue-next'
 import TemplateSelector from './TemplateSelector.vue'
 
 const toastNotify = useToast()
@@ -31,6 +31,8 @@ const attachments = ref<UploadedFile[]>([])
 const uploading = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
 const editorRef = ref<any>(null)
+const scheduledSendAt = ref<string>('')
+const showScheduleMenu = ref(false)
 
 const appliedTemplate = ref<any>(null)
 
@@ -198,7 +200,7 @@ const removeAttachment = async (att: UploadedFile) => {
 
 // formatFileSize 来自 utils/format.ts (Nuxt 自动导入)
 
-const handleSend = async () => {
+const handleSend = async (scheduleTime?: string) => {
   if (!recipients.value || !subject.value) {
     error.value = '请填写收件人和主题'
     return
@@ -206,11 +208,12 @@ const handleSend = async () => {
 
   sending.value = true
   error.value = ''
+  showScheduleMenu.value = false
   try {
     const { mode, originalEmail } = composeState.value
     const safeHtml = sanitizeHtml(body.value)
 
-    await sendEmail({
+    const payload: Record<string, any> = {
       to: recipients.value,
       cc: ccRecipients.value || undefined,
       subject: subject.value,
@@ -219,7 +222,15 @@ const handleSend = async () => {
       reply_to_id: (mode === 'reply' || mode === 'replyAll') && originalEmail ? originalEmail.id : undefined,
       is_tracked: isTracked.value,
       attachment_ids: attachments.value.map(a => a.id)
-    })
+    }
+
+    // 定时发送：将本地时间转为 UTC ISO 字符串
+    const sendAt = scheduleTime || scheduledSendAt.value
+    if (sendAt) {
+      payload.scheduled_send_at = new Date(sendAt).toISOString()
+    }
+
+    await sendEmail(payload)
 
     if (draftId.value) {
       try {
@@ -230,7 +241,11 @@ const handleSend = async () => {
       }
     }
 
-    toastNotify.success('邮件已加入发送队列，请在"已发送"文件夹查看发送状态', 5000)
+    if (sendAt) {
+      toastNotify.success(`邮件已设置定时发送: ${new Date(sendAt).toLocaleString()}`, 5000)
+    } else {
+      toastNotify.success('邮件已加入发送队列，请在"已发送"文件夹查看发送状态', 5000)
+    }
 
     closeAndReset()
 
@@ -246,6 +261,37 @@ const handleSend = async () => {
     sending.value = false
   }
 }
+
+const handleScheduleSend = () => {
+  if (!scheduledSendAt.value) {
+    error.value = '请选择定时发送时间'
+    return
+  }
+  const selectedTime = new Date(scheduledSendAt.value)
+  if (selectedTime <= new Date()) {
+    error.value = '定时发送时间必须在未来'
+    return
+  }
+  handleSend(scheduledSendAt.value)
+}
+
+// 快捷定时选项
+const schedulePresets = computed(() => {
+  const now = new Date()
+  const later = new Date(now.getTime() + 2 * 60 * 60 * 1000) // 2小时后
+  const tomorrow9am = new Date(now)
+  tomorrow9am.setDate(tomorrow9am.getDate() + 1)
+  tomorrow9am.setHours(9, 0, 0, 0)
+  const nextMonday9am = new Date(now)
+  nextMonday9am.setDate(nextMonday9am.getDate() + ((8 - nextMonday9am.getDay()) % 7 || 7))
+  nextMonday9am.setHours(9, 0, 0, 0)
+
+  return [
+    { label: '2小时后', value: later.toISOString().slice(0, 16) },
+    { label: '明天上午9点', value: tomorrow9am.toISOString().slice(0, 16) },
+    { label: '下周一上午9点', value: nextMonday9am.toISOString().slice(0, 16) },
+  ]
+})
 
 const hasContent = computed(() => {
   const sigText = defaultSignature.value.trim()
@@ -344,6 +390,8 @@ const closeAndReset = () => {
   isTracked.value = false
   draftId.value = null
   attachments.value = []
+  scheduledSendAt.value = ''
+  showScheduleMenu.value = false
   editorRef.value?.setContent('')
 }
 
@@ -607,15 +655,54 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
         <span class="transition-colors">追踪</span>
       </button>
 
-      <button @click="handleSend" :disabled="sending"
-        class="flex items-center gap-2.5 px-7 py-2.5 bg-gradient-to-r from-primary to-primary-hover text-white
-               rounded-xl hover:shadow-lg hover:shadow-primary/30 active:scale-95
-               transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed
-               disabled:hover:shadow-none disabled:active:scale-100">
-        <Loader2 v-if="sending" class="w-4 h-4 animate-spin" />
-        <Send v-else class="w-4 h-4" />
-        <span>{{ sending ? '发送中...' : '发送' }}</span>
-      </button>
+      <div class="relative flex items-center">
+        <button @click="handleSend()" :disabled="sending"
+          class="flex items-center gap-2.5 px-6 py-2.5 bg-gradient-to-r from-primary to-primary-hover text-white
+                 rounded-l-xl hover:shadow-lg hover:shadow-primary/30 active:scale-95
+                 transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed
+                 disabled:hover:shadow-none disabled:active:scale-100">
+          <Loader2 v-if="sending" class="w-4 h-4 animate-spin" />
+          <Send v-else class="w-4 h-4" />
+          <span>{{ sending ? '发送中...' : '发送' }}</span>
+        </button>
+        <button @click="showScheduleMenu = !showScheduleMenu" :disabled="sending"
+          class="px-2.5 py-2.5 bg-gradient-to-r from-primary-hover to-primary-hover text-white
+                 rounded-r-xl border-l border-white/20 hover:brightness-110 active:scale-95
+                 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+          <ChevronDown class="w-4 h-4" />
+        </button>
+
+        <!-- 定时发送下拉菜单 -->
+        <div v-if="showScheduleMenu"
+          class="absolute bottom-full right-0 mb-2 w-72 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
+          <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+            <div class="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
+              <Clock class="w-4 h-4 text-primary" />
+              <span>定时发送</span>
+            </div>
+          </div>
+          <div class="p-2 space-y-1">
+            <button v-for="preset in schedulePresets" :key="preset.label"
+              @click="handleSend(preset.value)"
+              class="w-full px-3 py-2 text-left text-sm rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors">
+              {{ preset.label }}
+              <span class="text-xs text-gray-400 ml-1">{{ new Date(preset.value).toLocaleString() }}</span>
+            </button>
+          </div>
+          <div class="px-3 py-2 border-t border-gray-100 dark:border-gray-700">
+            <label class="text-xs text-gray-500 dark:text-gray-400 mb-1 block">自定义时间</label>
+            <div class="flex items-center gap-2">
+              <input v-model="scheduledSendAt" type="datetime-local"
+                :min="new Date().toISOString().slice(0, 16)"
+                class="flex-1 px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
+              <button @click="handleScheduleSend" :disabled="!scheduledSendAt"
+                class="px-3 py-1.5 text-sm font-medium bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                确定
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 </template>

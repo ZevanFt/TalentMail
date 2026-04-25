@@ -79,3 +79,6 @@ class MemoryRateLimiter:
 
 # 全局实例：邮件通知限流器（每用户 5 分钟最多 1 封通知）
 email_notification_limiter = MemoryRateLimiter(cooldown_seconds=300)
+
+# 全局实例：邮件发送限流器（每用户约 10 封/分钟，即 6 秒冷却）
+email_send_limiter = MemoryRateLimiter(cooldown_seconds=6)
