@@ -106,6 +106,11 @@ watch(previewVariables, () => {
   }
 }, { deep: true })
 
+// 组件卸载时清理防抖定时器
+onBeforeUnmount(() => {
+  if (previewDebounceTimer) clearTimeout(previewDebounceTimer)
+})
+
 const showDeleteConfirm = ref(false)
 const deletingTemplate = ref<EmailTemplate | null>(null)
 const deleting = ref(false)

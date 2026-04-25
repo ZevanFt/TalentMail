@@ -27,7 +27,7 @@ const getIconComponent = (iconName: string): Component => {
         <component :is="getIconComponent(selectedNode.data.icon)" class="w-5 h-5" :style="{ color: selectedNode.data.color }" />
         <span class="font-bold text-gray-900 dark:text-white text-sm">{{ selectedNode.data.label }}</span>
       </div>
-      <button @click="emit('close')" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
+      <button @click="emit('close')" aria-label="关闭配置面板" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
         <X class="w-5 h-5 text-gray-500" />
       </button>
     </div>

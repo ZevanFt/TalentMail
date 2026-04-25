@@ -214,7 +214,7 @@ const backToLogin = () => {
             <!-- 底部链接 -->
             <div class="mt-6 flex items-center justify-between">
                 <!-- 暗黑模式开关 -->
-                <button @click="toggleTheme"
+                <button @click="toggleTheme" aria-label="切换主题"
                     class="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
                     <Sun v-if="isDark" class="w-5 h-5" />
                     <Moon v-else class="w-5 h-5" />

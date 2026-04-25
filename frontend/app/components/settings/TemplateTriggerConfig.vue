@@ -272,7 +272,7 @@ watch(() => props.modelValue, async (isOpen) => {
               <p class="text-sm text-gray-500 dark:text-gray-400">{{ template?.name }}</p>
             </div>
           </div>
-          <button @click="close" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">
+          <button @click="close" aria-label="关闭" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">
             <X class="w-5 h-5 text-gray-500" />
           </button>
         </div>

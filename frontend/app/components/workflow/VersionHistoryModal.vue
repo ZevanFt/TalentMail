@@ -50,7 +50,7 @@ const handleClose = () => {
                 </p>
               </div>
             </div>
-            <button @click="handleClose" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
+            <button @click="handleClose" aria-label="关闭" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
               <X class="w-5 h-5 text-gray-500" />
             </button>
           </div>
