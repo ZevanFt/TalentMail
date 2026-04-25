@@ -310,7 +310,7 @@ const openPreviewModal = async (template: EmailTemplate) => {
   testResult.value = null
   
   let metadata: TemplateMetadata | null = null
-  try { metadata = await getTemplateMetadata(template.code) } catch (e) {}
+  try { metadata = await getTemplateMetadata(template.code) } catch (e) { console.warn('加载模板元数据失败:', e) }
   
   previewVariables.value = {}
   if (metadata?.variables) {
@@ -322,7 +322,7 @@ const openPreviewModal = async (template: EmailTemplate) => {
     })
   }
   
-  try { const user = await getMe(); testEmailTo.value = user.email } catch (e) {}
+  try { const user = await getMe(); testEmailTo.value = user.email } catch (e) { console.warn('加载用户邮箱失败:', e) }
   
   editingTemplate.value = template
   editingMetadata.value = metadata
@@ -719,7 +719,7 @@ const getVariableTypeIcon = (type: string) => {
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">邮件内容</label>
-              <EditorRichEditor
+              <LazyEditorRichEditor
                 ref="editorRef"
                 v-model="editForm.body_html"
                 :show-variable-bar="true"

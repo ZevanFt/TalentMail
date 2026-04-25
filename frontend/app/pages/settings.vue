@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { User, Shield, Palette, LogOut, ArrowLeft, Mail, Bell, Lock, HardDrive, Users, Ticket, UserCog, CreditCard, AtSign, FileText, Info, Zap, Workflow, ScrollText, Box } from 'lucide-vue-next'
+import { User, Shield, Palette, LogOut, ArrowLeft, Mail, Bell, Lock, HardDrive, Users, Ticket, UserCog, CreditCard, AtSign, FileText, Info, Zap, Workflow, ScrollText, Box, ChevronDown } from 'lucide-vue-next'
 const router = useRouter()
 const route = useRoute()
 const { logout, getMe } = useApi()
+const { isMobile, initResponsive } = useResponsive()
 
 const activeTab = ref('profile')
 const isAdmin = ref(false)
+const mobileMenuOpen = ref(false)
 
 definePageMeta({ layout: 'pool' })
 
@@ -30,12 +32,63 @@ const setTab = (tab: string) => {
 }
 
 // 检查是否是管理员
+// Tab 配置（label 用于移动端显示）
+const tabGroups = computed(() => {
+  const groups = [
+    { label: '通用', tabs: [
+      { key: 'profile', label: '账号信息', icon: 'User' },
+      { key: 'accounts', label: '多账号管理', icon: 'Users' },
+      { key: 'theme', label: '外观主题', icon: 'Palette' },
+    ]},
+    { label: '邮件服务', tabs: [
+      { key: 'mail', label: '邮件设置', icon: 'Mail' },
+      { key: 'my-workflows', label: '我的工作流', icon: 'Workflow' },
+      { key: 'notifications', label: '通知偏好', icon: 'Bell' },
+      { key: 'privacy', label: '隐私与安全', icon: 'Lock' },
+    ]},
+    { label: '数据', tabs: [
+      { key: 'security', label: '登录与安全', icon: 'Shield' },
+      { key: 'storage', label: '存储与配额', icon: 'HardDrive' },
+    ]},
+    { label: '其他', tabs: [
+      { key: 'changelog', label: '更新日志', icon: 'ScrollText' },
+      { key: 'about', label: '关于', icon: 'Info' },
+    ]},
+  ]
+  if (isAdmin.value) {
+    groups.push({ label: '管理', tabs: [
+      { key: 'billing', label: '会员订阅管理', icon: 'CreditCard' },
+      { key: 'invites', label: '邀请码管理', icon: 'Ticket' },
+      { key: 'prefixes', label: '保留前缀管理', icon: 'AtSign' },
+      { key: 'email-templates', label: '邮件模板管理', icon: 'FileText' },
+      { key: 'system-workflows', label: '系统工作流', icon: 'Workflow' },
+      { key: 'temp-mail-policy', label: '临时邮箱策略', icon: 'Box' },
+      { key: 'user-mgmt', label: '用户权限管理', icon: 'UserCog' },
+    ]})
+  }
+  return groups
+})
+
+const activeTabLabel = computed(() => {
+  for (const group of tabGroups.value) {
+    const found = group.tabs.find(t => t.key === activeTab.value)
+    if (found) return found.label
+  }
+  return '设置'
+})
+
+const setTabMobile = (tab: string) => {
+  setTab(tab)
+  mobileMenuOpen.value = false
+}
+
 onMounted(async () => {
+  initResponsive()
   initTabFromQuery()
   try {
     const user = await getMe()
     isAdmin.value = user.role === 'admin'
-  } catch (e) {}
+  } catch (e) { console.warn('获取用户信息失败:', e) }
 })
 
 // 监听路由变化（用于浏览器前进/后退）
@@ -52,11 +105,39 @@ const handleLogout = () => {
 </script>
 
 <template>
-  <div class="settings-page flex w-full h-full bg-gray-50 dark:bg-bg-dark overflow-hidden">
+  <div class="settings-page flex flex-col lg:flex-row w-full h-full bg-gray-50 dark:bg-bg-dark overflow-hidden">
 
-    <!-- 1. 设置导航栏 (固定宽度 w-64) -->
+    <!-- 移动端 tab 选择器 -->
+    <div v-if="isMobile" class="shrink-0 bg-white dark:bg-bg-panelDark border-b border-gray-200 dark:border-border-dark">
+      <div class="flex items-center px-4 h-12 gap-2">
+        <button @click="router.push('/')" class="p-2 -ml-2 text-gray-500 hover:text-gray-900 dark:hover:text-white rounded-lg transition-colors">
+          <ArrowLeft class="w-5 h-5" />
+        </button>
+        <button @click="mobileMenuOpen = !mobileMenuOpen" class="flex-1 flex items-center justify-between py-2 px-3 bg-gray-50 dark:bg-gray-800 rounded-lg text-sm font-bold text-gray-900 dark:text-white">
+          {{ activeTabLabel }}
+          <ChevronDown class="w-4 h-4 text-gray-400 transition-transform" :class="{ 'rotate-180': mobileMenuOpen }" />
+        </button>
+      </div>
+      <!-- 下拉菜单 -->
+      <Transition name="slide-down">
+        <div v-if="mobileMenuOpen" class="px-4 pb-3 max-h-[60vh] overflow-y-auto space-y-3">
+          <div v-for="group in tabGroups" :key="group.label">
+            <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 px-2">{{ group.label }}</div>
+            <button v-for="tab in group.tabs" :key="tab.key" @click="setTabMobile(tab.key)"
+              :class="['w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-left', activeTab === tab.key ? 'bg-primary/10 text-primary font-bold' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800']">
+              {{ tab.label }}
+            </button>
+          </div>
+          <button @click="handleLogout" class="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 text-left">
+            <LogOut class="w-4 h-4" /> 退出登录
+          </button>
+        </div>
+      </Transition>
+    </div>
+
+    <!-- 1. 设置导航栏 (固定宽度 w-64，移动端隐藏) -->
     <div
-      class="settings-sidebar w-64 bg-white dark:bg-bg-panelDark border-r border-gray-200 dark:border-border-dark flex flex-col shrink-0 h-full">
+      class="settings-sidebar w-64 bg-white dark:bg-bg-panelDark border-r border-gray-200 dark:border-border-dark flex-col shrink-0 h-full hidden lg:flex">
 
       <!-- 顶部返回 -->
       <div class="h-14 flex items-center px-6 gap-2 border-b border-gray-100 dark:border-gray-800 shrink-0">
@@ -163,13 +244,13 @@ const handleLogout = () => {
     <!-- 2. 内容主区域 -->
     <div class="settings-content flex-1 flex flex-col overflow-hidden bg-gray-50 dark:bg-bg-dark">
       <!-- 用户权限管理使用全高度布局 -->
-      <div v-if="activeTab === 'user-mgmt'" class="flex-1 p-8 md:p-12 overflow-hidden">
+      <div v-if="activeTab === 'user-mgmt'" class="flex-1 p-4 lg:p-8 xl:p-12 overflow-hidden">
         <div class="max-w-5xl mx-auto h-full">
           <SettingsUserManagement />
         </div>
       </div>
       <!-- 其他页面使用滚动布局 -->
-      <div v-else class="flex-1 overflow-y-auto p-8 md:p-12">
+      <div v-else class="flex-1 overflow-y-auto p-4 lg:p-8 xl:p-12">
         <div class="max-w-4xl mx-auto min-h-[600px] pb-20">
           <Transition name="fade" mode="out-in">
             <SettingsProfile v-if="activeTab === 'profile'" />
@@ -214,5 +295,22 @@ const handleLogout = () => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+/* 移动端下拉菜单动画 */
+.slide-down-enter-active,
+.slide-down-leave-active {
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+.slide-down-enter-from,
+.slide-down-leave-to {
+  opacity: 0;
+  max-height: 0;
+}
+.slide-down-enter-to,
+.slide-down-leave-from {
+  opacity: 1;
+  max-height: 60vh;
 }
 </style>

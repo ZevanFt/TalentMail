@@ -163,8 +163,11 @@ export const useKeyboardShortcuts = () => {
   }
   
   // 删除 (#/Delete)
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (selectedEmailDetail.value) {
+      const { confirm } = useConfirmDialog()
+      const ok = await confirm({ message: '确定删除此邮件？', type: 'danger' })
+      if (!ok) return
       removeEmail(selectedEmailDetail.value.id)
     }
   }

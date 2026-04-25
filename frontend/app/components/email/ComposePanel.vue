@@ -95,29 +95,8 @@ const stripHtml = (html: string) => {
   return html.replace(/<[^>]+>/g, '').trim()
 }
 
-const sanitizeHtml = (html: string) => {
-  if (!html || !import.meta.client) return html
-  const parser = new DOMParser()
-  const doc = parser.parseFromString(html, 'text/html')
-
-  doc.querySelectorAll('script, style, iframe, object, embed').forEach((el) => el.remove())
-
-  doc.querySelectorAll('*').forEach((el) => {
-    const attrs = [...el.attributes]
-    for (const attr of attrs) {
-      const name = attr.name.toLowerCase()
-      const value = attr.value
-      if (name.startsWith('on')) {
-        el.removeAttribute(attr.name)
-      }
-      if ((name === 'href' || name === 'src') && /^javascript:/i.test(value)) {
-        el.removeAttribute(attr.name)
-      }
-    }
-  })
-
-  return doc.body.innerHTML
-}
+// 使用 DOMPurify 统一消毒（替代手写 sanitizer）
+const { sanitizeEmailHtml: sanitizeHtml } = useSanitize()
 
 const signatureHtml = computed(() => {
   if (!defaultSignature.value.trim()) return ''
@@ -581,7 +560,7 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
         <div class="absolute inset-0 -z-10 bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 rounded-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300"></div>
       </div>
 
-      <EditorRichEditor
+      <LazyEditorRichEditor
         ref="editorRef"
         v-model="body"
         placeholder="撰写邮件内容..."

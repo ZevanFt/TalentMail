@@ -3,8 +3,9 @@ export default defineNuxtRouteMiddleware((to) => {
 
   // 不需要登录的页面
   const publicPages = ['/login', '/register', '/forgot-password']
+  const publicPrefixes = ['/share/']
 
-  if (!token.value && !publicPages.includes(to.path)) {
+  if (!token.value && !publicPages.includes(to.path) && !publicPrefixes.some(p => to.path.startsWith(p))) {
     return navigateTo('/login', { replace: true })
   }
 

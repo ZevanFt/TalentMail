@@ -158,13 +158,13 @@ const revokeCode = async (code: RedemptionCode) => {
 }
 
 const copyCode = async (code: RedemptionCode) => {
-    await navigator.clipboard.writeText(code.code)
+    await copyToClipboard(code.code)
     copiedId.value = code.id
     setTimeout(() => copiedId.value = null, 2000)
 }
 
 const copyAllCodes = async () => {
-    await navigator.clipboard.writeText(generatedCodes.value.join('\n'))
+    await copyToClipboard(generatedCodes.value.join('\n'))
 }
 
 // ==================== 辅助函数 ====================

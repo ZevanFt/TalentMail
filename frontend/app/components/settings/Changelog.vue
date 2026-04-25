@@ -444,6 +444,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { Plus, ClipboardList, ChevronRight, Pencil, Rocket, Package, Trash2, AlertTriangle, FileText, X, ArrowDownUp, Github } from 'lucide-vue-next'
 
 const { getChangelogs, createChangelog, updateChangelog, deleteChangelog: apiDeleteChangelog, publishChangelog, unpublishChangelog, getMe } = useApi()
+const { sanitizeEmailHtml } = useSanitize()
 const toast = useToast()
 
 interface Changelog {
@@ -781,8 +782,8 @@ const renderMarkdown = (content: string): string => {
   }
   
   if (inList) result.push(listType === 'ul' ? '</ul>' : '</ol>')
-  
-  return result.join('')
+
+  return sanitizeEmailHtml(result.join(''))
 }
 
 watch([filterType, filterCategory, showMajorOnly, sortOrder], () => {

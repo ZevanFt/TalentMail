@@ -36,9 +36,9 @@ onMounted(() => {
       </Teleport>
 
       <!-- 页面内容 (Slot 对应 pages/index.vue，里面包含 列表+详情) -->
-      <div class="flex-1 min-w-0">
+      <main class="flex-1 min-w-0" role="main">
         <slot />
-      </div>
+      </main>
     </div>
 
   </div>

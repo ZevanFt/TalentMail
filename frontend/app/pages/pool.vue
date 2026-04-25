@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import { Search, Plus, RefreshCw, Copy, Mail, History, BarChart, Trash2, Star, Box, ArrowLeft, Check } from 'lucide-vue-next'
+import { Search, Plus, RefreshCw, Copy, Mail, History, BarChart, Trash2, Star, Box, ArrowLeft, Check, ChevronLeft } from 'lucide-vue-next'
 const toast = useToast()
 const { confirm: confirmDialog } = useConfirmDialog()
+const { isMobile } = useResponsive()
 const { isGenerateOpen, isHistoryOpen, isStatsOpen } = useGlobalModal()
-const { getPoolMailboxes, getPoolMailboxEmails, deletePoolMailbox, getPoolStats, getMe, markPoolEmailRead, extendPoolMailbox, restorePoolMailbox } = useApi()
+
+// 移动端三栏切换视图
+const mobilePoolView = ref<'accounts' | 'list' | 'detail'>('accounts')
+const { getPoolMailboxes, getPoolMailboxEmails, deletePoolMailbox, getPoolStats, getMe, markPoolEmailRead, extendPoolMailbox, restorePoolMailbox, markEmailStarred, deleteEmail } = useApi()
 const router = useRouter()
 
 definePageMeta({ layout: 'pool' })
@@ -32,6 +36,7 @@ interface PoolEmail {
     subject: string
     received_at: string | null
     is_read: boolean
+    is_starred: boolean
     verification_code: string | null
 }
 
@@ -98,6 +103,7 @@ const selectMailbox = (mailbox: Mailbox) => {
     selectedMailbox.value = mailbox
     selectedEmail.value = null
     loadEmails()
+    if (isMobile.value) mobilePoolView.value = 'list'
 }
 
 const formatCountdown = (dateStr: string | null) => {
@@ -136,9 +142,16 @@ const handleRestoreSelected = async () => {
     }
 }
 
+// 移动端返回导航
+const mobileGoBack = () => {
+    if (mobilePoolView.value === 'detail') mobilePoolView.value = 'list'
+    else if (mobilePoolView.value === 'list') mobilePoolView.value = 'accounts'
+}
+
 // 选择邮件并标记已读
 const selectEmail = async (email: PoolEmail) => {
     selectedEmail.value = email
+    if (isMobile.value) mobilePoolView.value = 'detail'
     if (!email.is_read) {
         try {
             await markPoolEmailRead(email.id)
@@ -151,6 +164,35 @@ const selectEmail = async (email: PoolEmail) => {
             console.error('标记已读失败', e)
             toast.error('标记已读失败')
         }
+    }
+}
+
+// Pool 邮件星标切换
+const handlePoolStar = async () => {
+    if (!selectedEmail.value) return
+    try {
+        const isStarred = !selectedEmail.value.is_starred
+        await markEmailStarred(selectedEmail.value.id, isStarred)
+        selectedEmail.value.is_starred = isStarred
+    } catch (e: any) {
+        console.error('标记星标失败:', e)
+        toast.error('标记星标失败')
+    }
+}
+
+// Pool 邮件删除
+const handlePoolEmailDelete = async () => {
+    if (!selectedEmail.value) return
+    const ok = await confirmDialog({ message: '确定删除此邮件？', type: 'danger' })
+    if (!ok) return
+    try {
+        await deleteEmail(selectedEmail.value.id)
+        emails.value = emails.value.filter(e => e.id !== selectedEmail.value?.id)
+        selectedEmail.value = null
+        toast.success('已删除')
+    } catch (e: any) {
+        console.error('删除邮件失败:', e)
+        toast.error('删除失败')
     }
 }
 
@@ -173,7 +215,7 @@ const handleDelete = async (mailbox: Mailbox) => {
 
 // 复制验证码
 const copyCode = async (code: string) => {
-    await navigator.clipboard.writeText(code)
+    await copyToClipboard(code)
     copiedCode.value = code
     setTimeout(() => copiedCode.value = null, 2000)
 }
@@ -181,7 +223,7 @@ const copyCode = async (code: string) => {
 // 复制邮箱地址
 const copiedEmail = ref<string | null>(null)
 const copyEmail = async (email: string) => {
-    await navigator.clipboard.writeText(email)
+    await copyToClipboard(email)
     copiedEmail.value = email
     setTimeout(() => copiedEmail.value = null, 2000)
 }
@@ -245,7 +287,7 @@ watch(isGenerateOpen, (val) => {
 
         <template v-else>
             <!-- 第一栏：账号列表 -->
-            <div class="pool-sidebar w-64 h-full bg-gray-50/80 dark:bg-bg-panelDark border-r border-gray-200 dark:border-border-dark flex flex-col shrink-0">
+            <div v-show="!isMobile || mobilePoolView === 'accounts'" class="pool-sidebar h-full bg-gray-50/80 dark:bg-bg-panelDark border-r border-gray-200 dark:border-border-dark flex flex-col shrink-0" :class="isMobile ? 'w-full' : 'w-64'">
                 <!-- 顶部 Header -->
                 <div class="h-14 flex items-center px-4 gap-3 border-b border-gray-200/50 dark:border-gray-800 shrink-0">
                     <button @click="router.push('/')" class="p-2 -ml-2 text-gray-500 hover:text-gray-900 dark:hover:text-white rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
@@ -323,9 +365,12 @@ watch(isGenerateOpen, (val) => {
             </div>
 
             <!-- 第二栏：邮件列表 -->
-            <div class="pool-email-list w-80 h-full border-r border-gray-200 dark:border-border-dark flex flex-col shrink-0">
+            <div v-show="!isMobile || mobilePoolView === 'list'" class="pool-email-list h-full border-r border-gray-200 dark:border-border-dark flex flex-col shrink-0" :class="isMobile ? 'w-full' : 'w-80'">
                 <div class="pool-email-header h-14 flex items-center justify-between px-5 border-b border-gray-100 dark:border-gray-800 shrink-0">
                     <div v-if="selectedMailbox" class="flex items-center gap-3 min-w-0">
+                        <button v-if="isMobile" @click="mobileGoBack" class="p-1.5 -ml-2 text-gray-500 hover:text-gray-900 dark:hover:text-white rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors shrink-0">
+                            <ChevronLeft class="w-5 h-5" />
+                        </button>
                         <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-bold shrink-0 text-xs">
                             {{ getInitial(selectedMailbox.email) }}
                         </div>
@@ -384,25 +429,31 @@ watch(isGenerateOpen, (val) => {
             </div>
 
             <!-- 第三栏：详情 -->
-            <div class="pool-detail flex-1 h-full flex flex-col min-w-0">
-                <div class="pool-detail-header h-14 border-b border-gray-200 dark:border-border-dark flex items-center justify-end px-6 gap-3 shrink-0">
-                    <button @click="isHistoryOpen = true" class="btn-tool">
-                        <History class="w-4 h-4" /> 历史
+            <div v-show="!isMobile || mobilePoolView === 'detail'" class="pool-detail flex-1 h-full flex flex-col min-w-0">
+                <div class="pool-detail-header h-14 border-b border-gray-200 dark:border-border-dark flex items-center px-6 gap-3 shrink-0" :class="isMobile ? 'justify-between' : 'justify-end'">
+                    <button v-if="isMobile" @click="mobileGoBack" class="p-1.5 -ml-2 text-gray-500 hover:text-gray-900 dark:hover:text-white rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                        <ChevronLeft class="w-5 h-5" />
                     </button>
-                    <button @click="isStatsOpen = true" class="btn-tool">
-                        <BarChart class="w-4 h-4" /> 统计
-                    </button>
-                    <button @click="isGenerateOpen = true"
-                        class="flex items-center gap-2 px-4 py-1.5 bg-primary text-white rounded-lg hover:bg-primary-hover shadow-md shadow-primary/20 transition-all font-medium text-sm ml-2">
-                        <Plus class="w-4 h-4" /> 生成临时邮箱
-                    </button>
+                    <div class="flex items-center gap-3">
+                        <button @click="isHistoryOpen = true" class="btn-tool" :class="{ '!px-2 !py-1 !text-xs': isMobile }">
+                            <History class="w-4 h-4" /> <span :class="{ 'hidden': isMobile }">历史</span>
+                        </button>
+                        <button @click="isStatsOpen = true" class="btn-tool" :class="{ '!px-2 !py-1 !text-xs': isMobile }">
+                            <BarChart class="w-4 h-4" /> <span :class="{ 'hidden': isMobile }">统计</span>
+                        </button>
+                        <button @click="isGenerateOpen = true"
+                            class="flex items-center gap-2 px-4 py-1.5 bg-primary text-white rounded-lg hover:bg-primary-hover shadow-md shadow-primary/20 transition-all font-medium text-sm ml-2"
+                            :class="{ '!px-2 !py-1 !text-xs !ml-1': isMobile }">
+                            <Plus class="w-4 h-4" /> <span :class="{ 'hidden': isMobile }">生成临时邮箱</span>
+                        </button>
+                    </div>
                 </div>
 
-                <div class="flex-1 p-10 overflow-y-auto flex flex-col">
+                <div class="flex-1 overflow-y-auto flex flex-col" :class="isMobile ? 'p-4' : 'p-10'">
                     <template v-if="selectedEmail">
-                        <div class="flex items-start justify-between mb-10">
+                        <div class="flex items-start justify-between" :class="isMobile ? 'mb-4' : 'mb-10'">
                             <div class="flex items-center gap-4">
-                                <div class="w-14 h-14 rounded-full bg-primary flex items-center justify-center text-2xl text-white font-bold shadow-lg shadow-primary/20">
+                                <div class="rounded-full bg-primary flex items-center justify-center text-white font-bold shadow-lg shadow-primary/20" :class="isMobile ? 'w-10 h-10 text-lg' : 'w-14 h-14 text-2xl'">
                                     {{ getInitial(getSenderName(selectedEmail.sender)) }}
                                 </div>
                                 <div>
@@ -411,17 +462,17 @@ watch(isGenerateOpen, (val) => {
                                 </div>
                             </div>
                             <div class="flex gap-2">
-                                <button class="icon-btn"><Star class="w-5 h-5" /></button>
-                                <button class="icon-btn"><Trash2 class="w-5 h-5" /></button>
+                                <button @click="handlePoolStar" class="icon-btn"><Star class="w-5 h-5" /></button>
+                                <button @click="handlePoolEmailDelete" class="icon-btn"><Trash2 class="w-5 h-5" /></button>
                             </div>
                         </div>
                         <div class="font-bold text-gray-900 dark:text-white mb-4">{{ selectedEmail.subject }}</div>
                         
                         <!-- 验证码展示 -->
                         <div v-if="selectedEmail.verification_code"
-                            class="bg-purple-50/50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-900/30 rounded-2xl p-12 flex flex-col items-center justify-center relative overflow-hidden group border-dashed">
+                            class="bg-purple-50/50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-900/30 rounded-2xl flex flex-col items-center justify-center relative overflow-hidden group border-dashed" :class="isMobile ? 'p-6' : 'p-12'">
                             <div class="text-sm text-gray-500 mb-4">验证码 (已自动识别)</div>
-                            <div class="text-7xl font-mono font-bold text-primary tracking-widest mb-8 drop-shadow-sm">{{ selectedEmail.verification_code }}</div>
+                            <div class="font-mono font-bold text-primary tracking-widest drop-shadow-sm" :class="isMobile ? 'text-4xl mb-4' : 'text-7xl mb-8'">{{ selectedEmail.verification_code }}</div>
                             <button @click="copyCode(selectedEmail.verification_code!)"
                                 class="flex items-center gap-2 px-8 py-3 bg-primary text-white rounded-xl hover:bg-primary-hover shadow-xl shadow-primary/30 transition-all active:scale-95 text-lg font-medium">
                                 <Check v-if="copiedCode === selectedEmail.verification_code" class="w-5 h-5" />

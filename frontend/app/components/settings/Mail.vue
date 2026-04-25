@@ -3,6 +3,7 @@ import { PenTool, Calendar, Server, Plus, Trash2, Check, AtSign, Power, Loader2 
 
 const { getMe, updateMe, getSignatures, createSignature, updateSignature, deleteSignature, getAliases, createAlias, updateAlias, deleteAlias } = useApi()
 const { baseDomain } = useConfig()
+const { sanitizeEmailHtml } = useSanitize()
 const toast = useToast()
 const { confirm: confirmDialog } = useConfirmDialog()
 
@@ -252,7 +253,7 @@ onMounted(loadSettings)
                                     </button>
                                 </div>
                             </div>
-                            <div class="mt-2 text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap" v-html="sig.content_html"></div>
+                            <div class="mt-2 text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap" v-html="sanitizeEmailHtml(sig.content_html || '')"></div>
                         </template>
                     </div>
                     <div v-if="signatures.length === 0" class="text-gray-500 text-sm">暂无签名，点击上方按钮新增</div>

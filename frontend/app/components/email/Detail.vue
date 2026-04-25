@@ -55,7 +55,7 @@ const copyCode = async () => {
   if (!detectedCode.value) return
   
   try {
-    await navigator.clipboard.writeText(detectedCode.value)
+    await copyToClipboard(detectedCode.value)
     codeCopied.value = true
     setTimeout(() => {
       codeCopied.value = false
@@ -249,7 +249,7 @@ const attachments = computed(() => selectedEmailDetail.value?.attachments || [])
 
 const downloadAttachment = (id: number) => {
   const url = downloadAttachmentUrl(id)
-  window.open(`${url}?token=${token.value}`, '_blank')
+  secureDownload(url)
 }
 
 // 归档邮件
@@ -275,7 +275,7 @@ const sanitizedBodyHtml = computed(() => {
 const exportEmail = (format: 'eml' | 'pdf') => {
   if (!selectedEmailDetail.value) return
   const url = exportEmailUrl(selectedEmailDetail.value.id, format)
-  window.open(`${url}&token=${token.value}`, '_blank')
+  secureDownload(url, `email.${format}`)
 }
 </script>
 

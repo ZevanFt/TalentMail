@@ -88,7 +88,7 @@ const handleDelete = async () => {
 }
 
 const copyCode = async (code: InviteCode) => {
-    await navigator.clipboard.writeText(code.code)
+    await copyToClipboard(code.code)
     copiedId.value = code.id
     setTimeout(() => copiedId.value = null, 2000)
 }

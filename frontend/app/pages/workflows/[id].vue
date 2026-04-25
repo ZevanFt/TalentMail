@@ -540,7 +540,12 @@ const onDrop = (event: DragEvent) => {
   const data = event.dataTransfer?.getData('application/vueflow')
   if (!data) return
 
-  const nodeType = JSON.parse(data)
+  let nodeType
+  try {
+    nodeType = JSON.parse(data)
+  } catch {
+    return // 无效拖放数据，忽略
+  }
   
   // 获取画布位置
   const canvasElement = document.querySelector('.vue-flow') as HTMLElement

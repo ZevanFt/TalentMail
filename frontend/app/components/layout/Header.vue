@@ -23,11 +23,13 @@ const storage = ref<{ storage_used_bytes: number; storage_limit_bytes: number } 
 const subscription = ref<{ plan_name: string; expires_at: string | null; is_active: boolean; status: string } | null>(null)
 
 onMounted(async () => {
-  try {
-    user.value = await getMe()
-    storage.value = await getStorageStats()
-    subscription.value = await getSubscriptionStatus()
-  } catch (e) {}
+  const [userRes, storageRes, subRes] = await Promise.allSettled([getMe(), getStorageStats(), getSubscriptionStatus()])
+  if (userRes.status === 'fulfilled') user.value = userRes.value
+  else console.warn('加载用户信息失败:', userRes.reason)
+  if (storageRes.status === 'fulfilled') storage.value = storageRes.value
+  else console.warn('加载存储信息失败:', storageRes.reason)
+  if (subRes.status === 'fulfilled') subscription.value = subRes.value
+  else console.warn('加载订阅信息失败:', subRes.reason)
 })
 
 // 获取邮箱前缀
@@ -41,13 +43,8 @@ const storagePercent = computed(() => {
   return Math.round((storage.value.storage_used_bytes / storage.value.storage_limit_bytes) * 100)
 })
 
-// 格式化存储大小
-const formatStorage = (bytes: number) => {
-  if (bytes === -1) return '无限'
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-  if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
-  return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB'
-}
+// 格式化存储大小（复用 utils/format.ts 的 formatFileSize，处理 -1 = 无限）
+const formatStorage = (bytes: number) => bytes === -1 ? '无限' : formatFileSize(bytes)
 
 // 退出登录
 const handleLogout = () => {
@@ -80,7 +77,7 @@ const copied = ref(false)
 const copyEmail = async () => {
   if (!user.value?.email) return
   try {
-    await navigator.clipboard.writeText(user.value.email)
+    await copyToClipboard(user.value.email)
     copied.value = true
     setTimeout(() => { copied.value = false }, 2000)
   } catch (e: any) {
@@ -88,6 +85,10 @@ const copyEmail = async () => {
     toast.error('复制失败')
   }
 }
+
+onUnmounted(() => {
+  if (debounceTimer) clearTimeout(debounceTimer)
+})
 </script>
 
 <template>

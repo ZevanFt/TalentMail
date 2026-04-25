@@ -1,6 +1,7 @@
 export const useTheme = () => {
   const isDark = useState('isDark', () => false)
   const themeMode = useState<'light' | 'dark' | 'system'>('themeMode', () => 'system')
+  const themeInitialized = useState('themeInit', () => false)
   const token = useCookie('token')
 
   // 系统主题媒体查询
@@ -8,8 +9,9 @@ export const useTheme = () => {
 
   // 初始化主题
   const initTheme = async () => {
-    if (!import.meta.client) return
-    
+    if (!import.meta.client || themeInitialized.value) return
+    themeInitialized.value = true
+
     // 监听系统主题变化
     mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
     mediaQuery.addEventListener('change', handleSystemThemeChange)
@@ -28,7 +30,7 @@ export const useTheme = () => {
         if (user.theme === 'dark') themeMode.value = 'dark'
         else if (user.theme === 'light') themeMode.value = 'light'
         else themeMode.value = 'system'
-      } catch (e) {}
+      } catch (e) { console.warn('读取主题偏好失败:', e) }
     }
     
     applyTheme()
@@ -94,7 +96,7 @@ export const useTheme = () => {
           },
           body: JSON.stringify({ theme: mode })
         })
-      } catch (e) {}
+      } catch (e) { console.warn('保存主题偏好失败:', e) }
     }
   }
 

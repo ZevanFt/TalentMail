@@ -1,5 +1,10 @@
 <script setup lang="ts">
+const { initResponsive } = useResponsive()
 provide('hasSidebar', false)
+
+onMounted(() => {
+  initResponsive()
+})
 </script>
 
 <template>

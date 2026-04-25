@@ -32,16 +32,19 @@ const handleClose = () => {
     >
       <!-- 遮罩层 -->
       <div v-if="modelValue" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="handleClose">
-        
+
         <!-- 弹窗主体 -->
         <div
+          role="dialog"
+          aria-modal="true"
+          :aria-labelledby="title ? 'modal-title' : undefined"
           class="modal-solid-bg bg-white dark:bg-bg-panelDark rounded-xl shadow-2xl flex flex-col max-h-[90vh] transition-all transform scale-100"
           :class="widthClass || 'w-full max-w-lg'"
         >
           <!-- 头部 -->
           <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700">
-            <h3 class="text-lg font-bold text-gray-900 dark:text-white">{{ title }}</h3>
-            <button @click="handleClose" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+            <h3 id="modal-title" class="text-lg font-bold text-gray-900 dark:text-white">{{ title }}</h3>
+            <button @click="handleClose" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors" aria-label="关闭">
               <X class="w-5 h-5" />
             </button>
           </div>

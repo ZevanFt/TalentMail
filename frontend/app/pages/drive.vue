@@ -8,6 +8,7 @@ const config = useConfig()
 const files = ref<any[]>([])
 const loading = ref(true)
 const uploading = ref(false)
+const loadError = ref('')
 
 // 分享弹窗
 const showShareModal = ref(false)
@@ -18,11 +19,13 @@ const copied = ref(false)
 
 const loadFiles = async () => {
   loading.value = true
+  loadError.value = ''
   try {
     files.value = await getDriveFiles()
   } catch (e: any) {
     console.error('加载失败', e)
-    toast.error(e.data?.detail || '加载文件失败')
+    loadError.value = e.data?.detail || '加载文件失败'
+    toast.error(loadError.value)
   } finally {
     loading.value = false
   }
@@ -107,7 +110,7 @@ const getShareUrl = (code: string) => {
 const copyShareUrl = async () => {
   if (!shareFile.value?.share_code) return
   try {
-    await navigator.clipboard.writeText(getShareUrl(shareFile.value.share_code))
+    await copyToClipboard(getShareUrl(shareFile.value.share_code))
     copied.value = true
     setTimeout(() => copied.value = false, 2000)
   } catch (e: any) {
@@ -117,7 +120,7 @@ const copyShareUrl = async () => {
 }
 
 const downloadFile = (id: number) => {
-  window.open(`${downloadDriveFileUrl(id)}?token=${token.value}`, '_blank')
+  secureDownload(downloadDriveFileUrl(id))
 }
 
 // formatSize 来自 utils/format.ts (Nuxt 自动导入)
@@ -158,6 +161,10 @@ onMounted(loadFiles)
       <!-- 文件列表 -->
       <div class="bg-white dark:bg-bg-panelDark rounded-xl border border-gray-200 dark:border-border-dark">
         <div v-if="loading" class="p-8 text-center text-gray-500">加载中...</div>
+        <div v-else-if="loadError" class="p-8 text-center">
+          <p class="text-red-500 mb-3">{{ loadError }}</p>
+          <button @click="loadFiles" class="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary-hover transition-colors">重试</button>
+        </div>
         <div v-else-if="files.length === 0" class="p-8 text-center text-gray-500">
           暂无文件，点击上方按钮上传
         </div>

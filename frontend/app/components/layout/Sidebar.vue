@@ -27,13 +27,13 @@ const tagForm = reactive({ name: '', color: '#3B82F6' })
 const tagColors = ['#3B82F6', '#EF4444', '#F59E0B', '#10B981', '#8B5CF6', '#EC4899', '#6B7280']
 
 const loadTags = async () => {
-  try { tags.value = await getTags() } catch {}
+  try { tags.value = await getTags() } catch (e) { console.warn('加载标签失败:', e) }
 }
 
 // 外部邮箱账号
 const externalAccounts = ref<any[]>([])
 const loadExternalAccounts = async () => {
-  try { externalAccounts.value = await getExternalAccounts() } catch {}
+  try { externalAccounts.value = await getExternalAccounts() } catch (e) { console.warn('加载外部邮箱失败:', e) }
 }
 
 // 添加外部账号弹窗
@@ -281,6 +281,8 @@ const isActive = (path: string) => route.path === path
 
 <template>
   <aside
+    role="navigation"
+    aria-label="邮箱导航"
     class="sidebar-glass w-64 h-full border-r border-gray-200/50 dark:border-border-dark/50 flex flex-col shrink-0 transition-colors duration-200 pt-4 font-sans select-none">
 
     <!-- 写邮件 -->

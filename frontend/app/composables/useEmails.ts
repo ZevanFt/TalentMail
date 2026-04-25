@@ -238,42 +238,59 @@ export const useEmails = () => {
 
   // WebSocket 实时通知
   const ws = useState<WebSocket | null>('emailWs', () => null)
-  
+  let wsRetryCount = 0
+  let wsReconnectTimer: ReturnType<typeof setTimeout> | null = null
+  let wsIntentionalClose = false
+
   const connectWebSocket = () => {
     const { token } = useApi()
     if (!token.value || ws.value) return
-    
+
+    wsIntentionalClose = false
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const host = window.location.host // 自适应 hostname:port
+    const host = window.location.host
     const wsUrl = `${protocol}//${host}/ws/${token.value}`
-    
+
     ws.value = new WebSocket(wsUrl)
-    
+
     ws.value.onopen = () => {
-      // 连接成功
+      wsRetryCount = 0 // 连接成功，重置重试计数
     }
-    
+
     ws.value.onmessage = async (event) => {
-      const data = JSON.parse(event.data)
-      if (data.type === 'new_email') {
-        // 收到新邮件通知，刷新列表
-        await loadEmails()
-        await loadFolders()
+      try {
+        const data = JSON.parse(event.data)
+        if (data.type === 'new_email') {
+          await loadEmails()
+          await loadFolders()
+        }
+      } catch (e) {
+        console.warn('WebSocket 消息解析失败:', e)
       }
     }
-    
+
     ws.value.onclose = () => {
       ws.value = null
-      // 3秒后重连
-      setTimeout(connectWebSocket, 3000)
+      if (wsIntentionalClose) return
+      // 指数退避重连，最多 10 次，最大间隔 30 秒
+      if (wsRetryCount < 10) {
+        const delay = Math.min(3000 * Math.pow(2, wsRetryCount), 30000)
+        wsReconnectTimer = setTimeout(connectWebSocket, delay)
+        wsRetryCount++
+      }
     }
-    
+
     ws.value.onerror = () => {
       ws.value?.close()
     }
   }
-  
+
   const disconnectWebSocket = () => {
+    wsIntentionalClose = true
+    if (wsReconnectTimer) {
+      clearTimeout(wsReconnectTimer)
+      wsReconnectTimer = null
+    }
     if (ws.value) {
       ws.value.close()
       ws.value = null

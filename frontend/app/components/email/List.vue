@@ -5,6 +5,7 @@ const { emails, selectedEmailId, folders, currentFolderId, loading, syncing, loa
 const { isComposeOpen, requestCloseCompose } = useGlobalModal()
 const { getEmail, bulkMarkRead, bulkMarkStarred, bulkDeleteEmails, bulkArchiveEmails, bulkMoveEmails, markAsSpam, markAsNotSpam } = useApi()
 const { showEmailDetail } = useResponsive()
+const { confirm: confirmDialog } = useConfirmDialog()
 const toast = useToast()
 
 // 获取 Sidebar 中选中的虚拟文件夹 ID 和标签 ID
@@ -73,6 +74,8 @@ const handleBulkMarkRead = async (isRead: boolean) => {
 // 批量删除
 const handleBulkDelete = async () => {
   if (selectedEmailIds.value.size === 0) return
+  const ok = await confirmDialog({ message: `确定删除 ${selectedEmailIds.value.size} 封邮件？`, type: 'danger' })
+  if (!ok) return
   bulkLoading.value = true
   try {
     await bulkDeleteEmails(Array.from(selectedEmailIds.value))
@@ -107,6 +110,8 @@ const handleBulkArchive = async () => {
 // 批量标记为垃圾邮件
 const handleBulkMarkSpam = async () => {
   if (selectedEmailIds.value.size === 0) return
+  const ok = await confirmDialog({ message: `确定将 ${selectedEmailIds.value.size} 封邮件标记为垃圾邮件？`, type: 'danger' })
+  if (!ok) return
   bulkLoading.value = true
   try {
     await markAsSpam(Array.from(selectedEmailIds.value))
@@ -313,7 +318,7 @@ onUnmounted(() => {
   <div class="h-full email-list-container border-r border-gray-200/50 dark:border-border-dark/50 flex flex-col">
     <!-- 标题栏 -->
     <div class="h-12 px-4 text-xs font-bold text-gray-600 dark:text-gray-400 border-b border-gray-200/50 dark:border-gray-800/50 flex items-center justify-between">
-      <span class="truncate flex-1 tracking-wide">{{ currentFolderName }} <span class="text-gray-400 font-normal">({{ emails.length }})</span></span>
+      <span class="truncate flex-1 tracking-wide">{{ currentFolderName }} <span class="text-gray-400 font-normal">({{ emailTotal || emails.length }})</span></span>
       <div class="flex items-center gap-1 shrink-0">
         <button v-if="isSearching" @click="clearSearch"
           class="p-1.5 hover:bg-primary/10 dark:hover:bg-primary/20 rounded-md text-primary transition-all duration-200 hover:scale-105"
