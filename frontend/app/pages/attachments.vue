@@ -104,8 +104,8 @@ onMounted(loadAttachments)
 </script>
 
 <template>
-  <div class="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
-    <header class="flex items-center justify-between px-6 py-4 border-b dark:border-gray-800 bg-white dark:bg-gray-900">
+  <div class="h-full flex flex-col bg-gray-50 dark:bg-bg-dark">
+    <header class="flex items-center justify-between px-6 py-4 border-b dark:border-border-dark bg-white dark:bg-bg-panelDark">
       <h1 class="text-xl font-bold">附件中心</h1>
       <div class="flex items-center gap-2">
         <input type="file" ref="fileInput" class="hidden" @change="handleUpload">
@@ -135,7 +135,7 @@ onMounted(loadAttachments)
             文件中转站
           </h2>
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div v-for="a in transferFiles" :key="a.id" class="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border dark:border-gray-700 flex flex-col">
+            <div v-for="a in transferFiles" :key="a.id" class="bg-white dark:bg-bg-panelDark rounded-lg p-4 shadow-sm border dark:border-border-dark flex flex-col">
               <div class="flex items-start gap-3 mb-3">
                 <component :is="getIcon(a.content_type)" class="w-10 h-10 text-gray-400 shrink-0" />
                 <div class="flex-1 min-w-0">
@@ -166,7 +166,7 @@ onMounted(loadAttachments)
             邮件附件
           </h2>
           <div class="space-y-2">
-            <div v-for="a in emailAttachments" :key="a.id" class="flex items-center gap-4 bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border dark:border-gray-700">
+            <div v-for="a in emailAttachments" :key="a.id" class="flex items-center gap-4 bg-white dark:bg-bg-panelDark rounded-lg p-4 shadow-sm border dark:border-border-dark">
               <component :is="getIcon(a.content_type)" class="w-8 h-8 text-gray-400 shrink-0" />
               <div class="flex-1 min-w-0">
                 <div class="font-medium truncate">{{ a.filename }}</div>

@@ -4,7 +4,7 @@ import { ShieldAlert, ImageOff, Plus, X, Trash2, ShieldCheck } from 'lucide-vue-
 const { getMe, updateMe, getBlockedSenders, addBlockedSender, removeBlockedSender, getWhitelist, addToWhitelist, removeFromWhitelist } = useApi()
 const toast = useToast()
 
-const user = ref<any>(null)
+const user = ref<AppUser | null>(null)
 const loading = ref(true)
 const saving = ref(false)
 

@@ -13,7 +13,7 @@ const stats = ref({
 })
 
 // 订阅状态
-const subscription = ref<any>(null)
+const subscription = ref<Subscription | null>(null)
 const redeemCodeInput = ref('')
 const redeeming = ref(false)
 const redeemError = ref('')
@@ -22,7 +22,7 @@ const history = ref<any[]>([])
 const showHistory = ref(false)
 
 // 自动清理设置
-const user = ref<any>(null)
+const user = ref<AppUser | null>(null)
 
 const loadStats = async () => {
     try {

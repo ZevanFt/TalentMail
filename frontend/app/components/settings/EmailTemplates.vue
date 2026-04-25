@@ -416,7 +416,7 @@ const toggleTemplateActive = async (template: EmailTemplate) => {
   }
 }
 
-onMounted(() => { loadTemplates(); loadGlobalVariables() })
+onMounted(() => { Promise.allSettled([loadTemplates(), loadGlobalVariables()]) })
 watch(selectedCategory, () => { loadTemplates() })
 
 const editorRef = ref<any>(null)
@@ -643,371 +643,318 @@ const getVariableTypeIcon = (type: string) => {
     </div>
 
     <!-- 编辑弹窗 -->
-    <Teleport to="body">
-      <div v-if="showEditModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div class="modal-solid-bg bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-          <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ editingTemplate ? '编辑模板' : '新建模板' }}</h3>
-            <div class="flex items-center gap-2">
-              <button v-if="editingTemplate && editingMetadata" @click="resetToDefault" :disabled="saving" class="flex items-center gap-1 px-3 py-1.5 text-sm text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors" title="重置为默认模板">
-                <RotateCcw class="w-4 h-4" /><span>重置为默认</span>
-              </button>
-              <button @click="showEditModal = false" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"><X class="w-5 h-5" /></button>
+    <CommonModal v-model="showEditModal" :title="editingTemplate ? '编辑模板' : '新建模板'" width-class="w-full max-w-4xl">
+      <template #header-actions>
+        <button v-if="editingTemplate && editingMetadata" @click="resetToDefault" :disabled="saving" class="flex items-center gap-1 px-3 py-1.5 text-sm text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors" title="重置为默认模板">
+          <RotateCcw class="w-4 h-4" /><span>重置为默认</span>
+        </button>
+      </template>
+      <div class="space-y-4">
+        <div v-if="editingMetadata" class="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl space-y-3">
+          <div class="flex items-start gap-3">
+            <Info class="w-5 h-5 text-blue-500 mt-0.5" />
+            <div class="flex-1">
+              <h4 class="font-medium text-blue-900 dark:text-blue-100">{{ editingMetadata.name }}</h4>
+              <p class="text-sm text-blue-700 dark:text-blue-300 mt-1">{{ editingMetadata.description }}</p>
+              <div v-if="editingMetadata.trigger_description" class="flex items-center gap-2 mt-2 text-sm text-blue-600 dark:text-blue-400">
+                <Zap class="w-4 h-4" /><span>触发条件：{{ editingMetadata.trigger_description }}</span>
+              </div>
             </div>
           </div>
-          <div class="flex-1 overflow-y-auto p-4 space-y-4">
-            <div v-if="editingMetadata" class="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl space-y-3">
-              <div class="flex items-start gap-3">
-                <Info class="w-5 h-5 text-blue-500 mt-0.5" />
-                <div class="flex-1">
-                  <h4 class="font-medium text-blue-900 dark:text-blue-100">{{ editingMetadata.name }}</h4>
-                  <p class="text-sm text-blue-700 dark:text-blue-300 mt-1">{{ editingMetadata.description }}</p>
-                  <div v-if="editingMetadata.trigger_description" class="flex items-center gap-2 mt-2 text-sm text-blue-600 dark:text-blue-400">
-                    <Zap class="w-4 h-4" /><span>触发条件：{{ editingMetadata.trigger_description }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">模板代码</label>
-                <input v-model="editForm.code" type="text" :disabled="!!editingTemplate" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm disabled:opacity-50" placeholder="如 verification_code_register">
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">模板名称</label>
-                <input v-model="editForm.name" type="text" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm" placeholder="如 注册验证码">
-              </div>
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">分类</label>
-                <select v-model="editForm.category" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm">
-                  <option v-for="cat in categories" :key="cat.value" :value="cat.value">{{ cat.label }}</option>
-                </select>
-              </div>
-              <div v-if="!editingMetadata">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">模板变量</label>
-                <div class="space-y-2">
-                  <!-- 已添加的变量 -->
-                  <div v-if="customVariables.length > 0" class="flex flex-wrap gap-2 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
-                    <div v-for="v in customVariables" :key="v.key" class="flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg text-sm group">
-                      <span class="font-medium">{{ v.label }}</span>
-                      <code class="text-xs opacity-70">({{ v.key }})</code>
-                      <button @click="removeVariable(v.key)" class="ml-1 opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity">
-                        <X class="w-3 h-3" />
-                      </button>
-                    </div>
-                  </div>
-                  <div v-else class="text-sm text-gray-400 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
-                    暂无变量，点击下方按钮添加
-                  </div>
-                  <!-- 添加变量按钮 -->
-                  <button @click="showAddVariableModal = true" type="button" class="flex items-center gap-1 px-3 py-1.5 text-sm text-primary hover:bg-primary/10 rounded-lg transition-colors">
-                    <Plus class="w-4 h-4" />
-                    <span>添加变量</span>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">模板代码</label>
+            <input v-model="editForm.code" type="text" :disabled="!!editingTemplate" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm disabled:opacity-50" placeholder="如 verification_code_register">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">模板名称</label>
+            <input v-model="editForm.name" type="text" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm" placeholder="如 注册验证码">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">分类</label>
+            <select v-model="editForm.category" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm">
+              <option v-for="cat in categories" :key="cat.value" :value="cat.value">{{ cat.label }}</option>
+            </select>
+          </div>
+          <div v-if="!editingMetadata">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">模板变量</label>
+            <div class="space-y-2">
+              <div v-if="customVariables.length > 0" class="flex flex-wrap gap-2 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
+                <div v-for="v in customVariables" :key="v.key" class="flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg text-sm group">
+                  <span class="font-medium">{{ v.label }}</span>
+                  <code class="text-xs opacity-70">({{ v.key }})</code>
+                  <button @click="removeVariable(v.key)" class="ml-1 opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity">
+                    <X class="w-3 h-3" />
                   </button>
                 </div>
               </div>
+              <div v-else class="text-sm text-gray-400 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
+                暂无变量，点击下方按钮添加
+              </div>
+              <button @click="showAddVariableModal = true" type="button" class="flex items-center gap-1 px-3 py-1.5 text-sm text-primary hover:bg-primary/10 rounded-lg transition-colors">
+                <Plus class="w-4 h-4" />
+                <span>添加变量</span>
+              </button>
             </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">描述</label>
-              <input v-model="editForm.description" type="text" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm" placeholder="模板用途说明">
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">邮件主题</label>
-              <input v-model="editForm.subject" type="text" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm" placeholder="支持变量如 {{code}}">
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">邮件内容</label>
-              <LazyEditorRichEditor
-                ref="editorRef"
-                v-model="editForm.body_html"
-                :show-variable-bar="true"
-                :variables="availableVariables.map(v => ({ key: v.key, label: v.label || v.key }))"
-                :min-height="256"
-                placeholder="编辑邮件模板内容..."
-                @update:model-value="extractVariablesFromContent"
-              />
-              <details class="mt-2">
-                <summary class="text-xs text-gray-500 cursor-pointer hover:text-primary">查看 HTML 源码</summary>
-                <textarea v-model="editForm.body_html" @input="editorRef?.setContent(editForm.body_html)" rows="5" class="w-full mt-2 px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-mono text-gray-600 dark:text-gray-400"></textarea>
-              </details>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">纯文本内容（可选）</label>
-              <textarea v-model="editForm.body_text" rows="3" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm" placeholder="纯文本版本"></textarea>
-            </div>
-            <div class="flex items-center gap-2">
-              <input v-model="editForm.is_active" type="checkbox" id="is_active" class="w-4 h-4 text-primary rounded">
-              <label for="is_active" class="text-sm text-gray-700 dark:text-gray-300">启用此模板</label>
-            </div>
-          </div>
-          <div class="flex items-center justify-end gap-3 p-4 border-t border-gray-200 dark:border-gray-700">
-            <button @click="showEditModal = false" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">取消</button>
-            <button @click="saveTemplate" :disabled="saving" class="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg transition-colors disabled:opacity-50">
-              <Save class="w-4 h-4" /><span>{{ saving ? '保存中...' : '保存' }}</span>
-            </button>
           </div>
         </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">描述</label>
+          <input v-model="editForm.description" type="text" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm" placeholder="模板用途说明">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">邮件主题</label>
+          <input v-model="editForm.subject" type="text" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm" placeholder="支持变量如 {{code}}">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">邮件内容</label>
+          <LazyEditorRichEditor
+            ref="editorRef"
+            v-model="editForm.body_html"
+            :show-variable-bar="true"
+            :variables="availableVariables.map(v => ({ key: v.key, label: v.label || v.key }))"
+            :min-height="256"
+            placeholder="编辑邮件模板内容..."
+            @update:model-value="extractVariablesFromContent"
+          />
+          <details class="mt-2">
+            <summary class="text-xs text-gray-500 cursor-pointer hover:text-primary">查看 HTML 源码</summary>
+            <textarea v-model="editForm.body_html" @input="editorRef?.setContent(editForm.body_html)" rows="5" class="w-full mt-2 px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-mono text-gray-600 dark:text-gray-400"></textarea>
+          </details>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">纯文本内容（可选）</label>
+          <textarea v-model="editForm.body_text" rows="3" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm" placeholder="纯文本版本"></textarea>
+        </div>
+        <div class="flex items-center gap-2">
+          <input v-model="editForm.is_active" type="checkbox" id="is_active" class="w-4 h-4 text-primary rounded">
+          <label for="is_active" class="text-sm text-gray-700 dark:text-gray-300">启用此模板</label>
+        </div>
       </div>
-    </Teleport>
+      <template #footer>
+        <button @click="showEditModal = false" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">取消</button>
+        <button @click="saveTemplate" :disabled="saving" class="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg transition-colors disabled:opacity-50">
+          <Save class="w-4 h-4" /><span>{{ saving ? '保存中...' : '保存' }}</span>
+        </button>
+      </template>
+    </CommonModal>
 
     <!-- 预览弹窗 - 左右分栏设计 -->
-    <Teleport to="body">
-      <div v-if="showPreviewModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div class="modal-solid-bg bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
-          <!-- 标题栏 -->
-          <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-              预览模板: {{ editingTemplate?.name }}
-            </h3>
-            <button @click="showPreviewModal = false" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-              <X class="w-5 h-5" />
-            </button>
-          </div>
-          
-          <!-- 主体内容 - 左右分栏 -->
-          <div class="flex-1 flex overflow-hidden">
-            <!-- 左侧：变量设置 + 测试邮件 -->
-            <div class="w-80 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
-              <div class="flex-1 overflow-y-auto p-4 space-y-4">
-                <!-- 变量设置区 -->
-                <div class="space-y-3">
-                  <div class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                    <Variable class="w-4 h-4" />
-                    <span>变量设置</span>
-                    <span v-if="previewing" class="ml-auto text-xs text-primary animate-pulse">刷新中...</span>
-                  </div>
-                  
-                  <div v-if="editingMetadata?.variables?.length" class="space-y-3">
-                    <div v-for="v in editingMetadata.variables" :key="v.key" class="space-y-1">
-                      <label class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-                        <span>{{ v.label }}</span>
-                        <span v-if="v.required" class="text-red-500">*</span>
-                      </label>
-                      <input
-                        v-model="previewVariables[v.key]"
-                        type="text"
-                        class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
-                        :placeholder="v.example"
-                      >
-                    </div>
-                  </div>
-                  <div v-else class="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
-                    此模板没有变量
-                  </div>
-                </div>
-                
-                <!-- 分隔线 -->
-                <div class="border-t border-gray-200 dark:border-gray-700"></div>
-                
-                <!-- 发送测试邮件区 -->
-                <div class="space-y-3">
-                  <div class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                    <Send class="w-4 h-4" />
-                    <span>发送测试邮件</span>
-                  </div>
-                  
-                  <div class="space-y-2">
-                    <input
-                      v-model="testEmailTo"
-                      type="email"
-                      class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
-                      placeholder="收件人邮箱"
-                    >
-                    <button
-                      @click="doSendTest"
-                      :disabled="sendingTest || !testEmailTo"
-                      class="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Send class="w-4 h-4" />
-                      <span>{{ sendingTest ? '发送中...' : '发送测试' }}</span>
-                    </button>
-                  </div>
-                  
-                  <!-- 测试结果 -->
-                  <div
-                    v-if="testResult"
-                    :class="[
-                      'p-3 rounded-lg text-sm',
-                      testResult.success
-                        ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800'
-                        : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800'
-                    ]"
+    <CommonModal v-model="showPreviewModal" :title="`预览模板: ${editingTemplate?.name || ''}`" width-class="w-full max-w-6xl">
+      <!-- 主体内容 - 左右分栏 -->
+      <div class="flex -mx-6 -my-6 min-h-[60vh]">
+        <!-- 左侧：变量设置 + 测试邮件 -->
+        <div class="w-80 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
+          <div class="flex-1 overflow-y-auto p-4 space-y-4">
+            <!-- 变量设置区 -->
+            <div class="space-y-3">
+              <div class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <Variable class="w-4 h-4" />
+                <span>变量设置</span>
+                <span v-if="previewing" class="ml-auto text-xs text-primary animate-pulse">刷新中...</span>
+              </div>
+
+              <div v-if="editingMetadata?.variables?.length" class="space-y-3">
+                <div v-for="v in editingMetadata.variables" :key="v.key" class="space-y-1">
+                  <label class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                    <span>{{ v.label }}</span>
+                    <span v-if="v.required" class="text-red-500">*</span>
+                  </label>
+                  <input
+                    v-model="previewVariables[v.key]"
+                    type="text"
+                    class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+                    :placeholder="v.example"
                   >
-                    {{ testResult.message }}
-                  </div>
                 </div>
               </div>
+              <div v-else class="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                此模板没有变量
+              </div>
             </div>
-            
-            <!-- 右侧：预览效果 -->
-            <div class="flex-1 flex flex-col overflow-hidden">
-              <div class="flex-1 overflow-y-auto p-4 space-y-4">
-                <!-- 加载状态 -->
-                <div v-if="previewing && !previewData" class="flex items-center justify-center h-full">
-                  <div class="text-center">
-                    <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto"></div>
-                    <p class="mt-3 text-gray-500 dark:text-gray-400">正在加载预览...</p>
-                  </div>
-                </div>
-                
-                <!-- 错误提示 -->
-                <div v-else-if="previewError" class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                  <p class="text-red-600 dark:text-red-400 text-sm font-medium">{{ previewError }}</p>
-                  <p class="text-red-500 dark:text-red-500 text-xs mt-2">请确保模板已正确初始化，或尝试重新加载页面。</p>
-                  <button
-                    @click="doPreview(editingTemplate!.id)"
-                    class="mt-3 px-3 py-1.5 bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 text-sm rounded-lg transition-colors"
-                  >
-                    重试
-                  </button>
-                </div>
-                
-                <!-- 预览内容 -->
-                <div v-else-if="previewData" class="space-y-4">
-                  <!-- 主题预览 -->
-                  <div>
-                    <div class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      <Eye class="w-4 h-4" />
-                      <span>主题</span>
-                    </div>
-                    <div class="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg text-sm border border-gray-200 dark:border-gray-700">
-                      {{ previewData.subject }}
-                    </div>
-                  </div>
-                  
-                  <!-- HTML 预览 -->
-                  <div class="flex-1">
-                    <div class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      <Eye class="w-4 h-4" />
-                      <span>HTML 邮件预览</span>
-                    </div>
-                    <div class="bg-white border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                      <iframe
-                        :srcdoc="previewData.body_html"
-                        class="w-full h-80 border-0"
-                        sandbox="allow-same-origin"
-                      ></iframe>
-                    </div>
-                  </div>
-                  
-                  <!-- 纯文本预览（可折叠） -->
-                  <div v-if="previewData.body_text">
-                    <button
-                      @click="showTextPreview = !showTextPreview"
-                      class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors"
-                    >
-                      <Eye class="w-4 h-4" />
-                      <span>纯文本预览</span>
-                      <svg
-                        :class="['w-4 h-4 transition-transform', showTextPreview ? 'rotate-180' : '']"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                    <div
-                      v-show="showTextPreview"
-                      class="mt-2 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg text-sm whitespace-pre-wrap border border-gray-200 dark:border-gray-700 max-h-40 overflow-y-auto"
-                    >
-                      {{ previewData.body_text }}
-                    </div>
-                  </div>
-                </div>
-                
-                <!-- 空状态 -->
-                <div v-else class="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
-                  <div class="text-center">
-                    <Eye class="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>输入变量后将自动预览</p>
-                  </div>
-                </div>
+
+            <!-- 分隔线 -->
+            <div class="border-t border-gray-200 dark:border-gray-700"></div>
+
+            <!-- 发送测试邮件区 -->
+            <div class="space-y-3">
+              <div class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <Send class="w-4 h-4" />
+                <span>发送测试邮件</span>
+              </div>
+
+              <div class="space-y-2">
+                <input
+                  v-model="testEmailTo"
+                  type="email"
+                  class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+                  placeholder="收件人邮箱"
+                >
+                <button
+                  @click="doSendTest"
+                  :disabled="sendingTest || !testEmailTo"
+                  class="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Send class="w-4 h-4" />
+                  <span>{{ sendingTest ? '发送中...' : '发送测试' }}</span>
+                </button>
+              </div>
+
+              <!-- 测试结果 -->
+              <div
+                v-if="testResult"
+                :class="[
+                  'p-3 rounded-lg text-sm',
+                  testResult.success
+                    ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800'
+                    : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800'
+                ]"
+              >
+                {{ testResult.message }}
               </div>
             </div>
           </div>
-          
-          <!-- 底部操作栏 -->
-          <div class="flex items-center justify-end gap-3 p-4 border-t border-gray-200 dark:border-gray-700">
-            <button
-              @click="showPreviewModal = false"
-              class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              关闭
-            </button>
+        </div>
+
+        <!-- 右侧：预览效果 -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+          <div class="flex-1 overflow-y-auto p-4 space-y-4">
+            <!-- 加载状态 -->
+            <div v-if="previewing && !previewData" class="flex items-center justify-center h-full">
+              <div class="text-center">
+                <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto"></div>
+                <p class="mt-3 text-gray-500 dark:text-gray-400">正在加载预览...</p>
+              </div>
+            </div>
+
+            <!-- 错误提示 -->
+            <div v-else-if="previewError" class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+              <p class="text-red-600 dark:text-red-400 text-sm font-medium">{{ previewError }}</p>
+              <p class="text-red-500 dark:text-red-500 text-xs mt-2">请确保模板已正确初始化，或尝试重新加载页面。</p>
+              <button
+                @click="doPreview(editingTemplate!.id)"
+                class="mt-3 px-3 py-1.5 bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 text-sm rounded-lg transition-colors"
+              >
+                重试
+              </button>
+            </div>
+
+            <!-- 预览内容 -->
+            <div v-else-if="previewData" class="space-y-4">
+              <div>
+                <div class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <Eye class="w-4 h-4" />
+                  <span>主题</span>
+                </div>
+                <div class="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg text-sm border border-gray-200 dark:border-gray-700">
+                  {{ previewData.subject }}
+                </div>
+              </div>
+
+              <div class="flex-1">
+                <div class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <Eye class="w-4 h-4" />
+                  <span>HTML 邮件预览</span>
+                </div>
+                <div class="bg-white border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                  <iframe
+                    :srcdoc="previewData.body_html"
+                    class="w-full h-80 border-0"
+                    sandbox="allow-same-origin"
+                  ></iframe>
+                </div>
+              </div>
+
+              <div v-if="previewData.body_text">
+                <button
+                  @click="showTextPreview = !showTextPreview"
+                  class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors"
+                >
+                  <Eye class="w-4 h-4" />
+                  <span>纯文本预览</span>
+                  <svg :class="['w-4 h-4 transition-transform', showTextPreview ? 'rotate-180' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                <div v-show="showTextPreview" class="mt-2 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg text-sm whitespace-pre-wrap border border-gray-200 dark:border-gray-700 max-h-40 overflow-y-auto">
+                  {{ previewData.body_text }}
+                </div>
+              </div>
+            </div>
+
+            <!-- 空状态 -->
+            <div v-else class="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
+              <div class="text-center">
+                <Eye class="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>输入变量后将自动预览</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </Teleport>
+      <template #footer>
+        <button @click="showPreviewModal = false" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+          关闭
+        </button>
+      </template>
+    </CommonModal>
 
     <!-- 删除确认弹窗 -->
-    <Teleport to="body">
-      <div v-if="showDeleteConfirm" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div class="modal-solid-bg bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md p-6">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">确认删除</h3>
-          <p class="text-gray-600 dark:text-gray-400 mb-4">确定要删除模板 <strong>{{ deletingTemplate?.name }}</strong> 吗？此操作不可撤销。</p>
-          <div class="flex items-center justify-end gap-3">
-            <button @click="showDeleteConfirm = false" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">取消</button>
-            <button @click="doDelete" :disabled="deleting" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors disabled:opacity-50">{{ deleting ? '删除中...' : '删除' }}</button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
+    <CommonModal v-model="showDeleteConfirm" title="确认删除" width-class="w-full max-w-md">
+      <p class="text-gray-600 dark:text-gray-400">确定要删除模板 <strong>{{ deletingTemplate?.name }}</strong> 吗？此操作不可撤销。</p>
+      <template #footer>
+        <button @click="showDeleteConfirm = false" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">取消</button>
+        <button @click="doDelete" :disabled="deleting" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors disabled:opacity-50">{{ deleting ? '删除中...' : '删除' }}</button>
+      </template>
+    </CommonModal>
 
     <!-- 全局变量弹窗 -->
-    <Teleport to="body">
-      <div v-if="showGlobalVarsModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div class="modal-solid-bg bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
-          <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">全局变量设置</h3>
-            <button @click="showGlobalVarsModal = false" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"><X class="w-5 h-5" /></button>
-          </div>
-          <div class="flex-1 overflow-y-auto p-4 space-y-4">
-            <!-- 使用说明 -->
-            <div class="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm text-blue-700 dark:text-blue-300 space-y-2">
-              <p class="font-medium">💡 全局变量使用说明</p>
-              <ul class="list-disc list-inside space-y-1 text-xs">
-                <li>全局变量可在所有邮件模板中使用</li>
-                <li>在模板中使用 <code class="bg-blue-100 dark:bg-blue-800 px-1 rounded">&lbrace;&lbrace;变量名&rbrace;&rbrace;</code> 语法引用</li>
-                <li><span class="text-amber-600 dark:text-amber-400">动态变量</span> 由系统自动计算，无法手动修改</li>
-                <li><span class="text-green-600 dark:text-green-400">配置变量</span> 从 config.json 读取</li>
-                <li><span class="text-purple-600 dark:text-purple-400">静态变量</span> 可自由编辑</li>
-              </ul>
-            </div>
-            
-            <!-- 变量列表 -->
-            <div v-if="editingGlobalVars.length === 0" class="text-center py-4 text-gray-500">
-              暂无全局变量，请重启后端服务初始化
-            </div>
-            <div v-for="v in editingGlobalVars" :key="v.id" class="space-y-1">
-              <label class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                {{ v.label }}
-                <code class="text-xs bg-gray-100 dark:bg-gray-700 px-1 rounded" v-text="'{{' + v.key + '}}'"></code>
-                <span v-if="v.value_type === 'dynamic'" class="px-1.5 py-0.5 text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded">动态</span>
-                <span v-else-if="v.value_type === 'config'" class="px-1.5 py-0.5 text-xs bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded">配置</span>
-                <span v-else class="px-1.5 py-0.5 text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded">静态</span>
-              </label>
-              <input
-                v-model="v.value"
-                type="text"
-                :disabled="v.value_type === 'dynamic'"
-                class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                :placeholder="v.description || ''"
-              >
-              <p v-if="v.description" class="text-xs text-gray-400">{{ v.description }}</p>
-            </div>
-          </div>
-          <div class="flex items-center justify-end gap-3 p-4 border-t border-gray-200 dark:border-gray-700">
-            <button @click="showGlobalVarsModal = false" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">取消</button>
-            <button @click="saveGlobalVars" :disabled="savingGlobalVars" class="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg transition-colors disabled:opacity-50">
-              <Save class="w-4 h-4" /><span>{{ savingGlobalVars ? '保存中...' : '保存' }}</span>
-            </button>
-          </div>
+    <CommonModal v-model="showGlobalVarsModal" title="全局变量设置" width-class="w-full max-w-lg">
+      <!-- 使用说明 -->
+      <div class="space-y-4">
+        <div class="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm text-blue-700 dark:text-blue-300 space-y-2">
+          <p class="font-medium">💡 全局变量使用说明</p>
+          <ul class="list-disc list-inside space-y-1 text-xs">
+            <li>全局变量可在所有邮件模板中使用</li>
+            <li>在模板中使用 <code class="bg-blue-100 dark:bg-blue-800 px-1 rounded">&lbrace;&lbrace;变量名&rbrace;&rbrace;</code> 语法引用</li>
+            <li><span class="text-amber-600 dark:text-amber-400">动态变量</span> 由系统自动计算，无法手动修改</li>
+            <li><span class="text-green-600 dark:text-green-400">配置变量</span> 从 config.json 读取</li>
+            <li><span class="text-purple-600 dark:text-purple-400">静态变量</span> 可自由编辑</li>
+          </ul>
+        </div>
+
+        <!-- 变量列表 -->
+        <div v-if="editingGlobalVars.length === 0" class="text-center py-4 text-gray-500">
+          暂无全局变量，请重启后端服务初始化
+        </div>
+        <div v-for="v in editingGlobalVars" :key="v.id" class="space-y-1">
+          <label class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+            {{ v.label }}
+            <code class="text-xs bg-gray-100 dark:bg-gray-700 px-1 rounded" v-text="'{{' + v.key + '}}'"></code>
+            <span v-if="v.value_type === 'dynamic'" class="px-1.5 py-0.5 text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded">动态</span>
+            <span v-else-if="v.value_type === 'config'" class="px-1.5 py-0.5 text-xs bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded">配置</span>
+            <span v-else class="px-1.5 py-0.5 text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded">静态</span>
+          </label>
+          <input
+            v-model="v.value"
+            type="text"
+            :disabled="v.value_type === 'dynamic'"
+            class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            :placeholder="v.description || ''"
+          >
+          <p v-if="v.description" class="text-xs text-gray-400">{{ v.description }}</p>
         </div>
       </div>
-    </Teleport>
+      <template #footer>
+        <button @click="showGlobalVarsModal = false" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">取消</button>
+        <button @click="saveGlobalVars" :disabled="savingGlobalVars" class="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg transition-colors disabled:opacity-50">
+          <Save class="w-4 h-4" /><span>{{ savingGlobalVars ? '保存中...' : '保存' }}</span>
+        </button>
+      </template>
+    </CommonModal>
 
     <!-- 触发配置弹窗 -->
     <TemplateTriggerConfig
@@ -1017,182 +964,140 @@ const getVariableTypeIcon = (type: string) => {
     />
 
     <!-- 手动发送弹窗 -->
-    <Teleport to="body">
-      <div v-if="showSendModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div class="modal-solid-bg bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
-          <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                <Mail class="w-5 h-5 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">发送邮件</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400">使用模板: {{ sendingTemplate?.name }}</p>
-              </div>
-            </div>
-            <button @click="showSendModal = false" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"><X class="w-5 h-5" /></button>
+    <CommonModal v-model="showSendModal" :title="`发送邮件 — ${sendingTemplate?.name || ''}`" width-class="w-full max-w-lg">
+      <div class="space-y-4">
+        <!-- 收件人 -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">收件人 <span class="text-red-500">*</span></label>
+          <input v-model="sendForm.to" type="email" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm" placeholder="recipient@example.com">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">抄送（可选）</label>
+          <input v-model="sendForm.cc" type="email" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm" placeholder="cc@example.com">
+        </div>
+
+        <!-- 变量填写 -->
+        <div v-if="sendingMetadata?.variables?.length || (sendingTemplate?.variables && sendingTemplate.variables.length > 0)" class="space-y-3">
+          <div class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+            <Variable class="w-4 h-4" />
+            <span>模板变量</span>
           </div>
-          <div class="flex-1 overflow-y-auto p-4 space-y-4">
-            <!-- 收件人 -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">收件人 <span class="text-red-500">*</span></label>
-              <input v-model="sendForm.to" type="email" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm" placeholder="recipient@example.com">
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">抄送（可选）</label>
-              <input v-model="sendForm.cc" type="email" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm" placeholder="cc@example.com">
-            </div>
-            
-            <!-- 变量填写 -->
-            <div v-if="sendingMetadata?.variables?.length || (sendingTemplate?.variables && sendingTemplate.variables.length > 0)" class="space-y-3">
-              <div class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                <Variable class="w-4 h-4" />
-                <span>模板变量</span>
+          <div class="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl space-y-3">
+            <template v-if="sendingMetadata?.variables?.length">
+              <div v-for="v in sendingMetadata.variables" :key="v.key">
+                <label class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  {{ v.label }}
+                  <span v-if="v.required" class="text-red-500">*</span>
+                  <code class="ml-1 text-xs bg-gray-100 dark:bg-gray-700 px-1 rounded" v-text="'{{' + v.key + '}}'"></code>
+                </label>
+                <input v-model="sendForm.variables[v.key]" type="text" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm" :placeholder="v.example">
               </div>
-              <div class="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl space-y-3">
-                <template v-if="sendingMetadata?.variables?.length">
-                  <div v-for="v in sendingMetadata.variables" :key="v.key">
-                    <label class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 mb-1">
-                      {{ v.label }}
-                      <span v-if="v.required" class="text-red-500">*</span>
-                      <code class="ml-1 text-xs bg-gray-100 dark:bg-gray-700 px-1 rounded" v-text="'{{' + v.key + '}}'"></code>
-                    </label>
-                    <input v-model="sendForm.variables[v.key]" type="text" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm" :placeholder="v.example">
-                  </div>
-                </template>
-                <template v-else-if="sendingTemplate?.variables?.length">
-                  <div v-for="(v, idx) in sendingTemplate.variables" :key="idx">
-                    <label class="text-xs text-gray-500 dark:text-gray-400 mb-1 block">
-                      {{ typeof v === 'object' ? v.label : v }}
-                      <code class="ml-1 text-xs bg-gray-100 dark:bg-gray-700 px-1 rounded">{{ typeof v === 'object' ? v.key : v }}</code>
-                    </label>
-                    <input
-                      v-model="sendForm.variables[typeof v === 'object' ? v.key : v]"
-                      type="text"
-                      class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm"
-                      :placeholder="typeof v === 'object' ? v.example : `输入 ${v}`"
-                    >
-                  </div>
-                </template>
+            </template>
+            <template v-else-if="sendingTemplate?.variables?.length">
+              <div v-for="(v, idx) in sendingTemplate.variables" :key="idx">
+                <label class="text-xs text-gray-500 dark:text-gray-400 mb-1 block">
+                  {{ typeof v === 'object' ? v.label : v }}
+                  <code class="ml-1 text-xs bg-gray-100 dark:bg-gray-700 px-1 rounded">{{ typeof v === 'object' ? v.key : v }}</code>
+                </label>
+                <input
+                  v-model="sendForm.variables[typeof v === 'object' ? v.key : v]"
+                  type="text"
+                  class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm"
+                  :placeholder="typeof v === 'object' ? v.example : `输入 ${v}`"
+                >
               </div>
-            </div>
-            
-            <!-- 发送结果 -->
-            <div v-if="sendResult" :class="['p-3 rounded-lg text-sm', sendResult.success ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800']">
-              {{ sendResult.message }}
-            </div>
-          </div>
-          <div class="flex items-center justify-end gap-3 p-4 border-t border-gray-200 dark:border-gray-700">
-            <button @click="showSendModal = false" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">取消</button>
-            <button @click="doSend" :disabled="sending || !sendForm.to" class="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors disabled:opacity-50">
-              <Loader2 v-if="sending" class="w-4 h-4 animate-spin" />
-              <Send v-else class="w-4 h-4" />
-              <span>{{ sending ? '发送中...' : '发送' }}</span>
-            </button>
+            </template>
           </div>
         </div>
+
+        <!-- 发送结果 -->
+        <div v-if="sendResult" :class="['p-3 rounded-lg text-sm', sendResult.success ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800']">
+          {{ sendResult.message }}
+        </div>
       </div>
-    </Teleport>
+      <template #footer>
+        <button @click="showSendModal = false" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">取消</button>
+        <button @click="doSend" :disabled="sending || !sendForm.to" class="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors disabled:opacity-50">
+          <Loader2 v-if="sending" class="w-4 h-4 animate-spin" />
+          <Send v-else class="w-4 h-4" />
+          <span>{{ sending ? '发送中...' : '发送' }}</span>
+        </button>
+      </template>
+    </CommonModal>
 
     <!-- 添加变量弹窗 -->
-    <Teleport to="body">
-      <div v-if="showAddVariableModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-        <div class="modal-solid-bg bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md p-6">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">添加模板变量</h3>
-            <button @click="showAddVariableModal = false" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
-              <X class="w-5 h-5" />
-            </button>
-          </div>
-          
-          <div class="space-y-4">
-            <!-- 变量名（英文） -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                变量名 <span class="text-red-500">*</span>
-                <span class="text-xs text-gray-400 ml-2">用于模板中引用，如 <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">&lbrace;&lbrace;variable&rbrace;&rbrace;</code></span>
-              </label>
-              <input
-                v-model="newVariable.key"
-                type="text"
-                class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm"
-                placeholder="如 user_name, email_code"
-                pattern="[a-zA-Z_][a-zA-Z0-9_]*"
-              >
-            </div>
-            
-            <!-- 中文名称 -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                中文名称 <span class="text-red-500">*</span>
-                <span class="text-xs text-gray-400 ml-2">显示给用户看的名称</span>
-              </label>
-              <input
-                v-model="newVariable.label"
-                type="text"
-                class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm"
-                placeholder="如 用户名, 验证码"
-              >
-            </div>
-            
-            <!-- 变量类型 -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">变量类型</label>
-              <select
-                v-model="newVariable.type"
-                class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm"
-              >
-                <option value="string">📝 文本</option>
-                <option value="number">🔢 数字</option>
-                <option value="url">🔗 链接</option>
-                <option value="datetime">📅 日期时间</option>
-              </select>
-            </div>
-            
-            <!-- 示例值 -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                示例值
-                <span class="text-xs text-gray-400 ml-2">用于预览和发送测试时的默认值</span>
-              </label>
-              <input
-                v-model="newVariable.example"
-                type="text"
-                class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm"
-                placeholder="如 张三, 123456"
-              >
-            </div>
-            
-            <!-- 是否必填 -->
-            <div class="flex items-center gap-2">
-              <input
-                v-model="newVariable.required"
-                type="checkbox"
-                id="var_required"
-                class="w-4 h-4 text-primary rounded"
-              >
-              <label for="var_required" class="text-sm text-gray-700 dark:text-gray-300">必填变量</label>
-            </div>
-          </div>
-          
-          <div class="flex items-center justify-end gap-3 mt-6">
-            <button
-              @click="showAddVariableModal = false"
-              class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              取消
-            </button>
-            <button
-              @click="addVariable"
-              :disabled="!newVariable.key || !newVariable.label"
-              class="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg transition-colors disabled:opacity-50"
-            >
-              <Plus class="w-4 h-4" />
-              <span>添加</span>
-            </button>
-          </div>
+    <CommonModal v-model="showAddVariableModal" title="添加模板变量" width-class="w-full max-w-md">
+      <div class="space-y-4">
+        <!-- 变量名（英文） -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            变量名 <span class="text-red-500">*</span>
+            <span class="text-xs text-gray-400 ml-2">用于模板中引用，如 <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">&lbrace;&lbrace;variable&rbrace;&rbrace;</code></span>
+          </label>
+          <input
+            v-model="newVariable.key"
+            type="text"
+            class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm"
+            placeholder="如 user_name, email_code"
+            pattern="[a-zA-Z_][a-zA-Z0-9_]*"
+          >
+        </div>
+
+        <!-- 中文名称 -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            中文名称 <span class="text-red-500">*</span>
+            <span class="text-xs text-gray-400 ml-2">显示给用户看的名称</span>
+          </label>
+          <input
+            v-model="newVariable.label"
+            type="text"
+            class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm"
+            placeholder="如 用户名, 验证码"
+          >
+        </div>
+
+        <!-- 变量类型 -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">变量类型</label>
+          <select
+            v-model="newVariable.type"
+            class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm"
+          >
+            <option value="string">📝 文本</option>
+            <option value="number">🔢 数字</option>
+            <option value="url">🔗 链接</option>
+            <option value="datetime">📅 日期时间</option>
+          </select>
+        </div>
+
+        <!-- 示例值 -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            示例值
+            <span class="text-xs text-gray-400 ml-2">用于预览和发送测试时的默认值</span>
+          </label>
+          <input
+            v-model="newVariable.example"
+            type="text"
+            class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm"
+            placeholder="如 张三, 123456"
+          >
+        </div>
+
+        <!-- 是否必填 -->
+        <div class="flex items-center gap-2">
+          <input v-model="newVariable.required" type="checkbox" id="var_required" class="w-4 h-4 text-primary rounded">
+          <label for="var_required" class="text-sm text-gray-700 dark:text-gray-300">必填变量</label>
         </div>
       </div>
-    </Teleport>
+      <template #footer>
+        <button @click="showAddVariableModal = false" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">取消</button>
+        <button @click="addVariable" :disabled="!newVariable.key || !newVariable.label" class="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg transition-colors disabled:opacity-50">
+          <Plus class="w-4 h-4" />
+          <span>添加</span>
+        </button>
+      </template>
+    </CommonModal>
   </div>
 </template>

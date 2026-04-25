@@ -44,9 +44,12 @@ const handleClose = () => {
           <!-- 头部 -->
           <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700">
             <h3 id="modal-title" class="text-lg font-bold text-gray-900 dark:text-white">{{ title }}</h3>
-            <button @click="handleClose" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors" aria-label="关闭">
-              <X class="w-5 h-5" />
-            </button>
+            <div class="flex items-center gap-2">
+              <slot name="header-actions" />
+              <button @click="handleClose" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors" aria-label="关闭">
+                <X class="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           <!-- 内容 -->

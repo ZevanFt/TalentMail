@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { Download, Lock, FileText, Image, Film, Music, Archive, File } from 'lucide-vue-next'
+import { Download, Lock } from 'lucide-vue-next'
 
 const route = useRoute()
 const code = route.params.code as string
 const { getShareInfo, downloadSharedFileUrl } = useApi()
 
-const file = ref<any>(null)
+const file = ref<SharedFile | null>(null)
 const loading = ref(true)
 const error = ref('')
 const password = ref('')
@@ -40,22 +40,14 @@ const download = () => {
 
 // formatSize 来自 utils/format.ts (Nuxt 自动导入)
 
-const getFileIcon = (contentType: string | null) => {
-  if (!contentType) return File
-  if (contentType.startsWith('image/')) return Image
-  if (contentType.startsWith('video/')) return Film
-  if (contentType.startsWith('audio/')) return Music
-  if (contentType.includes('zip') || contentType.includes('rar')) return Archive
-  if (contentType.includes('pdf') || contentType.includes('text')) return FileText
-  return File
-}
+// getFileIcon 来自 utils/fileIcon.ts (Nuxt 自动导入)
 
 onMounted(loadShare)
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center p-4">
-    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 w-full max-w-md">
+  <div class="min-h-screen bg-gray-100 dark:bg-bg-dark flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-bg-panelDark rounded-xl shadow-lg p-6 w-full max-w-md">
       <!-- 加载中 -->
       <div v-if="loading" class="text-center py-8 text-gray-500">加载中...</div>
       

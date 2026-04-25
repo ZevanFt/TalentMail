@@ -6,7 +6,7 @@ const toast = useToast()
 const { confirm: confirmDialog } = useConfirmDialog()
 
 // 用户信息
-const user = ref<any>(null)
+const user = ref<AppUser | null>(null)
 const loadingUser = ref(true)
 
 const loadUser = async () => {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Upload, Trash2, Share2, Link, Copy, Check, Download, X, Lock, Unlock, FileText, Image, Film, Music, Archive, File } from 'lucide-vue-next'
+import { Upload, Trash2, Share2, Link, Copy, Check, Download, X, Lock, Unlock } from 'lucide-vue-next'
 const toast = useToast()
 const { confirm: confirmDialog } = useConfirmDialog()
 const { getDriveFiles, uploadDriveFile, deleteDriveFile, createDriveShare, removeDriveShare, downloadDriveFileUrl, token } = useApi()
@@ -129,15 +129,7 @@ const formatDateShort = (date: string) => {
   return new Date(date).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
-const getFileIcon = (contentType: string | null) => {
-  if (!contentType) return File
-  if (contentType.startsWith('image/')) return Image
-  if (contentType.startsWith('video/')) return Film
-  if (contentType.startsWith('audio/')) return Music
-  if (contentType.includes('zip') || contentType.includes('rar') || contentType.includes('tar')) return Archive
-  if (contentType.includes('pdf') || contentType.includes('document') || contentType.includes('text')) return FileText
-  return File
-}
+// getFileIcon 来自 utils/fileIcon.ts (Nuxt 自动导入)
 
 onMounted(loadFiles)
 </script>
@@ -190,13 +182,13 @@ onMounted(loadFiles)
             
             <!-- 操作按钮 -->
             <div class="flex items-center gap-1">
-              <button @click="downloadFile(file.id)" class="p-2 text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors" title="下载">
+              <button @click="downloadFile(file.id)" class="p-2 text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors" title="下载" aria-label="下载">
                 <Download class="w-4 h-4" />
               </button>
-              <button @click="openShareModal(file)" class="p-2 text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors" title="分享">
+              <button @click="openShareModal(file)" class="p-2 text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors" title="分享" aria-label="分享">
                 <Share2 class="w-4 h-4" />
               </button>
-              <button @click="handleDelete(file.id)" class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="删除">
+              <button @click="handleDelete(file.id)" class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="删除" aria-label="删除">
                 <Trash2 class="w-4 h-4" />
               </button>
             </div>

@@ -462,8 +462,8 @@ watch(isGenerateOpen, (val) => {
                                 </div>
                             </div>
                             <div class="flex gap-2">
-                                <button @click="handlePoolStar" class="icon-btn"><Star class="w-5 h-5" /></button>
-                                <button @click="handlePoolEmailDelete" class="icon-btn"><Trash2 class="w-5 h-5" /></button>
+                                <button @click="handlePoolStar" class="icon-btn" aria-label="收藏"><Star class="w-5 h-5" /></button>
+                                <button @click="handlePoolEmailDelete" class="icon-btn" aria-label="删除"><Trash2 class="w-5 h-5" /></button>
                             </div>
                         </div>
                         <div class="font-bold text-gray-900 dark:text-white mb-4">{{ selectedEmail.subject }}</div>

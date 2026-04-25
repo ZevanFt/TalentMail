@@ -6,10 +6,10 @@ const config = useConfig()
 const toast = useToast()
 
 const loading = ref(true)
-const user = ref<any>(null)
+const user = ref<AppUser | null>(null)
 const aliases = ref<Array<{ id: number; alias_email: string; name: string | null; is_active: boolean }>>([])
 const loadingAliases = ref(false)
-const subscription = ref<any>(null)
+const subscription = ref<Subscription | null>(null)
 
 // 外部账号
 const externalAccounts = ref<any[]>([])
@@ -25,7 +25,7 @@ const addError = ref('')
 
 // 添加外部账号弹窗
 const showAddAccountModal = ref(false)
-const newAccount = ref<any>({ email: '', password: '', provider: 'gmail', imap_host: '', imap_port: 993, smtp_host: '', smtp_port: 587 })
+const newAccount = ref<ExternalAccountForm>({ email: '', password: '', provider: 'gmail', imap_host: '', imap_port: 993, smtp_host: '', smtp_port: 587 })
 const addingAccount = ref(false)
 const accountError = ref('')
 const testingAccount = ref<number | null>(null)

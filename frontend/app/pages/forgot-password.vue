@@ -307,33 +307,10 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.input-field {
-    @apply w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-gray-900 dark:text-white placeholder-gray-400;
-}
+@import '~/assets/css/auth-forms.css';
+
 .domain-suffix {
     font-size: clamp(0.65rem, 2.5cqw, 0.875rem);
     container-type: inline-size;
-}
-
-/* 覆盖浏览器自动填充样式 - 浅色模式 */
-input:-webkit-autofill,
-input:-webkit-autofill:hover,
-input:-webkit-autofill:focus,
-input:-webkit-autofill:active {
-    -webkit-box-shadow: 0 0 0 1000px rgb(249, 250, 251) inset !important;
-    -webkit-text-fill-color: rgb(17, 24, 39) !important;
-    caret-color: rgb(17, 24, 39) !important;
-    transition: background-color 5000s ease-in-out 0s !important;
-}
-
-/* 覆盖浏览器自动填充样式 - 暗色模式 */
-:global(html.dark) input:-webkit-autofill,
-:global(html.dark) input:-webkit-autofill:hover,
-:global(html.dark) input:-webkit-autofill:focus,
-:global(html.dark) input:-webkit-autofill:active {
-    -webkit-box-shadow: 0 0 0 1000px rgb(17, 24, 39) inset !important;
-    -webkit-text-fill-color: rgb(255, 255, 255) !important;
-    caret-color: rgb(255, 255, 255) !important;
-    transition: background-color 5000s ease-in-out 0s !important;
 }
 </style>

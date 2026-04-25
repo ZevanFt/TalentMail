@@ -4,7 +4,7 @@ import { Camera } from 'lucide-vue-next'
 const { getMe, updateMe } = useApi()
 const toast = useToast()
 
-const user = ref<any>(null)
+const user = ref<AppUser | null>(null)
 const loading = ref(true)
 const saving = ref(false)
 const message = ref('')
