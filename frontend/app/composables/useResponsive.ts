@@ -15,16 +15,21 @@ export const useResponsive = () => {
   // 防止重复注册 listener
   const initialized = useState('responsiveInit', () => false)
 
+  // 存储 mediaQuery 引用和 handler 用于清理
+  let mqMobile: MediaQueryList | null = null
+  let mqDesktop: MediaQueryList | null = null
+  let updateHandler: (() => void) | null = null
+
   const initResponsive = () => {
     if (!import.meta.client || initialized.value) return
     initialized.value = true
 
-    const mqMobile = window.matchMedia('(max-width: 767px)')
-    const mqDesktop = window.matchMedia('(min-width: 1024px)')
+    mqMobile = window.matchMedia('(max-width: 767px)')
+    mqDesktop = window.matchMedia('(min-width: 1024px)')
 
-    const update = () => {
-      isMobile.value = mqMobile.matches
-      isDesktop.value = mqDesktop.matches
+    updateHandler = () => {
+      isMobile.value = mqMobile!.matches
+      isDesktop.value = mqDesktop!.matches
 
       // 切换到桌面端时，自动关闭抽屉、重置列表/详情切换
       if (isDesktop.value) {
@@ -34,11 +39,22 @@ export const useResponsive = () => {
     }
 
     // 初始值
-    update()
+    updateHandler()
 
     // 监听变化
-    mqMobile.addEventListener('change', update)
-    mqDesktop.addEventListener('change', update)
+    mqMobile.addEventListener('change', updateHandler)
+    mqDesktop.addEventListener('change', updateHandler)
+  }
+
+  // 清理监听器
+  if (import.meta.client) {
+    onScopeDispose(() => {
+      if (mqMobile && updateHandler) mqMobile.removeEventListener('change', updateHandler)
+      if (mqDesktop && updateHandler) mqDesktop.removeEventListener('change', updateHandler)
+      mqMobile = null
+      mqDesktop = null
+      updateHandler = null
+    })
   }
 
   // 侧边栏控制

@@ -143,7 +143,7 @@ onMounted(loadAttachments)
                   <div class="text-sm text-gray-500">{{ formatSize(a.size) }}</div>
                 </div>
               </div>
-              <div class="mt-auto flex items-center justify-end gap-2 pt-3 border-t dark:border-gray-700">
+              <div class="mt-auto flex items-center justify-end gap-2 pt-3 border-t dark:border-border-dark">
                 <button @click="copyLink(a.id)" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400" :title="copiedId === a.id ? '已复制' : '复制链接'">
                   <Check v-if="copiedId === a.id" class="w-4 h-4 text-green-500" />
                   <Link v-else class="w-4 h-4" />

@@ -105,31 +105,31 @@ const handleLogout = () => {
 
 // 动态 tab 组件映射 — 统一替代 17 个 v-if/v-else-if
 const settingsTabMap: Record<string, string> = {
-  'profile': 'SettingsProfile',
-  'accounts': 'SettingsAccounts',
-  'theme': 'SettingsTheme',
-  'mail': 'SettingsMail',
-  'my-workflows': 'SettingsMyWorkflows',
-  'notifications': 'SettingsNotifications',
-  'privacy': 'SettingsPrivacy',
-  'security': 'SettingsSecurity',
-  'storage': 'SettingsStorage',
-  'billing': 'SettingsBilling',
-  'invites': 'SettingsInviteCodes',
-  'prefixes': 'SettingsReservedPrefixes',
-  'email-templates': 'SettingsEmailTemplates',
-  'system-workflows': 'SettingsSystemWorkflows',
-  'temp-mail-policy': 'SettingsTempMailboxPolicy',
-  'changelog': 'SettingsChangelog',
-  'about': 'SettingsAbout',
-  'user-mgmt': 'SettingsUserManagement',
+  'profile': 'LazySettingsProfile',
+  'accounts': 'LazySettingsAccounts',
+  'theme': 'LazySettingsTheme',
+  'mail': 'LazySettingsMail',
+  'my-workflows': 'LazySettingsMyWorkflows',
+  'notifications': 'LazySettingsNotifications',
+  'privacy': 'LazySettingsPrivacy',
+  'security': 'LazySettingsSecurity',
+  'storage': 'LazySettingsStorage',
+  'billing': 'LazySettingsBilling',
+  'invites': 'LazySettingsInviteCodes',
+  'prefixes': 'LazySettingsReservedPrefixes',
+  'email-templates': 'LazySettingsEmailTemplates',
+  'system-workflows': 'LazySettingsSystemWorkflows',
+  'temp-mail-policy': 'LazySettingsTempMailboxPolicy',
+  'changelog': 'LazySettingsChangelog',
+  'about': 'LazySettingsAbout',
+  'user-mgmt': 'LazySettingsUserManagement',
 }
 
 // user-mgmt 使用全高度布局（overflow-hidden），其他 tab 使用滚动布局
 const isFullHeightTab = computed(() => activeTab.value === 'user-mgmt')
 
 // 当前活跃组件名
-const activeComponentName = computed(() => settingsTabMap[activeTab.value] || 'SettingsProfile')
+const activeComponentName = computed(() => settingsTabMap[activeTab.value] || 'LazySettingsProfile')
 </script>
 
 <template>

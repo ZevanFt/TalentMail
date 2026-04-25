@@ -426,97 +426,81 @@ const isActive = (path: string) => route.path === path
   </aside>
 
   <!-- 标签编辑弹窗 -->
-  <Teleport to="body">
-    <div v-if="showTagModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showTagModal = false">
-      <div class="modal-solid-bg bg-white dark:bg-gray-800 rounded-lg p-4 w-80 shadow-xl">
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="font-bold">{{ editingTag ? '编辑标签' : '新建标签' }}</h3>
-          <button @click="showTagModal = false"><X class="w-4 h-4" /></button>
-        </div>
-        <input v-model="tagForm.name" placeholder="标签名称" class="w-full px-3 py-2 border rounded-lg mb-3 dark:bg-gray-700 dark:border-gray-600" />
-        <div class="flex gap-2 mb-4">
-          <button v-for="c in tagColors" :key="c" @click="tagForm.color = c" class="w-6 h-6 rounded-full" :style="{ backgroundColor: c }" :class="tagForm.color === c ? 'ring-2 ring-offset-2 ring-primary' : ''"></button>
-        </div>
-        <div class="flex gap-2">
-          <button v-if="editingTag" @click="removeTag(editingTag.id)" class="px-3 py-1.5 text-red-500 hover:bg-red-50 rounded-lg text-sm">删除</button>
-          <div class="flex-1"></div>
-          <button @click="showTagModal = false" class="px-3 py-1.5 text-gray-500 hover:bg-gray-100 rounded-lg text-sm">取消</button>
-          <button @click="saveTag" class="px-3 py-1.5 bg-primary text-white rounded-lg text-sm">保存</button>
-        </div>
-      </div>
+  <CommonModal v-model="showTagModal" :title="editingTag ? '编辑标签' : '新建标签'" width-class="max-w-sm">
+    <input v-model="tagForm.name" placeholder="标签名称" class="w-full px-3 py-2 border rounded-lg mb-3 dark:bg-gray-700 dark:border-gray-600" />
+    <div class="flex gap-2 mb-2">
+      <button v-for="c in tagColors" :key="c" @click="tagForm.color = c" class="w-6 h-6 rounded-full" :style="{ backgroundColor: c }" :class="tagForm.color === c ? 'ring-2 ring-offset-2 ring-primary' : ''"></button>
     </div>
-  </Teleport>
+    <template #footer>
+      <button v-if="editingTag" @click="removeTag(editingTag.id)" class="px-3 py-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-sm">删除</button>
+      <div class="flex-1"></div>
+      <button @click="showTagModal = false" class="px-3 py-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-sm">取消</button>
+      <button @click="saveTag" class="px-3 py-1.5 bg-primary text-white rounded-lg text-sm">保存</button>
+    </template>
+  </CommonModal>
 
   <!-- 添加外部账号弹窗 -->
-  <Teleport to="body">
-    <div v-if="showAddAccountModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showAddAccountModal = false">
-      <div class="modal-solid-bg bg-white dark:bg-gray-800 rounded-lg p-5 w-96 shadow-xl">
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="font-bold text-gray-900 dark:text-white">添加外部邮箱</h3>
-          <button @click="showAddAccountModal = false"><X class="w-4 h-4" /></button>
-        </div>
-        <div class="space-y-3 max-h-80 overflow-y-auto">
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">邮箱服务商</label>
-            <select v-model="newAccount.provider" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm">
-              <optgroup label="国际邮箱">
-                <option value="gmail">Gmail</option>
-                <option value="outlook">Outlook / Hotmail</option>
-                <option value="icloud">iCloud</option>
-                <option value="yahoo">Yahoo Mail</option>
-                <option value="zoho">Zoho Mail</option>
-              </optgroup>
-              <optgroup label="国内邮箱">
-                <option value="qq">QQ 邮箱</option>
-                <option value="163">网易 163 邮箱</option>
-                <option value="126">网易 126 邮箱</option>
-                <option value="yeah">Yeah.net 邮箱</option>
-                <option value="sina">新浪邮箱</option>
-                <option value="aliyun">阿里云邮箱</option>
-              </optgroup>
-              <optgroup label="其他">
-                <option value="custom">自定义 IMAP/SMTP</option>
-              </optgroup>
-            </select>
-          </div>
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">邮箱地址</label>
-            <input v-model="newAccount.email" type="email" placeholder="your@email.com" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm" />
-          </div>
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">密码/应用专用密码</label>
-            <input v-model="newAccount.password" type="password" placeholder="请输入密码" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm" />
-            <p class="text-[10px] text-gray-400 mt-1">Gmail/Outlook/iCloud 需使用应用专用密码</p>
-          </div>
-          <!-- 自定义服务器配置 -->
-          <template v-if="isCustomProvider">
-            <div class="border-t pt-3 mt-2">
-              <p class="text-xs text-gray-500 mb-2 font-medium">IMAP 收件服务器</p>
-              <div class="flex gap-2">
-                <input v-model="newAccount.imap_host" type="text" placeholder="imap.example.com" class="flex-1 px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm" />
-                <input v-model.number="newAccount.imap_port" type="number" placeholder="993" class="w-20 px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm" />
-              </div>
-            </div>
-            <div>
-              <p class="text-xs text-gray-500 mb-2 font-medium">SMTP 发件服务器</p>
-              <div class="flex gap-2">
-                <input v-model="newAccount.smtp_host" type="text" placeholder="smtp.example.com" class="flex-1 px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm" />
-                <input v-model.number="newAccount.smtp_port" type="number" placeholder="587" class="w-20 px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm" />
-              </div>
-            </div>
-          </template>
-          <div v-if="accountError" class="text-red-500 text-xs">{{ accountError }}</div>
-        </div>
-        <div class="flex gap-2 mt-4">
-          <div class="flex-1"></div>
-          <button @click="showAddAccountModal = false" class="px-3 py-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-sm">取消</button>
-          <button @click="handleAddAccount" :disabled="addingAccount || !newAccount.email || !newAccount.password || (isCustomProvider && (!newAccount.imap_host || !newAccount.smtp_host))" class="px-3 py-1.5 bg-primary text-white rounded-lg text-sm disabled:opacity-50">
-            {{ addingAccount ? '添加中...' : '添加' }}
-          </button>
-        </div>
+  <CommonModal v-model="showAddAccountModal" title="添加外部邮箱">
+    <div class="space-y-3 max-h-80 overflow-y-auto">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">邮箱服务商</label>
+        <select v-model="newAccount.provider" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm">
+          <optgroup label="国际邮箱">
+            <option value="gmail">Gmail</option>
+            <option value="outlook">Outlook / Hotmail</option>
+            <option value="icloud">iCloud</option>
+            <option value="yahoo">Yahoo Mail</option>
+            <option value="zoho">Zoho Mail</option>
+          </optgroup>
+          <optgroup label="国内邮箱">
+            <option value="qq">QQ 邮箱</option>
+            <option value="163">网易 163 邮箱</option>
+            <option value="126">网易 126 邮箱</option>
+            <option value="yeah">Yeah.net 邮箱</option>
+            <option value="sina">新浪邮箱</option>
+            <option value="aliyun">阿里云邮箱</option>
+          </optgroup>
+          <optgroup label="其他">
+            <option value="custom">自定义 IMAP/SMTP</option>
+          </optgroup>
+        </select>
       </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">邮箱地址</label>
+        <input v-model="newAccount.email" type="email" placeholder="your@email.com" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm" />
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">密码/应用专用密码</label>
+        <input v-model="newAccount.password" type="password" placeholder="请输入密码" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm" />
+        <p class="text-[10px] text-gray-400 mt-1">Gmail/Outlook/iCloud 需使用应用专用密码</p>
+      </div>
+      <!-- 自定义服务器配置 -->
+      <template v-if="isCustomProvider">
+        <div class="border-t pt-3 mt-2">
+          <p class="text-xs text-gray-500 mb-2 font-medium">IMAP 收件服务器</p>
+          <div class="flex gap-2">
+            <input v-model="newAccount.imap_host" type="text" placeholder="imap.example.com" class="flex-1 px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm" />
+            <input v-model.number="newAccount.imap_port" type="number" placeholder="993" class="w-20 px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm" />
+          </div>
+        </div>
+        <div>
+          <p class="text-xs text-gray-500 mb-2 font-medium">SMTP 发件服务器</p>
+          <div class="flex gap-2">
+            <input v-model="newAccount.smtp_host" type="text" placeholder="smtp.example.com" class="flex-1 px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm" />
+            <input v-model.number="newAccount.smtp_port" type="number" placeholder="587" class="w-20 px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm" />
+          </div>
+        </div>
+      </template>
+      <div v-if="accountError" class="text-red-500 text-xs">{{ accountError }}</div>
     </div>
-  </Teleport>
+    <template #footer>
+      <div class="flex-1"></div>
+      <button @click="showAddAccountModal = false" class="px-3 py-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-sm">取消</button>
+      <button @click="handleAddAccount" :disabled="addingAccount || !newAccount.email || !newAccount.password || (isCustomProvider && (!newAccount.imap_host || !newAccount.smtp_host))" class="px-3 py-1.5 bg-primary text-white rounded-lg text-sm disabled:opacity-50">
+        {{ addingAccount ? '添加中...' : '添加' }}
+      </button>
+    </template>
+  </CommonModal>
 </template>
 
 <style scoped>

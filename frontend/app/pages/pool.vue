@@ -358,7 +358,7 @@ watch(isGenerateOpen, (val) => {
                 </div>
 
                 <!-- 底部统计 -->
-                <div class="p-3 border-t border-gray-200 dark:border-gray-800 flex justify-between text-[10px] text-gray-400 bg-gray-100/50 dark:bg-gray-900/50">
+                <div class="p-3 border-t border-gray-200 dark:border-border-dark flex justify-between text-[10px] text-gray-400 bg-gray-100/50 dark:bg-bg-dark/50">
                     <span>{{ stats.active_mailboxes }} 个活跃账号</span>
                     <span>{{ stats.recoverable_mailboxes }} 个可恢复</span>
                 </div>
@@ -407,6 +407,8 @@ watch(isGenerateOpen, (val) => {
                         暂无邮件
                     </div>
                     <div v-for="email in emails" :key="email.id" @click="selectEmail(email)"
+                        @keydown.enter="selectEmail(email)" @keydown.space.prevent="selectEmail(email)"
+                        role="option" tabindex="0" :aria-selected="selectedEmail?.id === email.id"
                         class="px-5 py-4 border-b border-gray-50 dark:border-gray-800 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors relative"
                         :class="{ 'bg-purple-50/40 dark:bg-gray-800/60': selectedEmail?.id === email.id }">
                         <div class="flex items-center justify-between mb-1">
@@ -503,7 +505,7 @@ watch(isGenerateOpen, (val) => {
 
 <style scoped>
 .btn-tool {
-    @apply flex items-center gap-2 px-3 py-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm transition-colors border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900;
+    @apply flex items-center gap-2 px-3 py-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm transition-colors border border-gray-200 dark:border-border-dark bg-white dark:bg-bg-dark;
 }
 
 .icon-btn {

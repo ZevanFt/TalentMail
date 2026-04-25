@@ -183,12 +183,16 @@ watch(showDropdown, (val) => {
 
 // 点击外部关闭下拉菜单
 const dropdownRef = ref<HTMLElement | null>(null)
+const handleClickOutside = (e: MouseEvent) => {
+  if (dropdownRef.value && !dropdownRef.value.contains(e.target as Node)) {
+    showDropdown.value = false
+  }
+}
 onMounted(() => {
-  document.addEventListener('click', (e) => {
-    if (dropdownRef.value && !dropdownRef.value.contains(e.target as Node)) {
-      showDropdown.value = false
-    }
-  })
+  document.addEventListener('click', handleClickOutside)
+})
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
 })
 </script>
 

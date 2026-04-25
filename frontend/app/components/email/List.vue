@@ -428,6 +428,8 @@ onUnmounted(() => {
     <!-- 邮件列表 -->
     <div v-else ref="scrollContainer" class="flex-1 overflow-y-auto px-2 py-1">
       <div v-for="email in emails" :key="email.id" @click="selectEmail(email.id)"
+        @keydown.enter="selectEmail(email.id)" @keydown.space.prevent="selectEmail(email.id)"
+        role="option" tabindex="0" :aria-selected="selectedEmailId === email.id"
         :data-email-id="email.id"
         class="email-item px-3 py-3 mb-1.5 cursor-pointer rounded-lg transition-all duration-200 relative group"
         :class="{

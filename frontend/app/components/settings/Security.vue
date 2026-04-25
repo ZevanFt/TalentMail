@@ -242,7 +242,7 @@ const handleUpdateRecoveryEmail = async () => {
             user.value.recovery_email = result.recovery_email
         }
         
-        setTimeout(() => {
+        safeTimeout(() => {
             showRecoveryEmailModal.value = false
         }, 1500)
     } catch (e: any) {
@@ -253,11 +253,20 @@ const handleUpdateRecoveryEmail = async () => {
     }
 }
 
+// 收集所有 setTimeout 以便统一清理
+const pendingTimers: ReturnType<typeof setTimeout>[] = []
+const safeTimeout = (fn: () => void, ms: number) => {
+    const id = setTimeout(fn, ms)
+    pendingTimers.push(id)
+    return id
+}
+
 // 清理定时器
 onUnmounted(() => {
     if (recoveryCountdownTimer) {
         clearInterval(recoveryCountdownTimer)
     }
+    pendingTimers.forEach(clearTimeout)
 })
 
 // 2FA 相关函数
@@ -304,8 +313,8 @@ const handleEnable2FA = async () => {
         twoFAMessage.value = '两步验证已启用'
         twoFAMessageType.value = 'success'
         twoFAStatus.value.enabled = true
-        
-        setTimeout(() => {
+
+        safeTimeout(() => {
             show2FAModal.value = false
         }, 1500)
     } catch (e: any) {
@@ -337,8 +346,8 @@ const handleDisable2FA = async () => {
         twoFAMessage.value = '两步验证已禁用'
         twoFAMessageType.value = 'success'
         twoFAStatus.value.enabled = false
-        
-        setTimeout(() => {
+
+        safeTimeout(() => {
             show2FAModal.value = false
         }, 1500)
     } catch (e: any) {
@@ -369,7 +378,7 @@ const handleChangePassword = async () => {
         await changePassword(passwordForm.current, passwordForm.new)
         message.value = '密码修改成功'
         messageType.value = 'success'
-        setTimeout(() => {
+        safeTimeout(() => {
             showPasswordModal.value = false
         }, 1500)
     } catch (e: any) {
@@ -525,245 +534,204 @@ onMounted(() => {
         </div>
 
         <!-- 修改密码弹窗 -->
-        <Teleport to="body">
-            <div v-if="showPasswordModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                <div class="modal-solid-bg bg-white dark:bg-bg-panelDark rounded-2xl shadow-2xl w-full max-w-md">
-                    <div class="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-800">
-                        <h3 class="text-lg font-bold text-gray-900 dark:text-white">修改密码</h3>
-                        <button @click="showPasswordModal = false" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
-                            <X class="w-5 h-5 text-gray-500" />
-                        </button>
-                    </div>
-                    
-                    <div class="p-6 space-y-4">
-                        <div class="space-y-2">
-                            <label class="text-sm font-medium text-gray-700 dark:text-gray-300">当前密码</label>
-                            <input v-model="passwordForm.current" type="password" class="input-field" placeholder="输入当前密码">
-                        </div>
-                        <div class="space-y-2">
-                            <label class="text-sm font-medium text-gray-700 dark:text-gray-300">新密码</label>
-                            <input v-model="passwordForm.new" type="password" class="input-field" placeholder="输入新密码（至少6位）">
-                        </div>
-                        <div class="space-y-2">
-                            <label class="text-sm font-medium text-gray-700 dark:text-gray-300">确认新密码</label>
-                            <input v-model="passwordForm.confirm" type="password" class="input-field" placeholder="再次输入新密码">
-                        </div>
-                        
-                        <div v-if="message" :class="['text-sm', messageType === 'success' ? 'text-green-600' : 'text-red-600']">
-                            {{ message }}
-                        </div>
-                    </div>
-                    
-                    <div class="flex justify-end gap-3 p-6 border-t border-gray-100 dark:border-gray-800">
-                        <button @click="showPasswordModal = false" class="btn-secondary">取消</button>
-                        <button @click="handleChangePassword" :disabled="saving" class="btn-primary">
-                            {{ saving ? '保存中...' : '确认修改' }}
-                        </button>
-                    </div>
+        <CommonModal v-model="showPasswordModal" title="修改密码" width-class="w-full max-w-md">
+            <div class="space-y-4">
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">当前密码</label>
+                    <input v-model="passwordForm.current" type="password" class="input-field" placeholder="输入当前密码">
+                </div>
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">新密码</label>
+                    <input v-model="passwordForm.new" type="password" class="input-field" placeholder="输入新密码（至少6位）">
+                </div>
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">确认新密码</label>
+                    <input v-model="passwordForm.confirm" type="password" class="input-field" placeholder="再次输入新密码">
+                </div>
+                <div v-if="message" :class="['text-sm', messageType === 'success' ? 'text-green-600' : 'text-red-600']">
+                    {{ message }}
                 </div>
             </div>
-        </Teleport>
+            <template #footer>
+                <button @click="showPasswordModal = false" class="btn-secondary">取消</button>
+                <button @click="handleChangePassword" :disabled="saving" class="btn-primary">
+                    {{ saving ? '保存中...' : '确认修改' }}
+                </button>
+            </template>
+        </CommonModal>
 
         <!-- 辅助邮箱设置弹窗 -->
-        <Teleport to="body">
-            <div v-if="showRecoveryEmailModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                <div class="modal-solid-bg bg-white dark:bg-bg-panelDark rounded-2xl shadow-2xl w-full max-w-md">
-                    <div class="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-800">
-                        <h3 class="text-lg font-bold text-gray-900 dark:text-white">
-                            {{ user?.recovery_email ? '修改辅助邮箱' : '设置辅助邮箱' }}
-                        </h3>
-                        <button @click="showRecoveryEmailModal = false" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
-                            <X class="w-5 h-5 text-gray-500" />
-                        </button>
-                    </div>
-                    
-                    <div class="p-6 space-y-4">
-                        <!-- 步骤指示器 -->
-                        <div class="flex items-center justify-center gap-2 mb-4">
-                            <div class="flex items-center gap-2">
-                                <div :class="['w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium',
-                                    recoveryEmailStep === 'input' ? 'bg-primary text-white' : 'bg-green-500 text-white']">
-                                    {{ recoveryEmailStep === 'input' ? '1' : '✓' }}
-                                </div>
-                                <span class="text-sm text-gray-600 dark:text-gray-400">输入邮箱</span>
-                            </div>
-                            <div class="w-8 h-0.5 bg-gray-200 dark:bg-gray-700"></div>
-                            <div class="flex items-center gap-2">
-                                <div :class="['w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium',
-                                    recoveryEmailStep === 'verify' ? 'bg-primary text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500']">
-                                    2
-                                </div>
-                                <span class="text-sm text-gray-600 dark:text-gray-400">验证邮箱</span>
-                            </div>
+        <CommonModal v-model="showRecoveryEmailModal" :title="user?.recovery_email ? '修改辅助邮箱' : '设置辅助邮箱'" width-class="w-full max-w-md">
+            <div class="space-y-4">
+                <!-- 步骤指示器 -->
+                <div class="flex items-center justify-center gap-2 mb-4">
+                    <div class="flex items-center gap-2">
+                        <div :class="['w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium',
+                            recoveryEmailStep === 'input' ? 'bg-primary text-white' : 'bg-green-500 text-white']">
+                            {{ recoveryEmailStep === 'input' ? '1' : '✓' }}
                         </div>
-
-                        <!-- 步骤1: 输入邮箱 -->
-                        <template v-if="recoveryEmailStep === 'input'">
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">新辅助邮箱</label>
-                                <input v-model="recoveryEmailForm.email" type="email" class="input-field"
-                                    placeholder="请输入您的辅助邮箱地址"
-                                    @keyup.enter="sendRecoveryCode">
-                                <p class="text-xs text-gray-500">请使用您能正常接收邮件的邮箱地址</p>
-                            </div>
-                        </template>
-
-                        <!-- 步骤2: 验证邮箱 -->
-                        <template v-else>
-                            <div class="space-y-4">
-                                <div class="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                                    <p class="text-sm text-blue-700 dark:text-blue-300">
-                                        验证码已发送至 <span class="font-medium">{{ recoveryEmailForm.email }}</span>
-                                    </p>
-                                </div>
-                                
-                                <div class="space-y-2">
-                                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">验证码</label>
-                                    <input v-model="recoveryEmailForm.code" type="text" class="input-field text-center text-lg tracking-widest"
-                                        placeholder="请输入6位验证码" maxlength="6"
-                                        @keyup.enter="handleUpdateRecoveryEmail">
-                                </div>
-                                
-                                <div class="flex justify-center">
-                                    <button @click="sendRecoveryCode"
-                                        :disabled="sendingRecoveryCode || recoveryCodeCountdown > 0"
-                                        class="text-sm text-primary hover:text-primary-hover disabled:text-gray-400 disabled:cursor-not-allowed">
-                                        {{ sendingRecoveryCode ? '发送中...' : recoveryCodeCountdown > 0 ? `${recoveryCodeCountdown}秒后重新发送` : '重新发送验证码' }}
-                                    </button>
-                                </div>
-                            </div>
-                        </template>
-                        
-                        <div v-if="recoveryEmailMessage" :class="['text-sm', recoveryEmailMessageType === 'success' ? 'text-green-600' : 'text-red-600']">
-                            {{ recoveryEmailMessage }}
-                        </div>
+                        <span class="text-sm text-gray-600 dark:text-gray-400">输入邮箱</span>
                     </div>
-                    
-                    <div class="flex justify-end gap-3 p-6 border-t border-gray-100 dark:border-gray-800">
-                        <button @click="showRecoveryEmailModal = false" class="btn-secondary">取消</button>
-                        <template v-if="recoveryEmailStep === 'input'">
-                            <button @click="sendRecoveryCode" :disabled="sendingRecoveryCode || !recoveryEmailForm.email" class="btn-primary">
-                                {{ sendingRecoveryCode ? '发送中...' : '发送验证码' }}
-                            </button>
-                        </template>
-                        <template v-else>
-                            <button @click="recoveryEmailStep = 'input'" class="btn-secondary">上一步</button>
-                            <button @click="handleUpdateRecoveryEmail" :disabled="recoveryEmailSaving || !recoveryEmailForm.code" class="btn-primary">
-                                {{ recoveryEmailSaving ? '保存中...' : '确认绑定' }}
-                            </button>
-                        </template>
+                    <div class="w-8 h-0.5 bg-gray-200 dark:bg-gray-700"></div>
+                    <div class="flex items-center gap-2">
+                        <div :class="['w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium',
+                            recoveryEmailStep === 'verify' ? 'bg-primary text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500']">
+                            2
+                        </div>
+                        <span class="text-sm text-gray-600 dark:text-gray-400">验证邮箱</span>
                     </div>
                 </div>
+
+                <!-- 步骤1: 输入邮箱 -->
+                <template v-if="recoveryEmailStep === 'input'">
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">新辅助邮箱</label>
+                        <input v-model="recoveryEmailForm.email" type="email" class="input-field"
+                            placeholder="请输入您的辅助邮箱地址"
+                            @keyup.enter="sendRecoveryCode">
+                        <p class="text-xs text-gray-500">请使用您能正常接收邮件的邮箱地址</p>
+                    </div>
+                </template>
+
+                <!-- 步骤2: 验证邮箱 -->
+                <template v-else>
+                    <div class="space-y-4">
+                        <div class="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                            <p class="text-sm text-blue-700 dark:text-blue-300">
+                                验证码已发送至 <span class="font-medium">{{ recoveryEmailForm.email }}</span>
+                            </p>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-sm font-medium text-gray-700 dark:text-gray-300">验证码</label>
+                            <input v-model="recoveryEmailForm.code" type="text" class="input-field text-center text-lg tracking-widest"
+                                placeholder="请输入6位验证码" maxlength="6"
+                                @keyup.enter="handleUpdateRecoveryEmail">
+                        </div>
+                        <div class="flex justify-center">
+                            <button @click="sendRecoveryCode"
+                                :disabled="sendingRecoveryCode || recoveryCodeCountdown > 0"
+                                class="text-sm text-primary hover:text-primary-hover disabled:text-gray-400 disabled:cursor-not-allowed">
+                                {{ sendingRecoveryCode ? '发送中...' : recoveryCodeCountdown > 0 ? `${recoveryCodeCountdown}秒后重新发送` : '重新发送验证码' }}
+                            </button>
+                        </div>
+                    </div>
+                </template>
+
+                <div v-if="recoveryEmailMessage" :class="['text-sm', recoveryEmailMessageType === 'success' ? 'text-green-600' : 'text-red-600']">
+                    {{ recoveryEmailMessage }}
+                </div>
             </div>
-        </Teleport>
+            <template #footer>
+                <button @click="showRecoveryEmailModal = false" class="btn-secondary">取消</button>
+                <template v-if="recoveryEmailStep === 'input'">
+                    <button @click="sendRecoveryCode" :disabled="sendingRecoveryCode || !recoveryEmailForm.email" class="btn-primary">
+                        {{ sendingRecoveryCode ? '发送中...' : '发送验证码' }}
+                    </button>
+                </template>
+                <template v-else>
+                    <button @click="recoveryEmailStep = 'input'" class="btn-secondary">上一步</button>
+                    <button @click="handleUpdateRecoveryEmail" :disabled="recoveryEmailSaving || !recoveryEmailForm.code" class="btn-primary">
+                        {{ recoveryEmailSaving ? '保存中...' : '确认绑定' }}
+                    </button>
+                </template>
+            </template>
+        </CommonModal>
 
         <!-- 2FA 设置弹窗 -->
-        <Teleport to="body">
-            <div v-if="show2FAModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                <div class="modal-solid-bg bg-white dark:bg-bg-panelDark rounded-2xl shadow-2xl w-full max-w-md">
-                    <div class="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-800">
-                        <h3 class="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                            <Shield v-if="twoFAStep !== 'disable'" class="w-5 h-5 text-green-500" />
-                            <ShieldOff v-else class="w-5 h-5 text-red-500" />
-                            {{ twoFAStep === 'disable' ? '禁用两步验证' : '设置两步验证' }}
-                        </h3>
-                        <button @click="show2FAModal = false" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
-                            <X class="w-5 h-5 text-gray-500" />
+        <CommonModal v-model="show2FAModal" :title="twoFAStep === 'disable' ? '禁用两步验证' : '设置两步验证'">
+            <template #header-actions>
+                <Shield v-if="twoFAStep !== 'disable'" class="w-5 h-5 text-green-500" />
+                <ShieldOff v-else class="w-5 h-5 text-red-500" />
+            </template>
+
+            <!-- 设置步骤：显示二维码 -->
+            <template v-if="twoFAStep === 'setup'">
+                <div v-if="twoFASaving" class="text-center py-8">
+                    <div class="text-gray-500">正在生成二维码...</div>
+                </div>
+                <template v-else-if="twoFASetupData">
+                    <div class="text-center space-y-4">
+                        <p class="text-sm text-gray-600 dark:text-gray-400">
+                            使用 Google Authenticator、Microsoft Authenticator 或其他 TOTP 应用扫描下方二维码
+                        </p>
+
+                        <!-- 二维码 -->
+                        <div class="flex justify-center">
+                            <img :src="twoFASetupData.qr_code" alt="2FA QR Code" class="w-48 h-48 rounded-lg border border-gray-200 dark:border-gray-700" />
+                        </div>
+
+                        <!-- 手动输入密钥 -->
+                        <div class="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <p class="text-xs text-gray-500 mb-1">无法扫描？手动输入密钥：</p>
+                            <code class="text-sm font-mono text-gray-900 dark:text-white select-all">{{ twoFASetupData.secret }}</code>
+                        </div>
+
+                        <button @click="twoFAStep = 'verify'" class="btn-primary w-full">
+                            下一步：验证
                         </button>
                     </div>
-                    
-                    <div class="p-6 space-y-4">
-                        <!-- 设置步骤：显示二维码 -->
-                        <template v-if="twoFAStep === 'setup'">
-                            <div v-if="twoFASaving" class="text-center py-8">
-                                <div class="text-gray-500">正在生成二维码...</div>
-                            </div>
-                            <template v-else-if="twoFASetupData">
-                                <div class="text-center space-y-4">
-                                    <p class="text-sm text-gray-600 dark:text-gray-400">
-                                        使用 Google Authenticator、Microsoft Authenticator 或其他 TOTP 应用扫描下方二维码
-                                    </p>
-                                    
-                                    <!-- 二维码 -->
-                                    <div class="flex justify-center">
-                                        <img :src="twoFASetupData.qr_code" alt="2FA QR Code" class="w-48 h-48 rounded-lg border border-gray-200 dark:border-gray-700" />
-                                    </div>
-                                    
-                                    <!-- 手动输入密钥 -->
-                                    <div class="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                                        <p class="text-xs text-gray-500 mb-1">无法扫描？手动输入密钥：</p>
-                                        <code class="text-sm font-mono text-gray-900 dark:text-white select-all">{{ twoFASetupData.secret }}</code>
-                                    </div>
-                                    
-                                    <button @click="twoFAStep = 'verify'" class="btn-primary w-full">
-                                        下一步：验证
-                                    </button>
-                                </div>
-                            </template>
-                        </template>
-                        
-                        <!-- 验证步骤：输入验证码 -->
-                        <template v-else-if="twoFAStep === 'verify'">
-                            <div class="space-y-4">
-                                <p class="text-sm text-gray-600 dark:text-gray-400">
-                                    请输入 Authenticator App 中显示的6位验证码，以完成设置
-                                </p>
-                                
-                                <div class="space-y-2">
-                                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">验证码</label>
-                                    <input v-model="twoFACode" type="text" class="input-field text-center text-2xl tracking-[0.5em] font-mono"
-                                        placeholder="000000" maxlength="6"
-                                        @keyup.enter="handleEnable2FA">
-                                </div>
-                            </div>
-                        </template>
-                        
-                        <!-- 禁用步骤 -->
-                        <template v-else-if="twoFAStep === 'disable'">
-                            <div class="space-y-4">
-                                <div class="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                                    <p class="text-sm text-red-700 dark:text-red-300">
-                                        ⚠️ 禁用两步验证会降低账号安全性。请确认您要执行此操作。
-                                    </p>
-                                </div>
-                                
-                                <div class="space-y-2">
-                                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">当前验证码</label>
-                                    <input v-model="twoFACode" type="text" class="input-field text-center text-2xl tracking-[0.5em] font-mono"
-                                        placeholder="000000" maxlength="6">
-                                </div>
-                                
-                                <div class="space-y-2">
-                                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">登录密码</label>
-                                    <input v-model="twoFAPassword" type="password" class="input-field"
-                                        placeholder="输入您的登录密码"
-                                        @keyup.enter="handleDisable2FA">
-                                </div>
-                            </div>
-                        </template>
-                        
-                        <div v-if="twoFAMessage" :class="['text-sm', twoFAMessageType === 'success' ? 'text-green-600' : 'text-red-600']">
-                            {{ twoFAMessage }}
-                        </div>
-                    </div>
-                    
-                    <div class="flex justify-end gap-3 p-6 border-t border-gray-100 dark:border-gray-800">
-                        <button @click="show2FAModal = false" class="btn-secondary">取消</button>
-                        <template v-if="twoFAStep === 'verify'">
-                            <button @click="twoFAStep = 'setup'" class="btn-secondary">上一步</button>
-                            <button @click="handleEnable2FA" :disabled="twoFASaving || !twoFACode" class="btn-primary">
-                                {{ twoFASaving ? '验证中...' : '启用两步验证' }}
-                            </button>
-                        </template>
-                        <template v-else-if="twoFAStep === 'disable'">
-                            <button @click="handleDisable2FA" :disabled="twoFASaving || !twoFACode || !twoFAPassword" class="btn-danger">
-                                {{ twoFASaving ? '处理中...' : '确认禁用' }}
-                            </button>
-                        </template>
+                </template>
+            </template>
+
+            <!-- 验证步骤：输入验证码 -->
+            <template v-else-if="twoFAStep === 'verify'">
+                <div class="space-y-4">
+                    <p class="text-sm text-gray-600 dark:text-gray-400">
+                        请输入 Authenticator App 中显示的6位验证码，以完成设置
+                    </p>
+
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">验证码</label>
+                        <input v-model="twoFACode" type="text" class="input-field text-center text-2xl tracking-[0.5em] font-mono"
+                            placeholder="000000" maxlength="6"
+                            @keyup.enter="handleEnable2FA">
                     </div>
                 </div>
+            </template>
+
+            <!-- 禁用步骤 -->
+            <template v-else-if="twoFAStep === 'disable'">
+                <div class="space-y-4">
+                    <div class="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                        <p class="text-sm text-red-700 dark:text-red-300">
+                            ⚠️ 禁用两步验证会降低账号安全性。请确认您要执行此操作。
+                        </p>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">当前验证码</label>
+                        <input v-model="twoFACode" type="text" class="input-field text-center text-2xl tracking-[0.5em] font-mono"
+                            placeholder="000000" maxlength="6">
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">登录密码</label>
+                        <input v-model="twoFAPassword" type="password" class="input-field"
+                            placeholder="输入您的登录密码"
+                            @keyup.enter="handleDisable2FA">
+                    </div>
+                </div>
+            </template>
+
+            <div v-if="twoFAMessage" :class="['text-sm mt-4', twoFAMessageType === 'success' ? 'text-green-600' : 'text-red-600']">
+                {{ twoFAMessage }}
             </div>
-        </Teleport>
+
+            <template #footer>
+                <button @click="show2FAModal = false" class="btn-secondary">取消</button>
+                <template v-if="twoFAStep === 'verify'">
+                    <button @click="twoFAStep = 'setup'" class="btn-secondary">上一步</button>
+                    <button @click="handleEnable2FA" :disabled="twoFASaving || !twoFACode" class="btn-primary">
+                        {{ twoFASaving ? '验证中...' : '启用两步验证' }}
+                    </button>
+                </template>
+                <template v-else-if="twoFAStep === 'disable'">
+                    <button @click="handleDisable2FA" :disabled="twoFASaving || !twoFACode || !twoFAPassword" class="btn-danger">
+                        {{ twoFASaving ? '处理中...' : '确认禁用' }}
+                    </button>
+                </template>
+            </template>
+        </CommonModal>
     </div>
 </template>
 

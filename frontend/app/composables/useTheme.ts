@@ -100,5 +100,18 @@ export const useTheme = () => {
     }
   }
 
-  return { isDark, themeMode, toggleTheme, initTheme, setTheme }
+  // 清理媒体查询监听器（在组件卸载时调用）
+  const cleanupTheme = () => {
+    if (mediaQuery) {
+      mediaQuery.removeEventListener('change', handleSystemThemeChange)
+      mediaQuery = null
+    }
+  }
+
+  // 自动在组件 scope 销毁时清理
+  if (import.meta.client) {
+    onScopeDispose(cleanupTheme)
+  }
+
+  return { isDark, themeMode, toggleTheme, initTheme, setTheme, cleanupTheme }
 }
