@@ -6,7 +6,7 @@
 CONFIG_FILE="config.json"
 BASE_DOMAIN=$(jq -r '.environments.development.baseDomain' "$CONFIG_FILE")
 WEB_PREFIX=$(jq -r '.environments.development.webPrefix' "$CONFIG_FILE")
-BASE_URL="https://${WEB_PREFIX}.${BASE_DOMAIN}"
+BASE_URL="${BASE_URL:-https://${WEB_PREFIX}.${BASE_DOMAIN}}"
 
 # 每次运行时使用一个唯一的邮箱，以避免“邮箱已注册”的错误
 # 我们使用 `date +%s` 来获取当前的 Unix 时间戳

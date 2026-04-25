@@ -82,12 +82,15 @@ async def lifespan(app: FastAPI):
         logger.error(f"用户同步失败，但 backend 将继续启动: {e}")
 
     # 启动 LMTP 服务器接收邮件
-    logger.info("启动 LMTP 邮件接收服务...")
-    try:
-        start_lmtp_server(host='0.0.0.0', port=24)
-        logger.info("LMTP 服务启动成功，监听端口 24")
-    except Exception as e:
-        logger.error(f"LMTP 服务启动失败: {e}")
+    if settings.ENABLE_INTERNAL_LMTP:
+        logger.info("启动 LMTP 邮件接收服务...")
+        try:
+            start_lmtp_server(host='0.0.0.0', port=24)
+            logger.info("LMTP 服务启动成功，监听端口 24")
+        except Exception as e:
+            logger.error(f"LMTP 服务启动失败: {e}")
+    else:
+        logger.info("已禁用内置 LMTP 服务，使用 mailserver 的 Dovecot/IMAP 同步链路")
 
     # 启动定时邮件同步任务（每30秒，确保临时邮箱验证码及时到达）
     logger.info("启动定时邮件同步任务（间隔30秒）...")

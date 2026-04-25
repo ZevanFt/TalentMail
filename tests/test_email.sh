@@ -3,7 +3,7 @@
 # 登录信息
 ADMIN_USER="admin@talenting.test"
 ADMIN_PASSWORD="adminpassword"
-API_BASE_URL="http://localhost/talent"
+API_BASE_URL="${API_BASE_URL:-http://127.0.0.1:18000/api}"
 
 # 1. 登录并获取 Token
 echo "Logging in as $ADMIN_USER..."

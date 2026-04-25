@@ -89,6 +89,9 @@
 127.0.0.1   mail.talenting.test
 ```
 
+如果你启用了项目内置开发 Caddy，可通过 `https://mail.talenting.test:18443` 访问；
+如果使用宿主机统一 Caddy，则让统一 Caddy 反代到 `127.0.0.1:13000` 和 `127.0.0.1:18000`。
+
 #### 第 2 步：启动开发环境
 
 ```bash
@@ -101,7 +104,11 @@ chmod +x dev.sh
 ./dev.sh
 
 # 或手动启动
+# 默认不启用项目内置 Caddy，避免占用 80/443
 docker compose -f docker-compose.dev.yml up -d --build
+
+# 如需使用项目内置开发 Caddy（18080/18443）
+docker compose -f docker-compose.dev.yml --profile embedded-caddy up -d --build
 ```
 
 #### 第 3 步：初始化数据库（仅首次）
@@ -114,10 +121,10 @@ docker compose -f docker-compose.dev.yml exec backend python -m initial.initial_
 
 | 服务 | 地址 |
 |------|------|
-| 主应用 | https://mail.talenting.test |
-| 前端 (备用) | http://localhost:3000 |
-| 后端 API | http://localhost:8000 |
-| API 文档 | http://localhost:8000/docs |
+| 主应用 | https://mail.talenting.test 或 https://mail.talenting.test:18443 |
+| 前端 (备用) | http://127.0.0.1:13000 |
+| 后端 API | http://127.0.0.1:18000 |
+| API 文档 | http://127.0.0.1:18000/docs |
 
 **默认管理员账户**: `admin@talenting.test` / `adminpassword`
 
@@ -165,6 +172,7 @@ nano .env
 | `POSTGRES_PASSWORD` | 数据库密码 | 设置强密码 |
 | `ADMIN_PASSWORD` | 管理员密码 | 设置强密码 |
 | `DEFAULT_MAIL_PASSWORD` | 邮件账户默认密码 | 设置强密码 |
+| `ENABLE_INTERNAL_LMTP` | 是否启用后端内置 LMTP | 默认 `false`，通常保持关闭 |
 
 ---
 
@@ -174,7 +182,7 @@ nano .env
 
 - **操作系统**: Ubuntu 20.04 LTS 或 22.04 LTS
 - **配置**: 至少 2核 CPU, 4GB 内存
-- **端口开放**: 80, 443, 25, 143, 587, 993
+- **端口开放**: 80, 443, 25, 143, 587, 993（其中 80/443 建议由宿主机统一 Caddy 占用并反代到 TalentMail 的回环端口）
 
 ### 2. DNS 配置 (Cloudflare)
 
@@ -200,6 +208,9 @@ nano config.json
 # 3) 执行迁移部署（保留数据）
 chmod +x deploy.sh
 bash deploy.sh --migrate
+
+# 4) 将 config/caddy/Caddyfile.prod 的站点配置加载到宿主机统一 Caddy
+#    其默认上游为 127.0.0.1:13000 和 127.0.0.1:18000
 ```
 
 ### 4. 后续更新部署
@@ -235,10 +246,22 @@ tail -n 200 .deploy_logs/migration_failure_*.log
 
 ### 7. SSL 证书同步（可选）
 
+如果你暂时仍在使用项目内置 Caddy 获取 `MAIL_SERVER` 证书，可以继续执行：
+
 ```bash
 chmod +x scripts/sync_mail_certs.sh
 ./scripts/sync_mail_certs.sh
 ```
+
+如果已经改为宿主机统一 Caddy 完全接管，可直接用宿主机证书目录执行同步，例如：
+
+```bash
+CADDY_CERT_SOURCE=host \
+HOST_CERT_DIR=/var/lib/caddy/.local/share/caddy/certificates/acme-v02.api.letsencrypt.org-directory/${MAIL_SERVER} \
+./scripts/sync_mail_certs.sh
+```
+
+如果证书实际存放路径不同，只需把 `HOST_CERT_DIR` 改成你宿主机上的真实目录。
 
 ---
 

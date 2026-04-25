@@ -28,6 +28,7 @@ def init_db() -> None:
         _create_default_plans(db)  # 创建默认套餐
         _create_default_reserved_prefixes(db)  # 创建默认保留前缀
         _create_default_email_templates(db)  # 创建默认邮件模板
+        db.flush()
         init_template_data(db)  # 初始化模板元数据和全局变量
         init_workflow_templates(db)  # 初始化工作流模板
         _ensure_default_folders_for_all_users(db) # Add this line

@@ -261,25 +261,29 @@ GLOBAL_VARIABLES = [
 def init_template_data(db: Session):
     """初始化模板元数据和全局变量"""
     logger.info("Initializing template metadata and global variables...")
-    
+
+    existing_global_keys = {row[0] for row in db.query(GlobalVariable.key).all()}
+    existing_metadata_codes = {row[0] for row in db.query(TemplateMetadata.code).all()}
+    existing_template_codes = {row[0] for row in db.query(SystemEmailTemplate.code).all()}
+
     # 1. 初始化全局变量
     for var_data in GLOBAL_VARIABLES:
-        existing = db.query(GlobalVariable).filter(GlobalVariable.key == var_data["key"]).first()
-        if not existing:
-            var = GlobalVariable(
-                key=var_data["key"],
-                label=var_data["label"],
-                value=var_data["value"],
-                value_type=var_data["value_type"],
-                description=var_data["description"]
-            )
-            db.add(var)
-            logger.info(f"Created global variable: {var_data['key']}")
-    
+        if var_data["key"] in existing_global_keys:
+            continue
+        var = GlobalVariable(
+            key=var_data["key"],
+            label=var_data["label"],
+            value=var_data["value"],
+            value_type=var_data["value_type"],
+            description=var_data["description"]
+        )
+        db.add(var)
+        existing_global_keys.add(var_data["key"])
+        logger.info(f"Created global variable: {var_data['key']}")
+
     # 2. 初始化模板元数据
     for meta_data in TEMPLATE_METADATA:
-        existing = db.query(TemplateMetadata).filter(TemplateMetadata.code == meta_data["code"]).first()
-        if not existing:
+        if meta_data["code"] not in existing_metadata_codes:
             meta = TemplateMetadata(
                 code=meta_data["code"],
                 name=meta_data["name"],
@@ -294,11 +298,11 @@ def init_template_data(db: Session):
                 sort_order=meta_data["sort_order"]
             )
             db.add(meta)
+            existing_metadata_codes.add(meta_data["code"])
             logger.info(f"Created template metadata: {meta_data['code']}")
-        
-        # 3. 确保 system_email_templates 表中有对应的记录（无论元数据是否新建）
-        template_existing = db.query(SystemEmailTemplate).filter(SystemEmailTemplate.code == meta_data["code"]).first()
-        if not template_existing:
+
+        # 3. 确保 system_email_templates 表中有对应的记录
+        if meta_data["code"] not in existing_template_codes:
             template = SystemEmailTemplate(
                 code=meta_data["code"],
                 name=meta_data["name"],
@@ -311,59 +315,57 @@ def init_template_data(db: Session):
                 is_active=True
             )
             db.add(template)
+            existing_template_codes.add(meta_data["code"])
             logger.info(f"Created system email template: {meta_data['code']}")
-    
+
+    db.flush()
+
     # 4. 数据完整性保障：检查 system_email_templates 中是否有未同步到 template_metadata 的记录
     logger.info("Checking for orphaned templates (missing metadata)...")
     all_templates = db.query(SystemEmailTemplate).all()
-    
+
     for template in all_templates:
-        metadata_exists = db.query(TemplateMetadata).filter(
-            TemplateMetadata.code == template.code
-        ).first()
-        
-        if not metadata_exists:
-            logger.warning(f"Found orphaned template without metadata: {template.code}")
-            
-            # 从模板的 variables 字段构建变量定义
-            variables_for_metadata = []
-            if template.variables:
-                for v in template.variables:
-                    if isinstance(v, str):
-                        # 旧格式：纯字符串
-                        variables_for_metadata.append({
-                            "key": v,
-                            "label": v,
-                            "type": "string",
-                            "example": "",
-                            "required": False
-                        })
-                    elif isinstance(v, dict):
-                        # 新格式：完整对象
-                        variables_for_metadata.append({
-                            "key": v.get("key", ""),
-                            "label": v.get("label", v.get("key", "")),
-                            "type": v.get("type", "string"),
-                            "example": v.get("example", ""),
-                            "required": v.get("required", False)
-                        })
-            
-            # 创建缺失的元数据记录
-            new_metadata = TemplateMetadata(
-                code=template.code,
-                name=template.name,
-                category=template.category,
-                description=template.description,
-                trigger_description=None,  # 用户创建的模板没有触发描述
-                variables=variables_for_metadata,
-                default_subject=template.subject,
-                default_body_html=template.body_html,
-                default_body_text=template.body_text,
-                is_system=False,  # 不是系统预设的模板
-                sort_order=100  # 排在系统模板后面
-            )
-            db.add(new_metadata)
-            logger.info(f"Created missing metadata for template: {template.code}")
-    
-    db.commit()
+        if template.code in existing_metadata_codes:
+            continue
+
+        logger.warning(f"Found orphaned template without metadata: {template.code}")
+
+        variables_for_metadata = []
+        if template.variables:
+            for v in template.variables:
+                if isinstance(v, str):
+                    variables_for_metadata.append({
+                        "key": v,
+                        "label": v,
+                        "type": "string",
+                        "example": "",
+                        "required": False
+                    })
+                elif isinstance(v, dict):
+                    variables_for_metadata.append({
+                        "key": v.get("key", ""),
+                        "label": v.get("label", v.get("key", "")),
+                        "type": v.get("type", "string"),
+                        "example": v.get("example", ""),
+                        "required": v.get("required", False)
+                    })
+
+        new_metadata = TemplateMetadata(
+            code=template.code,
+            name=template.name,
+            category=template.category,
+            description=template.description,
+            trigger_description=None,
+            variables=variables_for_metadata,
+            default_subject=template.subject,
+            default_body_html=template.body_html,
+            default_body_text=template.body_text,
+            is_system=False,
+            sort_order=100
+        )
+        db.add(new_metadata)
+        existing_metadata_codes.add(template.code)
+        logger.info(f"Created missing metadata for template: {template.code}")
+
+    db.flush()
     logger.info("Template data initialization completed.")

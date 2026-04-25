@@ -138,11 +138,15 @@ def reset_password_dev(
     db: Session = Depends(deps.get_db),
     user_in: UserPasswordReset,
 ):
-    """开发接口：无需认证重置密码"""
+    """开发接口：无需认证重置密码（仅开发环境可用）"""
+    from core.config import settings
+    if settings.CURRENT_ENVIRONMENT != "development":
+        raise HTTPException(status_code=404, detail="Not Found")
+
     user = crud_user.reset_user_password(
         db=db, email=user_in.email, new_password=user_in.new_password
     )
-    
+
     if not user:
         raise HTTPException(status_code=404, detail=f"用户 {user_in.email} 不存在")
         

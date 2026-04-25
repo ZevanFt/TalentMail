@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int
     JWT_ALGORITHM: str
     ENCRYPTION_KEY: Optional[str] = None  # 用于加密外部账户密码的密钥
+    ENABLE_INTERNAL_LMTP: bool = False
 
     # --- Non-sensitive settings loaded from config.json ---
     APP_NAME: str = "TalentMail"

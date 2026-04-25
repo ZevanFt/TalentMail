@@ -1,71 +1,56 @@
 # =============================================================================
-# TalentMail 生产环境 Caddy 配置
+# TalentMail 宿主机统一 Caddy 参考配置
 # =============================================================================
-# Caddy 会自动为配置的域名申请 Let's Encrypt 证书
-# 环境变量由 docker-compose.yml 从 .env 和 .env.domains 注入
-#
-# 域名架构 (由 config.json 定义):
-#   - WEB_DOMAIN: Web 应用域名 (前缀 webPrefix, 如 mail.example.com)
-#   - MAIL_SERVER: 邮件服务器域名 (前缀 mailServerPrefix, 如 maillink.example.com)
-#
-# 这两个域名是不同的！Web 应用和邮件服务器使用不同的子域名前缀。
+# 说明：
+#   - 该配置用于宿主机上的统一 Caddy，不是 compose 内嵌 Caddy 的专用配置
+#   - TalentMail 生产环境默认监听：
+#       * frontend -> 127.0.0.1:13000
+#       * backend  -> 127.0.0.1:18000
+#   - MAIL_SERVER 证书与 mailserver 证书同步需单独处理
 # =============================================================================
 
-# Web 应用域名
-# Caddy 会自动为此域名申请 Let's Encrypt 证书
 {$WEB_DOMAIN} {
-    # 开启压缩
     encode gzip zstd
 
-    # WebSocket 支持 (用于实时通知)
     @websocket {
         header Connection *Upgrade*
         header Upgrade websocket
     }
-    reverse_proxy @websocket backend:8000
+    reverse_proxy @websocket 127.0.0.1:18000
 
-    # API 请求代理到后端（与开发环境保持一致的配置）
-    reverse_proxy /api/* backend:8000 {
-        # 健康检查配置
+    reverse_proxy /api/* 127.0.0.1:18000 {
         health_uri /api/health
         health_interval 30s
         health_timeout 10s
         health_status 2xx
-        
-        # 超时配置
+
         transport http {
             dial_timeout 10s
             response_header_timeout 30s
             read_timeout 60s
             write_timeout 60s
         }
-        
-        # 失败重试
+
         lb_try_duration 30s
         lb_try_interval 2s
-        
-        # 错误处理
+
         @backend_error status 502 503 504
         handle_response @backend_error {
             respond "Backend service temporarily unavailable. Please try again later." 503
         }
     }
 
-    # 其他请求代理到前端（与开发环境保持一致的配置）
-    reverse_proxy /* frontend:3000 {
-        # 超时配置
+    reverse_proxy /* 127.0.0.1:13000 {
         transport http {
             dial_timeout 10s
             response_header_timeout 30s
             read_timeout 60s
             write_timeout 60s
         }
-        
-        # 失败重试
+
         lb_try_duration 30s
         lb_try_interval 2s
-        
-        # 错误处理
+
         @frontend_error status 502 503 504
         handle_response @frontend_error {
             respond "Frontend service temporarily unavailable. Please try again later." 503
@@ -73,12 +58,6 @@
     }
 }
 
-# 邮件服务器域名 (如 maillink.example.com)
-# 这里主要是为了让 Caddy 为邮件服务器域名也获取 SSL 证书
-# 证书会存储在 /data/caddy/certificates/ 目录下
-# 邮件客户端连接时需要这个证书 (SMTP: 587, IMAP: 993)
 {$MAIL_SERVER} {
-    # 返回一个简单的响应，表示这是邮件服务器
-    # 实际的邮件服务通过 SMTP/IMAP 端口访问，不是 HTTP
     respond "TalentMail Server - Use SMTP/IMAP to connect" 200
 }

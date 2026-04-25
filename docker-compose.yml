@@ -11,13 +11,13 @@
 
 services:
   # --- 后端服务 (FastAPI 应用) ---
+  # 生产环境使用单进程，避免 LMTP、定时任务和初始化逻辑在多 worker 下重复执行
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
-      - "24:24"
+      - "127.0.0.1:18000:8000"
     volumes:
       - ./backend/uploads:/app/uploads
       - ./config.json:/app/config.json
@@ -31,7 +31,7 @@ services:
         condition: service_healthy
       mailserver:
         condition: service_started
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
     # 生产环境：服务异常退出时自动重启
     restart: unless-stopped
     # 健康检查：定期检查 API 是否正常响应
@@ -48,7 +48,7 @@ services:
       context: .
       dockerfile: frontend/Dockerfile.prod
     ports:
-      - "3000:3000"
+      - "127.0.0.1:13000:3000"
     env_file:
       - .env
       - .env.domains
@@ -70,8 +70,6 @@ services:
       - .env.domains
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
@@ -84,8 +82,8 @@ services:
   # --- 邮件服务器 (docker-mailserver) ---
   # SSL 证书说明：
   #   - 首次部署使用自签名证书 (SSL_TYPE=self-signed)
-  #   - Caddy 获取 Let's Encrypt 证书后，运行 scripts/sync_mail_certs.sh 同步证书
-  #   - 同步后修改 mailserver.env 中的 SSL_TYPE=manual 并重启 mailserver
+  #   - 若使用项目内置 Caddy 获取证书，可继续运行 scripts/sync_mail_certs.sh 同步证书
+  #   - 若使用宿主机统一 Caddy，则需单独同步 MAIL_SERVER 证书给 mailserver
   mailserver:
     build:
       context: ./config/mail
@@ -109,6 +107,8 @@ services:
       - ./data/mailserver/mail-state/:/var/mail-state/
       - ./data/mailserver/mail-logs/:/var/log/mail/
       - ./data/mailserver/config/:/tmp/docker-mailserver/
+      - ./data/mailserver/config/ssl/cert.pem:/tmp/docker-mailserver/ssl/cert.pem:ro
+      - ./data/mailserver/config/ssl/key.pem:/tmp/docker-mailserver/ssl/key.pem:ro
       # 时区
       - /etc/localtime:/etc/localtime:ro
       # Docker socket (用于某些功能)
@@ -128,8 +128,10 @@ services:
     cap_add:
       - NET_ADMIN
 
-  # --- Caddy 网关服务 (生产环境) ---
+  # --- Caddy 网关服务 (生产环境，可选) ---
+  # 默认由宿主机统一 Caddy 接管 80/443；需要内置 Caddy 时再启用 embedded-caddy profile
   caddy:
+    profiles: ["embedded-caddy"]
     image: caddy:alpine
     restart: always
     ports:

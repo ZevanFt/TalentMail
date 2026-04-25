@@ -11,8 +11,7 @@ services:
     # 'ports' 将容器的端口映射到主机的端口
     # 格式是 "主机端口:容器端口"
     ports:
-      - "8000:8000"  # FastAPI HTTP API
-      - "24:24"      # LMTP 邮件接收服务
+      - "127.0.0.1:18000:8000"
     # 'volumes' 将主机的文件或目录挂载到容器中
     # 格式是 "主机路径:容器路径"
     # 这对于开发非常重要，因为我们在主机上修改代码后，会立刻同步到容器里，无需重新构建镜像
@@ -51,8 +50,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      # 将主机的 3000 端口映射到容器的 3000 端口
-      - "3000:3000"
+      - "127.0.0.1:13000:3000"
     volumes:
       # 将前端代码目录挂载到容器中，实现代码热更新
       - ./frontend:/app
@@ -88,8 +86,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      # 将主机的 5432 端口映射到容器的 5432 端口，方便我们用数据库工具直连
-      - "5432:5432"
+      - "127.0.0.1:15432:5432"
     # 健康检查：使用 PostgreSQL 自带的 pg_isready 命令
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
@@ -110,10 +107,10 @@ services:
     environment:
       - PERMIT_DOCKER=network
     ports:
-      - "25:25"    # SMTP
-      - "143:143"  # IMAP
-      - "587:587"  # SMTP (submission)
-      - "993:993"  # IMAPS
+      - "12525:25"   # SMTP
+      - "11143:143"  # IMAP
+      - "1587:587"   # SMTP (submission)
+      - "1993:993"   # IMAPS
     volumes:
       - ./data/mailserver/mail-data/:/var/mail/
       - ./data/mailserver/mail-state/:/var/mail-state/
@@ -141,12 +138,12 @@ services:
   # 让我们能通过 https://mail.talenting.test 访问应用
   # 使用 mkcert 生成的本地可信证书，确保浏览器不会显示证书警告
   caddy:
+    profiles: ["embedded-caddy"]
     image: caddy:alpine
     restart: always
     ports:
-      # 开发环境同时支持 HTTP 和 HTTPS
-      - "80:80"
-      - "443:443"
+      - "18080:80"
+      - "18443:443"
     volumes:
       # 挂载 Caddy 配置文件
       - ./config/caddy/Caddyfile:/etc/caddy/Caddyfile

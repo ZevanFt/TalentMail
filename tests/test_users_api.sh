@@ -4,7 +4,7 @@
 # It requires jq to be installed.
 
 # --- Configuration ---
-BASE_URL="http://localhost:8000"
+BASE_URL="${BASE_URL:-http://127.0.0.1:18000}"
 ADMIN_USER="admin@talenting.test"
 ADMIN_PASSWORD="adminpassword"
 
