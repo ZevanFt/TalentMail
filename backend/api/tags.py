@@ -75,7 +75,7 @@ def delete_tag(tag_id: int, db: Session = Depends(get_db), user: User = Depends(
     db.query(EmailTag).filter(EmailTag.tag_id == tag_id).delete()
     db.delete(tag)
     db.commit()
-    return {"message": "删除成功"}
+    return {"status": "success", "message": "删除成功"}
 
 
 @router.post("/email/{email_id}/tag/{tag_id}")
@@ -85,17 +85,17 @@ def add_tag_to_email(email_id: int, tag_id: int, db: Session = Depends(get_db), 
         raise HTTPException(404, "标签不存在")
     existing = db.query(EmailTag).filter(EmailTag.email_id == email_id, EmailTag.tag_id == tag_id).first()
     if existing:
-        return {"message": "已添加"}
+        return {"status": "success", "message": "已添加"}
     db.add(EmailTag(email_id=email_id, tag_id=tag_id))
     db.commit()
-    return {"message": "添加成功"}
+    return {"status": "success", "message": "添加成功"}
 
 
 @router.delete("/email/{email_id}/tag/{tag_id}")
 def remove_tag_from_email(email_id: int, tag_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     db.query(EmailTag).filter(EmailTag.email_id == email_id, EmailTag.tag_id == tag_id).delete()
     db.commit()
-    return {"message": "移除成功"}
+    return {"status": "success", "message": "移除成功"}
 
 
 @router.get("/{tag_id}/emails")
@@ -113,4 +113,4 @@ def get_emails_by_tag(tag_id: int, page: int = 1, limit: int = 50, db: Session =
     
     total = query.count()
     items = query.offset((page - 1) * limit).limit(limit).all()
-    return {"items": items, "total": total}
+    return {"status": "success", "data": {"items": items, "total": total, "page": page, "limit": limit}}

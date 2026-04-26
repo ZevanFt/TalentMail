@@ -23,11 +23,16 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 
+# 创建非 root 用户
+RUN addgroup -S appuser && adduser -S -G appuser -h /app -s /sbin/nologin appuser
+
 # 从构建阶段复制构建产物
-COPY --from=builder /app/.output ./.output
+COPY --from=builder --chown=appuser:appuser /app/.output ./.output
 
 # 复制 config.json 供运行时读取
-COPY config.json ./config.json
+COPY --chown=appuser:appuser config.json ./config.json
+
+USER appuser
 
 # 暴露端口
 EXPOSE 3000

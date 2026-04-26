@@ -183,4 +183,4 @@ def delete_contact(contact_id: int, db: Session = Depends(get_db), user: User = 
         raise HTTPException(404, "联系人不存在")
     db.delete(contact)
     db.commit()
-    return {"message": "删除成功"}
+    return {"status": "success", "message": "删除成功"}

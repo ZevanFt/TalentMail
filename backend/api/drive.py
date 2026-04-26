@@ -126,7 +126,7 @@ def remove_share(file_id: int, db: Session = Depends(get_db), user: User = Depen
     file.share_password = None
     file.share_expires_at = None
     db.commit()
-    return {"message": "已取消分享"}
+    return {"status": "success", "message": "已取消分享"}
 
 
 @router.delete("/{file_id}")
@@ -142,7 +142,7 @@ def delete_file(file_id: int, db: Session = Depends(get_db), user: User = Depend
     
     db.delete(file)
     db.commit()
-    return {"message": "删除成功"}
+    return {"status": "success", "message": "删除成功"}
 
 
 @router.get("/{file_id}/download")

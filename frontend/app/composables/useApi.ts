@@ -139,8 +139,23 @@ export const useApi = () => {
   const getSnoozedEmails = (page = 1, limit = 50) =>
     api<ApiResponse<{ items: any[]; total: number }>>(`/emails/snoozed?page=${page}&limit=${limit}`)
 
-  const searchEmails = (q: string, page = 1, limit = 50) =>
-    api<ApiResponse<{ items: any[]; total: number }>>(`/emails/search?q=${encodeURIComponent(q)}&page=${page}&limit=${limit}`)
+  const searchEmails = (q: string, page = 1, limit = 50, filters?: {
+    sender?: string; recipient?: string; date_from?: string; date_to?: string;
+    has_attachment?: boolean; is_starred?: boolean; is_read?: boolean; folder_id?: number;
+  }) => {
+    const params = new URLSearchParams({ q, page: String(page), limit: String(limit) })
+    if (filters) {
+      if (filters.sender) params.set('sender', filters.sender)
+      if (filters.recipient) params.set('recipient', filters.recipient)
+      if (filters.date_from) params.set('date_from', filters.date_from)
+      if (filters.date_to) params.set('date_to', filters.date_to)
+      if (filters.has_attachment !== undefined) params.set('has_attachment', String(filters.has_attachment))
+      if (filters.is_starred !== undefined) params.set('is_starred', String(filters.is_starred))
+      if (filters.is_read !== undefined) params.set('is_read', String(filters.is_read))
+      if (filters.folder_id) params.set('folder_id', String(filters.folder_id))
+    }
+    return api<ApiResponse<{ items: any[]; total: number }>>(`/emails/search?${params}`)
+  }
 
   const getTrackingStats = (emailId: number) =>
     api<ApiResponse<any>>(`/track/stats/${emailId}`)

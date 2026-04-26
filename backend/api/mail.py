@@ -224,21 +224,35 @@ def sync_all_emails(
 
 @router.get("/search", response_model=email_schema.EmailListResponse)
 def search_emails(
-    q: str = Query(..., min_length=1, description="搜索关键词"),
+    q: str = Query("", description="搜索关键词（可为空，仅用高级过滤）"),
+    sender: Optional[str] = Query(None, description="发件人过滤（模糊匹配）"),
+    recipient: Optional[str] = Query(None, description="收件人过滤（模糊匹配）"),
+    date_from: Optional[str] = Query(None, description="起始日期 (YYYY-MM-DD)"),
+    date_to: Optional[str] = Query(None, description="截止日期 (YYYY-MM-DD)"),
+    has_attachment: Optional[bool] = Query(None, description="是否有附件"),
+    is_starred: Optional[bool] = Query(None, description="是否已加星"),
+    is_read: Optional[bool] = Query(None, description="是否已读"),
+    folder_id: Optional[int] = Query(None, description="限定文件夹"),
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=100),
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_active_user),
 ):
-    """搜索邮件（使用 PostgreSQL 全文搜索）"""
+    """搜索邮件（全文搜索 + 高级过滤）"""
     from sqlalchemy import or_, text
+    from datetime import datetime as dt
 
-    # 获取用户所有文件夹（排除垃圾箱）
-    user_folders = db.query(Folder).filter(
-        Folder.user_id == current_user.id,
-        Folder.role != 'trash'
-    ).all()
-    folder_ids = [f.id for f in user_folders]
+    # 获取用户文件夹范围
+    if folder_id:
+        # 验证文件夹属于当前用户
+        folder = db.query(Folder).filter(Folder.id == folder_id, Folder.user_id == current_user.id).first()
+        folder_ids = [folder.id] if folder else []
+    else:
+        user_folders = db.query(Folder).filter(
+            Folder.user_id == current_user.id,
+            Folder.role != 'trash'
+        ).all()
+        folder_ids = [f.id for f in user_folders]
 
     if not folder_ids:
         return email_schema.EmailListResponse(
@@ -246,26 +260,59 @@ def search_emails(
             data=email_schema.EmailListData(items=[], total=0, page=page, limit=limit)
         )
 
-    # 使用 PostgreSQL 全文搜索
-    # 将搜索词转换为 tsquery 格式（支持多词搜索）
-    # 使用 plainto_tsquery 自动处理空格分隔的多个词
-    search_query = func.plainto_tsquery('simple', q)
-
-    # 构建查询：使用全文搜索匹配
+    # 基础过滤
     query = db.query(Email).filter(
         Email.folder_id.in_(folder_ids),
         Email.is_purged == False,
-        Email.search_vector.op('@@')(search_query)
     )
+
+    # 全文搜索（如果有关键词）
+    has_fulltext = q and q.strip()
+    if has_fulltext:
+        search_query = func.plainto_tsquery('simple', q)
+        query = query.filter(Email.search_vector.op('@@')(search_query))
+
+    # 高级过滤条件
+    if sender:
+        query = query.filter(Email.sender.ilike(f"%{sender}%"))
+    if recipient:
+        query = query.filter(Email.recipients.ilike(f"%{recipient}%"))
+    if date_from:
+        try:
+            query = query.filter(Email.received_at >= dt.fromisoformat(date_from))
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            # date_to 加一天，使其包含当天
+            end_date = dt.fromisoformat(date_to).replace(hour=23, minute=59, second=59)
+            query = query.filter(Email.received_at <= end_date)
+        except ValueError:
+            pass
+    if has_attachment is True:
+        # 子查询：有附件的邮件
+        query = query.filter(Email.id.in_(
+            db.query(Attachment.email_id).distinct()
+        ))
+    if is_starred is not None:
+        query = query.filter(Email.is_starred == is_starred)
+    if is_read is not None:
+        query = query.filter(Email.is_read == is_read)
 
     total = query.count()
     offset = (page - 1) * limit
 
-    # 按相关性排序（ts_rank），然后按时间排序
-    emails = query.order_by(
-        func.ts_rank(Email.search_vector, search_query).desc(),
-        Email.received_at.desc()
-    ).offset(offset).limit(limit).all()
+    # 排序：有关键词时按相关性，否则按时间
+    if has_fulltext:
+        search_query = func.plainto_tsquery('simple', q)
+        emails = query.order_by(
+            func.ts_rank(Email.search_vector, search_query).desc(),
+            Email.received_at.desc()
+        ).offset(offset).limit(limit).all()
+    else:
+        emails = query.order_by(
+            Email.received_at.desc()
+        ).offset(offset).limit(limit).all()
 
     # 批量查询附件数量
     email_ids = [e.id for e in emails]

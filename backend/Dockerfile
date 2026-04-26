@@ -39,6 +39,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 复制所有后端代码到工作目录
 COPY . .
 
+# 创建非 root 用户并赋予必要权限
+RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /sbin/nologin appuser \
+    && mkdir -p /app/uploads && chown -R appuser:appuser /app
+
+USER appuser
+
 # 暴露端口
 EXPOSE 8000
 

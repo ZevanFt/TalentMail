@@ -465,11 +465,20 @@ export const useEmails = () => {
   const searchQuery = useState<string>('searchQuery', () => '')
   const isSearching = useState<boolean>('isSearching', () => false)
 
-  // 搜索邮件
-  const search = async (query: string) => {
-    if (!query.trim()) {
+  // 高级搜索过滤条件
+  interface SearchFilters {
+    sender?: string; recipient?: string; date_from?: string; date_to?: string;
+    has_attachment?: boolean; is_starred?: boolean; is_read?: boolean; folder_id?: number;
+  }
+  const searchFilters = useState<SearchFilters>('searchFilters', () => ({}))
+
+  // 搜索邮件（支持高级过滤）
+  const search = async (query: string, filters?: SearchFilters) => {
+    const hasFilters = filters && Object.values(filters).some(v => v !== undefined && v !== '')
+    if (!query.trim() && !hasFilters) {
       // 清空搜索，返回收件箱
       searchQuery.value = ''
+      searchFilters.value = {}
       isSearching.value = false
       await loadEmails()
       return
@@ -477,10 +486,11 @@ export const useEmails = () => {
 
     loading.value = true
     searchQuery.value = query
+    if (filters) searchFilters.value = filters
     isSearching.value = true
     emailPage.value = 1
     try {
-      const res = await searchEmails(query, 1, PAGE_SIZE)
+      const res = await searchEmails(query, 1, PAGE_SIZE, searchFilters.value)
       emails.value = res.data.items
       emailTotal.value = res.data.total
     } catch (e: any) {
@@ -503,9 +513,9 @@ export const useEmails = () => {
     try {
       let newItems: Email[] = []
 
-      if (isSearching.value && searchQuery.value) {
+      if (isSearching.value && (searchQuery.value || Object.keys(searchFilters.value).length)) {
         // 搜索模式
-        const res = await searchEmails(searchQuery.value, nextPage, PAGE_SIZE)
+        const res = await searchEmails(searchQuery.value, nextPage, PAGE_SIZE, searchFilters.value)
         newItems = res.data.items
         emailTotal.value = res.data.total
       } else if (selectedTagId.value) {
@@ -588,7 +598,7 @@ export const useEmails = () => {
 
   return {
     emails, folders, tags, currentFolderId, selectedEmailId, selectedEmailDetail,
-    loading, syncing, currentFilter, composeState, searchQuery, isSearching, currentTagName,
+    loading, syncing, currentFilter, composeState, searchQuery, searchFilters, isSearching, currentTagName,
     emailHasMore, loadingMore, emailTotal,
     loadFolders, loadTags, loadEmails, loadEmailDetail, loadFilteredEmails, loadSnoozedEmails, loadAllEmails, loadEmailsByTag,
     loadMoreEmails,

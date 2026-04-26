@@ -6,7 +6,7 @@ import ComposePanel from './ComposePanel.vue'
 const { selectedEmailDetail, selectedEmailId, formatTime, toggleRead, removeEmail, startReply, startReplyAll, startForward, folders, currentFolderId, loadEmails, tags, loadTags, addTag, removeTag } = useEmails()
 const { isComposeOpen, requestOpenCompose } = useGlobalModal()
 const { getTrackingStats, resendEmail, downloadAttachmentUrl, exportEmailUrl, token, bulkArchiveEmails } = useApi()
-const { sanitizeEmailHtml } = useSanitize()
+const { sanitizeEmailHtml, sanitizeEmailHtmlBlockRemote, proxyRemoteImages, hasRemoteImages } = useSanitize()
 const { isMobile, showEmailList } = useResponsive()
 const toast = useToast()
 
@@ -264,11 +264,30 @@ const handleArchive = async () => {
   }
 }
 
-// 消毒后的 HTML（防 XSS）
+// 远程图片加载开关
+const remoteImagesLoaded = ref(false)
+
+// 检测当前邮件是否有远程图片
+const emailHasRemoteImages = computed(() => {
+  const html = selectedEmailDetail.value?.body_html
+  return hasRemoteImages(html || '')
+})
+
+// 监听邮件变化，重置远程图片状态
+watch(() => selectedEmailDetail.value?.id, () => {
+  remoteImagesLoaded.value = false
+})
+
+// 消毒后的 HTML（防 XSS）— 根据远程图片开关选择策略
 const sanitizedBodyHtml = computed(() => {
   const html = selectedEmailDetail.value?.body_html
   if (!html) return ''
-  return sanitizeEmailHtml(html)
+  if (remoteImagesLoaded.value) {
+    // 用户选择加载：通过代理加载远程图片
+    return proxyRemoteImages(html)
+  }
+  // 默认：阻止远程图片
+  return sanitizeEmailHtmlBlockRemote(html)
 })
 
 // 导出邮件
@@ -579,6 +598,17 @@ const handleThreadEmailClick = (emailId: number) => {
 
           <!-- 分割线 -->
           <div class="border-t border-dashed border-gray-200 dark:border-gray-800 my-8"></div>
+
+          <!-- 远程图片提示栏 -->
+          <div v-if="emailHasRemoteImages && !remoteImagesLoaded"
+            class="mb-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg px-4 py-2.5 flex items-center gap-3">
+            <Eye class="w-4 h-4 text-yellow-600 dark:text-yellow-400 shrink-0" />
+            <span class="text-sm text-yellow-700 dark:text-yellow-300 flex-1">远程图片已被隐藏以保护您的隐私</span>
+            <button @click="remoteImagesLoaded = true"
+              class="text-xs font-medium px-3 py-1.5 bg-yellow-100 dark:bg-yellow-800/50 text-yellow-700 dark:text-yellow-300 rounded-md hover:bg-yellow-200 dark:hover:bg-yellow-800 transition-colors whitespace-nowrap">
+              加载远程图片
+            </button>
+          </div>
 
           <!-- 正文 -->
           <div v-if="hasRealHtmlContent"

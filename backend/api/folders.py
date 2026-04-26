@@ -209,4 +209,4 @@ def delete_folder(
     db.commit()
 
     logger.info(f"用户 {current_user.id} 删除文件夹 {folder_id}, 移动 {moved_count} 封邮件到收件箱")
-    return {"status": "success", "moved_emails": moved_count}
+    return {"status": "success", "data": {"moved_emails": moved_count}}

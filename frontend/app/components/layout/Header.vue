@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { Search, Moon, Sun, Settings, Mail, X, LogOut, Crown, HardDrive, Copy, Check, Keyboard, Menu as MenuIcon } from 'lucide-vue-next'
+import { Search, Moon, Sun, Settings, Mail, X, LogOut, Crown, HardDrive, Copy, Check, Keyboard, Menu as MenuIcon, SlidersHorizontal, Paperclip, Star, Eye } from 'lucide-vue-next'
 const router = useRouter()
 const { isDark, toggleTheme } = useTheme()
-const { search, clearSearch, searchQuery, isSearching } = useEmails()
+const { search, clearSearch, searchQuery, searchFilters, isSearching, folders } = useEmails()
 const { getMe, getStorageStats, getSubscriptionStatus, logout } = useApi()
 const { showShortcutsHelp } = useKeyboardShortcuts()
 const { isMobile, toggleSidebar } = useResponsive()
@@ -16,6 +16,44 @@ const mobileSearchOpen = ref(false)
 
 const localQuery = ref('')
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
+
+// 高级搜索
+const showAdvancedSearch = ref(false)
+const advSender = ref('')
+const advRecipient = ref('')
+const advDateFrom = ref('')
+const advDateTo = ref('')
+const advHasAttachment = ref<boolean | undefined>(undefined)
+const advIsStarred = ref<boolean | undefined>(undefined)
+const advFolderId = ref<number | undefined>(undefined)
+
+const hasActiveFilters = computed(() =>
+  advSender.value || advRecipient.value || advDateFrom.value || advDateTo.value ||
+  advHasAttachment.value !== undefined || advIsStarred.value !== undefined || advFolderId.value !== undefined
+)
+
+const handleAdvancedSearch = () => {
+  const filters: Record<string, any> = {}
+  if (advSender.value) filters.sender = advSender.value
+  if (advRecipient.value) filters.recipient = advRecipient.value
+  if (advDateFrom.value) filters.date_from = advDateFrom.value
+  if (advDateTo.value) filters.date_to = advDateTo.value
+  if (advHasAttachment.value !== undefined) filters.has_attachment = advHasAttachment.value
+  if (advIsStarred.value !== undefined) filters.is_starred = advIsStarred.value
+  if (advFolderId.value !== undefined) filters.folder_id = advFolderId.value
+  search(localQuery.value || '', filters)
+  showAdvancedSearch.value = false
+}
+
+const clearAdvancedFilters = () => {
+  advSender.value = ''
+  advRecipient.value = ''
+  advDateFrom.value = ''
+  advDateTo.value = ''
+  advHasAttachment.value = undefined
+  advIsStarred.value = undefined
+  advFolderId.value = undefined
+}
 
 // 用户信息
 const user = ref<{ email: string; display_name?: string } | null>(null)
@@ -112,16 +150,79 @@ onUnmounted(() => {
         <!-- 搜索框：桌面端常驻，移动端点击展开 -->
         <div v-if="!isMobile || mobileSearchOpen" class="flex-1 flex justify-center max-w-xl px-4"
             :class="isMobile ? 'absolute inset-x-0 top-0 h-14 items-center bg-white dark:bg-bg-dark z-30 px-3' : ''">
-            <div class="relative w-full group">
+            <div class="relative w-full">
+              <div class="relative group">
                 <Search
                     class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors" />
                 <input v-model="localQuery" @input="handleInput" @keyup.enter="handleEnter" type="text" placeholder="搜索邮件..."
                     data-search-input
-                    class="w-full bg-gray-100 dark:bg-gray-800 border-transparent focus:bg-white dark:focus:bg-gray-900 border border-transparent focus:border-primary/20 rounded-lg py-1.5 pl-9 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all text-gray-900 dark:text-white placeholder-gray-400">
-                <button v-if="localQuery || isMobile" @click="isMobile ? (mobileSearchOpen = false, handleClear()) : handleClear()"
-                    class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                    <X class="w-4 h-4" />
-                </button>
+                    class="w-full bg-gray-100 dark:bg-gray-800 border-transparent focus:bg-white dark:focus:bg-gray-900 border border-transparent focus:border-primary/20 rounded-lg py-1.5 pl-9 pr-20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all text-gray-900 dark:text-white placeholder-gray-400">
+                <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  <button v-if="localQuery || hasActiveFilters || isMobile" @click="isMobile ? (mobileSearchOpen = false, handleClear(), clearAdvancedFilters()) : (handleClear(), clearAdvancedFilters())"
+                      class="p-1 text-gray-400 hover:text-gray-600 rounded">
+                      <X class="w-3.5 h-3.5" />
+                  </button>
+                  <button @click="showAdvancedSearch = !showAdvancedSearch"
+                      class="p-1 rounded transition-colors"
+                      :class="hasActiveFilters ? 'text-primary bg-primary/10' : 'text-gray-400 hover:text-gray-600'"
+                      title="高级搜索">
+                      <SlidersHorizontal class="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              <!-- 高级搜索面板 -->
+              <Transition name="fade">
+                <div v-if="showAdvancedSearch"
+                  class="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-50 p-4 space-y-3">
+                  <div class="grid grid-cols-2 gap-3">
+                    <div>
+                      <label class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">发件人</label>
+                      <input v-model="advSender" type="text" placeholder="例: john@example.com"
+                        class="w-full px-3 py-1.5 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg outline-none focus:ring-1 focus:ring-primary/30" />
+                    </div>
+                    <div>
+                      <label class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">收件人</label>
+                      <input v-model="advRecipient" type="text" placeholder="例: me@example.com"
+                        class="w-full px-3 py-1.5 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg outline-none focus:ring-1 focus:ring-primary/30" />
+                    </div>
+                    <div>
+                      <label class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">起始日期</label>
+                      <input v-model="advDateFrom" type="date"
+                        class="w-full px-3 py-1.5 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg outline-none focus:ring-1 focus:ring-primary/30" />
+                    </div>
+                    <div>
+                      <label class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">截止日期</label>
+                      <input v-model="advDateTo" type="date"
+                        class="w-full px-3 py-1.5 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg outline-none focus:ring-1 focus:ring-primary/30" />
+                    </div>
+                  </div>
+                  <div class="flex flex-wrap gap-2">
+                    <button @click="advHasAttachment = advHasAttachment === true ? undefined : true"
+                      :class="['px-3 py-1.5 text-xs rounded-lg border transition-colors flex items-center gap-1.5',
+                        advHasAttachment === true ? 'border-primary bg-primary/10 text-primary' : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-gray-300']">
+                      <Paperclip class="w-3 h-3" /> 有附件
+                    </button>
+                    <button @click="advIsStarred = advIsStarred === true ? undefined : true"
+                      :class="['px-3 py-1.5 text-xs rounded-lg border transition-colors flex items-center gap-1.5',
+                        advIsStarred === true ? 'border-yellow-400 bg-yellow-50 text-yellow-600' : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-gray-300']">
+                      <Star class="w-3 h-3" /> 已加星
+                    </button>
+                    <select v-model="advFolderId"
+                      class="px-3 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 outline-none">
+                      <option :value="undefined">所有文件夹</option>
+                      <option v-for="f in folders" :key="f.id" :value="f.id">{{ f.name }}</option>
+                    </select>
+                  </div>
+                  <div class="flex justify-between pt-2 border-t border-gray-100 dark:border-gray-700">
+                    <button @click="clearAdvancedFilters" class="text-xs text-gray-400 hover:text-gray-600">清除条件</button>
+                    <button @click="handleAdvancedSearch"
+                      class="px-4 py-1.5 text-xs font-medium bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors">
+                      搜索
+                    </button>
+                  </div>
+                </div>
+              </Transition>
             </div>
         </div>
         <!-- 移动端：搜索图标占位，防止右侧按钮跳左 -->
