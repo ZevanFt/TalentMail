@@ -141,7 +141,7 @@ def create_api_key(
         expires_at=datetime.now(timezone.utc) + timedelta(days=payload.expires_in_days),
     )
     db.add(api_key)
-    db.flush()
+    db.commit()
     db.refresh(api_key)
 
     return ApiKeyCreateResponse(api_key=raw_key, key=api_key)
@@ -165,6 +165,7 @@ def revoke_api_key(
         return {"message": "API Key 已吊销"}
 
     api_key.revoked_at = datetime.now(timezone.utc)
+    db.commit()
     return {"message": "API Key 已吊销"}
 
 

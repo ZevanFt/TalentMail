@@ -188,35 +188,46 @@ def list_users(
     # 获取默认套餐
     default_plan = db.query(Plan).filter(Plan.is_default == True).first()
     
-    # 构建用户列表，包含订阅信息
+    # 批量预加载订阅和套餐，避免 N+1 查询
+    user_ids = [u.id for u in users]
+    sub_map: dict = {}  # user_id -> Subscription
+    if user_ids:
+        subs = db.query(Subscription).filter(
+            Subscription.user_id.in_(user_ids),
+            Subscription.status == "active"
+        ).all()
+        sub_map = {s.user_id: s for s in subs}
+
+    # 批量加载涉及的 Plan
+    plan_ids_needed = {s.plan_id for s in sub_map.values() if s.plan_id}
+    plan_map: dict = {}
+    if plan_ids_needed:
+        plans = db.query(Plan).filter(Plan.id.in_(plan_ids_needed)).all()
+        plan_map = {p.id: p for p in plans}
+
+    now = datetime.now(timezone.utc)
     items = []
     for u in users:
-        # 查找用户的活跃订阅
-        subscription = db.query(Subscription).filter(
-            Subscription.user_id == u.id,
-            Subscription.status == "active"
-        ).first()
-        
+        subscription = sub_map.get(u.id)
         plan_name = None
         plan_id = None
         subscription_expires_at = None
-        
+
         if u.role == "admin":
             plan_name = "管理员 (无限)"
         elif subscription and subscription.current_period_end:
-            if subscription.current_period_end > datetime.now(timezone.utc):
-                plan = db.query(Plan).filter(Plan.id == subscription.plan_id).first()
+            if subscription.current_period_end > now:
+                plan = plan_map.get(subscription.plan_id)
                 plan_name = plan.name if plan else "未知"
                 plan_id = subscription.plan_id
                 subscription_expires_at = subscription.current_period_end.isoformat()
             else:
-                # 订阅已过期
                 plan_name = default_plan.name if default_plan else "Free"
                 plan_id = default_plan.id if default_plan else None
         else:
             plan_name = default_plan.name if default_plan else "Free"
             plan_id = default_plan.id if default_plan else None
-        
+
         items.append({
             "id": u.id,
             "email": u.email,

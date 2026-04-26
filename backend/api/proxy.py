@@ -14,14 +14,17 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/proxy", tags=["proxy"])
 
-# 允许代理的内容类型白名单
+# 允许代理的内容类型白名单（SVG 已移除 — 可携带 <script> 导致 XSS）
 ALLOWED_CONTENT_TYPES = {
     "image/jpeg", "image/png", "image/gif", "image/webp",
-    "image/svg+xml", "image/bmp", "image/ico", "image/x-icon",
+    "image/bmp", "image/ico", "image/x-icon",
 }
 
 # 最大代理文件大小 (5MB)
 MAX_PROXY_SIZE = 5 * 1024 * 1024
+
+# 最大重定向次数
+MAX_REDIRECTS = 3
 
 # SSRF 防护：禁止访问的内网 IP 段
 _BLOCKED_NETWORKS = [
@@ -94,26 +97,59 @@ def proxy_image(
 
     try:
         session = req_lib.Session()
-        session.max_redirects = 3
-        resp = session.get(
-            url,
-            timeout=10,
-            allow_redirects=True,
-            headers={"User-Agent": "TalentMail-ImageProxy/1.0"},
-            stream=True,
-        )
+
+        # 手动跟随重定向，每一跳都做 SSRF 检查（防止 302 跳转到内网）
+        current_url = url
+        resp = None
+        for hop in range(MAX_REDIRECTS + 1):
+            resp = session.get(
+                current_url,
+                timeout=10,
+                allow_redirects=False,
+                headers={"User-Agent": "TalentMail-ImageProxy/1.0"},
+                stream=True,
+            )
+
+            if resp.status_code in (301, 302, 303, 307, 308):
+                redirect_url = resp.headers.get("Location")
+                if not redirect_url:
+                    raise HTTPException(502, "重定向缺少 Location 头")
+                # 处理相对路径重定向
+                if redirect_url.startswith("/"):
+                    parsed = urlparse(current_url)
+                    redirect_url = f"{parsed.scheme}://{parsed.netloc}{redirect_url}"
+                if not redirect_url.startswith(("http://", "https://")):
+                    raise HTTPException(400, "重定向目标不是合法 HTTP URL")
+                # 对重定向目标重新做 SSRF 检查
+                _validate_url_ssrf(redirect_url)
+                current_url = redirect_url
+                resp.close()
+                continue
+
+            break  # 非重定向，正常响应
+        else:
+            raise HTTPException(502, "重定向次数过多")
 
         if resp.status_code != 200:
             raise HTTPException(502, f"远程服务器返回 {resp.status_code}")
 
         content_type = resp.headers.get("content-type", "").split(";")[0].strip().lower()
         if content_type not in ALLOWED_CONTENT_TYPES:
+            resp.close()
             raise HTTPException(400, f"不支持的内容类型: {content_type}")
 
-        # 流式读取，限制大小
-        content = resp.content
-        if len(content) > MAX_PROXY_SIZE:
-            raise HTTPException(413, "图片过大")
+        # 流式读取，边读边检查大小（不会一次性吃满内存）
+        chunks = []
+        total_size = 0
+        for chunk in resp.iter_content(chunk_size=65536):
+            total_size += len(chunk)
+            if total_size > MAX_PROXY_SIZE:
+                resp.close()
+                raise HTTPException(413, "图片过大")
+            chunks.append(chunk)
+        resp.close()
+
+        content = b"".join(chunks)
 
         return Response(
             content=content,

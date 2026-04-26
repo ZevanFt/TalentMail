@@ -22,6 +22,23 @@ TRANSPARENT_GIF = base64.b64decode(
 )
 
 
+def _anonymize_ip(ip_str: str) -> str:
+    """匿名化 IP 地址：IPv4 清零末段，IPv6 清零后 80 位"""
+    try:
+        import ipaddress
+        addr = ipaddress.ip_address(ip_str)
+        if isinstance(addr, ipaddress.IPv4Address):
+            parts = ip_str.split(".")
+            parts[-1] = "0"
+            return ".".join(parts)
+        else:
+            # IPv6: 保留前 48 位
+            network = ipaddress.IPv6Network(f"{ip_str}/48", strict=False)
+            return str(network.network_address)
+    except Exception:
+        return ip_str  # 解析失败返回原值
+
+
 @router.get("/open/{pixel_id}")
 async def track_open(
     pixel_id: str,
@@ -40,10 +57,11 @@ async def track_open(
     if not pixel:
         return Response(content=TRANSPARENT_GIF, media_type="image/gif")
     
-    # 获取客户端信息
-    ip_address = request.client.host if request.client else None
-    user_agent = request.headers.get("user-agent", "")
-    
+    # 获取客户端信息（隐私保护：截断 IP 末段，限制 UA 长度）
+    raw_ip = request.client.host if request.client else None
+    ip_address = _anonymize_ip(raw_ip) if raw_ip else None
+    user_agent = (request.headers.get("user-agent", "") or "")[:512]
+
     # 限流：防止同一像素被恶意刷请求
     if _tracking_limiter.allow(f"pixel:{pixel_id}"):
         event = TrackingEvent(

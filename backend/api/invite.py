@@ -81,7 +81,10 @@ def list_invite_codes(
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="仅管理员可查看邀请码")
 
-    query = db.query(models.InviteCode).order_by(models.InviteCode.created_at.desc())
+    query = db.query(models.InviteCode)
+    if not include_deleted:
+        query = query.filter(models.InviteCode.deleted_at.is_(None))
+    query = query.order_by(models.InviteCode.created_at.desc())
     total = query.count()
     items = query.offset((page - 1) * limit).limit(limit).all()
     return {"items": items, "total": total}
@@ -129,14 +132,20 @@ def get_invite_code_usages(
         raise HTTPException(status_code=404, detail="邀请码不存在")
     
     usages = db.query(InviteCodeUsage).filter(InviteCodeUsage.invite_code_id == code_id).order_by(InviteCodeUsage.used_at.desc()).all()
-    
+
+    # 批量预加载用户，避免 N+1 查询
+    user_ids = {u.user_id for u in usages if u.user_id}
+    user_map: dict = {}
+    if user_ids:
+        users = db.query(models.User).filter(models.User.id.in_(user_ids)).all()
+        user_map = {u.id: u.email for u in users}
+
     result = []
     for usage in usages:
-        user = db.query(models.User).filter(models.User.id == usage.user_id).first()
         result.append({
             "id": usage.id,
-            "user_email": user.email if user else "未知用户",
+            "user_email": user_map.get(usage.user_id, "未知用户"),
             "used_at": usage.used_at
         })
-    
+
     return result
