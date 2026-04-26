@@ -26,6 +26,7 @@ from core.temp_mailbox_lifecycle import (
 )
 from db import models
 from db.models.system import ApiKey
+from utils.db import escape_like
 
 router = APIRouter(prefix="/automation/temp-mailboxes", tags=["Automation Temp Mailboxes"])
 
@@ -252,9 +253,9 @@ def get_latest_verification_code(
     if unread_only:
         query = query.filter(models.Email.is_read == False)  # noqa: E712
     if sender_contains:
-        query = query.filter(models.Email.sender.ilike(f"%{sender_contains.strip()}%"))
+        query = query.filter(models.Email.sender.ilike(f"%{escape_like(sender_contains.strip())}%"))
     if subject_contains:
-        query = query.filter(models.Email.subject.ilike(f"%{subject_contains.strip()}%"))
+        query = query.filter(models.Email.subject.ilike(f"%{escape_like(subject_contains.strip())}%"))
 
     emails = query.order_by(models.Email.received_at.desc()).limit(200).all()
     for email in emails:

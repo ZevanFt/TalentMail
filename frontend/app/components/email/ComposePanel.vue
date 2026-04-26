@@ -311,6 +311,12 @@ const handleScheduleSend = () => {
   handleSend(scheduledSendAt.value)
 }
 
+// datetime-local 输入使用本地时间，需要格式化为 YYYY-MM-DDTHH:mm
+const toLocalDatetimeStr = (d: Date): string => {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 // 快捷定时选项
 const schedulePresets = computed(() => {
   const now = new Date()
@@ -323,9 +329,9 @@ const schedulePresets = computed(() => {
   nextMonday9am.setHours(9, 0, 0, 0)
 
   return [
-    { label: '2小时后', value: later.toISOString().slice(0, 16) },
-    { label: '明天上午9点', value: tomorrow9am.toISOString().slice(0, 16) },
-    { label: '下周一上午9点', value: nextMonday9am.toISOString().slice(0, 16) },
+    { label: '2小时后', value: toLocalDatetimeStr(later) },
+    { label: '明天上午9点', value: toLocalDatetimeStr(tomorrow9am) },
+    { label: '下周一上午9点', value: toLocalDatetimeStr(nextMonday9am) },
   ]
 })
 

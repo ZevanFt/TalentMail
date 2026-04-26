@@ -24,6 +24,7 @@ from schemas.automation import (
     ActionTypeInfo,
 )
 from core.rule_engine import RuleEngine, TriggerType, ConditionOperator, ActionType
+from utils.db import escape_like
 
 router = APIRouter(prefix="/automation", tags=["automation"])
 
@@ -294,8 +295,8 @@ async def list_rules(
     
     if search:
         query = query.filter(
-            AutomationRule.name.ilike(f"%{search}%") |
-            AutomationRule.description.ilike(f"%{search}%")
+            AutomationRule.name.ilike(f"%{escape_like(search)}%") |
+            AutomationRule.description.ilike(f"%{escape_like(search)}%")
         )
     
     total = query.count()

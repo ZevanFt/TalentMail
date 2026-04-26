@@ -31,12 +31,12 @@ const detectVerificationCode = (email: any) => {
   // 从邮件内容中提取验证码
   const content = email.body_text || email.body_html || ''
   
-  // 匹配6位数字验证码（通常在特定上下文中）
-  // 优先匹配：验证码是/为/：后面的6位数字
+  // 匹配验证码（仅在明确上下文中提取，避免误匹配日期/订单号等）
   const patterns = [
-    /验证码[是为：:\s]*(\d{6})/,
-    /code[:\s]*(\d{6})/i,
-    /(\d{6})/  // 最后尝试匹配任意6位数字
+    /验证码[是为：:\s]*(\d{4,6})/,
+    /(?:verification|confirm(?:ation)?|security)\s*code[:\s]*(\d{4,6})/i,
+    /(?:OTP|PIN|code)[:\s]+(\d{4,6})/i,
+    /\b(\d{6})\b(?=.*(?:expire|valid|minute|分钟|有效))/i,
   ]
   
   for (const pattern of patterns) {
@@ -258,6 +258,10 @@ const handleArchive = async () => {
   try {
     await bulkArchiveEmails([selectedEmailDetail.value.id])
     toast.success('已归档')
+    // 清除选中并刷新列表
+    selectedEmailId.value = null
+    selectedEmailDetail.value = null
+    if (currentFolderId.value) await loadEmails(currentFolderId.value)
   } catch (e: any) {
     console.error('归档失败:', e)
     toast.error('归档失败')

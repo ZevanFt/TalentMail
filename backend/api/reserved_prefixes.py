@@ -11,6 +11,7 @@ from db.database import get_db
 from db.models.system import ReservedPrefix
 from db import models
 from api import deps
+from utils.db import escape_like
 
 router = APIRouter()
 
@@ -122,7 +123,7 @@ def list_reserved_prefixes(
     if is_active is not None:
         query = query.filter(ReservedPrefix.is_active == is_active)
     if q:
-        query = query.filter(ReservedPrefix.prefix.ilike(f"%{q}%"))
+        query = query.filter(ReservedPrefix.prefix.ilike(f"%{escape_like(q)}%"))
     
     total = query.count()
     prefixes = query.order_by(ReservedPrefix.category, ReservedPrefix.prefix).offset((page - 1) * limit).limit(limit).all()

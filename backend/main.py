@@ -26,6 +26,7 @@ sync_task = None
 cleanup_task = None
 temp_mailbox_cleanup_task = None
 scheduled_sender_task = None
+orphan_attachment_task = None
 
 
 async def periodic_session_cleanup(interval: int = 86400):
@@ -69,9 +70,45 @@ async def periodic_temp_mailbox_cleanup(interval: int = 600):
             logger.error(f"临时邮箱维护任务失败: {e}")
 
 
+async def periodic_orphan_attachment_cleanup(interval: int = 3600):
+    """
+    定期清理孤儿附件（已上传但未关联到任何邮件、超过 24 小时的附件）
+    防止用户上传附件后不发送邮件导致磁盘泄漏。
+    """
+    import os
+    from db.models.email import Attachment
+    from datetime import timedelta
+    while True:
+        await asyncio.sleep(interval)
+        try:
+            db = SessionLocal()
+            try:
+                cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+                orphans = db.query(Attachment).filter(
+                    Attachment.email_id.is_(None),
+                    Attachment.created_at < cutoff
+                ).all()
+                deleted_count = 0
+                for att in orphans:
+                    if att.file_path and os.path.exists(att.file_path):
+                        try:
+                            os.remove(att.file_path)
+                        except OSError:
+                            pass
+                    db.delete(att)
+                    deleted_count += 1
+                if deleted_count > 0:
+                    db.commit()
+                    logger.info(f"已清理 {deleted_count} 个孤儿附件")
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"孤儿附件清理失败: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global sync_task, cleanup_task, temp_mailbox_cleanup_task, scheduled_sender_task
+    global sync_task, cleanup_task, temp_mailbox_cleanup_task, scheduled_sender_task, orphan_attachment_task
     # Initialize the database and create the initial admin user
     initial_data.init_db()
 
@@ -109,6 +146,10 @@ async def lifespan(app: FastAPI):
     # 启动定时邮件发送调度器（每60秒检查到期的定时邮件）
     logger.info("启动定时邮件发送调度器（间隔60秒）...")
     scheduled_sender_task = asyncio.create_task(check_scheduled_emails(interval=60))
+
+    # 启动孤儿附件清理任务（每小时检查一次，清理 24 小时前未关联的上传）
+    logger.info("启动孤儿附件清理任务（间隔1小时）...")
+    orphan_attachment_task = asyncio.create_task(periodic_orphan_attachment_cleanup(interval=3600))
 
     # 启动时先执行一次清理
     try:
@@ -149,6 +190,12 @@ async def lifespan(app: FastAPI):
         scheduled_sender_task.cancel()
         try:
             await scheduled_sender_task
+        except asyncio.CancelledError:
+            pass
+    if orphan_attachment_task:
+        orphan_attachment_task.cancel()
+        try:
+            await orphan_attachment_task
         except asyncio.CancelledError:
             pass
 
@@ -234,11 +281,20 @@ async def websocket_endpoint(websocket: WebSocket, token: str):
         await ws_manager.connect(websocket, user_id)
         try:
             while True:
-                # 保持连接，等待客户端消息（心跳）
-                data = await websocket.receive_text()
-                if data == "ping":
-                    await websocket.send_text("pong")
+                # 等待客户端消息，90 秒超时自动检测僵死连接
+                try:
+                    data = await asyncio.wait_for(websocket.receive_text(), timeout=90)
+                    if data == "ping":
+                        await websocket.send_text("pong")
+                except asyncio.TimeoutError:
+                    # 服务端主动 ping，检测连接是否存活
+                    try:
+                        await websocket.send_text("ping")
+                    except Exception:
+                        break  # 发送失败，连接已死
         except WebSocketDisconnect:
+            pass
+        finally:
             ws_manager.disconnect(websocket, user_id)
     except Exception as e:
         logger.error(f"WebSocket 错误: {e}")

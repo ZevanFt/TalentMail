@@ -9,6 +9,7 @@ from api.deps import get_current_user
 from db.models.user import User
 from db.models.features import Contact
 from db.models.email import Email, Folder
+from utils.db import escape_like
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ def get_contact_suggestions(
     # 1. 已保存联系人（优先）
     contacts = db.query(Contact).filter(
         Contact.owner_id == user.id,
-        (Contact.name.ilike(f"%{q}%")) | (Contact.email.ilike(f"%{q}%"))
+        (Contact.name.ilike(f"%{escape_like(q)}%")) | (Contact.email.ilike(f"%{escape_like(q)}%"))
     ).limit(10).all()
 
     for c in contacts:
@@ -75,7 +76,7 @@ def get_contact_suggestions(
         if sent_folder:
             sent_emails = db.query(Email.recipients).filter(
                 Email.folder_id == sent_folder.id,
-                Email.recipients.ilike(f"%{q}%")
+                Email.recipients.ilike(f"%{escape_like(q)}%")
             ).order_by(Email.sent_at.desc()).limit(50).all()
 
             for (recipients_raw,) in sent_emails:
@@ -143,7 +144,7 @@ def get_contacts(
 ):
     query = db.query(Contact).filter(Contact.owner_id == user.id)
     if q:
-        query = query.filter((Contact.name.ilike(f"%{q}%")) | (Contact.email.ilike(f"%{q}%")))
+        query = query.filter((Contact.name.ilike(f"%{escape_like(q)}%")) | (Contact.email.ilike(f"%{escape_like(q)}%")))
     total = query.count()
     items = query.order_by(Contact.name).offset((page - 1) * limit).limit(limit).all()
     return ContactListResponse(items=items, total=total, page=page, limit=limit)

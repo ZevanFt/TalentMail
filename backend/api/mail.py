@@ -30,6 +30,7 @@ from crud.folder import get_user_folder_by_role
 from core.config import settings
 import logging
 from datetime import datetime, timezone
+from utils.db import escape_like
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -276,9 +277,9 @@ def search_emails(
 
     # 高级过滤条件
     if sender:
-        query = query.filter(Email.sender.ilike(f"%{sender}%"))
+        query = query.filter(Email.sender.ilike(f"%{escape_like(sender)}%"))
     if recipient:
-        query = query.filter(Email.recipients.ilike(f"%{recipient}%"))
+        query = query.filter(Email.recipients.ilike(f"%{escape_like(recipient)}%"))
     if date_from:
         try:
             query = query.filter(Email.received_at >= dt.fromisoformat(date_from))

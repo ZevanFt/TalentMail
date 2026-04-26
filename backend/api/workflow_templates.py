@@ -12,6 +12,7 @@ from datetime import datetime
 from db.database import get_db
 from api.deps import get_current_user, get_current_admin_user
 from db.models.user import User
+from utils.db import escape_like
 from db.models.workflow import (
     WorkflowTemplate, WorkflowTemplateTag, WorkflowTemplateFavorite,
     Workflow, WorkflowNode, WorkflowEdge
@@ -134,7 +135,7 @@ async def list_templates(
         query = query.filter(WorkflowTemplate.is_featured == True)
     
     if q:
-        search_pattern = f"%{q}%"
+        search_pattern = f"%{escape_like(q)}%"
         query = query.filter(or_(
             WorkflowTemplate.name.ilike(search_pattern),
             WorkflowTemplate.name_en.ilike(search_pattern),

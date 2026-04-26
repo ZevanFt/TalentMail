@@ -13,6 +13,7 @@ from db.models.billing import Plan, Subscription
 from api import deps
 from crud import user as crud_user
 from core import security
+from utils.db import escape_like
 from core.config import settings
 
 logging.basicConfig(level=logging.INFO)
@@ -170,8 +171,8 @@ def list_users(
     
     if q:
         query = query.filter(
-            (models.User.email.ilike(f"%{q}%")) |
-            (models.User.display_name.ilike(f"%{q}%"))
+            (models.User.email.ilike(f"%{escape_like(q)}%")) |
+            (models.User.display_name.ilike(f"%{escape_like(q)}%"))
         )
     
     total = query.count()
