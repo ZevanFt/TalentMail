@@ -14,7 +14,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 # 追踪像素限流：每个像素每分钟最多 10 次记录
-_tracking_limiter = SlidingWindowLimiter(max_requests=10, window_seconds=60)
+_tracking_limiter = SlidingWindowLimiter(max_attempts=10, window_seconds=60)
 
 # 1x1 透明 GIF 图片（base64 编码）
 TRANSPARENT_GIF = base64.b64decode(

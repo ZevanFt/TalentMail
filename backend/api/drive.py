@@ -19,7 +19,7 @@ from utils.rate_limit import SlidingWindowLimiter
 router = APIRouter(prefix="/drive", tags=["drive"])
 
 # 上传限流：每用户每分钟最多 10 次
-_upload_limiter = SlidingWindowLimiter(max_requests=10, window_seconds=60)
+_upload_limiter = SlidingWindowLimiter(max_attempts=10, window_seconds=60)
 
 UPLOAD_DIR = "uploads/drive"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
