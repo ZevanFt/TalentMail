@@ -868,7 +868,7 @@ const getVariableTypeIcon = (type: string) => {
                   <iframe
                     :srcdoc="previewData.body_html"
                     class="w-full h-80 border-0"
-                    sandbox="allow-same-origin"
+                    sandbox=""
                   ></iframe>
                 </div>
               </div>

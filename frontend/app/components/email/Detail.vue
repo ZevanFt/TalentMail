@@ -218,10 +218,13 @@ const handleResend = async () => {
   resending.value = true
   try {
     await resendEmail(selectedEmailDetail.value.id)
+    toast.success('邮件已重新发送')
     // 刷新邮件列表
     if (currentFolderId.value) {
       await loadEmails(currentFolderId.value)
     }
+  } catch (e: any) {
+    toast.error(e?.data?.detail || e?._friendlyMessage || '重新发送失败')
   } finally {
     resending.value = false
   }

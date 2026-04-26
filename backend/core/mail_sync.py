@@ -9,7 +9,7 @@ import email
 import hashlib
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy.orm import Session
 from db.database import SessionLocal

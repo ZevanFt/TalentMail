@@ -592,7 +592,7 @@ def login_for_access_token(
         session = create_session_record(db, user.id, temp_token, request)
     except Exception as e:
         # 记录失败不影响登录
-        print(f"Failed to create session record: {e}")
+        logger.error(f"创建会话记录失败: {e}")
 
     # 创建包含 session_id 的正式 token
     token_data = {"sub": user.email}
@@ -627,7 +627,7 @@ def login_for_access_token(
         }))
     except Exception as e:
         # 工作流触发失败不影响登录
-        print(f"[Login] Workflow trigger failed: {e}")
+        logger.error(f"登录工作流触发失败: {e}")
 
     return {
         "access_token": access_token,
@@ -698,7 +698,7 @@ def login_with_2fa(
     try:
         session = create_session_record(db, user.id, temp_token, request)
     except Exception as e:
-        print(f"Failed to create session record: {e}")
+        logger.error(f"创建会话记录失败: {e}")
 
     # 创建包含 session_id 的正式 token
     token_data = {"sub": user.email}
@@ -803,7 +803,7 @@ async def forgot_password(
         # 但为了演示“工作流接管”，我们只依赖工作流。
         # 实际生产中建议: if not await wf_service.has_handler(...): run_legacy()
     except Exception as e:
-        print(f"Trigger workflow failed: {e}")
+        logger.error(f"重置密码工作流触发失败: {e}")
         # Fallback to legacy logic (Safety Net)
         code = create_verification_code(db, request.email, "reset_password")
         success = await send_verification_code_email(request.email, code, "reset_password", db)
@@ -866,7 +866,7 @@ def reset_password(
             "method": "reset"  # 通过重置方式修改
         }))
     except Exception as e:
-        print(f"[ResetPassword] Workflow trigger failed: {e}")
+        logger.error(f"密码重置后工作流触发失败: {e}")
 
     return {"status": "success", "message": "密码重置成功"}
 

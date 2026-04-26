@@ -18,6 +18,13 @@ const handleClose = () => {
   }
   emit('update:modelValue', false)
 }
+
+// Escape 键关闭
+const handleKeydown = (e: KeyboardEvent) => {
+  if (e.key === 'Escape') handleClose()
+}
+onMounted(() => document.addEventListener('keydown', handleKeydown))
+onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
 </script>
 
 <template>

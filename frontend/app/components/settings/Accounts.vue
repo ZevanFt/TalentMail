@@ -4,6 +4,7 @@ import { User, Plus, Trash2, ToggleLeft, ToggleRight, Mail, RefreshCw, Settings 
 const { getMe, getAliases, createAlias, updateAlias, deleteAlias, getSubscriptionStatus, getExternalAccounts, createExternalAccount, deleteExternalAccount, testExternalAccount, getProviderPresets } = useApi()
 const config = useConfig()
 const toast = useToast()
+const { confirm: confirmDialog } = useConfirmDialog()
 
 const loading = ref(true)
 const user = ref<AppUser | null>(null)
@@ -120,9 +121,12 @@ const handleToggleAlias = async (alias: any) => {
 }
 
 const handleDeleteAlias = async (id: number) => {
+    const ok = await confirmDialog({ message: '确定删除此别名？删除后无法恢复。', type: 'danger' })
+    if (!ok) return
     try {
         await deleteAlias(id)
         aliases.value = aliases.value.filter(a => a.id !== id)
+        toast.success('别名已删除')
     } catch (e: any) {
         console.error('删除失败', e)
         toast.error(e.data?.detail || '删除别名失败')
@@ -161,9 +165,12 @@ const handleAddAccount = async () => {
 }
 
 const handleDeleteAccount = async (id: number) => {
+    const ok = await confirmDialog({ message: '确定删除此外部账号？删除后需重新配置。', type: 'danger' })
+    if (!ok) return
     try {
         await deleteExternalAccount(id)
         externalAccounts.value = externalAccounts.value.filter(a => a.id !== id)
+        toast.success('外部账号已删除')
     } catch (e: any) {
         console.error('删除失败', e)
         toast.error(e.data?.detail || '删除失败')

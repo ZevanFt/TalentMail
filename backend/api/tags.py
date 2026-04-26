@@ -36,12 +36,12 @@ class TagResponse(BaseModel):
 
 @router.get("", response_model=List[TagResponse])
 def get_tags(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    tags = db.query(Tag).filter(Tag.user_id == user.id).all()
-    result = []
-    for tag in tags:
-        count = db.query(EmailTag).filter(EmailTag.tag_id == tag.id).count()
-        result.append(TagResponse(id=tag.id, name=tag.name, color=tag.color, email_count=count))
-    return result
+    # 单次查询获取所有标签 + 计数，避免 N+1
+    from sqlalchemy import func, outerjoin
+    rows = db.query(Tag, func.count(EmailTag.id).label("cnt")).outerjoin(
+        EmailTag, EmailTag.tag_id == Tag.id
+    ).filter(Tag.user_id == user.id).group_by(Tag.id).all()
+    return [TagResponse(id=tag.id, name=tag.name, color=tag.color, email_count=cnt) for tag, cnt in rows]
 
 
 @router.post("", response_model=TagResponse)
@@ -89,6 +89,11 @@ def add_tag_to_email(email_id: int, tag_id: int, db: Session = Depends(get_db), 
     tag = db.query(Tag).filter(Tag.id == tag_id, Tag.user_id == user.id).first()
     if not tag:
         raise HTTPException(404, "标签不存在")
+    # 校验邮件所有权
+    user_folders = db.query(Folder.id).filter(Folder.user_id == user.id).subquery()
+    email_obj = db.query(Email).filter(Email.id == email_id, Email.folder_id.in_(user_folders)).first()
+    if not email_obj:
+        raise HTTPException(404, "邮件不存在")
     existing = db.query(EmailTag).filter(EmailTag.email_id == email_id, EmailTag.tag_id == tag_id).first()
     if existing:
         return {"status": "success", "message": "已添加"}
@@ -99,6 +104,14 @@ def add_tag_to_email(email_id: int, tag_id: int, db: Session = Depends(get_db), 
 
 @router.delete("/email/{email_id}/tag/{tag_id}")
 def remove_tag_from_email(email_id: int, tag_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    # 校验标签和邮件所有权
+    tag = db.query(Tag).filter(Tag.id == tag_id, Tag.user_id == user.id).first()
+    if not tag:
+        raise HTTPException(404, "标签不存在")
+    user_folders = db.query(Folder.id).filter(Folder.user_id == user.id).subquery()
+    email_obj = db.query(Email).filter(Email.id == email_id, Email.folder_id.in_(user_folders)).first()
+    if not email_obj:
+        raise HTTPException(404, "邮件不存在")
     db.query(EmailTag).filter(EmailTag.email_id == email_id, EmailTag.tag_id == tag_id).delete()
     db.commit()
     return {"status": "success", "message": "移除成功"}

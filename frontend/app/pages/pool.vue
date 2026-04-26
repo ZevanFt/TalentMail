@@ -103,7 +103,7 @@ const loadStats = async () => {
 const selectMailbox = (mailbox: Mailbox) => {
     selectedMailbox.value = mailbox
     selectedEmail.value = null
-    loadEmails()
+    // loadEmails 由 watch(selectedMailbox) 统一触发，避免双重请求
     if (isMobile.value) mobilePoolView.value = 'list'
 }
 
@@ -216,17 +216,21 @@ const handleDelete = async (mailbox: Mailbox) => {
 
 // 复制验证码
 const copyCode = async (code: string) => {
-    await copyToClipboard(code)
-    copiedCode.value = code
-    setTimeout(() => copiedCode.value = null, 2000)
+    try {
+        await copyToClipboard(code)
+        copiedCode.value = code
+        setTimeout(() => copiedCode.value = null, 2000)
+    } catch { toast.error('复制失败') }
 }
 
 // 复制邮箱地址
 const copiedEmail = ref<string | null>(null)
 const copyEmail = async (email: string) => {
-    await copyToClipboard(email)
-    copiedEmail.value = email
-    setTimeout(() => copiedEmail.value = null, 2000)
+    try {
+        await copyToClipboard(email)
+        copiedEmail.value = email
+        setTimeout(() => copiedEmail.value = null, 2000)
+    } catch { toast.error('复制失败') }
 }
 
 // 格式化时间

@@ -33,7 +33,7 @@ class Email(Base):
     id = Column(Integer, primary_key=True, comment="邮件唯一标识符")
     folder_id = Column(Integer, ForeignKey("folders.id"), nullable=False, index=True, comment="邮件所在的文件夹ID")
     mailbox_address = Column(String, index=True, comment="接收该邮件的邮箱地址（用于区分不同别名/域名收到的邮件）")
-    message_id = Column(String, unique=False, nullable=True, comment="邮件的全局唯一Message-ID（发送后才有）")
+    message_id = Column(String, unique=False, nullable=True, index=True, comment="邮件的全局唯一Message-ID（发送后才有）")
     in_reply_to = Column(String, nullable=True, comment="回复的邮件的Message-ID")
     references = Column(Text, nullable=True, comment="邮件引用链（空格分隔的Message-ID列表）")
     thread_id = Column(String, nullable=True, index=True, comment="邮件所属线索的ID")
@@ -48,7 +48,7 @@ class Email(Base):
     is_draft = Column(Boolean, default=False, comment="是否为草稿")
     sent_at = Column(DateTime(timezone=True), nullable=True, comment="邮件发送时间")
     scheduled_send_at = Column(DateTime(timezone=True), nullable=True, index=True, comment="计划发送时间")
-    snoozed_until = Column(DateTime(timezone=True), nullable=True, comment="邮件被推迟到何时显示")
+    snoozed_until = Column(DateTime(timezone=True), nullable=True, index=True, comment="邮件被推迟到何时显示")
     is_tracked = Column(Boolean, default=False, comment="是否启用邮件追踪")
     delivery_status = Column(String, default="pending", index=True, comment="投递状态: pending/sending/sent/delivered/failed")
     delivery_error = Column(Text, nullable=True, comment="投递失败的错误信息")
@@ -65,7 +65,7 @@ class Attachment(Base):
     __tablename__ = "attachments"
     __table_args__ = {'comment': '存储邮件附件的信息'}
     id = Column(Integer, primary_key=True, comment="附件唯一标识符")
-    email_id = Column(Integer, ForeignKey("emails.id"), nullable=True, comment="所属邮件的ID")
+    email_id = Column(Integer, ForeignKey("emails.id"), nullable=True, index=True, comment="所属邮件的ID")
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="上传用户ID")
     filename = Column(String, comment="附件原始文件名")
     content_type = Column(String, comment="附件的MIME类型")
@@ -103,7 +103,7 @@ class TempMailbox(Base):
     __tablename__ = "temp_mailboxes"
     __table_args__ = {'comment': '存储用户创建的临时邮箱'}
     id = Column(Integer, primary_key=True, comment="临时邮箱唯一标识符")
-    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="所属用户的ID")
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True, comment="所属用户的ID")
     email = Column(String, unique=True, nullable=False, comment="临时邮箱地址")
     purpose = Column(String, nullable=True, comment="创建该临时邮箱的用途")
     auto_verify_codes = Column(Boolean, default=False, comment="是否自动提取邮件中的验证码")

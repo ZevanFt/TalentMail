@@ -89,7 +89,9 @@ const stripHtml = (html: string) => {
   if (!html) return ''
   if (import.meta.client) {
     const div = document.createElement('div')
-    div.innerHTML = html
+    // 先消毒再设 innerHTML，防止 img onerror 等 XSS 副作用
+    const clean = sanitizeHtml(html)
+    div.innerHTML = clean
     return (div.textContent || div.innerText || '')
       .replace(/\u00A0/g, ' ')
       .trim()

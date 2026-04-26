@@ -953,7 +953,7 @@ def delete_draft(
 
 class BulkActionRequest(BaseModel):
     """批量操作请求"""
-    email_ids: list[int]
+    email_ids: list[int] = Field(..., max_length=500)  # 最多 500 封
 
 
 class BulkMoveRequest(BulkActionRequest):
