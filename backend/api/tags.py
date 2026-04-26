@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List
 from pydantic import BaseModel, Field
@@ -34,14 +34,22 @@ class TagResponse(BaseModel):
         from_attributes = True
 
 
-@router.get("", response_model=List[TagResponse])
-def get_tags(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+@router.get("")
+def get_tags(
+    page: int = Query(1, ge=1),
+    limit: int = Query(100, ge=1, le=500),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     # 单次查询获取所有标签 + 计数，避免 N+1
-    from sqlalchemy import func, outerjoin
-    rows = db.query(Tag, func.count(EmailTag.id).label("cnt")).outerjoin(
+    from sqlalchemy import func
+    base = db.query(Tag, func.count(EmailTag.id).label("cnt")).outerjoin(
         EmailTag, EmailTag.tag_id == Tag.id
-    ).filter(Tag.user_id == user.id).group_by(Tag.id).all()
-    return [TagResponse(id=tag.id, name=tag.name, color=tag.color, email_count=cnt) for tag, cnt in rows]
+    ).filter(Tag.user_id == user.id).group_by(Tag.id)
+    total = db.query(Tag).filter(Tag.user_id == user.id).count()
+    rows = base.offset((page - 1) * limit).limit(limit).all()
+    items = [TagResponse(id=tag.id, name=tag.name, color=tag.color, email_count=cnt) for tag, cnt in rows]
+    return {"items": items, "total": total}
 
 
 @router.post("", response_model=TagResponse)

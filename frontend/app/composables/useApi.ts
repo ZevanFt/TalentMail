@@ -633,7 +633,7 @@ export const useApi = () => {
     color: string
     email_count: number
   }
-  const getTags = () => api<Tag[]>('/tags')
+  const getTags = async () => { const res = await api<{ items: Tag[]; total: number }>('/tags'); return res.items }
   const createTag = (name: string, color: string = '#3B82F6') => api<Tag>('/tags', 'POST', { name, color })
   const updateTag = (id: number, data: { name?: string; color?: string }) => api<Tag>(`/tags/${id}`, 'PUT', data)
   const deleteTag = (id: number) => api<any>(`/tags/${id}`, 'DELETE')

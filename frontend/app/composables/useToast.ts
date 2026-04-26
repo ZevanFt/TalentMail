@@ -1,8 +1,18 @@
+export interface ToastAction {
+  label: string
+  onClick: () => void | Promise<void>
+}
+
 export interface ToastItem {
   id: number
   type: 'success' | 'error' | 'warning' | 'info'
   message: string
   duration: number
+  action?: ToastAction
+}
+
+interface ToastOptions {
+  action?: ToastAction
 }
 
 let _nextId = 0
@@ -12,9 +22,9 @@ export const useToast = () => {
 
   const MAX_TOASTS = 5
 
-  const add = (type: ToastItem['type'], message: string, duration = 3000) => {
+  const add = (type: ToastItem['type'], message: string, duration = 3000, options?: ToastOptions) => {
     const id = ++_nextId
-    const item: ToastItem = { id, type, message, duration }
+    const item: ToastItem = { id, type, message, duration, action: options?.action }
 
     toasts.value = [...toasts.value, item]
 
@@ -39,10 +49,10 @@ export const useToast = () => {
 
   return {
     toasts: readonly(toasts),
-    success: (message: string, duration?: number) => add('success', message, duration ?? 3000),
-    error: (message: string, duration?: number) => add('error', message, duration ?? 5000),
-    warning: (message: string, duration?: number) => add('warning', message, duration ?? 4000),
-    info: (message: string, duration?: number) => add('info', message, duration ?? 3000),
+    success: (message: string, duration?: number, options?: ToastOptions) => add('success', message, duration ?? 3000, options),
+    error: (message: string, duration?: number, options?: ToastOptions) => add('error', message, duration ?? 5000, options),
+    warning: (message: string, duration?: number, options?: ToastOptions) => add('warning', message, duration ?? 4000, options),
+    info: (message: string, duration?: number, options?: ToastOptions) => add('info', message, duration ?? 3000, options),
     remove,
   }
 }

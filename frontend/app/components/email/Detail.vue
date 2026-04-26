@@ -5,10 +5,10 @@ import ComposePanel from './ComposePanel.vue'
 
 const { selectedEmailDetail, selectedEmailId, detailLoading, formatTime, toggleRead, removeEmail, startReply, startReplyAll, startForward, folders, currentFolderId, loadEmails, tags, loadTags, addTag, removeTag } = useEmails()
 const { isComposeOpen, requestOpenCompose } = useGlobalModal()
-const { getTrackingStats, resendEmail, downloadAttachmentUrl, exportEmailUrl, token, bulkArchiveEmails } = useApi()
+const { getTrackingStats, resendEmail, downloadAttachmentUrl, exportEmailUrl, token, bulkArchiveEmails, bulkMoveEmails } = useApi()
+const toast = useToast()
 const { sanitizeEmailHtml, sanitizeEmailHtmlBlockRemote, proxyRemoteImages, hasRemoteImages } = useSanitize()
 const { isMobile, showEmailList } = useResponsive()
-const toast = useToast()
 
 // 返回列表（移动端）
 const handleBack = () => {
@@ -163,11 +163,27 @@ const showDeleteConfirm = ref(false)
 const handleDelete = () => {
   showDeleteConfirm.value = true
 }
-const confirmDelete = () => {
-  if (selectedEmailDetail.value) {
-    removeEmail(selectedEmailDetail.value.id)
-  }
+const confirmDelete = async () => {
+  if (!selectedEmailDetail.value) return
+  const emailId = selectedEmailDetail.value.id
+  const originalFolderId = currentFolderId.value
   showDeleteConfirm.value = false
+  await removeEmail(emailId)
+  // 显示可撤销的 toast
+  if (originalFolderId) {
+    toast.success('已删除', 8000, {
+      action: {
+        label: '撤销',
+        onClick: async () => {
+          try {
+            await bulkMoveEmails([emailId], originalFolderId)
+            await loadEmails(originalFolderId)
+            toast.success('已撤销删除')
+          } catch { toast.error('撤销失败') }
+        },
+      },
+    })
+  }
 }
 
 // 格式化收件人显示
@@ -258,13 +274,28 @@ const downloadAttachment = (id: number) => {
 // 归档邮件
 const handleArchive = async () => {
   if (!selectedEmailDetail.value) return
+  const emailId = selectedEmailDetail.value.id
+  const originalFolderId = currentFolderId.value
   try {
-    await bulkArchiveEmails([selectedEmailDetail.value.id])
-    toast.success('已归档')
+    await bulkArchiveEmails([emailId])
     // 清除选中并刷新列表
     selectedEmailId.value = null
     selectedEmailDetail.value = null
-    if (currentFolderId.value) await loadEmails(currentFolderId.value)
+    if (originalFolderId) {
+      await loadEmails(originalFolderId)
+      toast.success('已归档', 8000, {
+        action: {
+          label: '撤销',
+          onClick: async () => {
+            try {
+              await bulkMoveEmails([emailId], originalFolderId)
+              await loadEmails(originalFolderId)
+              toast.success('已撤销归档')
+            } catch { toast.error('撤销失败') }
+          },
+        },
+      })
+    }
   } catch (e: any) {
     console.error('归档失败:', e)
     toast.error('归档失败')

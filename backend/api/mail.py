@@ -827,7 +827,7 @@ def get_email_thread(
         Email.thread_id == email.thread_id,
         Folder.user_id == current_user.id,
         Email.id != email_id  # 排除当前邮件
-    ).order_by(Email.received_at.asc()).all()
+    ).order_by(Email.received_at.asc()).limit(50).all()
 
     items = []
     for e in thread_emails:

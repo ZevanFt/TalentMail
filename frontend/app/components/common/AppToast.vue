@@ -65,6 +65,14 @@ const colorMap = {
             {{ toast.message }}
           </p>
           <button
+            v-if="toast.action"
+            @click="toast.action.onClick(); remove(toast.id)"
+            class="shrink-0 px-2.5 py-1 text-xs font-bold rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
+            :class="[colorMap[toast.type].text, 'bg-white/60 dark:bg-black/20 hover:bg-white/80 dark:hover:bg-black/30 border border-current/20']"
+          >
+            {{ toast.action.label }}
+          </button>
+          <button
             @click="remove(toast.id)"
             class="shrink-0 p-0.5 rounded-md opacity-60 hover:opacity-100 transition-opacity"
             :class="colorMap[toast.type].text"

@@ -15,11 +15,13 @@ interface UploadedFile {
 
 const recipients = ref('')
 const ccRecipients = ref('')
+const bccRecipients = ref('')
 const subject = ref('')
 const body = ref('')
 const sending = ref(false)
 const error = ref('')
 const showCc = ref(false)
+const showBcc = ref(false)
 const isTracked = ref(false)
 const draftId = ref<number | null>(null)
 const showDraftConfirm = ref(false)
@@ -254,6 +256,7 @@ const handleSend = async (scheduleTime?: string) => {
     const payload: Record<string, any> = {
       to: recipients.value,
       cc: ccRecipients.value || undefined,
+      bcc: bccRecipients.value || undefined,
       subject: subject.value,
       body_html: safeHtml,
       body_text: editorRef.value?.getText() || stripHtml(safeHtml),
@@ -429,6 +432,7 @@ const closeAndReset = () => {
   resetCompose()
   recipients.value = ''
   ccRecipients.value = ''
+  bccRecipients.value = ''
   subject.value = ''
   body.value = ''
   isTracked.value = false
@@ -436,6 +440,7 @@ const closeAndReset = () => {
   attachments.value = []
   scheduledSendAt.value = ''
   showScheduleMenu.value = false
+  showBcc.value = false
   editorRef.value?.setContent('')
 }
 
@@ -682,10 +687,21 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
                  rounded-xl transition-all duration-200 hover:scale-105">
           抄送
         </button>
+        <button v-if="!showBcc" @click="showBcc = true"
+          class="px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary
+                 bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800 border-2 border-gray-200 dark:border-gray-700
+                 rounded-xl transition-all duration-200 hover:scale-105">
+          密送
+        </button>
       </div>
 
       <div v-if="showCc" class="relative group animate-in fade-in slide-in-from-top-2 duration-200">
         <EmailContactAutocomplete v-model="ccRecipients" placeholder="抄送 (多个用逗号分隔)" />
+        <div class="absolute inset-0 -z-10 bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 rounded-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300"></div>
+      </div>
+
+      <div v-if="showBcc" class="relative group animate-in fade-in slide-in-from-top-2 duration-200">
+        <EmailContactAutocomplete v-model="bccRecipients" placeholder="密送 BCC (收件人互不可见)" />
         <div class="absolute inset-0 -z-10 bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 rounded-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300"></div>
       </div>
 
