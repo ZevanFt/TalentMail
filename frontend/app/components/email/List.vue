@@ -286,9 +286,14 @@ const selectEmail = async (id: number) => {
 
   // 草稿箱：打开编辑弹窗
   if (isDraftsFolder.value) {
-    const res = await getEmail(id)
-    editDraft(res.data)
-    isComposeOpen.value = true
+    try {
+      const res = await getEmail(id)
+      editDraft(res.data)
+      isComposeOpen.value = true
+    } catch (e: any) {
+      const toast = useToast()
+      toast.error(e?._friendlyMessage || '加载草稿失败')
+    }
     return
   }
   selectedEmailId.value = id

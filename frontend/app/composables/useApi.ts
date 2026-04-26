@@ -81,29 +81,55 @@ export const useApi = () => {
     const formData = new URLSearchParams()
     formData.append('username', email)
     formData.append('password', password)
-    
-    const res = await $fetch<LoginResponse>(`${API_BASE}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: formData.toString()
-    })
-    
-    // 如果不需要 2FA，直接保存 token
-    if (res.access_token && !res.requires_2fa) {
-      token.value = res.access_token
+
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000)
+
+    try {
+      const res = await $fetch<LoginResponse>(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formData.toString(),
+        signal: controller.signal,
+      })
+
+      // 如果不需要 2FA，直接保存 token
+      if (res.access_token && !res.requires_2fa) {
+        token.value = res.access_token
+      }
+
+      return res
+    } catch (error: any) {
+      if (error?.name === 'AbortError') {
+        error._friendlyMessage = '登录请求超时，请检查网络后重试'
+      }
+      throw error
+    } finally {
+      clearTimeout(timeoutId)
     }
-    
-    return res
   }
-  
+
   const login2FA = async (tempToken: string, code: string) => {
-    const res = await $fetch<{ access_token: string; refresh_token: string; token_type: string }>(`${API_BASE}/auth/login-2fa`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ temp_token: tempToken, code })
-    })
-    token.value = res.access_token
-    return res
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000)
+
+    try {
+      const res = await $fetch<{ access_token: string; refresh_token: string; token_type: string }>(`${API_BASE}/auth/login-2fa`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ temp_token: tempToken, code }),
+        signal: controller.signal,
+      })
+      token.value = res.access_token
+      return res
+    } catch (error: any) {
+      if (error?.name === 'AbortError') {
+        error._friendlyMessage = '验证请求超时，请检查网络后重试'
+      }
+      throw error
+    } finally {
+      clearTimeout(timeoutId)
+    }
   }
 
   const logout = () => {

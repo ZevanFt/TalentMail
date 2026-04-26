@@ -76,8 +76,8 @@ export const useSanitize = () => {
         ALLOWED_URI_REGEXP: BASE_URI_REGEXP,
       })
     } finally {
-      // 清理 hook 避免影响后续调用
-      DOMPurify.removeAllHooks()
+      // 仅清理本函数注册的 hook 类型，避免误删其他消费者的 hook
+      DOMPurify.removeHook('afterSanitizeAttributes')
     }
   }
 

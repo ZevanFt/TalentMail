@@ -714,7 +714,13 @@ const formatInline = (text: string): string => {
     .replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold text-gray-900 dark:text-white">$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/`(.+?)`/g, '<code class="px-1.5 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded text-sm font-mono">$1</code>')
-    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" class="text-blue-600 dark:text-blue-400 hover:underline" target="_blank">$1</a>')
+    .replace(/\[(.+?)\]\((.+?)\)/g, (_match, linkText, href) => {
+      // 只允许安全的 URL 协议（renderMarkdown 最终也会过 DOMPurify，这里做第一道防线）
+      if (/^(?:https?:\/\/|mailto:|\/)/i.test(href)) {
+        return `<a href="${href}" class="text-blue-600 dark:text-blue-400 hover:underline" target="_blank">${linkText}</a>`
+      }
+      return linkText  // 不安全的 URL 只保留文本
+    })
 }
 
 const renderMarkdown = (content: string): string => {
