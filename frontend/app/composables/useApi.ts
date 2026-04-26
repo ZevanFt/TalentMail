@@ -224,7 +224,10 @@ export const useApi = () => {
     note: string | null
     created_at: string | null
   }
-  const getWhitelist = () => api<TrustedSender[]>('/spam/whitelist')
+  const getWhitelist = async () => {
+    const res = await api<{ items: TrustedSender[]; total: number }>('/spam/whitelist')
+    return res.items
+  }
   const addToWhitelist = (email: string, note?: string) =>
     api<TrustedSender>('/spam/whitelist', 'POST', { email, note })
   const removeFromWhitelist = (id: number) => api<any>(`/spam/whitelist/${id}`, 'DELETE')
@@ -261,7 +264,10 @@ export const useApi = () => {
     api<{ storage_used_bytes: number; storage_limit_bytes: number; email_count: number; email_bytes: number }>('/users/me/storage')
 
   // Invite APIs (admin only)
-  const getInviteCodes = () => api<any[]>('/invite/')
+  const getInviteCodes = async () => {
+    const res = await api<{ items: any[]; total: number }>('/invite/')
+    return res.items
+  }
   
   const createInviteCode = (maxUses: number = 1, expiresDays?: number) =>
     api<any>('/invite/', 'POST', { max_uses: maxUses, expires_days: expiresDays })
@@ -351,7 +357,10 @@ export const useApi = () => {
     api<any>(`/emails/drafts/${id}`, 'DELETE')
 
   // Signature APIs
-  const getSignatures = () => api<Array<{ id: number; name: string; content_html: string; is_default: boolean }>>('/signatures/')
+  const getSignatures = async () => {
+    const res = await api<{ items: Array<{ id: number; name: string; content_html: string; is_default: boolean }>; total: number }>('/signatures/')
+    return res.items
+  }
   const createSignature = (data: { name: string; content_html: string; is_default?: boolean }) =>
     api<{ id: number; name: string; content_html: string; is_default: boolean }>('/signatures/', 'POST', data)
   const updateSignature = (id: number, data: { name?: string; content_html?: string; is_default?: boolean }) =>
@@ -595,7 +604,10 @@ export const useApi = () => {
     reason: string | null
     created_at: string | null
   }
-  const getBlockedSenders = () => api<BlockedSender[]>('/blocklist/')
+  const getBlockedSenders = async () => {
+    const res = await api<{ items: BlockedSender[]; total: number }>('/blocklist/')
+    return res.items
+  }
   const addBlockedSender = (email: string, reason?: string) => api<BlockedSender>('/blocklist/', 'POST', { email, reason })
   const removeBlockedSender = (id: number) => api<any>(`/blocklist/${id}`, 'DELETE')
 
@@ -606,7 +618,10 @@ export const useApi = () => {
     name: string | null
     is_active: boolean
   }
-  const getAliases = () => api<EmailAlias[]>('/aliases/')
+  const getAliases = async () => {
+    const res = await api<{ items: EmailAlias[]; total: number }>('/aliases/')
+    return res.items
+  }
   const createAlias = (alias_prefix: string, name?: string) => api<EmailAlias>('/aliases/', 'POST', { alias_prefix, name })
   const updateAlias = (id: number, data: { name?: string; is_active?: boolean }) => api<EmailAlias>(`/aliases/${id}`, 'PUT', data)
   const deleteAlias = (id: number) => api<any>(`/aliases/${id}`, 'DELETE')
@@ -668,7 +683,10 @@ export const useApi = () => {
     smtp_ssl: boolean
     smtp_starttls: boolean
   }
-  const getExternalAccounts = () => api<ExternalAccount[]>('/external-accounts/')
+  const getExternalAccounts = async () => {
+    const res = await api<{ items: ExternalAccount[]; total: number }>('/external-accounts/')
+    return res.items
+  }
   const createExternalAccount = (data: { email: string; password: string; provider?: string; imap_host?: string; imap_port?: number; imap_ssl?: boolean; smtp_host?: string; smtp_port?: number; smtp_ssl?: boolean; smtp_starttls?: boolean }) =>
     api<ExternalAccount>('/external-accounts/', 'POST', data)
   const updateExternalAccount = (id: number, data: { password?: string; is_active?: boolean }) =>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Paperclip, Send, Loader2, Eye, X, FileText, Clock, ChevronDown } from 'lucide-vue-next'
+import { Paperclip, Send, Loader2, Eye, X, FileText, Clock, ChevronDown, CheckCircle, XCircle } from 'lucide-vue-next'
 import TemplateSelector from './TemplateSelector.vue'
 
 const toastNotify = useToast()
@@ -539,9 +539,11 @@ const handleTemplateClear = () => {
 
 // ========== 自动保存草稿（30 秒防抖） ==========
 let autoSaveTimer: ReturnType<typeof setTimeout> | null = null
+const autoSaveStatus = ref<'idle' | 'saving' | 'saved' | 'error'>('idle')
 
 const autoSaveDraft = async () => {
   if (!hasContent.value || sending.value || savingDraft.value) return
+  autoSaveStatus.value = 'saving'
   try {
     const safeHtml = sanitizeHtml(body.value)
     const data = {
@@ -557,9 +559,13 @@ const autoSaveDraft = async () => {
       const res = await saveDraft(data)
       draftId.value = res.data.id
     }
+    autoSaveStatus.value = 'saved'
+    // 3 秒后恢复到 idle
+    setTimeout(() => { if (autoSaveStatus.value === 'saved') autoSaveStatus.value = 'idle' }, 3000)
   } catch (e) {
-    // 静默失败，不打扰用户
+    autoSaveStatus.value = 'error'
     console.error('自动保存草稿失败', e)
+    setTimeout(() => { if (autoSaveStatus.value === 'error') autoSaveStatus.value = 'idle' }, 5000)
   }
 }
 
@@ -737,6 +743,21 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
         <Eye class="w-4 h-4 transition-transform duration-200" :class="isTracked ? 'scale-110' : ''" />
         <span class="transition-colors">追踪</span>
       </button>
+
+      <!-- 自动保存状态指示器 -->
+      <Transition name="fade">
+        <span v-if="autoSaveStatus !== 'idle'" class="text-xs px-2 py-1 rounded-lg flex items-center gap-1 mr-2"
+          :class="{
+            'text-gray-400': autoSaveStatus === 'saving',
+            'text-green-500': autoSaveStatus === 'saved',
+            'text-red-400': autoSaveStatus === 'error',
+          }">
+          <Loader2 v-if="autoSaveStatus === 'saving'" class="w-3 h-3 animate-spin" />
+          <CheckCircle v-else-if="autoSaveStatus === 'saved'" class="w-3 h-3" />
+          <XCircle v-else-if="autoSaveStatus === 'error'" class="w-3 h-3" />
+          {{ autoSaveStatus === 'saving' ? '保存中...' : autoSaveStatus === 'saved' ? '已保存' : '保存失败' }}
+        </span>
+      </Transition>
 
       <div class="relative flex items-center schedule-menu-container">
         <button @click="handleSend()" :disabled="sending"

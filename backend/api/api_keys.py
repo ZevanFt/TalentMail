@@ -88,17 +88,22 @@ def _normalize_scopes(scopes: List[str]) -> List[str]:
     return normalized
 
 
-@router.get("/", response_model=List[ApiKeyItem])
+@router.get("/")
 def list_api_keys(
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(deps.get_db),
     current_user: models.User = Depends(deps.get_current_active_user),
 ):
-    return (
+    """获取用户的 API Key 列表（分页）"""
+    query = (
         db.query(ApiKey)
         .filter(ApiKey.user_id == current_user.id)
         .order_by(ApiKey.created_at.desc())
-        .all()
     )
+    total = query.count()
+    items = query.offset((page - 1) * limit).limit(limit).all()
+    return {"items": items, "total": total}
 
 
 @router.post("/", response_model=ApiKeyCreateResponse)

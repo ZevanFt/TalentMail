@@ -71,6 +71,7 @@ export const useEmails = () => {
   const currentFolderId = useState<number | null>('currentFolderId', () => null)
   const selectedEmailId = useState<number | null>('selectedEmailId', () => null)
   const selectedEmailDetail = useState<EmailDetail | null>('selectedEmailDetail', () => null)
+  const detailLoading = useState('emailDetailLoading', () => false)
   const loading = useState('emailsLoading', () => false)
   const syncing = useState('emailsSyncing', () => false)
 
@@ -139,11 +140,12 @@ export const useEmails = () => {
 
   // 加载邮件详情
   const loadEmailDetail = async (id: number) => {
+    detailLoading.value = true
     try {
       const res = await getEmail(id)
       selectedEmailDetail.value = res.data
       selectedEmailId.value = id
-      
+
       // 自动标记为已读（后端已处理，这里更新本地状态）
       const email = emails.value.find(e => e.id === id)
       if (email && !email.is_read) {
@@ -152,6 +154,8 @@ export const useEmails = () => {
     } catch (e: any) {
       console.error('加载邮件详情失败:', e)
       toast.error(e.data?.detail || '加载邮件详情失败')
+    } finally {
+      detailLoading.value = false
     }
   }
 
@@ -637,7 +641,7 @@ export const useEmails = () => {
   }
 
   return {
-    emails, folders, tags, currentFolderId, selectedEmailId, selectedEmailDetail,
+    emails, folders, tags, currentFolderId, selectedEmailId, selectedEmailDetail, detailLoading,
     loading, syncing, currentFilter, composeState, searchQuery, searchFilters, isSearching, currentTagName,
     emailHasMore, loadingMore, emailTotal,
     loadFolders, loadTags, loadEmails, loadEmailDetail, loadFilteredEmails, loadSnoozedEmails, loadAllEmails, loadEmailsByTag,

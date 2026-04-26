@@ -3,7 +3,7 @@ import { ArrowLeft, Trash2, Archive, Star, Reply, Forward, MoreHorizontal, Mail,
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
 import ComposePanel from './ComposePanel.vue'
 
-const { selectedEmailDetail, selectedEmailId, formatTime, toggleRead, removeEmail, startReply, startReplyAll, startForward, folders, currentFolderId, loadEmails, tags, loadTags, addTag, removeTag } = useEmails()
+const { selectedEmailDetail, selectedEmailId, detailLoading, formatTime, toggleRead, removeEmail, startReply, startReplyAll, startForward, folders, currentFolderId, loadEmails, tags, loadTags, addTag, removeTag } = useEmails()
 const { isComposeOpen, requestOpenCompose } = useGlobalModal()
 const { getTrackingStats, resendEmail, downloadAttachmentUrl, exportEmailUrl, token, bulkArchiveEmails } = useApi()
 const { sanitizeEmailHtml, sanitizeEmailHtmlBlockRemote, proxyRemoteImages, hasRemoteImages } = useSanitize()
@@ -702,6 +702,26 @@ const handleThreadEmailClick = (emailId: number) => {
           <Reply class="w-4 h-4 group-hover:-rotate-12 transition-transform" />
           <span>回复</span>
         </button>
+      </div>
+    </template>
+
+    <!-- 邮件详情加载中 -->
+    <template v-else-if="detailLoading">
+      <div class="flex-1 flex flex-col p-6 lg:p-8 animate-pulse">
+        <div class="h-6 bg-gray-200 dark:bg-gray-700 rounded w-2/3 mb-4"></div>
+        <div class="flex items-center gap-3 mb-6">
+          <div class="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
+          <div class="flex-1">
+            <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-2"></div>
+            <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
+          </div>
+        </div>
+        <div class="space-y-3 flex-1">
+          <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+          <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-5/6"></div>
+          <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-4/6"></div>
+          <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+        </div>
       </div>
     </template>
 

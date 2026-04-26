@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 
 from db.database import get_db
@@ -118,24 +118,24 @@ PROVIDER_PRESETS = {
 
 
 class ExternalAccountCreate(BaseModel):
-    email: str
-    display_name: Optional[str] = None
-    provider: str = "custom"
-    username: str
-    password: str
+    email: str = Field(..., max_length=320)
+    display_name: Optional[str] = Field(default=None, max_length=200)
+    provider: str = Field(default="custom", max_length=50)
+    username: str = Field(..., max_length=320)
+    password: str = Field(..., max_length=500)
     # 自定义服务器配置（provider=custom 时必填）
-    imap_host: Optional[str] = None
+    imap_host: Optional[str] = Field(default=None, max_length=255)
     imap_port: Optional[int] = 993
     imap_ssl: Optional[bool] = True
-    smtp_host: Optional[str] = None
+    smtp_host: Optional[str] = Field(default=None, max_length=255)
     smtp_port: Optional[int] = 587
     smtp_ssl: Optional[bool] = False
     smtp_starttls: Optional[bool] = True
 
 
 class ExternalAccountUpdate(BaseModel):
-    display_name: Optional[str] = None
-    password: Optional[str] = None
+    display_name: Optional[str] = Field(default=None, max_length=200)
+    password: Optional[str] = Field(default=None, max_length=500)
     is_active: Optional[bool] = None
     sync_enabled: Optional[bool] = None
 
@@ -178,11 +178,18 @@ def get_providers():
     }
 
 
-@router.get("", response_model=List[ExternalAccountResponse])
-def list_accounts(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    """获取用户的外部邮箱账号列表"""
-    accounts = db.query(ExternalAccount).filter(ExternalAccount.user_id == user.id).order_by(ExternalAccount.created_at.desc()).all()
-    return accounts
+@router.get("")
+def list_accounts(
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """获取用户的外部邮箱账号列表（分页）"""
+    query = db.query(ExternalAccount).filter(ExternalAccount.user_id == user.id).order_by(ExternalAccount.created_at.desc())
+    total = query.count()
+    accounts = query.offset((page - 1) * limit).limit(limit).all()
+    return {"items": accounts, "total": total}
 
 
 @router.post("", response_model=ExternalAccountResponse)

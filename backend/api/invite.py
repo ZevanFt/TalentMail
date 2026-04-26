@@ -1,9 +1,9 @@
 import logging
 import secrets
 from datetime import datetime, timezone, timedelta
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 
 from db import models
@@ -15,8 +15,8 @@ router = APIRouter()
 
 
 class InviteCodeCreate(BaseModel):
-    max_uses: int = 1  # 0 表示无限
-    expires_days: Optional[int] = None  # None 表示永不过期
+    max_uses: int = Field(default=1, ge=0, le=10000)  # 0 表示无限
+    expires_days: Optional[int] = Field(default=None, ge=1, le=3650)  # 最长10年
 
 
 class InviteCodeUsageResponse(BaseModel):
@@ -69,21 +69,22 @@ def create_invite_code(
     return invite
 
 
-@router.get("/", response_model=List[InviteCodeResponse])
+@router.get("/")
 def list_invite_codes(
     include_deleted: bool = False,
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(deps.get_db),
     current_user: models.User = Depends(deps.get_current_active_user)
 ):
-    """获取邀请码列表（仅管理员）
-    
-    默认显示所有邀请码（包括已删除的），以便查看历史使用记录
-    """
+    """获取邀请码列表（仅管理员，分页）"""
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="仅管理员可查看邀请码")
-    
-    # 默认显示所有邀请码（包括已删除的）
-    return db.query(models.InviteCode).order_by(models.InviteCode.created_at.desc()).all()
+
+    query = db.query(models.InviteCode).order_by(models.InviteCode.created_at.desc())
+    total = query.count()
+    items = query.offset((page - 1) * limit).limit(limit).all()
+    return {"items": items, "total": total}
 
 
 @router.delete("/{code_id}")

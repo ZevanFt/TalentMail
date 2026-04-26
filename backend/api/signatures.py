@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel, Field
@@ -35,13 +35,18 @@ class SignatureRead(BaseModel):
         from_attributes = True
 
 
-@router.get("/", response_model=List[SignatureRead])
+@router.get("/")
 def list_signatures(
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(deps.get_db),
     current_user: models.User = Depends(deps.get_current_active_user)
 ):
-    """获取用户所有签名"""
-    return db.query(Signature).filter(Signature.user_id == current_user.id).all()
+    """获取用户所有签名（分页）"""
+    query = db.query(Signature).filter(Signature.user_id == current_user.id)
+    total = query.count()
+    items = query.offset((page - 1) * limit).limit(limit).all()
+    return {"items": items, "total": total}
 
 
 @router.post("/", response_model=SignatureRead)

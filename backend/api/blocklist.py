@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel, Field
@@ -24,25 +24,32 @@ class BlockedSenderRead(BaseModel):
         from_attributes = True
 
 
-@router.get("/", response_model=List[BlockedSenderRead])
+@router.get("/")
 def get_blocked_senders(
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(deps.get_db),
     current_user: models.User = Depends(deps.get_current_active_user)
 ):
-    """获取当前用户的黑名单列表"""
-    items = db.query(BlockedSender).filter(
+    """获取当前用户的黑名单列表（分页）"""
+    query = db.query(BlockedSender).filter(
         BlockedSender.user_id == current_user.id
-    ).order_by(BlockedSender.created_at.desc()).all()
+    ).order_by(BlockedSender.created_at.desc())
+    total = query.count()
+    items = query.offset((page - 1) * limit).limit(limit).all()
     
-    return [
-        {
-            "id": item.id,
-            "email": item.email,
-            "reason": item.reason,
-            "created_at": item.created_at.isoformat() if item.created_at else None
-        }
-        for item in items
-    ]
+    return {
+        "items": [
+            {
+                "id": item.id,
+                "email": item.email,
+                "reason": item.reason,
+                "created_at": item.created_at.isoformat() if item.created_at else None
+            }
+            for item in items
+        ],
+        "total": total,
+    }
 
 
 @router.post("/", response_model=BlockedSenderRead)

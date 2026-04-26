@@ -61,26 +61,33 @@ class SpamReportRead(BaseModel):
 
 # ==================== 白名单 API ====================
 
-@router.get("/whitelist", response_model=List[TrustedSenderRead])
+@router.get("/whitelist")
 def get_trusted_senders(
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(deps.get_db),
     current_user: models.User = Depends(deps.get_current_active_user)
 ):
-    """获取当前用户的白名单列表"""
-    items = db.query(TrustedSender).filter(
+    """获取当前用户的白名单列表（分页）"""
+    query = db.query(TrustedSender).filter(
         TrustedSender.user_id == current_user.id
-    ).order_by(TrustedSender.created_at.desc()).all()
+    ).order_by(TrustedSender.created_at.desc())
+    total = query.count()
+    items = query.offset((page - 1) * limit).limit(limit).all()
 
-    return [
-        {
-            "id": item.id,
-            "email": item.email,
-            "sender_type": item.sender_type,
-            "note": item.note,
-            "created_at": item.created_at.isoformat() if item.created_at else None
-        }
-        for item in items
-    ]
+    return {
+        "items": [
+            {
+                "id": item.id,
+                "email": item.email,
+                "sender_type": item.sender_type,
+                "note": item.note,
+                "created_at": item.created_at.isoformat() if item.created_at else None
+            }
+            for item in items
+        ],
+        "total": total,
+    }
 
 
 @router.post("/whitelist", response_model=TrustedSenderRead)

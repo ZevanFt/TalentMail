@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, field_serializer, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_serializer, field_validator
 from typing import Optional
 from datetime import datetime, date
 from .common import CustomEmailStr, validate_password_strength
@@ -71,20 +71,20 @@ class UserPasswordReset(BaseModel):
 
 # Schema for updating user profile
 class UserUpdate(BaseModel):
-    display_name: Optional[str] = None
-    avatar_url: Optional[str] = None
-    theme: Optional[str] = None
+    display_name: Optional[str] = Field(default=None, max_length=200)
+    avatar_url: Optional[str] = Field(default=None, max_length=2000)
+    theme: Optional[str] = Field(default=None, max_length=50)
     # 通知设置
     enable_desktop_notifications: Optional[bool] = None
     enable_sound_notifications: Optional[bool] = None
     enable_pool_notifications: Optional[bool] = None
     # 自动回复
     auto_reply_enabled: Optional[bool] = None
-    auto_reply_start_date: Optional[str] = None
-    auto_reply_end_date: Optional[str] = None
-    auto_reply_message: Optional[str] = None
+    auto_reply_start_date: Optional[str] = Field(default=None, max_length=20)
+    auto_reply_end_date: Optional[str] = Field(default=None, max_length=20)
+    auto_reply_message: Optional[str] = Field(default=None, max_length=5000)
     # 隐私设置
-    spam_filter_level: Optional[str] = None
+    spam_filter_level: Optional[str] = Field(default=None, max_length=20)
     block_external_images: Optional[bool] = None
     # 自动清理设置
     auto_clean_trash: Optional[bool] = None

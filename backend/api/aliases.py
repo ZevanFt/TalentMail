@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel, Field
@@ -57,14 +57,18 @@ def get_user_alias_limit(db: Session, user: models.User) -> int:
     return default_plan.max_aliases if default_plan else 0
 
 
-@router.get("/", response_model=List[AliasRead])
+@router.get("/")
 def get_aliases(
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(deps.get_db),
     current_user: models.User = Depends(deps.get_current_active_user)
 ):
-    """获取当前用户的别名列表"""
-    items = db.query(Alias).filter(Alias.user_id == current_user.id).all()
-    return items
+    """获取当前用户的别名列表（分页）"""
+    query = db.query(Alias).filter(Alias.user_id == current_user.id)
+    total = query.count()
+    items = query.offset((page - 1) * limit).limit(limit).all()
+    return {"items": items, "total": total}
 
 
 @router.post("/", response_model=AliasRead)
