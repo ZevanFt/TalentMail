@@ -77,7 +77,7 @@ class Attachment(Base):
     __table_args__ = {'comment': '存储邮件附件的信息'}
     id = Column(Integer, primary_key=True, comment="附件唯一标识符")
     email_id = Column(Integer, ForeignKey("emails.id"), nullable=True, index=True, comment="所属邮件的ID")
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="上传用户ID")
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True, comment="上传用户ID")
     filename = Column(String, comment="附件原始文件名")
     content_type = Column(String, comment="附件的MIME类型")
     size = Column(Integer, default=0, comment="文件大小(字节)")

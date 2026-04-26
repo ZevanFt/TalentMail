@@ -52,7 +52,7 @@ class UserSession(Base):
     __tablename__ = "user_sessions"
     __table_args__ = {'comment': '记录用户的活跃会话，用于安全审计和设备管理'}
     id = Column(Integer, primary_key=True, comment="用户会话唯一标识符")
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, comment="所属用户的ID")
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True, comment="所属用户的ID")
     token_hash = Column(String(64), nullable=True, index=True, comment="Token哈希值，用于识别会话")
     device_info = Column(String, comment="设备信息 (e.g., 'Chrome on Windows')")
     browser = Column(String(100), nullable=True, comment="浏览器名称")

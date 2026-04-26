@@ -101,7 +101,16 @@ def load_config() -> Settings:
     # The password for the mail server's admin account is the same as the app's admin account.
     settings.MAIL_PASSWORD = settings.ADMIN_PASSWORD
     # Master user password: 优先环境变量，未设置时回退为 ADMIN_PASSWORD。
-    settings.MAIL_MASTER_PASSWORD = os.getenv("MAIL_MASTER_PASSWORD", settings.ADMIN_PASSWORD)
+    _master_pw_env = os.getenv("MAIL_MASTER_PASSWORD")
+    if _master_pw_env:
+        settings.MAIL_MASTER_PASSWORD = _master_pw_env
+    else:
+        settings.MAIL_MASTER_PASSWORD = settings.ADMIN_PASSWORD
+        import logging as _log
+        _log.getLogger(__name__).warning(
+            "⚠ MAIL_MASTER_PASSWORD 未单独设置，回退为 ADMIN_PASSWORD。"
+            "生产环境建议设置独立的 MAIL_MASTER_PASSWORD 环境变量。"
+        )
 
     return settings
 

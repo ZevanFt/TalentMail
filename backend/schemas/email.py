@@ -137,11 +137,11 @@ class EmailDetailResponse(BaseModel):
 # --- 草稿 Schemas ---
 class DraftCreate(BaseModel):
     """创建/更新草稿"""
-    to: Optional[str] = ""
-    cc: Optional[str] = ""
-    subject: Optional[str] = ""
-    body_text: Optional[str] = ""
-    body_html: Optional[str] = ""
+    to: Optional[str] = Field(default="", max_length=10_000)
+    cc: Optional[str] = Field(default="", max_length=10_000)
+    subject: Optional[str] = Field(default="", max_length=998)
+    body_text: Optional[str] = Field(default="", max_length=2_000_000)
+    body_html: Optional[str] = Field(default="", max_length=5_000_000)
     reply_to_id: Optional[int] = None
 
 

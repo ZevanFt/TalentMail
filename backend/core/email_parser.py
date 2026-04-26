@@ -4,10 +4,16 @@
 避免三处维护相同逻辑。
 """
 import email
+import logging
 from email.header import decode_header
 from email.utils import parsedate_to_datetime
 from datetime import datetime, timezone
 from typing import Optional, List, Tuple
+
+logger = logging.getLogger(__name__)
+
+# 单个附件最大大小 (25MB)，超过则跳过
+MAX_ATTACHMENT_SIZE = 25 * 1024 * 1024
 
 
 def decode_mime_header(header: Optional[str]) -> str:
@@ -92,11 +98,14 @@ def get_email_body_and_attachments(msg: email.message.Message) -> Tuple[str, str
             if "attachment" in content_disposition or (filename and content_type not in ["text/plain", "text/html"]):
                 payload = part.get_payload(decode=True)
                 if payload and filename:
-                    attachments.append({
-                        "filename": filename,
-                        "content_type": content_type,
-                        "data": payload,
-                    })
+                    if len(payload) > MAX_ATTACHMENT_SIZE:
+                        logger.warning(f"跳过超大附件: {filename} ({len(payload)} bytes > {MAX_ATTACHMENT_SIZE})")
+                    else:
+                        attachments.append({
+                            "filename": filename,
+                            "content_type": content_type,
+                            "data": payload,
+                        })
                 continue
 
             if content_type == "text/html":

@@ -42,12 +42,12 @@ def get_user_by_email(db: Session, email: str):
     """
     Retrieves a user from the database by their email address.
     """
-    logger.info(f"正在数据库中查询邮箱: {email}")
+    logger.debug(f"正在数据库中查询邮箱: {email}")
     user = db.query(models.User).filter(models.User.email == email).first()
     if user:
-        logger.info(f"成功找到用户，ID: {user.id}")
+        logger.debug(f"成功找到用户，ID: {user.id}")
     else:
-        logger.info(f"未找到邮箱为 {email} 的用户。")
+        logger.debug(f"未找到匹配用户")
     return user
 
 

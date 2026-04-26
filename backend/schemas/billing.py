@@ -7,15 +7,15 @@ from decimal import Decimal
 # --- Plan Schemas ---
 
 class PlanBase(BaseModel):
-    name: str
+    name: str = Field(..., max_length=200)
     price_monthly: Optional[Decimal] = None
     price_yearly: Optional[Decimal] = None
     storage_quota_bytes: Optional[int] = None
     features: Optional[dict] = None
-    max_domains: int = 0
-    max_aliases: int = 5
+    max_domains: int = Field(default=0, ge=0)
+    max_aliases: int = Field(default=5, ge=0)
     allow_temp_mail: bool = True
-    max_temp_mailboxes: int = 3  # 临时邮箱数量限制
+    max_temp_mailboxes: int = Field(default=3, ge=0)  # 临时邮箱数量限制
 
 
 class PlanCreate(PlanBase):
@@ -23,15 +23,15 @@ class PlanCreate(PlanBase):
 
 
 class PlanUpdate(BaseModel):
-    name: Optional[str] = None
+    name: Optional[str] = Field(default=None, max_length=200)
     price_monthly: Optional[Decimal] = None
     price_yearly: Optional[Decimal] = None
     storage_quota_bytes: Optional[int] = None
     features: Optional[dict] = None
-    max_domains: Optional[int] = None
-    max_aliases: Optional[int] = None
+    max_domains: Optional[int] = Field(default=None, ge=0)
+    max_aliases: Optional[int] = Field(default=None, ge=0)
     allow_temp_mail: Optional[bool] = None
-    max_temp_mailboxes: Optional[int] = None
+    max_temp_mailboxes: Optional[int] = Field(default=None, ge=0)
 
 
 class PlanRead(PlanBase):
@@ -97,7 +97,7 @@ class RedemptionCodeRead(BaseModel):
 
 
 class RedemptionCodeUse(BaseModel):
-    code: str
+    code: str = Field(..., max_length=100)
 
 
 class RedemptionCodeBatchResponse(BaseModel):

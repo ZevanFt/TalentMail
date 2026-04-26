@@ -10,7 +10,7 @@ class DriveFile(Base):
     __table_args__ = {'comment': '文件中转站'}
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, comment="用户ID")
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True, comment="用户ID")
     filename = Column(String(255), nullable=False, comment="文件名")
     original_filename = Column(String(255), nullable=False, comment="原始文件名")
     content_type = Column(String(100), comment="MIME类型")

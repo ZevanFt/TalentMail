@@ -35,8 +35,8 @@ class Subscription(Base):
     __tablename__ = "subscriptions"
     __table_args__ = {'comment': '记录用户的套餐订阅信息'}
     id = Column(Integer, primary_key=True, comment="订阅记录唯一标识符")
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="所属用户的ID")
-    plan_id = Column(Integer, ForeignKey("plans.id"), nullable=False, comment="所订阅套餐的ID")
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True, comment="所属用户的ID")
+    plan_id = Column(Integer, ForeignKey("plans.id"), nullable=False, index=True, comment="所订阅套餐的ID")
     status = Column(String, comment="订阅状态 (e.g., 'active', 'canceled', 'past_due')")
     current_period_end = Column(DateTime(timezone=True), comment="当前订阅周期的结束时间")
     user = relationship("User")
