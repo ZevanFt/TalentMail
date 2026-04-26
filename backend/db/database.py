@@ -1,3 +1,5 @@
+import os
+
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -10,7 +12,10 @@ engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
     pool_pre_ping=True,
     pool_recycle=3600,
-    connect_args={}
+    pool_size=int(os.getenv("DB_POOL_SIZE", "10")),
+    max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "20")),
+    pool_timeout=int(os.getenv("DB_POOL_TIMEOUT", "10")),
+    connect_args={},
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

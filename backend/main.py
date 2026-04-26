@@ -1,6 +1,7 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
 from starlette.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 import asyncio
 from db.database import engine, SessionLocal
 from db import models  # 确保导入 models 以注册表
@@ -27,6 +28,7 @@ cleanup_task = None
 temp_mailbox_cleanup_task = None
 scheduled_sender_task = None
 orphan_attachment_task = None
+snooze_task = None
 
 
 async def periodic_session_cleanup(interval: int = 86400):
@@ -106,6 +108,39 @@ async def periodic_orphan_attachment_cleanup(interval: int = 3600):
             logger.error(f"孤儿附件清理失败: {e}")
 
 
+async def periodic_snooze_check(interval: int = 60):
+    """定期检查贪睡到期的邮件，清除 snoozed_until 使其重新出现在收件箱"""
+    from db.models.email import Email, Folder
+    while True:
+        await asyncio.sleep(interval)
+        try:
+            db = SessionLocal()
+            try:
+                now = datetime.now(timezone.utc)
+                # 查找所有 snoozed_until 已过期的邮件
+                expired = db.query(Email).filter(
+                    Email.snoozed_until != None,  # noqa: E711
+                    Email.snoozed_until <= now,
+                ).all()
+                if expired:
+                    for email in expired:
+                        email.snoozed_until = None
+                    db.commit()
+                    logger.info(f"[Snooze] 唤醒了 {len(expired)} 封贪睡邮件")
+                    # 按用户分组发 WebSocket 通知
+                    user_ids = set()
+                    for email in expired:
+                        folder = db.query(Folder).filter(Folder.id == email.folder_id).first()
+                        if folder:
+                            user_ids.add(folder.user_id)
+                    for uid in user_ids:
+                        await ws_manager.send_to_user(uid, {"type": "snooze_wakeup"})
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"[Snooze] 贪睡检查失败: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global sync_task, cleanup_task, temp_mailbox_cleanup_task, scheduled_sender_task, orphan_attachment_task
@@ -150,6 +185,10 @@ async def lifespan(app: FastAPI):
     # 启动孤儿附件清理任务（每小时检查一次，清理 24 小时前未关联的上传）
     logger.info("启动孤儿附件清理任务（间隔1小时）...")
     orphan_attachment_task = asyncio.create_task(periodic_orphan_attachment_cleanup(interval=3600))
+
+    # 启动贪睡邮件唤醒任务（每60秒检查到期的贪睡邮件）
+    logger.info("启动贪睡邮件唤醒任务（间隔60秒）...")
+    snooze_task = asyncio.create_task(periodic_snooze_check(interval=60))
 
     # 启动时先执行一次清理
     try:
@@ -198,6 +237,16 @@ async def lifespan(app: FastAPI):
             await orphan_attachment_task
         except asyncio.CancelledError:
             pass
+    if snooze_task:
+        snooze_task.cancel()
+        try:
+            await snooze_task
+        except asyncio.CancelledError:
+            pass
+
+    # 关闭数据库连接池
+    engine.dispose()
+    logger.info("TalentMail 已安全停止")
 
 
 app = FastAPI(

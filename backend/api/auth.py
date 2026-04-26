@@ -14,6 +14,7 @@ from user_agents import parse as parse_user_agent
 from pydantic import BaseModel, EmailStr, field_validator
 
 from core import security
+from schemas.common import validate_password_strength
 from core.config import settings
 from core.mail import send_verification_code_email
 from core.workflow_service import WorkflowService
@@ -192,11 +193,16 @@ class UserCreateWithVerification(BaseModel):
     invite_code: str
     verification_email: str  # 用于验证的外部邮箱
     verification_code: str  # 验证码
-    
+
     @field_validator('email', 'verification_email')
     @classmethod
     def validate_email(cls, v):
         return validate_email_flexible(v)
+
+    @field_validator('password')
+    @classmethod
+    def check_password(cls, v):
+        return validate_password_strength(v)
 
 
 class ForgotPasswordRequest(BaseModel):
@@ -214,6 +220,11 @@ class ResetPasswordRequest(BaseModel):
     email: str  # TalentMail 邮箱
     code: str  # 验证码
     new_password: str  # 新密码
+
+    @field_validator('new_password')
+    @classmethod
+    def check_password(cls, v):
+        return validate_password_strength(v)
     
     @field_validator('email')
     @classmethod

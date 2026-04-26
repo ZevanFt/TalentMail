@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr, field_serializer, field_validator
 from typing import Optional
 from datetime import datetime, date
-from .common import CustomEmailStr
+from .common import CustomEmailStr, validate_password_strength
 
 # --- User Schemas ---
 
@@ -9,6 +9,11 @@ from .common import CustomEmailStr
 class UserCreate(BaseModel):
     email: CustomEmailStr  # Use our new, globally effective custom type
     password: str
+
+    @field_validator('password')
+    @classmethod
+    def check_password(cls, v):
+        return validate_password_strength(v)
     display_name: Optional[str] = None
     phone: Optional[str] = None
     invite_code: str  # 邀请码，必填
@@ -90,3 +95,8 @@ class UserUpdate(BaseModel):
 class PasswordChange(BaseModel):
     current_password: str
     new_password: str
+
+    @field_validator('new_password')
+    @classmethod
+    def check_password(cls, v):
+        return validate_password_strength(v)

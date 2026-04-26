@@ -26,3 +26,16 @@ def dev_email_validator(v: str) -> str:
 # Create a new type using Annotated and our custom validator.
 # This ensures the validation is applied everywhere this type is used.
 CustomEmailStr = Annotated[str, dev_email_validator]
+
+
+def validate_password_strength(v: str) -> str:
+    """密码强度验证：至少 8 位，需包含大写、小写和数字"""
+    if len(v) < 8:
+        raise PydanticCustomError("value_error", "密码长度不能少于 8 位")
+    if not any(c.isupper() for c in v):
+        raise PydanticCustomError("value_error", "密码需包含至少一个大写字母")
+    if not any(c.islower() for c in v):
+        raise PydanticCustomError("value_error", "密码需包含至少一个小写字母")
+    if not any(c.isdigit() for c in v):
+        raise PydanticCustomError("value_error", "密码需包含至少一个数字")
+    return v
