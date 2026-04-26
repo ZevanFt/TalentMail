@@ -5,148 +5,174 @@
 <h1 align="center">TalentMail</h1>
 
 <p align="center">
-  <strong>🚀 现代化自托管邮件服务平台</strong>
+  <strong>Modern Self-Hosted Email Platform</strong>
 </p>
 
 <p align="center">
-  一个功能完整、安全可靠的企业级邮件解决方案
+  Nuxt 4 + FastAPI + PostgreSQL + docker-mailserver
+</p>
+
+<p align="center">
+  <code>v2.0.0</code>&nbsp;&nbsp;|&nbsp;&nbsp;
+  <a href="docs/">Documentation</a>&nbsp;&nbsp;|&nbsp;&nbsp;
+  <a href="docs/03-features/api-reference.md">API Reference</a>&nbsp;&nbsp;|&nbsp;&nbsp;
+  <a href="docs/07-reference/changelog.md">Changelog</a>
 </p>
 
 ---
 
-## ✨ 功能特性
+## Features
 
-### 📧 核心邮件功能
-- **邮件收发** - 完整的 SMTP/IMAP 支持，支持附件、HTML 邮件
-- **文件夹管理** - 收件箱、已发送、草稿、垃圾箱、归档等
-- **邮件搜索** - 快速全文搜索，支持多条件筛选
-- **邮件追踪** - 打开追踪、投递状态实时反馈
-- **草稿与定时发送** - 保存草稿，定时发送邮件
-- **回复与转发** - 支持引用回复、转发邮件
+### Core Email
+- Full SMTP/IMAP with attachments, HTML, BCC, scheduled send & auto-save drafts
+- Folder management (inbox, sent, drafts, trash, archive, spam, custom)
+- Full-text search with advanced filters (sender, recipient, date range, has attachment, starred, read)
+- Email threading via In-Reply-To/References headers
+- Email tracking pixels with open count, device analytics, resend on failure
+- Email export as EML/PDF, print view
+- Bulk operations (move, delete, archive, star, read) with Gmail-style undo
 
-### 🔐 安全与隐私
-- **JWT 认证** - 安全的用户认证机制
-- **两步验证 (2FA)** - TOTP 验证器支持
-- **登录设备管理** - 查看和管理登录设备
-- **隐私设置** - 阻止外部图片、垃圾邮件过滤
+### Temp Mailbox & Automation API
+- Create disposable email addresses with auto-expiry (24h default, 10-day recovery)
+- Auto-extract verification codes (4-8 chars, Chinese + English patterns)
+- **REST API with API Key auth** for external automation (CI/CD, testing, bots)
+- Idempotent creation via `Idempotency-Key` header
+- Full audit logging with per-key rate limiting & scope-based permissions
+- See [API Reference](docs/03-features/api-reference.md) for complete documentation
 
-### 👥 用户管理
-- **邀请码注册** - 可控的用户增长
-- **邮箱验证码** - 安全的注册流程
-- **会员订阅制度** - 灵活的套餐管理
-- **用户权限管理** - 管理员/普通用户角色
+### Security
+- JWT auth with refresh tokens & token type enforcement
+- TOTP two-factor authentication (2FA)
+- Login device/session management with remote revoke
+- Password strength enforcement (8+ chars, upper/lower/digit)
+- Rate limiting on all sensitive endpoints (login, register, send, upload, tracking)
+- SSRF-protected image proxy for remote email images
+- Constant-time verification code comparison (`hmac.compare_digest`)
+- XSS sanitization (DOMPurify frontend + HTML whitelist backend)
+- Encrypted external account passwords (AES)
 
-### 📮 账号池功能
-- **临时邮箱** - 快速创建临时邮箱，支持外部邮件接收
-- **生命周期管理** - 默认 24 小时有效，过期后 10 天可恢复，支持管理员系统级清理策略
-- **验证码识别** - 自动提取邮件中的验证码（支持 4-8 位数字/字母）
-- **IMAP 实时同步** - 每 30 秒通过 Master user 同步临时邮箱收件
-- **统计分析** - 邮箱使用情况统计
+### Workflow & Automation
+- Visual drag-and-drop workflow editor (Vue Flow)
+- 41 node handler types (email ops, HTTP, notifications, conditions, loops)
+- BFS graph traversal execution engine with version history
+- Rule engine with trigger-condition-action automation (13 action types)
+- Template marketplace with pre-built workflows
+- System workflows (welcome email, password change notification, etc.)
 
-### 🎨 用户体验
-- **深色/浅色主题** - 自适应系统主题，一键切换
-- **自定义背景皮肤** - 上传个性化背景图片，支持区域控制和透明度调节
-- **磨砂玻璃效果** - 统一的 Glassmorphism UI 设计语言
-- **键盘快捷键** - 丰富的快捷键支持，按 `?` 查看帮助
-- **实时通知** - WebSocket 实时推送
-- **响应式设计** - 适配各种屏幕尺寸
-- **邮件签名** - 自定义邮件签名
+### User Experience
+- Glassmorphism UI with customizable background skins & transparency
+- Dark/light theme with system auto-detect
+- PWA support (installable desktop app)
+- Full keyboard shortcuts (`?` to view help)
+- WebSocket real-time notifications (new email, snooze wakeup)
+- Responsive design (desktop + mobile)
+- Rich text editor (TipTap with 13 extensions)
+- Contact autocomplete with chip input
+- Loading skeletons, undo toasts, auto-save indicators
 
-### 🔄 自动化工作流
-- **可视化工作流编辑器** - 飞书风格的拖拽式流程设计
-- **丰富的触发器** - 邮件到达、定时任务、Webhook 等
-- **多种动作类型** - 邮件操作、通知发送、HTTP 请求等
-- **模板市场** - 预设工作流模板，一键启用
+### Administration
+- User management (create, delete with full cascade, role assignment)
+- Invite code system for controlled growth
+- Subscription & billing with redemption codes
+- Email template editor with variable insertion & test send
+- Blocklist/whitelist management
+- Reserved email prefix management
+- System changelog publishing
 
 ---
 
-## 🛠️ 技术栈
+## Tech Stack
 
-| 层级 | 技术 |
-|------|------|
-| **前端** | Nuxt.js 3, Vue.js 3, TypeScript, Tailwind CSS |
-| **后端** | FastAPI, Python 3, Pydantic V2, SQLAlchemy |
-| **数据库** | PostgreSQL |
-| **邮件服务** | docker-mailserver (Postfix + Dovecot) |
-| **反向代理** | Caddy |
-| **容器化** | Docker, Docker Compose |
+| Layer | Technology | Version |
+|-------|-----------|---------|
+| **Frontend** | Nuxt.js | 4.x (Vue 3.5, TypeScript) |
+| **Frontend** | Tailwind CSS | via @nuxtjs/tailwindcss 6.x |
+| **Frontend** | Rich Editor | TipTap 3.x (13 extensions) |
+| **Frontend** | Workflow Editor | Vue Flow 1.48+ |
+| **Frontend** | PWA | @vite-pwa/nuxt |
+| **Backend** | FastAPI | 0.122 (Python 3.12) |
+| **Backend** | SQLAlchemy | 2.0 + Alembic migrations |
+| **Backend** | Pydantic | V2 (2.12+) |
+| **Backend** | LMTP | aiosmtpd 1.4+ |
+| **Database** | PostgreSQL | 15 (full-text search, tsvector) |
+| **Mail Server** | docker-mailserver | Postfix + Dovecot + Fail2Ban |
+| **Reverse Proxy** | Caddy | Alpine (auto HTTPS) |
+| **Runtime** | Docker Compose | v2 |
 
 ---
 
-## 🚀 快速开始
+## Quick Start
 
-### 环境要求
-- Docker & Docker Compose
+### Requirements
+- Docker & Docker Compose v2
 - Git
 
-### 开发环境部署
-
-#### 第 1 步：配置本地 DNS
-
-编辑 `/etc/hosts` (Linux/macOS) 或 `C:\Windows\System32\drivers\etc\hosts` (Windows)：
-
-```
-127.0.0.1   mail.talenting.test
-```
-
-如果你启用了项目内置开发 Caddy，可通过 `https://mail.talenting.test:18443` 访问；
-如果使用宿主机统一 Caddy，则让统一 Caddy 反代到 `127.0.0.1:13000` 和 `127.0.0.1:18000`。
-
-#### 第 2 步：启动开发环境
+### Development
 
 ```bash
-# 克隆项目
+# Clone & configure
 git clone <repository-url>
 cd talentmail
+cp .env.example .env
+nano .env          # Set SECRET_KEY, POSTGRES_PASSWORD, etc.
 
-# 使用开发脚本启动 (推荐)
-chmod +x dev.sh
-./dev.sh
+# Start (recommended)
+chmod +x dev.sh && ./dev.sh
 
-# 或手动启动
-# 默认不启用项目内置 Caddy，避免占用 80/443
+# Or manually
 docker compose -f docker-compose.dev.yml up -d --build
 
-# 如需使用项目内置开发 Caddy（18080/18443）
-docker compose -f docker-compose.dev.yml --profile embedded-caddy up -d --build
-```
-
-#### 第 3 步：初始化数据库（仅首次）
-
-```bash
+# Initialize database (first time only)
 docker compose -f docker-compose.dev.yml exec backend python -m initial.initial_data
 ```
 
-#### 第 4 步：访问应用
+| Service | URL |
+|---------|-----|
+| Web App | https://mail.talenting.test:18443 |
+| Frontend | http://127.0.0.1:13000 |
+| Backend API | http://127.0.0.1:18000 |
+| API Docs (Swagger) | http://127.0.0.1:18000/docs |
 
-| 服务 | 地址 |
-|------|------|
-| 主应用 | https://mail.talenting.test 或 https://mail.talenting.test:18443 |
-| 前端 (备用) | http://127.0.0.1:13000 |
-| 后端 API | http://127.0.0.1:18000 |
-| API 文档 | http://127.0.0.1:18000/docs |
+**Default admin**: `admin@talenting.test` / `adminpassword`
 
-**默认管理员账户**: `admin@talenting.test` / `adminpassword`
+### Production
+
+```bash
+# 1. Configure
+cp .env.example .env && nano .env
+nano config.json    # Set baseDomain, etc.
+
+# 2. Deploy
+chmod +x deploy.sh
+bash deploy.sh --migrate
+
+# 3. Configure reverse proxy (Caddy)
+# See config/caddy/Caddyfile.prod for upstream config
+```
+
+**Deploy modes**: `--migrate` (incremental, recommended) | `--fresh` (wipe & rebuild) | `--auto` (detect) | `--doctor` (diagnose only)
+
+### DNS Configuration
+
+| Type | Name | Value | Proxy | Notes |
+|------|------|-------|-------|-------|
+| A | `mail` | Server IP | Proxied | Web app |
+| A | `maillink` | Server IP | **DNS Only** | Mail server (must NOT be proxied) |
+| MX | `@` | `maillink.example.com` | - | Priority 10 |
+| TXT | `@` | `v=spf1 mx ~all` | - | SPF record |
 
 ---
 
-## ⚙️ 配置说明
+## Configuration
 
-### 核心配置文件
-
-项目使用 `config.json` 作为核心配置文件（单一事实来源）：
+### config.json (Single Source of Truth)
 
 ```json
 {
-  "currentEnvironment": "development",
+  "currentEnvironment": "production",
   "environments": {
-    "development": {
-      "baseDomain": "talenting.test",
-      "webPrefix": "mail",
-      "mailServerPrefix": "maillink"
-    },
     "production": {
-      "baseDomain": "talenting.vip",
+      "baseDomain": "example.com",
       "webPrefix": "mail",
       "mailServerPrefix": "maillink"
     }
@@ -154,340 +180,116 @@ docker compose -f docker-compose.dev.yml exec backend python -m initial.initial_
 }
 ```
 
-### 环境变量配置 (.env)
+### Environment Variables (.env)
 
-复制示例文件并编辑：
-
-```bash
-cp .env.example .env
-nano .env
-```
-
-**必填配置项：**
-
-| 变量 | 说明 | 示例 |
-|------|------|------|
-| `CURRENT_ENVIRONMENT` | 当前环境 | `development` 或 `production` |
-| `SECRET_KEY` | JWT 密钥 | `openssl rand -hex 32` 生成 |
-| `POSTGRES_PASSWORD` | 数据库密码 | 设置强密码 |
-| `ADMIN_PASSWORD` | 管理员密码 | 设置强密码 |
-| `DEFAULT_MAIL_PASSWORD` | 邮件账户默认密码 | 设置强密码 |
-| `ENABLE_INTERNAL_LMTP` | 是否启用后端内置 LMTP | 默认 `false`，通常保持关闭 |
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `SECRET_KEY` | JWT signing key (`openssl rand -hex 32`) | Yes |
+| `POSTGRES_PASSWORD` | Database password | Yes |
+| `ADMIN_PASSWORD` | Initial admin password | Yes |
+| `DEFAULT_MAIL_PASSWORD` | Mail account default password | Yes |
+| `ENCRYPTION_KEY` | External account password encryption key | Yes |
+| `MAIL_MASTER_PASSWORD` | Dovecot master user password | Yes |
+| `ENABLE_INTERNAL_LMTP` | Use built-in LMTP server (default: `false`) | No |
 
 ---
 
-## 🌐 生产环境部署
-
-### 1. 服务器要求
-
-- **操作系统**: Ubuntu 20.04 LTS 或 22.04 LTS
-- **配置**: 至少 2核 CPU, 4GB 内存
-- **端口开放**: 80, 443, 25, 143, 587, 993（其中 80/443 建议由宿主机统一 Caddy 占用并反代到 TalentMail 的回环端口）
-
-### 2. DNS 配置 (Cloudflare)
-
-| 类型 | 名称 | 内容 | 代理状态 | 说明 |
-|------|------|------|----------|------|
-| **A** | `mail` | `服务器IP` | ✅ 已代理 | Web 应用 |
-| **A** | `maillink` | `服务器IP` | ❌ 仅 DNS | **必须关闭代理！** |
-| **MX** | `@` | `maillink.example.com` | - | 优先级 10 |
-| **TXT** | `@` | `v=spf1 mx ~all` | - | SPF 记录 |
-
-> ⚠️ **重要**: `maillink` 子域名必须是 **灰色云朵 (DNS Only)**，否则邮件无法正常收发。
-
-### 3. 首次部署（推荐）
-
-```bash
-# 1) 环境变量
-cp .env.example .env
-nano .env
-
-# 2) 域名配置
-nano config.json
-
-# 3) 执行迁移部署（保留数据）
-chmod +x deploy.sh
-bash deploy.sh --migrate
-
-# 4) 将 config/caddy/Caddyfile.prod 的站点配置加载到宿主机统一 Caddy
-#    其默认上游为 127.0.0.1:13000 和 127.0.0.1:18000
-```
-
-### 4. 后续更新部署
-
-```bash
-git pull
-bash deploy.sh --migrate
-```
-
-### 5. 部署模式说明
-
-- `--migrate`: 保留数据，执行增量迁移（推荐）
-- `--fresh`: 清空数据重建（仅首次或明确重置）
-- `--auto`: 自动判断数据库状态
-- `--doctor`: 仅迁移诊断，不部署
-
-### 6. 迁移失败排查（不影响线上）
-
-```bash
-# 只做诊断，不部署
-bash deploy.sh --doctor
-
-# 查看最新诊断日志
-ls -lt .deploy_logs/
-tail -n 200 .deploy_logs/migration_failure_*.log
-```
-
-诊断日志包含：
-- `alembic current`
-- `alembic heads`
-- backend 最近日志
-- 当前 git 提交号
-
-### 7. SSL 证书同步（可选）
-
-如果你暂时仍在使用项目内置 Caddy 获取 `MAIL_SERVER` 证书，可以继续执行：
-
-```bash
-chmod +x scripts/sync_mail_certs.sh
-./scripts/sync_mail_certs.sh
-```
-
-如果已经改为宿主机统一 Caddy 完全接管，可直接用宿主机证书目录执行同步，例如：
-
-```bash
-CADDY_CERT_SOURCE=host \
-HOST_CERT_DIR=/var/lib/caddy/.local/share/caddy/certificates/acme-v02.api.letsencrypt.org-directory/${MAIL_SERVER} \
-./scripts/sync_mail_certs.sh
-```
-
-如果证书实际存放路径不同，只需把 `HOST_CERT_DIR` 改成你宿主机上的真实目录。
-
----
-
-## 📁 项目结构
+## Project Structure
 
 ```
 talentmail/
-├── backend/              # FastAPI 后端
-│   ├── api/              # API 路由
-│   ├── core/             # 核心功能 (配置、安全、邮件)
-│   ├── crud/             # 数据库操作
-│   ├── db/               # 数据库模型
-│   ├── schemas/          # Pydantic 模型
-│   └── initial/          # 初始化数据
-├── frontend/             # Nuxt.js 前端
+├── backend/                 # FastAPI backend (Python 3.12)
+│   ├── api/                 # 27 API router modules
+│   ├── core/                # Config, security, mail, LMTP, IMAP sync
+│   ├── crud/                # Database CRUD operations
+│   ├── db/models/           # SQLAlchemy models
+│   ├── schemas/             # Pydantic request/response schemas
+│   ├── initial/             # DB seed data (admin, templates, workflows)
+│   ├── utils/               # Rate limiters, helpers
+│   └── alembic/             # Database migrations (40+)
+├── frontend/                # Nuxt 4 frontend
 │   └── app/
-│       ├── components/   # Vue 组件
-│       ├── pages/        # 页面
-│       ├── layouts/      # 布局
-│       └── composables/  # 组合式函数
-├── config/               # 配置文件
-│   ├── caddy/            # Caddy 反向代理配置
-│   └── mail/             # 邮件服务器配置
-├── scripts/              # 辅助脚本
-├── config.json           # 核心配置文件
-├── dev.sh                # 开发环境脚本
-└── deploy.sh             # 生产环境部署脚本
+│       ├── components/      # Vue components (email/, common/, settings/)
+│       ├── pages/           # 13 pages
+│       ├── composables/     # useApi, useEmails, useToast, etc.
+│       └── layouts/         # Default + blank layouts
+├── config/                  # Infrastructure configs
+│   ├── caddy/               # Caddyfile (dev + prod)
+│   └── mail/                # docker-mailserver (Dovecot SQL auth, etc.)
+├── docs/                    # 7-section documentation
+├── scripts/                 # Helper scripts
+├── config.json              # Domain & feature configuration
+├── deploy.sh                # Production deployment script
+└── docker-compose.yml       # Production compose (5 services)
 ```
 
 ---
 
-## 🔧 常用命令
+## API Overview
 
-### 开发环境
+### Public Endpoints (No Auth)
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/health` | Health check (API + DB) |
+| `GET /api/readiness` | Readiness probe |
+| `GET /api/liveness` | Liveness probe |
+| `GET /api/track/open/{pixel_id}` | Email tracking pixel (returns 1x1 GIF) |
+
+### Automation API (API Key Auth)
+| Endpoint | Scope | Description |
+|----------|-------|-------------|
+| `POST /api/automation/temp-mailboxes` | `temp_mailbox:create` | Create temp mailbox |
+| `GET /api/automation/temp-mailboxes` | `temp_mailbox:read` | List temp mailboxes |
+| `GET /api/automation/temp-mailboxes/{id}/emails` | `temp_email:read` | Get mailbox emails |
+| `GET /api/automation/temp-mailboxes/{id}/codes/latest` | `temp_code:read` | Get latest verification code |
+| `POST /api/automation/temp-mailboxes/{id}/extend` | `temp_mailbox:extend` | Extend mailbox TTL |
+| `POST /api/automation/temp-mailboxes/{id}/restore` | `temp_mailbox:restore` | Restore expired mailbox |
+
+> Full API documentation with request/response examples: [docs/03-features/api-reference.md](docs/03-features/api-reference.md)
+
+---
+
+## Background Tasks
+
+| Task | Interval | Purpose |
+|------|----------|---------|
+| IMAP Sync | 30s | Sync mail from Dovecot (users + temp mailboxes) |
+| Scheduled Send | 60s | Send emails with `scheduled_send_at` |
+| Snooze Check | 60s | Wake snoozed emails past due time |
+| Temp Mailbox Cleanup | 10min | Lifecycle transitions + purge |
+| Session Cleanup | 24h | Remove sessions inactive >30 days |
+| Orphan Attachment Cleanup | 1h | Remove unlinked uploads >24h |
+
+---
+
+## Troubleshooting
 
 ```bash
-# 启动开发环境 (推荐)
-./dev.sh
+# Check service status
+docker compose ps
 
-# 手动启动
-docker compose -f docker-compose.dev.yml up -d --build
+# View logs
+docker compose logs -f backend
+docker compose logs -f mailserver
 
-# 查看服务状态
-docker compose -f docker-compose.dev.yml ps
-
-# 查看日志
-docker compose -f docker-compose.dev.yml logs -f           # 所有服务
-docker compose -f docker-compose.dev.yml logs -f backend   # 后端日志
-docker compose -f docker-compose.dev.yml logs -f frontend  # 前端日志
-docker compose -f docker-compose.dev.yml logs -f db        # 数据库日志
-
-# 重启单个服务
-docker compose -f docker-compose.dev.yml restart backend
-docker compose -f docker-compose.dev.yml restart frontend
-
-# 停止服务
-docker compose -f docker-compose.dev.yml down
-
-# 停止并删除数据卷 (清空数据库)
-docker compose -f docker-compose.dev.yml down -v
-```
-
-### 生产环境
-
-```bash
-# 迁移部署（推荐）
-bash deploy.sh --migrate
-
-# 全新部署（危险：会清空数据）
-bash deploy.sh --fresh
-
-# 自动模式
-bash deploy.sh --auto
-
-# 仅迁移诊断（不部署）
+# Migration diagnostics
 bash deploy.sh --doctor
 
-# 查看日志
-docker compose logs -f                      # 所有日志
-docker compose logs -f mailserver           # 邮件服务日志
-
-# 重启服务
-docker compose restart backend
+# Force reinitialize data
+docker compose exec backend python -m initial.initial_data
 ```
 
-### 数据库管理
-
-```bash
-# 运行数据库迁移
-docker compose -f docker-compose.dev.yml exec backend alembic upgrade head
-
-# 初始化数据 (首次部署后执行)
-docker compose -f docker-compose.dev.yml exec backend python -m initial.initial_data
-
-# 初始化模板数据
-docker compose -f docker-compose.dev.yml exec backend python -c "from db.database import SessionLocal; from initial.init_template_data import init_template_data; db = SessionLocal(); init_template_data(db); db.close()"
-```
-
-### 清理空间
-
-```bash
-# 清理 Docker 缓存 (释放磁盘空间)
-docker system prune -af --volumes
-docker builder prune -af
-```
+See [docs/05-operations/troubleshooting.md](docs/05-operations/troubleshooting.md) for detailed guides.
 
 ---
 
-## 🚨 故障排除
-
-### 数据库连接失败 / 登录失败
-
-1. **检查服务状态**
-   ```bash
-   docker compose -f docker-compose.dev.yml ps
-   ```
-   确保 db 服务显示 `healthy`。
-
-2. **如果数据库显示 `unhealthy`**，可能是磁盘空间不足：
-   ```bash
-   # 检查磁盘空间
-   df -h /
-   
-   # 清理 Docker 缓存
-   docker system prune -af --volumes
-   docker builder prune -af
-   
-   # 重启数据库
-   docker compose -f docker-compose.dev.yml restart db
-   
-   # 等待几秒后重启后端
-   sleep 5 && docker compose -f docker-compose.dev.yml restart backend
-   ```
-
-3. **查看数据库日志**
-   ```bash
-   docker compose -f docker-compose.dev.yml logs db --tail 50
-   ```
-
-### 邮件模板加载失败
-
-如果管理员页面显示"加载失败"，运行模板初始化：
-```bash
-docker compose -f docker-compose.dev.yml exec backend python -c "
-from db.database import SessionLocal
-from initial.init_template_data import init_template_data
-db = SessionLocal()
-init_template_data(db)
-db.close()
-print('模板数据初始化完成')
-"
-```
-
-### 前端页面无法访问
-
-```bash
-# 检查前端服务
-docker compose -f docker-compose.dev.yml logs frontend --tail 20
-
-# 重新构建前端
-docker compose -f docker-compose.dev.yml up -d --build frontend
-```
-
-### 生产迁移失败（推荐流程）
-
-```bash
-# 1) 先做诊断（不会部署）
-bash deploy.sh --doctor
-
-# 2) 查看最新日志
-ls -lt .deploy_logs/
-tail -n 200 .deploy_logs/migration_failure_*.log
-
-# 3) 重点检查版本状态
-docker compose exec -T backend alembic current
-docker compose exec -T backend alembic heads
-```
-
-若 `heads` 多于 1 个，先补 merge migration，再执行：
-
-```bash
-bash deploy.sh --migrate
-```
-
----
-
-## 📊 功能完成度
-
-| 模块 | 状态 | 说明 |
-|------|------|------|
-| 核心邮件功能 | ✅ 100% | SMTP/IMAP 收发、附件、搜索 |
-| 高级邮件功能 | ✅ 100% | 邮件追踪、草稿、回复转发 |
-| 附件功能 | ✅ 100% | 上传、下载、预览 |
-| 会员订阅 | ✅ 100% | 套餐管理、兑换码 |
-| 用户系统 | ✅ 100% | 登录、注册、2FA、设备管理 |
-| 账号池 | ✅ 100% | 临时邮箱、验证码识别 |
-| 邮件模板系统 | ✅ 100% | 可视化编辑、变量插入、测试发送 |
-| 自动化规则 | ✅ 100% | 规则引擎、条件匹配、动作执行 |
-| 工作流系统 | ✅ 100% | 可视化编辑器、模板市场、版本管理 |
-| UI 主题系统 | ✅ 100% | 深色/浅色主题、自定义背景、磨砂玻璃效果 |
-| 键盘快捷键 | ✅ 100% | 全局快捷键、帮助弹窗 |
-| 设置页面 | ✅ 95% | 完整的用户设置功能 |
-
-### 待完善功能
-
-| 功能 | 优先级 | 说明 |
-|------|--------|------|
-| 垃圾邮件训练闭环 | 🟡 中 | 接入真实 `sa-learn` 训练流程（当前为占位实现） |
-| API 开放平台 | 🔴 高 | MVP 已上线（API Key 管理、自动化接口、基础审计与限流）；待补齐开发者文档与示例 |
-| 备份与监控运维体系 | 🟡 中 | 备份/恢复、监控与告警文档和脚本闭环 |
-
----
-
-## 📜 版权声明
+## License
 
 ```
-Copyright © 2025 Talenting. All Rights Reserved.
-
-本项目为私有项目，保留所有权利。
-未经授权，禁止复制、修改、分发或使用本项目的任何部分。
-
-作者: Zevan
+Copyright (c) 2025-2026 Talenting. All Rights Reserved.
+Author: Zevan
 ```
-
----
 
 <p align="center">
-  <sub>Made with ❤️ by Zevan @ Talenting</sub>
+  <sub>Made with love by Zevan @ Talenting</sub>
 </p>

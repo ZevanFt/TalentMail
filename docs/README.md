@@ -21,7 +21,8 @@ docs/
 │   ├── email-system.md    # 邮件系统
 │   ├── workflow-system.md # 工作流系统
 │   ├── template-system.md # 模板系统
-│   └── automation.md      # 自动化功能
+│   ├── automation.md      # 自动化功能
+│   └── api-reference.md   # Open API 接口文档
 ├── 04-development/         # 开发指南
 │   ├── README.md          # 开发指南概览
 │   ├── coding-standards.md # 编码规范
@@ -54,6 +55,7 @@ docs/
 - [🏗️ 系统架构设计](./02-architecture/system-design.md)
 - [📧 邮件系统文档](./03-features/email-system.md)
 - [🔄 工作流系统文档](./03-features/workflow-system.md)
+- [🔑 Open API Reference (Automation)](./03-features/api-reference.md)
 
 ### 开发者资源
 - [💻 开发指南](./04-development/README.md)
@@ -81,4 +83,4 @@ docs/
 
 ---
 
-最后更新时间：2026-03-03
+最后更新时间：2026-04-26
