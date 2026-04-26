@@ -21,7 +21,7 @@ from crud import user as crud_user
 from db import models
 from db.database import get_db
 from db.models.user import UserSession
-from utils.rate_limit import login_limiter
+from utils.rate_limit import login_limiter, register_limiter, totp_limiter, password_reset_limiter
 from db.models.system import ReservedPrefix, VerificationCode
 from schemas.user import UserCreate
 from schemas.schemas import Token # Will be moved to schemas.token soon
@@ -363,11 +363,19 @@ def verify_verification_code(
 # ============ 注册 API ============
 
 @router.post("/register")
-def register_user(user: UserCreate, db: Session = Depends(get_db)):
+def register_user(user: UserCreate, request: Request, db: Session = Depends(get_db)):
     """
     Handles user registration with invite code validation.
     (旧版注册接口，不需要邮箱验证)
     """
+    # 注册频率限制：每 IP 10 分钟内最多 5 次
+    client_ip = get_client_ip(request)
+    if not register_limiter.allow(f"register:{client_ip}"):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="注册尝试过于频繁，请 10 分钟后再试",
+        )
+
     # 验证邀请码
     invite = crud_user.validate_invite_code(db, user.invite_code)
     if not invite:
@@ -442,12 +450,21 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
 @router.post("/register-with-verification")
 def register_user_with_verification(
     user: UserCreateWithVerification,
+    request: Request,
     db: Session = Depends(get_db)
 ):
     """
     带邮箱验证的用户注册
     需要先通过 /send-verification-code 发送验证码到外部邮箱
     """
+    # 注册频率限制
+    client_ip = get_client_ip(request)
+    if not register_limiter.allow(f"register:{client_ip}"):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="注册尝试过于频繁，请 10 分钟后再试",
+        )
+
     # 验证邀请码
     invite = crud_user.validate_invite_code(db, user.invite_code)
     if not invite:
@@ -651,8 +668,16 @@ def login_with_2fa(
     """
     使用 2FA 验证码完成登录
     """
+    # 2FA 频率限制：每 IP 5 分钟最多 10 次（防止暴力破解 6 位 TOTP）
+    client_ip = get_client_ip(request)
+    if not totp_limiter.allow(f"totp:{client_ip}"):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="验证尝试过于频繁，请 5 分钟后再试",
+        )
+
     import pyotp
-    
+
     # 验证临时 token
     token_data = security.verify_token(login_request.temp_token)
     if not token_data:
@@ -819,11 +844,20 @@ async def forgot_password(
 @router.post("/reset-password")
 def reset_password(
     request: ResetPasswordRequest,
+    req: Request,
     db: Session = Depends(get_db)
 ):
     """
     使用验证码重置密码
     """
+    # 密码重置频率限制
+    client_ip = get_client_ip(req)
+    if not password_reset_limiter.allow(f"reset:{client_ip}"):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="操作过于频繁，请 10 分钟后再试",
+        )
+
     # 验证用户是否存在
     user = crud_user.get_user_by_email(db, email=request.email)
     if not user:

@@ -16,6 +16,7 @@ import string
 
 from api import deps
 from db.models import User
+from utils.rate_limit import redeem_limiter
 from db.models.billing import Plan, Subscription, RedemptionCode, SubscriptionHistory
 from db.models.email import TempMailbox, Alias, Domain
 from schemas import billing as billing_schema
@@ -365,6 +366,10 @@ def redeem_code(
     current_user: User = Depends(deps.get_current_active_user),
 ):
     """使用兑换码"""
+    # 兑换频率限制：每用户 5 分钟最多 10 次
+    if not redeem_limiter.allow(f"redeem:{current_user.id}"):
+        raise HTTPException(status_code=429, detail="兑换尝试过于频繁，请 5 分钟后再试")
+
     # 查找兑换码
     code = db.query(RedemptionCode).filter(
         RedemptionCode.code == redeem_in.code.upper().strip()

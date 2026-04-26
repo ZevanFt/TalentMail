@@ -19,10 +19,20 @@ const requires2FA = ref(false)
 const tempToken = ref('')
 const twoFACode = ref('')
 
+const route = useRoute()
+
 const form = reactive({
     username: '',  // 只输入用户名部分
     domain: baseDomain,
     password: ''
+})
+
+// 登录后跳转目标（支持 ?redirect= 参数）
+const redirectTarget = computed(() => {
+    const r = route.query.redirect as string | undefined
+    // 防止开放重定向：只允许相对路径
+    if (r && r.startsWith('/') && !r.startsWith('//')) return r
+    return '/'
 })
 
 // 完整邮箱地址
@@ -56,7 +66,7 @@ const handleLogin = async () => {
             return
         }
 
-        await navigateTo('/', { replace: true })
+        await navigateTo(redirectTarget.value, { replace: true })
     } catch (e: any) {
         error.value = e.data?.detail || '登录失败，请检查用户名和密码'
     } finally {
@@ -78,7 +88,7 @@ const handle2FAVerify = async () => {
     
     try {
         await login2FA(tempToken.value, twoFACode.value)
-        await navigateTo('/', { replace: true })
+        await navigateTo(redirectTarget.value, { replace: true })
     } catch (e: any) {
         error.value = e.data?.detail || '验证码错误，请重试'
     } finally {

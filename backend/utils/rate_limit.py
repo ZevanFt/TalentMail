@@ -135,3 +135,15 @@ email_send_limiter = MemoryRateLimiter(cooldown_seconds=6)
 
 # 全局实例：登录限频器（每 IP 5 分钟最多 10 次尝试）
 login_limiter = SlidingWindowLimiter(max_attempts=10, window_seconds=300)
+
+# 全局实例：注册限频器（每 IP 10 分钟最多 5 次）
+register_limiter = SlidingWindowLimiter(max_attempts=5, window_seconds=600)
+
+# 全局实例：2FA 验证限频器（每 IP 5 分钟最多 10 次 — 防止暴力破解 6 位 TOTP）
+totp_limiter = SlidingWindowLimiter(max_attempts=10, window_seconds=300)
+
+# 全局实例：密码重置限频器（每 IP 10 分钟最多 5 次）
+password_reset_limiter = SlidingWindowLimiter(max_attempts=5, window_seconds=600)
+
+# 全局实例：兑换码限频器（每用户 5 分钟最多 10 次）
+redeem_limiter = SlidingWindowLimiter(max_attempts=10, window_seconds=300)

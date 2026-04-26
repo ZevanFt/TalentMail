@@ -13,22 +13,41 @@ export const useApi = () => {
 
   const api = async <T>(url: string, method: HttpMethod = 'GET', body?: any): Promise<T> => {
     try {
-      return await $fetch<T>(`${API_BASE}${url}`, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token.value ? { Authorization: `Bearer ${token.value}` } : {})
-        },
-        body: body ? JSON.stringify(body) : undefined
-      })
+      // 30 秒超时，防止无限等待
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 30000)
+
+      try {
+        return await $fetch<T>(`${API_BASE}${url}`, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token.value ? { Authorization: `Bearer ${token.value}` } : {})
+          },
+          body: body ? JSON.stringify(body) : undefined,
+          signal: controller.signal,
+        })
+      } finally {
+        clearTimeout(timeoutId)
+      }
     } catch (error: any) {
+      // 处理超时
+      if (error?.name === 'AbortError') {
+        error._isNetworkError = true
+        error._friendlyMessage = '请求超时，请检查网络后重试'
+        throw error
+      }
+
       // 处理 401 未授权错误 - Token 失效
       if (error?.response?.status === 401 || error?.statusCode === 401) {
         // 清除失效的 token
         token.value = null
-        // 跳转到登录页
+        // 带返回 URL 跳转到登录页 + Toast 提示
         if (import.meta.client) {
-          router.push('/login')
+          const toast = useToast()
+          toast.warning('登录已过期，请重新登录')
+          const returnUrl = router.currentRoute.value.fullPath
+          router.push(returnUrl !== '/login' ? `/login?redirect=${encodeURIComponent(returnUrl)}` : '/login')
         }
       }
 
