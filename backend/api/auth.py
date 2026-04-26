@@ -21,6 +21,7 @@ from crud import user as crud_user
 from db import models
 from db.database import get_db
 from db.models.user import UserSession
+from utils.rate_limit import login_limiter
 from db.models.system import ReservedPrefix, VerificationCode
 from schemas.user import UserCreate
 from schemas.schemas import Token # Will be moved to schemas.token soon
@@ -542,10 +543,18 @@ def login_for_access_token(
     """
     Logs in a user and returns an access token and a refresh token.
     Also records the login session for security auditing.
-    
+
     如果用户启用了 2FA，返回 requires_2fa: true 和 temp_token，
     前端需要调用 /login-2fa 接口完成登录。
     """
+    # 登录频率限制：每 IP 5 分钟内最多 10 次尝试
+    client_ip = request.client.host if request.client else "unknown"
+    if not login_limiter.allow(f"login:{client_ip}"):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="登录尝试过于频繁，请 5 分钟后再试",
+        )
+
     user = crud_user.authenticate_user(
         db, email=form_data.username, password=form_data.password
     )

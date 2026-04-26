@@ -18,7 +18,7 @@ class Contact(Base):
     __tablename__ = "contacts"
     __table_args__ = {'comment': '存储用户的联系人信息'}
     id = Column(Integer, primary_key=True, comment="联系人唯一标识符")
-    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="该联系人所属的用户ID")
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True, comment="该联系人所属的用户ID")
     name = Column(String, comment="联系人姓名")
     email = Column(String, comment="联系人邮箱")
     phone = Column(String, nullable=True, comment="联系人电话")

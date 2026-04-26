@@ -1,4 +1,5 @@
 import smtplib
+import asyncio
 import os
 import re
 from email.mime.text import MIMEText
@@ -103,42 +104,51 @@ async def send_email(
                      [recipient.email for recipient in email_data.cc] + \
                      bcc_addrs
 
-    server = None
-    try:
-        # Connect to the SMTP server
-        # Note: For development with docker-mailserver, we don't use SSL/TLS initially.
-        # The server is on the internal Docker network.
-        logger.info(f"Connecting to SMTP server {settings.MAIL_SERVER}:{settings.SMTP_PORT}")
-        server = smtplib.SMTP(settings.MAIL_SERVER, settings.SMTP_PORT, timeout=30)
+    # 带重试的 SMTP 发送（最多 3 次，指数退避 2s/4s）
+    max_retries = 3
+    last_error = None
 
-        # If STARTTLS is configured (recommended for production)
-        _starttls_if_configured(server)
+    for attempt in range(1, max_retries + 1):
+        server = None
+        try:
+            logger.info(f"Connecting to SMTP server {settings.MAIL_SERVER}:{settings.SMTP_PORT} (attempt {attempt}/{max_retries})")
+            server = smtplib.SMTP(settings.MAIL_SERVER, settings.SMTP_PORT, timeout=30)
 
-        # Login if credentials are provided
-        smtp_user, smtp_password, from_addr = _resolve_smtp_credentials(sender_email, per_user_identity=True)
-        if settings.USE_CREDENTIALS and smtp_user and smtp_password:
-            logger.info(f"Authenticating as {smtp_user}...")
-            server.login(smtp_user, smtp_password)
+            _starttls_if_configured(server)
 
-        # Send the email
-        # 用户邮件：优先按用户身份认证（master user）；系统邮件见其它函数。
-        logger.info(f"Sending email from {from_addr} to {all_recipients}...")
-        server.sendmail(from_addr, all_recipients, msg.as_string())
+            smtp_user, smtp_password, from_addr = _resolve_smtp_credentials(sender_email, per_user_identity=True)
+            if settings.USE_CREDENTIALS and smtp_user and smtp_password:
+                logger.info(f"Authenticating as {smtp_user}...")
+                server.login(smtp_user, smtp_password)
 
-        log_user = f" via SMTP user {smtp_user}" if settings.USE_CREDENTIALS and smtp_user else ""
-        logger.info(f"Email sent successfully{log_user}, from {sender_email} to {all_recipients}")
+            logger.info(f"Sending email from {from_addr} to {all_recipients}...")
+            server.sendmail(from_addr, all_recipients, msg.as_string())
 
-        return msg['Message-ID']
+            log_user = f" via SMTP user {smtp_user}" if settings.USE_CREDENTIALS and smtp_user else ""
+            logger.info(f"Email sent successfully{log_user}, from {sender_email} to {all_recipients}")
 
-    except Exception as e:
-        logger.error(f"Failed to send email: {e}", exc_info=True)
-        raise  # 重新抛出异常，让调用方处理
-    finally:
-        if server:
-            try:
-                server.quit()
-            except Exception:
-                pass
+            return msg['Message-ID']
+
+        except (smtplib.SMTPServerDisconnected, smtplib.SMTPConnectError, ConnectionError, TimeoutError) as e:
+            last_error = e
+            logger.warning(f"SMTP attempt {attempt}/{max_retries} failed (transient): {e}")
+            if attempt < max_retries:
+                await asyncio.sleep(2 ** attempt)  # 2s, 4s
+            continue
+        except Exception as e:
+            # 非临时性错误（认证失败、邮箱不存在等）不重试
+            logger.error(f"Failed to send email (non-retryable): {e}", exc_info=True)
+            raise
+        finally:
+            if server:
+                try:
+                    server.quit()
+                except Exception:
+                    pass
+
+    # 所有重试都失败
+    logger.error(f"Failed to send email after {max_retries} attempts: {last_error}", exc_info=True)
+    raise last_error
 
 
 def render_template(template_str: str, variables: Dict[str, Any]) -> str:

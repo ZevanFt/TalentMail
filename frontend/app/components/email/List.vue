@@ -143,6 +143,33 @@ const handleBulkMarkNotSpam = async () => {
   }
 }
 
+// 批量移动到文件夹
+const showMoveMenu = ref(false)
+
+const handleBulkMove = async (folderId: number) => {
+  if (selectedEmailIds.value.size === 0) return
+  bulkLoading.value = true
+  try {
+    await bulkMoveEmails(Array.from(selectedEmailIds.value), folderId)
+    toast.success(`已移动 ${selectedEmailIds.value.size} 封邮件`)
+    selectedEmailIds.value.clear()
+    isSelectionMode.value = false
+    if (currentFolderId.value) await loadEmails(currentFolderId.value)
+  } catch (e: any) {
+    console.error('批量移动失败', e)
+    toast.error(e.data?.detail || '批量移动失败')
+  } finally {
+    bulkLoading.value = false
+    showMoveMenu.value = false
+    showBulkMenu.value = false
+  }
+}
+
+// 可移动到的目标文件夹（排除当前文件夹）
+const moveTargetFolders = computed(() =>
+  folders.value.filter(f => f.id !== currentFolderId.value)
+)
+
 // 批量操作菜单
 const showBulkMenu = ref(false)
 
@@ -394,6 +421,23 @@ onUnmounted(() => {
               <CheckCircle class="w-4 h-4 group-hover:scale-110 transition-transform" />
               <span class="group-hover:font-medium">不是垃圾邮件</span>
             </button>
+            <!-- 移动到文件夹 -->
+            <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
+            <div class="relative">
+              <button @click="showMoveMenu = !showMoveMenu"
+                class="w-full px-3 py-2.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2.5 transition-colors group">
+                <FolderInput class="w-4 h-4 text-gray-500 group-hover:text-indigo-500 transition-colors" />
+                <span class="group-hover:text-indigo-600 dark:group-hover:text-indigo-400 flex-1">移动到...</span>
+              </button>
+              <div v-if="showMoveMenu"
+                class="absolute left-full top-0 ml-1 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-50 py-1.5 max-h-60 overflow-y-auto">
+                <button v-for="folder in moveTargetFolders" :key="folder.id"
+                  @click="handleBulkMove(folder.id)"
+                  class="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors truncate">
+                  {{ folder.name }}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
         <!-- Loading 指示器 -->

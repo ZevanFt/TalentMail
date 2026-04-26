@@ -7,6 +7,7 @@ from pydantic import BaseModel
 import uuid
 import json
 import os
+import html as html_mod
 from urllib.parse import quote
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -1213,19 +1214,19 @@ def export_as_pdf(email: Email, db: Session, user_timezone: str = "Asia/Shanghai
     }
     tz_display = tz_display_names.get(user_timezone, user_timezone)
     
-    # 解析收件人
+    # 解析收件人（转义防 XSS）
     recipients_str = ""
     if email.recipients:
         try:
             recipients = json.loads(email.recipients)
-            to_list = [r.get('email', '') for r in recipients.get('to', [])]
-            cc_list = [r.get('email', '') for r in recipients.get('cc', [])]
+            to_list = [html_mod.escape(r.get('email', '')) for r in recipients.get('to', [])]
+            cc_list = [html_mod.escape(r.get('email', '')) for r in recipients.get('cc', [])]
             if to_list:
                 recipients_str += f"收件人: {', '.join(to_list)}"
             if cc_list:
                 recipients_str += f"<br>抄送: {', '.join(cc_list)}"
         except Exception:
-            recipients_str = f"收件人: {email.recipients}"
+            recipients_str = f"收件人: {html_mod.escape(email.recipients)}"
     
     # 格式化日期（转换为用户时区）
     date_str = ""
@@ -1246,7 +1247,11 @@ def export_as_pdf(email: Email, db: Session, user_timezone: str = "Asia/Shanghai
         att_list = ', '.join([att.filename or 'attachment' for att in attachments])
         attachments_html = f'<p style="color: #666; font-size: 12px; margin-top: 20px; padding-top: 10px; border-top: 1px solid #eee;">📎 附件: {att_list}</p>'
     
-    # 构建 HTML 内容
+    # 构建 HTML 内容 — 对用户输入进行 HTML 转义防止 XSS
+    safe_subj = html_mod.escape(email.subject or '(无主题)')
+    safe_sender = html_mod.escape(email.sender or '')
+    safe_body_text = html_mod.escape(email.body_text or '(无正文内容)')
+
     html_content = f"""
 <!DOCTYPE html>
 <html>
@@ -1298,15 +1303,15 @@ def export_as_pdf(email: Email, db: Session, user_timezone: str = "Asia/Shanghai
 </head>
 <body>
     <div class="header">
-        <div class="subject">{email.subject or '(无主题)'}</div>
+        <div class="subject">{safe_subj}</div>
         <div class="meta">
-            <div class="meta-row"><span class="label">发件人:</span> {email.sender or ''}</div>
+            <div class="meta-row"><span class="label">发件人:</span> {safe_sender}</div>
             <div class="meta-row">{recipients_str}</div>
             <div class="meta-row"><span class="label">日期:</span> {date_str}</div>
         </div>
     </div>
     <div class="body">
-        {email.body_html or f'<pre style="white-space: pre-wrap; font-family: inherit;">{email.body_text or "(无正文内容)"}</pre>'}
+        {email.body_html or f'<pre style="white-space: pre-wrap; font-family: inherit;">{safe_body_text}</pre>'}
     </div>
     {attachments_html}
     <div class="footer">

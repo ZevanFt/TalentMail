@@ -34,6 +34,7 @@ def init_db() -> None:
         init_workflow_templates(db)  # 初始化工作流模板
         init_all_workflow_data(db)  # 初始化节点类型 + 系统工作流
         _ensure_default_folders_for_all_users(db) # Add this line
+        _ensure_performance_indexes(db)  # 确保关键索引存在
         db.commit() # Commit the changes
     except Exception as e:
         logger.error(f"Database initialization failed: {e}", exc_info=True)
@@ -543,3 +544,21 @@ def _ensure_default_folders_for_all_users(db: Session) -> None:
         else:
             logger.info(f"User {user.email} already has an inbox. Assuming all folders are present.")
     logger.info("Folder check for all users complete.")
+
+
+def _ensure_performance_indexes(db: Session):
+    """确保关键的数据库查询索引存在（幂等操作）"""
+    from sqlalchemy import text
+    indexes = [
+        ("ix_emails_folder_id", "emails", "folder_id"),
+        ("ix_emails_delivery_status", "emails", "delivery_status"),
+        ("ix_emails_scheduled_send_at", "emails", "scheduled_send_at"),
+        ("ix_folders_user_id", "folders", "user_id"),
+        ("ix_contacts_owner_id", "contacts", "owner_id"),
+    ]
+    for idx_name, table, column in indexes:
+        try:
+            db.execute(text(f"CREATE INDEX IF NOT EXISTS {idx_name} ON {table} ({column})"))
+        except Exception as e:
+            logger.warning(f"创建索引 {idx_name} 失败（可能已存在）: {e}")
+    logger.info(f"性能索引检查完成（{len(indexes)} 个索引）")

@@ -126,12 +126,27 @@ def _extract_emails_from_recipients(raw: str) -> list[str]:
     return emails
 
 
-@router.get("", response_model=List[ContactResponse])
-def get_contacts(q: str = None, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+class ContactListResponse(BaseModel):
+    items: List[ContactResponse]
+    total: int
+    page: int
+    limit: int
+
+
+@router.get("", response_model=ContactListResponse)
+def get_contacts(
+    q: str = None,
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     query = db.query(Contact).filter(Contact.owner_id == user.id)
     if q:
         query = query.filter((Contact.name.ilike(f"%{q}%")) | (Contact.email.ilike(f"%{q}%")))
-    return query.order_by(Contact.name).all()
+    total = query.count()
+    items = query.order_by(Contact.name).offset((page - 1) * limit).limit(limit).all()
+    return ContactListResponse(items=items, total=total, page=page, limit=limit)
 
 
 @router.post("", response_model=ContactResponse)

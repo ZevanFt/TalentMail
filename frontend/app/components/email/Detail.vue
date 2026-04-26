@@ -279,16 +279,25 @@ const exportEmail = (format: 'eml' | 'pdf') => {
 }
 
 // 打印邮件
+// HTML 转义（用于打印窗口中的文本内容）
+const escapeHtmlForPrint = (str: string) =>
+  str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
 const handlePrint = () => {
   if (!selectedEmailDetail.value) return
   const email = selectedEmailDetail.value
   const printWindow = window.open('', '_blank', 'width=800,height=600')
   if (!printWindow) return
+  // 对 subject/sender/recipients 做转义防 XSS；body 使用已 sanitize 的 HTML
+  const safeSubject = escapeHtmlForPrint(email.subject || '(无主题)')
+  const safeSender = escapeHtmlForPrint(email.sender || '')
+  const safeRecipients = escapeHtmlForPrint(email.recipients || '')
+  const safeBody = sanitizedBodyHtml.value || escapeHtmlForPrint(email.body_text || '')
   printWindow.document.write(`
     <!DOCTYPE html>
     <html><head>
       <meta charset="utf-8">
-      <title>${email.subject || '(无主题)'}</title>
+      <title>${safeSubject}</title>
       <style>
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 32px; color: #1f2937; }
         .header { border-bottom: 2px solid #e5e7eb; padding-bottom: 16px; margin-bottom: 24px; }
@@ -301,14 +310,14 @@ const handlePrint = () => {
       </style>
     </head><body>
       <div class="header">
-        <div class="subject">${email.subject || '(无主题)'}</div>
+        <div class="subject">${safeSubject}</div>
         <div class="meta">
-          <div><strong>发件人:</strong> ${email.sender}</div>
-          <div><strong>收件人:</strong> ${email.recipients}</div>
+          <div><strong>发件人:</strong> ${safeSender}</div>
+          <div><strong>收件人:</strong> ${safeRecipients}</div>
           <div><strong>时间:</strong> ${formatTime(email.received_at)}</div>
         </div>
       </div>
-      <div class="body">${email.body_html || email.body_text || ''}</div>
+      <div class="body">${safeBody}</div>
     </body></html>
   `)
   printWindow.document.close()

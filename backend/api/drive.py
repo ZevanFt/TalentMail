@@ -13,6 +13,7 @@ from db.database import get_db
 from api.deps import get_current_user
 from db.models.user import User
 from db.models.drive import DriveFile
+from core.security import get_password_hash, verify_password
 
 router = APIRouter(prefix="/drive", tags=["drive"])
 
@@ -49,16 +50,31 @@ def list_files(db: Session = Depends(get_db), user: User = Depends(get_current_u
     return files
 
 
+MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
+
+
 @router.post("/upload", response_model=DriveFileResponse)
 async def upload_file(file: UploadFile = File(...), db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    """上传文件"""
+    """上传文件（最大 50MB）"""
+    # 流式读取并检查大小限制
+    chunks = []
+    total_size = 0
+    while True:
+        chunk = await file.read(1024 * 1024)  # 1MB 块
+        if not chunk:
+            break
+        total_size += len(chunk)
+        if total_size > MAX_UPLOAD_SIZE:
+            raise HTTPException(413, f"文件大小超过限制 ({MAX_UPLOAD_SIZE // 1024 // 1024}MB)")
+        chunks.append(chunk)
+    content = b"".join(chunks)
+
     # 生成唯一文件名
     ext = os.path.splitext(file.filename)[1] if file.filename else ""
     unique_filename = f"{uuid.uuid4().hex}{ext}"
     file_path = os.path.join(UPLOAD_DIR, unique_filename)
-    
+
     # 保存文件
-    content = await file.read()
     with open(file_path, "wb") as f:
         f.write(content)
     
@@ -87,7 +103,7 @@ def create_share(file_id: int, settings: ShareSettings, db: Session = Depends(ge
     # 生成分享码
     file.share_code = secrets.token_urlsafe(8)
     file.is_public = settings.is_public
-    file.share_password = settings.password
+    file.share_password = get_password_hash(settings.password) if settings.password else None
     if settings.expires_days:
         file.share_expires_at = datetime.now(timezone.utc) + timedelta(days=settings.expires_days)
     else:
@@ -157,9 +173,9 @@ def get_share_info(share_code: str, password: Optional[str] = None, db: Session 
     if file.share_password:
         if not password:
             raise HTTPException(401, "需要密码")
-        if file.share_password != password:
+        if not verify_password(password, file.share_password):
             raise HTTPException(403, "密码错误")
-    
+
     return {
         "original_filename": file.original_filename,
         "size": file.size,
@@ -179,8 +195,9 @@ def download_shared_file(share_code: str, password: Optional[str] = None, db: Se
     if file.share_expires_at and file.share_expires_at < datetime.now(timezone.utc):
         raise HTTPException(410, "分享已过期")
     
-    if file.share_password and file.share_password != password:
-        raise HTTPException(403, "密码错误")
+    if file.share_password:
+        if not password or not verify_password(password, file.share_password):
+            raise HTTPException(403, "密码错误")
     
     if not os.path.exists(file.storage_path):
         raise HTTPException(404, "文件已丢失")

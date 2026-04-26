@@ -46,7 +46,8 @@ const loadContacts = async () => {
   loading.value = true
   loadError.value = ''
   try {
-    contacts.value = await getContacts(searchQuery.value || undefined)
+    const res = await getContacts(searchQuery.value || undefined)
+    contacts.value = res.items || res as any
   } catch (e: any) {
     console.error('加载联系人失败', e)
     loadError.value = e.data?.detail || '加载联系人失败'

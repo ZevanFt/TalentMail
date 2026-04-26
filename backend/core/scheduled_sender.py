@@ -3,6 +3,7 @@
 每 60 秒扫描一次到期的定时邮件并发送。
 """
 import asyncio
+import json
 import logging
 from datetime import datetime, timezone
 
@@ -36,13 +37,26 @@ async def _send_scheduled_email(email_id: int, sender_email: str):
             ] if atts else None
 
             # 构造 EmailCreate 用于发送
+            # recipients 存储为 JSON: {"to": [{"email":"...", "name":"..."}], "cc": [...]}
             recipients = []
+            cc_recipients = []
             if email_obj.recipients:
-                # recipients 存的是简单文本，按逗号分割
-                for addr in email_obj.recipients.split(","):
-                    addr = addr.strip()
-                    if addr:
-                        recipients.append(EmailRecipient(email=addr))
+                try:
+                    r_data = json.loads(email_obj.recipients)
+                    for r in r_data.get("to", []):
+                        email_addr = r.get("email", "") if isinstance(r, dict) else str(r)
+                        if email_addr:
+                            recipients.append(EmailRecipient(email=email_addr))
+                    for r in r_data.get("cc", []):
+                        email_addr = r.get("email", "") if isinstance(r, dict) else str(r)
+                        if email_addr:
+                            cc_recipients.append(EmailRecipient(email=email_addr))
+                except (json.JSONDecodeError, TypeError):
+                    # 兼容旧数据：逗号分隔的纯文本
+                    for addr in email_obj.recipients.split(","):
+                        addr = addr.strip()
+                        if addr:
+                            recipients.append(EmailRecipient(email=addr))
 
             if not recipients:
                 email_obj.delivery_status = "failed"
@@ -52,6 +66,7 @@ async def _send_scheduled_email(email_id: int, sender_email: str):
 
             email_data = EmailCreate(
                 to=recipients,
+                cc=cc_recipients or [],
                 subject=email_obj.subject or "",
                 body_html=email_obj.body_html or "",
                 body_text=email_obj.body_text or None,
@@ -78,8 +93,21 @@ async def _send_scheduled_email(email_id: int, sender_email: str):
             with SessionLocal() as db:
                 email_obj = db.query(Email).filter(Email.id == email_id).first()
                 if email_obj:
-                    email_obj.delivery_status = "failed"
-                    email_obj.delivery_error = str(e)
+                    # 重试逻辑：delivery_error 中记录重试次数，3 次后标 failed
+                    retry_count = 0
+                    if email_obj.delivery_error and email_obj.delivery_error.startswith("[retry:"):
+                        try:
+                            retry_count = int(email_obj.delivery_error.split("]")[0].split(":")[1])
+                        except (ValueError, IndexError):
+                            pass
+                    retry_count += 1
+                    if retry_count >= 3:
+                        email_obj.delivery_status = "failed"
+                        email_obj.delivery_error = f"经过 {retry_count} 次重试仍然失败: {str(e)}"
+                    else:
+                        # 保持 scheduled 状态，下一轮扫描会重试
+                        email_obj.delivery_status = "scheduled"
+                        email_obj.delivery_error = f"[retry:{retry_count}] {str(e)}"
                     db.commit()
         except Exception:
             pass

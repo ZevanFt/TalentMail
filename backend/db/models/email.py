@@ -19,7 +19,7 @@ class Folder(Base):
     __tablename__ = "folders"
     __table_args__ = {'comment': '存储用户自定义和系统的邮件文件夹'}
     id = Column(Integer, primary_key=True, comment="文件夹唯一标识符")
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="所属用户的ID")
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True, comment="所属用户的ID")
     name = Column(String, nullable=False, comment="文件夹显示名称")
     parent_id = Column(Integer, ForeignKey("folders.id"), nullable=True, comment="父文件夹ID，用于支持文件夹嵌套")
     role = Column(String, default="user", comment="文件夹角色 ('inbox', 'sent', 'drafts', 'trash', 'spam', 'archive' 等系统角色, 或 'user' 自定义文件夹)")
@@ -31,7 +31,7 @@ class Email(Base):
     __tablename__ = "emails"
     __table_args__ = {'comment': '存储所有邮件的核心内容和元数据'}
     id = Column(Integer, primary_key=True, comment="邮件唯一标识符")
-    folder_id = Column(Integer, ForeignKey("folders.id"), nullable=False, comment="邮件所在的文件夹ID")
+    folder_id = Column(Integer, ForeignKey("folders.id"), nullable=False, index=True, comment="邮件所在的文件夹ID")
     mailbox_address = Column(String, index=True, comment="接收该邮件的邮箱地址（用于区分不同别名/域名收到的邮件）")
     message_id = Column(String, unique=False, nullable=True, comment="邮件的全局唯一Message-ID（发送后才有）")
     in_reply_to = Column(String, nullable=True, comment="回复的邮件的Message-ID")
@@ -47,10 +47,10 @@ class Email(Base):
     is_starred = Column(Boolean, default=False, comment="是否已加星标")
     is_draft = Column(Boolean, default=False, comment="是否为草稿")
     sent_at = Column(DateTime(timezone=True), nullable=True, comment="邮件发送时间")
-    scheduled_send_at = Column(DateTime(timezone=True), nullable=True, comment="计划发送时间")
+    scheduled_send_at = Column(DateTime(timezone=True), nullable=True, index=True, comment="计划发送时间")
     snoozed_until = Column(DateTime(timezone=True), nullable=True, comment="邮件被推迟到何时显示")
     is_tracked = Column(Boolean, default=False, comment="是否启用邮件追踪")
-    delivery_status = Column(String, default="pending", comment="投递状态: pending/sending/sent/delivered/failed")
+    delivery_status = Column(String, default="pending", index=True, comment="投递状态: pending/sending/sent/delivered/failed")
     delivery_error = Column(Text, nullable=True, comment="投递失败的错误信息")
     # Soft delete fields
     deleted_at = Column(DateTime(timezone=True), nullable=True, comment="软删除时间戳，非空表示已移入回收站")

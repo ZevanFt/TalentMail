@@ -188,6 +188,42 @@ const handleFileSelect = async (e: Event) => {
   }
 }
 
+// 拖拽上传
+const isDragging = ref(false)
+
+const handleDragOver = (e: DragEvent) => {
+  e.preventDefault()
+  isDragging.value = true
+}
+
+const handleDragLeave = (e: DragEvent) => {
+  // 只在离开容器时取消高亮
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  if (e.clientX <= rect.left || e.clientX >= rect.right || e.clientY <= rect.top || e.clientY >= rect.bottom) {
+    isDragging.value = false
+  }
+}
+
+const handleDrop = async (e: DragEvent) => {
+  e.preventDefault()
+  isDragging.value = false
+  const files = e.dataTransfer?.files
+  if (!files?.length) return
+  uploading.value = true
+  try {
+    for (const file of files) {
+      const res = await uploadAttachment(file)
+      attachments.value.push({ id: res.id, filename: res.filename, size: res.size })
+    }
+    toastNotify.success(`已上传 ${files.length} 个附件`)
+  } catch (e: any) {
+    console.error('拖拽上传失败', e)
+    toastNotify.error('附件上传失败')
+  } finally {
+    uploading.value = false
+  }
+}
+
 const removeAttachment = async (att: UploadedFile) => {
   try {
     await deleteAttachment(att.id)
@@ -535,7 +571,19 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
     </template>
   </CommonModal>
 
-  <section v-if="isComposeOpen" class="flex-1 h-full flex flex-col min-w-0">
+  <section v-if="isComposeOpen" class="flex-1 h-full flex flex-col min-w-0 relative"
+    @dragover="handleDragOver" @dragleave="handleDragLeave" @drop="handleDrop">
+    <!-- 拖拽上传覆盖层 -->
+    <Transition name="fade">
+      <div v-if="isDragging"
+        class="absolute inset-0 z-50 bg-primary/10 dark:bg-primary/20 border-2 border-dashed border-primary rounded-xl
+               flex items-center justify-center pointer-events-none">
+        <div class="text-center">
+          <Paperclip class="w-10 h-10 text-primary mx-auto mb-2" />
+          <p class="text-sm font-bold text-primary">松开以添加附件</p>
+        </div>
+      </div>
+    </Transition>
     <div class="h-12 px-4 border-b border-gray-200/50 dark:border-gray-800/50 flex items-center justify-between shrink-0">
       <div class="flex items-center gap-2 min-w-0">
         <h2 class="text-xs font-bold text-gray-600 dark:text-gray-400 tracking-wide">{{ modalTitle }}</h2>

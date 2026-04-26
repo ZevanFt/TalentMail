@@ -588,7 +588,13 @@ export const useApi = () => {
     phone: string | null
     notes: string | null
   }
-  const getContacts = (q?: string) => api<Contact[]>(`/contacts${q ? `?q=${encodeURIComponent(q)}` : ''}`)
+  const getContacts = (q?: string, page: number = 1, limit: number = 50) => {
+    const params = new URLSearchParams()
+    if (q) params.set('q', q)
+    params.set('page', String(page))
+    params.set('limit', String(limit))
+    return api<{ items: Contact[]; total: number; page: number; limit: number }>(`/contacts?${params}`)
+  }
   const getContactSuggestions = (q: string) => api<{ name: string | null; email: string; source: string }[]>(`/contacts/suggestions?q=${encodeURIComponent(q)}`)
   const createContact = (data: { name: string; email: string; phone?: string; notes?: string }) => api<Contact>('/contacts', 'POST', data)
   const updateContact = (id: number, data: { name?: string; email?: string; phone?: string; notes?: string }) => api<Contact>(`/contacts/${id}`, 'PUT', data)
