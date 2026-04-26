@@ -14,8 +14,12 @@ from api.deps import get_current_user
 from db.models.user import User
 from db.models.drive import DriveFile
 from core.security import get_password_hash, verify_password
+from utils.rate_limit import SlidingWindowLimiter
 
 router = APIRouter(prefix="/drive", tags=["drive"])
+
+# 上传限流：每用户每分钟最多 10 次
+_upload_limiter = SlidingWindowLimiter(max_requests=10, window_seconds=60)
 
 UPLOAD_DIR = "uploads/drive"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -63,6 +67,8 @@ MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
 @router.post("/upload", response_model=DriveFileResponse)
 async def upload_file(file: UploadFile = File(...), db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     """上传文件（最大 50MB）"""
+    if not _upload_limiter.allow(f"upload:{user.id}"):
+        raise HTTPException(429, "上传过于频繁，请稍后再试")
     # 流式读取并检查大小限制
     chunks = []
     total_size = 0
@@ -209,8 +215,10 @@ def download_shared_file(share_code: str, password: Optional[str] = None, db: Se
     if not os.path.exists(file.storage_path):
         raise HTTPException(404, "文件已丢失")
     
-    # 增加下载计数
-    file.download_count += 1
+    # 增加下载计数（原子操作，避免并发丢失）
+    db.query(DriveFile).filter(DriveFile.id == file.id).update(
+        {DriveFile.download_count: DriveFile.download_count + 1}, synchronize_session=False
+    )
     db.commit()
     
     return FileResponse(file.storage_path, filename=file.original_filename, media_type=file.content_type)

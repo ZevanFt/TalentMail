@@ -560,6 +560,7 @@ def _ensure_performance_indexes(db: Session):
         ("ix_contacts_owner_id", "contacts", "owner_id"),
         ("ix_signatures_user_id", "signatures", "user_id"),
         ("ix_aliases_user_id", "aliases", "user_id"),
+        ("ix_wf_executions_workflow_id", "workflow_executions", "workflow_id"),
     ]
     for idx_name, table, column in single_indexes:
         try:

@@ -870,26 +870,30 @@ def reset_password(
             detail="操作过于频繁，请 10 分钟后再试",
         )
 
-    # 验证用户是否存在
-    user = crud_user.get_user_by_email(db, email=request.email)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="用户不存在"
-        )
-    
-    # 验证验证码
+    # 验证验证码（先校验验证码，避免泄露用户是否存在）
     if not verify_code(db, request.email, request.code, "reset_password"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="验证码无效或已过期"
         )
-    
-    # 验证新密码长度
-    if len(request.new_password) < 6:
+
+    # 验证用户是否存在（验证码通过后才检查，统一错误提示避免枚举）
+    user = crud_user.get_user_by_email(db, email=request.email)
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="密码长度至少为6位"
+            detail="验证码无效或已过期"
+        )
+
+    # 使用统一的密码强度验证
+    from schemas.common import validate_password_strength
+    from pydantic_core import PydanticCustomError
+    try:
+        validate_password_strength(request.new_password)
+    except PydanticCustomError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e.message())
         )
     
     # 重置密码

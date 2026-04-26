@@ -240,7 +240,7 @@ class WorkflowExecution(Base):
     
     # 关联
     workflow_type = Column(String(20), nullable=False, comment='工作流类型: system/custom')
-    workflow_id = Column(Integer, nullable=False, comment='工作流ID')
+    workflow_id = Column(Integer, nullable=False, index=True, comment='工作流ID')
     workflow_version = Column(Integer, nullable=True, comment='执行时的工作流版本')
     user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, comment='关联用户ID')
     

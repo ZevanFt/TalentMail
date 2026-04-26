@@ -8,9 +8,13 @@ from db.models import User
 import uuid
 import base64
 import logging
+from utils.rate_limit import SlidingWindowLimiter
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+# 追踪像素限流：每个像素每分钟最多 10 次记录
+_tracking_limiter = SlidingWindowLimiter(max_requests=10, window_seconds=60)
 
 # 1x1 透明 GIF 图片（base64 编码）
 TRANSPARENT_GIF = base64.b64decode(
@@ -40,26 +44,18 @@ async def track_open(
     ip_address = request.client.host if request.client else None
     user_agent = request.headers.get("user-agent", "")
     
-    # 记录追踪事件
-    event = TrackingEvent(
-        pixel_id=pixel_uuid,
-        event_type="opened",
-        ip_address=ip_address,
-        user_agent=user_agent,
-    )
-    db.add(event)
-    
-    # 更新邮件的追踪状态
-    if pixel.email:
-        email = pixel.email
-        # 更新首次打开时间和打开次数
-        if not hasattr(email, 'first_opened_at') or email.first_opened_at is None:
-            from datetime import datetime, timezone
-            email.first_opened_at = datetime.now(timezone.utc)
-        if hasattr(email, 'open_count'):
-            email.open_count = (email.open_count or 0) + 1
-    
-    db.commit()
+    # 限流：防止同一像素被恶意刷请求
+    if _tracking_limiter.allow(f"pixel:{pixel_id}"):
+        event = TrackingEvent(
+            pixel_id=pixel_uuid,
+            event_type="opened",
+            ip_address=ip_address,
+            user_agent=user_agent,
+        )
+        db.add(event)
+        db.commit()
+    else:
+        logger.warning(f"追踪像素限流: pixel={pixel_id}")
     logger.info(f"追踪事件记录: pixel={pixel_id}, ip={ip_address}")
     
     # 返回透明 GIF，设置不缓存

@@ -88,7 +88,8 @@ class ExtendRestoreResponse(BaseModel):
 
 
 def generate_random_prefix(length: int = 8) -> str:
-    return ''.join(random.choices(string.ascii_lowercase + string.digits, k=length))
+    charset = string.ascii_lowercase + string.digits
+    return ''.join(secrets.choice(charset) for _ in range(length))
 
 
 def get_user_temp_mailbox_limit(db: Session, user: models.User) -> int:

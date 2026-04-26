@@ -15,7 +15,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
-from email.utils import formataddr, formatdate
+from email.utils import formatdate
 from api import deps
 from db.database import SessionLocal
 from schemas import email as email_schema
@@ -307,7 +307,7 @@ def search_emails(
 
     # 排序：有关键词时按相关性，否则按时间
     if has_fulltext:
-        search_query = func.plainto_tsquery('simple', q)
+        # 复用已构建的 search_query，避免重复调用
         emails = query.order_by(
             func.ts_rank(Email.search_vector, search_query).desc(),
             Email.received_at.desc()

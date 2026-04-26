@@ -440,15 +440,33 @@ def admin_delete_user(
         raise HTTPException(status_code=404, detail="用户不存在")
     
     email = user.email
-    
-    # 删除用户相关数据
-    # 1. 删除订阅
-    db.query(Subscription).filter(Subscription.user_id == user_id).delete()
-    
-    # 2. 删除登录会话
-    db.query(UserSession).filter(UserSession.user_id == user_id).delete()
-    
-    # 3. 删除用户
+
+    # 删除用户相关数据（顺序重要：先子表后父表）
+    from db.models.email import Email, Folder, Attachment, Signature, Alias
+    from db.models.features import Tag, EmailTag, TrackingPixel, Contact, DriveFile
+
+    user_folder_ids = [f.id for f in db.query(Folder.id).filter(Folder.user_id == user_id).all()]
+    if user_folder_ids:
+        email_ids = [e.id for e in db.query(Email.id).filter(Email.folder_id.in_(user_folder_ids)).all()]
+        if email_ids:
+            # 删除邮件关联的追踪像素、标签关联、附件
+            db.query(TrackingPixel).filter(TrackingPixel.email_id.in_(email_ids)).delete(synchronize_session=False)
+            db.query(EmailTag).filter(EmailTag.email_id.in_(email_ids)).delete(synchronize_session=False)
+            db.query(Attachment).filter(Attachment.email_id.in_(email_ids)).delete(synchronize_session=False)
+        # 删除所有邮件和文件夹
+        db.query(Email).filter(Email.folder_id.in_(user_folder_ids)).delete(synchronize_session=False)
+        db.query(Folder).filter(Folder.id.in_(user_folder_ids)).delete(synchronize_session=False)
+    # 删除用户级联数据
+    db.query(Attachment).filter(Attachment.user_id == user_id, Attachment.email_id.is_(None)).delete(synchronize_session=False)
+    db.query(Tag).filter(Tag.user_id == user_id).delete(synchronize_session=False)
+    db.query(Signature).filter(Signature.user_id == user_id).delete(synchronize_session=False)
+    db.query(Alias).filter(Alias.user_id == user_id).delete(synchronize_session=False)
+    db.query(Contact).filter(Contact.owner_id == user_id).delete(synchronize_session=False)
+    db.query(DriveFile).filter(DriveFile.user_id == user_id).delete(synchronize_session=False)
+    db.query(Subscription).filter(Subscription.user_id == user_id).delete(synchronize_session=False)
+    db.query(UserSession).filter(UserSession.user_id == user_id).delete(synchronize_session=False)
+
+    # 最后删除用户
     db.delete(user)
     db.commit()
     

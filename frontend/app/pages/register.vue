@@ -3,11 +3,11 @@ import { Mail, ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-vue-next'
 
 definePageMeta({ layout: false })
 
-useHead({ title: `注册 - ${config.appName}` })
-
 const { login, sendVerificationCode, verifyCode, registerWithVerification } = useApi()
 const router = useRouter()
 const config = useConfig()
+
+useHead({ title: `注册 - ${config.appName}` })
 
 // 步骤：1=邮箱验证, 2=填写信息
 const step = ref(1)
