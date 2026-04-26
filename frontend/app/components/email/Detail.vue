@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, Trash2, Archive, Star, Reply, Forward, MoreHorizontal, Mail, MailOpen, ReplyAll, Eye, Send, CheckCircle, XCircle, Loader2, RefreshCw, Paperclip, Download, Copy, Check, Tag, Plus, X, FileDown, FileText } from 'lucide-vue-next'
+import { ArrowLeft, Trash2, Archive, Star, Reply, Forward, MoreHorizontal, Mail, MailOpen, ReplyAll, Eye, Send, CheckCircle, XCircle, Loader2, RefreshCw, Paperclip, Download, Copy, Check, Tag, Plus, X, FileDown, FileText, Printer } from 'lucide-vue-next'
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
 import ComposePanel from './ComposePanel.vue'
 
@@ -277,6 +277,74 @@ const exportEmail = (format: 'eml' | 'pdf') => {
   const url = exportEmailUrl(selectedEmailDetail.value.id, format)
   secureDownload(url, `email.${format}`)
 }
+
+// 打印邮件
+const handlePrint = () => {
+  if (!selectedEmailDetail.value) return
+  const email = selectedEmailDetail.value
+  const printWindow = window.open('', '_blank', 'width=800,height=600')
+  if (!printWindow) return
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html><head>
+      <meta charset="utf-8">
+      <title>${email.subject || '(无主题)'}</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 32px; color: #1f2937; }
+        .header { border-bottom: 2px solid #e5e7eb; padding-bottom: 16px; margin-bottom: 24px; }
+        .subject { font-size: 22px; font-weight: bold; margin-bottom: 12px; }
+        .meta { font-size: 14px; color: #6b7280; line-height: 1.8; }
+        .meta strong { color: #374151; }
+        .body { line-height: 1.7; }
+        .body img { max-width: 100%; }
+        @media print { body { padding: 0; } }
+      </style>
+    </head><body>
+      <div class="header">
+        <div class="subject">${email.subject || '(无主题)'}</div>
+        <div class="meta">
+          <div><strong>发件人:</strong> ${email.sender}</div>
+          <div><strong>收件人:</strong> ${email.recipients}</div>
+          <div><strong>时间:</strong> ${formatTime(email.received_at)}</div>
+        </div>
+      </div>
+      <div class="body">${email.body_html || email.body_text || ''}</div>
+    </body></html>
+  `)
+  printWindow.document.close()
+  printWindow.onload = () => { printWindow.print() }
+}
+
+// ===== 会话线程视图 =====
+const { getEmailThread } = useApi()
+const threadEmails = ref<{ id: number; subject: string; sender: string; snippet: string; received_at: string; is_read: boolean }[]>([])
+const threadLoading = ref(false)
+
+const loadThread = async (emailId: number) => {
+  threadLoading.value = true
+  try {
+    const res = await getEmailThread(emailId)
+    threadEmails.value = res.data?.data || []
+  } catch (e) {
+    console.error('加载会话线程失败:', e)
+    threadEmails.value = []
+  } finally {
+    threadLoading.value = false
+  }
+}
+
+// 监听邮件变化，加载线程
+watch(() => selectedEmailDetail.value, (email) => {
+  if (email?.thread_id) {
+    loadThread(email.id)
+  } else {
+    threadEmails.value = []
+  }
+}, { immediate: true })
+
+const handleThreadEmailClick = (emailId: number) => {
+  selectedEmailId.value = emailId
+}
 </script>
 
 <template>
@@ -338,6 +406,17 @@ const exportEmail = (format: 'eml' | 'pdf') => {
                 >
                   <FileText class="w-4 h-4 text-gray-500 group-hover:text-primary transition-colors" />
                   <span class="text-gray-700 dark:text-gray-200 group-hover:text-primary transition-colors">导出为 PDF</span>
+                </button>
+              </MenuItem>
+              <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
+              <MenuItem v-slot="{ active }">
+                <button
+                  @click="handlePrint"
+                  class="w-full text-left px-4 py-2.5 text-sm flex items-center gap-3 transition-colors group"
+                  :class="active ? 'bg-gray-50 dark:bg-gray-700' : ''"
+                >
+                  <Printer class="w-4 h-4 text-gray-500 group-hover:text-primary transition-colors" />
+                  <span class="text-gray-700 dark:text-gray-200 group-hover:text-primary transition-colors">打印邮件</span>
                 </button>
               </MenuItem>
             </MenuItems>
@@ -509,6 +588,42 @@ const exportEmail = (format: 'eml' | 'pdf') => {
             <div v-if="selectedEmailDetail.body_html" v-html="sanitizedBodyHtml" class="hidden"></div>
           </template>
         </div>
+
+          <!-- 会话线程 -->
+          <div v-if="threadEmails.length > 0" class="mt-8 border-t border-gray-200 dark:border-gray-800 pt-6">
+            <h3 class="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <Mail class="w-4 h-4" />
+              会话中的其他邮件 ({{ threadEmails.length }})
+            </h3>
+            <div class="space-y-2">
+              <button
+                v-for="te in threadEmails"
+                :key="te.id"
+                @click="handleThreadEmailClick(te.id)"
+                class="w-full flex items-start gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200
+                       hover:bg-gray-50 dark:hover:bg-gray-800/50 border border-gray-100 dark:border-gray-800
+                       hover:border-primary/30 hover:shadow-sm group"
+              >
+                <div class="shrink-0 mt-0.5">
+                  <div class="w-2 h-2 rounded-full" :class="te.is_read ? 'bg-gray-300 dark:bg-gray-600' : 'bg-primary'" />
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-baseline gap-2">
+                    <span class="text-sm font-medium text-gray-900 dark:text-white truncate"
+                          :class="{ 'font-bold': !te.is_read }">
+                      {{ te.subject }}
+                    </span>
+                    <span class="shrink-0 text-xs text-gray-400">{{ formatTime(te.received_at) }}</span>
+                  </div>
+                  <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{{ te.sender }}</div>
+                  <div class="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate">{{ te.snippet }}</div>
+                </div>
+              </button>
+            </div>
+          </div>
+          <div v-else-if="threadLoading" class="mt-8 text-center text-sm text-gray-400">
+            <Loader2 class="w-4 h-4 animate-spin inline-block mr-1" /> 加载会话...
+          </div>
       </div>
 
       <!-- 底部浮动栏 - 桌面端绝对定位右下角，移动端 sticky 底部全宽 -->

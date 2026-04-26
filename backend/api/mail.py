@@ -746,10 +746,51 @@ def get_email(
             tracking_open_url=tracking_open_url,
             delivery_status=email.delivery_status,
             delivery_error=email.delivery_error,
+            thread_id=email.thread_id,
             attachments=attachment_list,
             tags=tags_list
         )
     )
+
+
+@router.get("/{email_id}/thread", response_model=email_schema.ThreadResponse)
+def get_email_thread(
+    email_id: int,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+):
+    """获取邮件所属的会话线程"""
+    email = db.query(Email).join(Folder).filter(
+        Email.id == email_id,
+        Folder.user_id == current_user.id
+    ).first()
+
+    if not email:
+        raise HTTPException(status_code=404, detail="Email not found")
+
+    if not email.thread_id:
+        return email_schema.ThreadResponse(thread_id=None, data=[])
+
+    # 查询同一线程中的所有邮件（当前用户可见的）
+    thread_emails = db.query(Email).join(Folder).filter(
+        Email.thread_id == email.thread_id,
+        Folder.user_id == current_user.id,
+        Email.id != email_id  # 排除当前邮件
+    ).order_by(Email.received_at.asc()).all()
+
+    items = []
+    for e in thread_emails:
+        snippet = (e.body_text or "")[:100].replace("\n", " ").strip()
+        items.append(email_schema.ThreadEmailItem(
+            id=e.id,
+            subject=e.subject or "(无主题)",
+            sender=e.sender or "",
+            snippet=snippet,
+            received_at=e.received_at,
+            is_read=e.is_read,
+        ))
+
+    return email_schema.ThreadResponse(thread_id=email.thread_id, data=items)
 
 
 # --- 草稿 API ---

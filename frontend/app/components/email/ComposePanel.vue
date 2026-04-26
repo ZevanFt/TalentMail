@@ -578,10 +578,7 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
 
       <div class="flex items-stretch gap-2">
         <div class="flex-1 relative group">
-          <input v-model="recipients" type="text" placeholder="收件人 (多个用逗号分隔)"
-            class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900/50 border-2 border-gray-200 dark:border-gray-700 rounded-xl
-                   focus:bg-white dark:focus:bg-gray-900 focus:ring-2 focus:ring-primary/30 focus:border-primary
-                   outline-none transition-all duration-200 placeholder:text-gray-400">
+          <EmailContactAutocomplete v-model="recipients" placeholder="收件人 (多个用逗号分隔)" />
           <div class="absolute inset-0 -z-10 bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 rounded-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300"></div>
         </div>
         <button v-if="!showCc" @click="showCc = true"
@@ -593,10 +590,7 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
       </div>
 
       <div v-if="showCc" class="relative group animate-in fade-in slide-in-from-top-2 duration-200">
-        <input v-model="ccRecipients" type="text" placeholder="抄送 (多个用逗号分隔)"
-          class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900/50 border-2 border-gray-200 dark:border-gray-700 rounded-xl
-                 focus:bg-white dark:focus:bg-gray-900 focus:ring-2 focus:ring-primary/30 focus:border-primary
-                 outline-none transition-all duration-200 placeholder:text-gray-400">
+        <EmailContactAutocomplete v-model="ccRecipients" placeholder="抄送 (多个用逗号分隔)" />
         <div class="absolute inset-0 -z-10 bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 rounded-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300"></div>
       </div>
 

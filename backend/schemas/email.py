@@ -103,8 +103,29 @@ class EmailDetail(BaseModel):
     tracking_open_url: Optional[str] = None
     delivery_status: Optional[str] = None
     delivery_error: Optional[str] = None
+    thread_id: Optional[str] = None
     attachments: List[AttachmentInfo] = []
     tags: List[TagInfo] = []
+
+
+class ThreadEmailItem(BaseModel):
+    """线程中的邮件项"""
+    id: int
+    subject: str
+    sender: str
+    snippet: str
+    received_at: datetime
+    is_read: bool
+
+    class Config:
+        from_attributes = True
+
+
+class ThreadResponse(BaseModel):
+    """邮件线程响应"""
+    status: str = "success"
+    thread_id: Optional[str] = None
+    data: List[ThreadEmailItem] = []
 
 
 class EmailDetailResponse(BaseModel):

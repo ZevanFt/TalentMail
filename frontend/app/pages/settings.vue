@@ -42,6 +42,7 @@ const tabGroups = computed(() => {
     ]},
     { label: '邮件服务', tabs: [
       { key: 'mail', label: '邮件设置', icon: 'Mail' },
+      { key: 'automation', label: '自动化规则', icon: 'Zap' },
       { key: 'my-workflows', label: '我的工作流', icon: 'Workflow' },
       { key: 'notifications', label: '通知偏好', icon: 'Bell' },
       { key: 'privacy', label: '隐私与安全', icon: 'Lock' },
@@ -111,6 +112,7 @@ const settingsTabMap: Record<string, Component> = {
   'accounts': defineAsyncComponent(() => import('~/components/settings/Accounts.vue')),
   'theme': defineAsyncComponent(() => import('~/components/settings/Theme.vue')),
   'mail': defineAsyncComponent(() => import('~/components/settings/Mail.vue')),
+  'automation': defineAsyncComponent(() => import('~/components/settings/AutomationRules.vue')),
   'my-workflows': defineAsyncComponent(() => import('~/components/settings/MyWorkflows.vue')),
   'notifications': defineAsyncComponent(() => import('~/components/settings/Notifications.vue')),
   'privacy': defineAsyncComponent(() => import('~/components/settings/Privacy.vue')),
@@ -205,6 +207,9 @@ const activeComponent = computed(() => {
           <div class="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">邮件服务</div>
           <button @click="setTab('mail')" :class="['tab-btn', activeTab === 'mail' ? 'active' : '']">
             <Mail class="w-4 h-4" /> 邮件设置
+          </button>
+          <button @click="setTab('automation')" :class="['tab-btn', activeTab === 'automation' ? 'active' : '']">
+            <Zap class="w-4 h-4" /> 自动化规则
           </button>
           <button @click="setTab('my-workflows')" :class="['tab-btn', activeTab === 'my-workflows' ? 'active' : '']">
             <Workflow class="w-4 h-4" /> 我的工作流
