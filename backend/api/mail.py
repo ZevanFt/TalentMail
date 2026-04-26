@@ -103,7 +103,7 @@ async def send_email_endpoint(
             db_email.scheduled_send_at = email_in.scheduled_send_at
         else:
             db_email.delivery_status = "pending"
-        db.commit()
+        db.flush()  # flush 获取 db_email.id，但不提交事务
         logger.info(f"成功在数据库中创建邮件记录, ID: {db_email.id}。")
 
         # 1.2 关联附件
@@ -113,7 +113,6 @@ async def send_email_endpoint(
                 Attachment.user_id == current_user.id,
                 Attachment.email_id.is_(None)
             ).update({"email_id": db_email.id}, synchronize_session=False)
-            db.commit()
 
         # 1.5 如果启用追踪，创建追踪像素并插入邮件 HTML
         tracking_pixel_html = ""
@@ -124,12 +123,14 @@ async def send_email_endpoint(
                 email_id=db_email.id
             )
             db.add(tracking_pixel)
-            db.commit()
             # 生成追踪像素 URL
             base_url = _tracking_base_url()
             tracking_url = f"{base_url}/api/track/open/{str(pixel_id)}"
             tracking_pixel_html = f'<img src="{tracking_url}" width="1" height="1" style="display:none" />'
             logger.info(f"已创建追踪像素: {pixel_id}")
+
+        # 统一提交：邮件记录 + 附件关联 + tracking 在同一事务中
+        db.commit()
 
         # 2. Add a background task to send the email
         async def send_email_task():

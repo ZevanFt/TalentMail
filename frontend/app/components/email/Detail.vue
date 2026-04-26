@@ -3,7 +3,7 @@ import { ArrowLeft, Trash2, Archive, Star, Reply, Forward, MoreHorizontal, Mail,
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
 import ComposePanel from './ComposePanel.vue'
 
-const { selectedEmailDetail, selectedEmailId, detailLoading, formatTime, toggleRead, removeEmail, startReply, startReplyAll, startForward, folders, currentFolderId, loadEmails, tags, loadTags, addTag, removeTag } = useEmails()
+const { selectedEmailDetail, selectedEmailId, detailLoading, formatTime, toggleRead, removeEmail, startReply, startReplyAll, startForward, folders, currentFolderId, loadEmails, loadEmailDetail, tags, loadTags, addTag, removeTag } = useEmails()
 const { isComposeOpen, requestOpenCompose } = useGlobalModal()
 const { getTrackingStats, resendEmail, downloadAttachmentUrl, exportEmailUrl, token, bulkArchiveEmails, bulkMoveEmails } = useApi()
 const toast = useToast()
@@ -409,7 +409,7 @@ watch(() => selectedEmailDetail.value, (email) => {
 }, { immediate: true })
 
 const handleThreadEmailClick = (emailId: number) => {
-  selectedEmailId.value = emailId
+  loadEmailDetail(emailId)
 }
 </script>
 

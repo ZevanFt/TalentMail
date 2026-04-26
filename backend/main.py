@@ -134,7 +134,7 @@ async def periodic_snooze_check(interval: int = 60):
                         if folder:
                             user_ids.add(folder.user_id)
                     for uid in user_ids:
-                        await ws_manager.send_to_user(uid, {"type": "snooze_wakeup"})
+                        await ws_manager.broadcast_to_user(uid, "snooze_wakeup")
             finally:
                 db.close()
         except Exception as e:

@@ -43,6 +43,6 @@ def create_email(
         is_tracked=email.is_tracked,
     )
     db.add(db_email)
-    db.commit()
+    db.flush()  # flush 获取 ID，由调用方控制事务提交
     db.refresh(db_email)
     return db_email
