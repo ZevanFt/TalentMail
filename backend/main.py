@@ -143,7 +143,7 @@ async def periodic_snooze_check(interval: int = 60):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global sync_task, cleanup_task, temp_mailbox_cleanup_task, scheduled_sender_task, orphan_attachment_task
+    global sync_task, cleanup_task, temp_mailbox_cleanup_task, scheduled_sender_task, orphan_attachment_task, snooze_task
     # Initialize the database and create the initial admin user
     initial_data.init_db()
 

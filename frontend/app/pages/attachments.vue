@@ -49,6 +49,7 @@ const handleUpload = async (event: Event) => {
   uploading.value = true
   try {
     await uploadAttachment(file)
+    toast.success('上传成功')
     await loadAttachments()
   } catch (e: any) {
     console.error('上传失败', e)

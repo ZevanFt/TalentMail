@@ -8,6 +8,7 @@ from datetime import datetime, timezone, timedelta
 import os
 import uuid
 import secrets
+import logging
 
 from db.database import get_db
 from api.deps import get_current_user
@@ -16,6 +17,7 @@ from db.models.drive import DriveFile
 from core.security import get_password_hash, verify_password
 from utils.rate_limit import SlidingWindowLimiter
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/drive", tags=["drive"])
 
 # 上传限流：每用户每分钟最多 10 次
@@ -23,6 +25,18 @@ _upload_limiter = SlidingWindowLimiter(max_attempts=10, window_seconds=60)
 
 UPLOAD_DIR = "uploads/drive"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# 上传安全限制（与 attachments.py 保持一致）
+BLOCKED_EXTENSIONS = {
+    '.exe', '.sh', '.bat', '.ps1', '.vbs', '.scr', '.cmd',
+    '.msi', '.dll', '.com', '.pif', '.cpl', '.hta', '.inf',
+    '.html', '.htm', '.svg', '.xhtml',  # 防止 XSS（分享链接直接渲染）
+}
+BLOCKED_CONTENT_TYPES = {
+    'application/x-executable', 'application/x-msdos-program',
+    'application/x-msdownload', 'application/x-sh',
+    'text/html', 'image/svg+xml', 'application/xhtml+xml',
+}
 
 
 class DriveFileResponse(BaseModel):
@@ -69,6 +83,17 @@ async def upload_file(file: UploadFile = File(...), db: Session = Depends(get_db
     """上传文件（最大 50MB）"""
     if not _upload_limiter.allow(f"upload:{user.id}"):
         raise HTTPException(429, "上传过于频繁，请稍后再试")
+
+    # 安全检查：扩展名黑名单
+    ext = os.path.splitext(file.filename)[1].lower() if file.filename else ""
+    if ext in BLOCKED_EXTENSIONS:
+        raise HTTPException(400, f"不允许上传 {ext} 类型的文件")
+
+    # 安全检查：Content-Type 黑名单
+    content_type = (file.content_type or "application/octet-stream").lower()
+    if content_type in BLOCKED_CONTENT_TYPES:
+        raise HTTPException(400, f"不允许上传 {content_type} 类型的文件")
+
     # 流式读取并检查大小限制
     chunks = []
     total_size = 0
@@ -82,8 +107,7 @@ async def upload_file(file: UploadFile = File(...), db: Session = Depends(get_db
         chunks.append(chunk)
     content = b"".join(chunks)
 
-    # 生成唯一文件名
-    ext = os.path.splitext(file.filename)[1] if file.filename else ""
+    # 生成唯一文件名（ext 已在上方安全检查中获取）
     unique_filename = f"{uuid.uuid4().hex}{ext}"
     file_path = os.path.join(UPLOAD_DIR, unique_filename)
 
@@ -167,8 +191,12 @@ def download_file(file_id: int, db: Session = Depends(get_db), user: User = Depe
     
     if not os.path.exists(file.storage_path):
         raise HTTPException(404, "文件已丢失")
-    
-    return FileResponse(file.storage_path, filename=file.original_filename, media_type=file.content_type)
+
+    return FileResponse(
+        file.storage_path,
+        filename=file.original_filename,
+        media_type="application/octet-stream",
+    )
 
 
 # 公开分享下载（无需登录）
@@ -220,5 +248,10 @@ def download_shared_file(share_code: str, password: Optional[str] = None, db: Se
         {DriveFile.download_count: DriveFile.download_count + 1}, synchronize_session=False
     )
     db.commit()
-    
-    return FileResponse(file.storage_path, filename=file.original_filename, media_type=file.content_type)
+
+    # 强制附件下载，防止浏览器直接渲染 HTML/SVG 等危险内容
+    return FileResponse(
+        file.storage_path,
+        filename=file.original_filename,
+        media_type="application/octet-stream",
+    )

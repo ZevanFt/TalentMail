@@ -36,7 +36,13 @@ const loadShare = async () => {
 const download = () => {
   downloading.value = true
   const url = downloadSharedFileUrl(code, password.value || undefined)
-  window.open(url, '_blank')
+  // 使用隐形 <a> 标签触发下载，避免 window.open 被弹窗拦截
+  const a = document.createElement('a')
+  a.href = url
+  a.download = file.value?.original_filename || 'download'
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
   setTimeout(() => downloading.value = false, 1000)
 }
 

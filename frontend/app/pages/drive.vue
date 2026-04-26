@@ -45,20 +45,28 @@ const goPage = (p: number) => {
   loadFiles()
 }
 
+const uploadProgress = ref('')  // 上传进度文本
+
 const handleUpload = async (e: Event) => {
   const input = e.target as HTMLInputElement
   if (!input.files?.length) return
-  
+
+  const fileList = Array.from(input.files)
   uploading.value = true
+  let successCount = 0
   try {
-    for (const file of input.files) {
-      const result = await uploadDriveFile(file)
+    for (let i = 0; i < fileList.length; i++) {
+      uploadProgress.value = fileList.length > 1 ? `(${i + 1}/${fileList.length})` : ''
+      const result = await uploadDriveFile(fileList[i])
       files.value.unshift(result)
+      successCount++
     }
+    toast.success(`成功上传 ${successCount} 个文件`)
   } catch (e: any) {
     toast.error('上传失败: ' + (e.data?.detail || '未知错误'))
   } finally {
     uploading.value = false
+    uploadProgress.value = ''
     input.value = ''
   }
 }
@@ -159,7 +167,7 @@ onMounted(loadFiles)
         </div>
         <label class="bg-primary text-white px-4 py-2 rounded-lg text-sm hover:bg-primary-hover cursor-pointer flex items-center gap-2">
           <Upload class="w-4 h-4" />
-          {{ uploading ? '上传中...' : '上传文件' }}
+          {{ uploading ? `上传中${uploadProgress}...` : '上传文件' }}
           <input type="file" multiple class="hidden" @change="handleUpload" :disabled="uploading" />
         </label>
       </div>

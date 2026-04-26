@@ -38,6 +38,10 @@ docker-compose*.yml
 # Uploads (mounted as volume)
 uploads/
 
+# Dev/test scripts
+simulate_workflow_auth.py
+scripts/
+
 # Misc
 *.md
 LICENSE
