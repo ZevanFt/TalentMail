@@ -4,28 +4,38 @@ const config = useConfig()
 useHead({ title: `附件管理 - ${config.appName}` })
 const toast = useToast()
 const { confirm: confirmDialog } = useConfirmDialog()
-const { downloadAttachmentUrl, deleteAttachment, token } = useApi()
+const { getAttachments, uploadAttachment, downloadAttachmentUrl, deleteAttachment } = useApi()
 
 interface Attachment { id: number; filename: string; content_type: string; size: number; email_id?: number; email_subject?: string }
 const attachments = ref<Attachment[]>([])
+const total = ref(0)
+const page = ref(1)
+const limit = 50
 const loading = ref(true)
 const uploading = ref(false)
 const loadError = ref('')
 const fileInput = ref<HTMLInputElement | null>(null)
 
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / limit)))
+
 const loadAttachments = async () => {
   loading.value = true
   loadError.value = ''
   try {
-    const res = await $fetch<{ items: Attachment[]; total: number }>('/api/attachments/list', {
-      headers: { Authorization: `Bearer ${token.value}` }
-    })
+    const res = await getAttachments(page.value, limit)
     attachments.value = res.items
+    total.value = res.total
   } catch (e: any) {
     console.error('加载附件失败', e)
     loadError.value = e.data?.detail || '加载附件失败'
     toast.error(loadError.value)
   } finally { loading.value = false }
+}
+
+const goPage = (p: number) => {
+  if (p < 1 || p > totalPages.value || p === page.value) return
+  page.value = p
+  loadAttachments()
 }
 
 const handleUpload = async (event: Event) => {
@@ -37,15 +47,8 @@ const handleUpload = async (event: Event) => {
   if (!file) return
 
   uploading.value = true
-  const formData = new FormData()
-  formData.append('file', file)
-
   try {
-    await $fetch('/api/attachments/upload', {
-      method: 'POST',
-      body: formData,
-      headers: { Authorization: `Bearer ${token.value}` }
-    })
+    await uploadAttachment(file)
     await loadAttachments()
   } catch (e: any) {
     console.error('上传失败', e)
@@ -192,6 +195,21 @@ onMounted(loadAttachments)
                 <!-- 邮件附件通常不允许直接删除，除非删除邮件 -->
               </div>
             </div>
+          </div>
+        </div>
+        <!-- 分页 -->
+        <div v-if="totalPages > 1" class="flex items-center justify-between px-4 py-3 bg-white dark:bg-bg-panelDark rounded-xl border dark:border-border-dark">
+          <span class="text-sm text-gray-500">共 {{ total }} 个附件</span>
+          <div class="flex items-center gap-1">
+            <button @click="goPage(page - 1)" :disabled="page <= 1"
+              class="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+              上一页
+            </button>
+            <span class="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400">{{ page }} / {{ totalPages }}</span>
+            <button @click="goPage(page + 1)" :disabled="page >= totalPages"
+              class="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+              下一页
+            </button>
           </div>
         </div>
       </div>

@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from user_agents import parse as parse_user_agent
 from pydantic import BaseModel, EmailStr, field_validator
+from typing import Literal
 
 from core import security
 from schemas.common import validate_password_strength
@@ -164,11 +165,14 @@ def validate_email_flexible(email: str) -> str:
 
 # ============ 验证码相关 Schema ============
 
+ALLOWED_PURPOSES = Literal["register", "reset_password", "update_recovery_email"]
+
+
 class SendVerificationCodeRequest(BaseModel):
     """发送验证码请求"""
     email: str
-    purpose: str = "register"  # register / reset_password
-    
+    purpose: ALLOWED_PURPOSES = "register"
+
     @field_validator('email')
     @classmethod
     def validate_email(cls, v):
@@ -179,8 +183,8 @@ class VerifyCodeRequest(BaseModel):
     """验证验证码请求"""
     email: str
     code: str
-    purpose: str = "register"
-    
+    purpose: ALLOWED_PURPOSES = "register"
+
     @field_validator('email')
     @classmethod
     def validate_email(cls, v):
@@ -301,11 +305,21 @@ def verify_code(db: Session, email: str, code: str, purpose: str = "register") -
 @router.post("/send-verification-code")
 async def send_verification_code(
     request: SendVerificationCodeRequest,
+    req: Request,
     db: Session = Depends(get_db)
 ):
     """
     发送验证码到指定邮箱
     """
+    # IP 级别速率限制：每 IP 10 分钟最多 10 次
+    from utils.rate_limit import verification_code_limiter
+    client_ip = get_client_ip(req)
+    if not verification_code_limiter.allow(f"vcode:{client_ip}"):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="请求过于频繁，请 10 分钟后再试"
+        )
+
     # 检查发送频率（1分钟内只能发送一次）
     recent_code = db.query(VerificationCode).filter(
         VerificationCode.email == request.email,
@@ -361,14 +375,14 @@ def verify_verification_code(
             detail="验证码尝试次数过多，请重新获取"
         )
     
-    if verification.code != request.code:
+    if not hmac.compare_digest(verification.code, request.code):
         verification.attempts += 1
         db.commit()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="验证码错误"
         )
-    
+
     return {"status": "success", "message": "验证码正确"}
 
 

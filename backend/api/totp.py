@@ -3,6 +3,7 @@
 """
 import io
 import base64
+import logging
 import pyotp
 import qrcode
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -13,7 +14,9 @@ from db import models
 from db.database import get_db
 from api import deps
 from core.config import settings
+from utils.rate_limit import totp_manage_limiter
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -57,6 +60,10 @@ def setup_2fa(
     设置 2FA - 生成密钥和二维码
     注意：此时还未启用 2FA，需要调用 /enable 接口验证后才启用
     """
+    # 速率限制
+    if not totp_manage_limiter.allow(f"2fa_setup:{current_user.id}"):
+        raise HTTPException(status_code=429, detail="操作过于频繁，请 5 分钟后再试")
+
     # 如果已经启用了 2FA，不允许重新设置
     if current_user.two_factor_enabled:
         raise HTTPException(
@@ -89,7 +96,8 @@ def setup_2fa(
     current_user.totp_secret = secret
     db.add(current_user)
     db.commit()
-    
+
+    logger.info(f"[2FA] 用户 {current_user.email} 生成了 2FA 密钥")
     return Enable2FAResponse(
         secret=secret,
         qr_code=f"data:image/png;base64,{qr_code_base64}",
@@ -106,6 +114,10 @@ def enable_2fa(
     """
     启用 2FA - 验证用户输入的验证码后启用
     """
+    # 速率限制
+    if not totp_manage_limiter.allow(f"2fa_enable:{current_user.id}"):
+        raise HTTPException(status_code=429, detail="操作过于频繁，请 5 分钟后再试")
+
     if current_user.two_factor_enabled:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -130,7 +142,8 @@ def enable_2fa(
     current_user.two_factor_enabled = True
     db.add(current_user)
     db.commit()
-    
+
+    logger.info(f"[2FA] 用户 {current_user.email} 成功启用两步验证")
     return {"status": "success", "message": "两步验证已启用"}
 
 
@@ -143,6 +156,10 @@ def disable_2fa(
     """
     禁用 2FA - 需要验证当前验证码和密码
     """
+    # 速率限制
+    if not totp_manage_limiter.allow(f"2fa_disable:{current_user.id}"):
+        raise HTTPException(status_code=429, detail="操作过于频繁，请 5 分钟后再试")
+
     if not current_user.two_factor_enabled:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -170,7 +187,8 @@ def disable_2fa(
     current_user.totp_secret = None
     db.add(current_user)
     db.commit()
-    
+
+    logger.info(f"[2FA] 用户 {current_user.email} 禁用了两步验证")
     return {"status": "success", "message": "两步验证已禁用"}
 
 

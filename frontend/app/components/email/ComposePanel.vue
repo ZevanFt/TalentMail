@@ -699,7 +699,7 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
 
       <div class="flex items-stretch gap-2">
         <div class="flex-1 relative group">
-          <EmailContactAutocomplete v-model="recipients" placeholder="收件人 (多个用逗号分隔)" />
+          <EmailContactAutocomplete v-model="recipients" placeholder="收件人 (多个用逗号分隔)" aria-label="收件人" />
           <div class="absolute inset-0 -z-10 bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 rounded-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300"></div>
         </div>
         <button v-if="!showCc" @click="showCc = true"
@@ -717,17 +717,17 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
       </div>
 
       <div v-if="showCc" class="relative group animate-in fade-in slide-in-from-top-2 duration-200">
-        <EmailContactAutocomplete v-model="ccRecipients" placeholder="抄送 (多个用逗号分隔)" />
+        <EmailContactAutocomplete v-model="ccRecipients" placeholder="抄送 (多个用逗号分隔)" aria-label="抄送" />
         <div class="absolute inset-0 -z-10 bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 rounded-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300"></div>
       </div>
 
       <div v-if="showBcc" class="relative group animate-in fade-in slide-in-from-top-2 duration-200">
-        <EmailContactAutocomplete v-model="bccRecipients" placeholder="密送 BCC (收件人互不可见)" />
+        <EmailContactAutocomplete v-model="bccRecipients" placeholder="密送 BCC (收件人互不可见)" aria-label="密送" />
         <div class="absolute inset-0 -z-10 bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 rounded-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300"></div>
       </div>
 
       <div class="relative group">
-        <input v-model="subject" type="text" placeholder="主题"
+        <input v-model="subject" type="text" placeholder="主题" aria-label="邮件主题"
           class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900/50 border-2 border-gray-200 dark:border-gray-700 rounded-xl
                  focus:bg-white dark:focus:bg-gray-900 focus:ring-2 focus:ring-primary/30 focus:border-primary
                  outline-none transition-all duration-200 placeholder:text-gray-400">

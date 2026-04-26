@@ -289,10 +289,16 @@ onUnmounted(() => {
                 </div>
 
                 <!-- 邀请码 -->
-                <input v-model="form.inviteCode" type="text" placeholder="邀请码" class="input-field" required>
+                <div class="space-y-2">
+                    <label for="invite-code" class="text-sm font-medium text-gray-700 dark:text-gray-300">邀请码</label>
+                    <input id="invite-code" v-model="form.inviteCode" type="text" placeholder="请输入邀请码" class="input-field" required>
+                </div>
 
                 <!-- 用户名 -->
-                <input v-model="form.displayName" type="text" placeholder="显示名称（可选）" class="input-field">
+                <div class="space-y-2">
+                    <label for="display-name" class="text-sm font-medium text-gray-700 dark:text-gray-300">显示名称</label>
+                    <input id="display-name" v-model="form.displayName" type="text" placeholder="显示名称（可选）" class="input-field">
+                </div>
 
                 <!-- 邮箱 (组合输入框) -->
                 <div class="space-y-2">

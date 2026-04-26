@@ -147,3 +147,12 @@ password_reset_limiter = SlidingWindowLimiter(max_attempts=5, window_seconds=600
 
 # 全局实例：兑换码限频器（每用户 5 分钟最多 10 次）
 redeem_limiter = SlidingWindowLimiter(max_attempts=10, window_seconds=300)
+
+# 全局实例：修改密码限频器（每用户 5 分钟最多 5 次）
+change_password_limiter = SlidingWindowLimiter(max_attempts=5, window_seconds=300)
+
+# 全局实例：验证码发送限频器（每 IP 10 分钟最多 10 次 — 防止批量发验证码）
+verification_code_limiter = SlidingWindowLimiter(max_attempts=10, window_seconds=600)
+
+# 全局实例：2FA 操作限频器（每用户 5 分钟最多 5 次 — setup/enable/disable）
+totp_manage_limiter = SlidingWindowLimiter(max_attempts=5, window_seconds=300)

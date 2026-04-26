@@ -120,16 +120,23 @@ def change_password(
     current_user: models.User = Depends(deps.get_current_active_user)
 ):
     """修改当前用户密码"""
+    # 速率限制：每用户 5 分钟最多 5 次
+    from utils.rate_limit import change_password_limiter
+    if not change_password_limiter.allow(f"chpwd:{current_user.id}"):
+        raise HTTPException(status_code=429, detail="操作过于频繁，请 5 分钟后再试")
+
     if not security.verify_password(data.current_password, current_user.password_hash):
+        logger.warning(f"[ChangePassword] 用户 {current_user.email} 密码验证失败")
         raise HTTPException(status_code=400, detail="当前密码错误")
-    
+
     current_user.password_hash = security.get_password_hash(data.new_password)
     db.add(current_user)
     db.commit()
-    
+
     # 同步到邮件服务器
     crud_user.sync_user_to_mailserver(current_user.email, data.new_password)
-    
+
+    logger.info(f"[ChangePassword] 用户 {current_user.email} 成功修改密码")
     return {"status": "success", "message": "密码修改成功"}
 
 

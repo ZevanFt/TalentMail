@@ -2,12 +2,14 @@
 健康检查 API
 用于容器健康检查和负载均衡器探测
 """
+import logging
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from db.database import get_db
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -33,13 +35,14 @@ async def health_check(db: Session = Depends(get_db)):
             "database": "connected"
         }
     except Exception as e:
+        # 仅在服务端日志记录完整错误，不暴露给客户端
+        logger.error(f"[Health] 数据库连接失败: {e}")
         return JSONResponse(
             status_code=503,
             content={
                 "status": "unhealthy",
                 "service": "talentmail-backend",
-                "database": "disconnected",
-                "error": str(e)
+                "database": "disconnected"
             }
         )
 
@@ -63,12 +66,12 @@ async def readiness_check(db: Session = Depends(get_db)):
             "service": "talentmail-backend"
         }
     except Exception as e:
+        logger.error(f"[Readiness] 数据库连接失败: {e}")
         return JSONResponse(
             status_code=503,
             content={
                 "status": "not_ready",
-                "service": "talentmail-backend",
-                "error": str(e)
+                "service": "talentmail-backend"
             }
         )
 

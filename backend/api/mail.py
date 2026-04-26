@@ -48,7 +48,7 @@ async def send_email_endpoint(
     current_user: User = Depends(deps.get_current_active_user),
     background_tasks: BackgroundTasks = BackgroundTasks(),
 ):
-    logger.info(f"用户 {current_user.email} 请求发送邮件，数据: {email_in.model_dump_json()}")
+    logger.info(f"用户 {current_user.email} 请求发送邮件: to={[r.email for r in email_in.to]}, subject={email_in.subject!r}")
 
     # 发送频率限流（每用户约 10 封/分钟）
     from utils.rate_limit import email_send_limiter

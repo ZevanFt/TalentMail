@@ -7,9 +7,14 @@ const { confirm: confirmDialog } = useConfirmDialog()
 const { getDriveFiles, uploadDriveFile, deleteDriveFile, createDriveShare, removeDriveShare, downloadDriveFileUrl, token } = useApi()
 
 const files = ref<any[]>([])
+const total = ref(0)
+const page = ref(1)
+const limit = 20
 const loading = ref(true)
 const uploading = ref(false)
 const loadError = ref('')
+
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / limit)))
 
 // 分享弹窗
 const showShareModal = ref(false)
@@ -22,7 +27,9 @@ const loadFiles = async () => {
   loading.value = true
   loadError.value = ''
   try {
-    files.value = await getDriveFiles()
+    const res = await getDriveFiles(page.value, limit)
+    files.value = res.items
+    total.value = res.total
   } catch (e: any) {
     console.error('加载失败', e)
     loadError.value = e.data?.detail || '加载文件失败'
@@ -30,6 +37,12 @@ const loadFiles = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const goPage = (p: number) => {
+  if (p < 1 || p > totalPages.value || p === page.value) return
+  page.value = p
+  loadFiles()
 }
 
 const handleUpload = async (e: Event) => {
@@ -206,6 +219,22 @@ onMounted(loadFiles)
               </button>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- 分页 -->
+      <div v-if="!loading && totalPages > 1" class="flex items-center justify-between mt-4 px-4 py-3 bg-white dark:bg-bg-panelDark rounded-xl border border-gray-200 dark:border-border-dark">
+        <span class="text-sm text-gray-500">共 {{ total }} 个文件</span>
+        <div class="flex items-center gap-1">
+          <button @click="goPage(page - 1)" :disabled="page <= 1"
+            class="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+            上一页
+          </button>
+          <span class="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400">{{ page }} / {{ totalPages }}</span>
+          <button @click="goPage(page + 1)" :disabled="page >= totalPages"
+            class="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+            下一页
+          </button>
         </div>
       </div>
     </div>

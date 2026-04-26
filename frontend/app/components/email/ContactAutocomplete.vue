@@ -10,6 +10,7 @@ interface Suggestion {
 const props = defineProps<{
   modelValue: string
   placeholder?: string
+  ariaLabel?: string
 }>()
 
 const emit = defineEmits<{
@@ -236,6 +237,11 @@ const focusInput = () => {
       @paste="handlePaste"
       @blur="handleBlur"
       :placeholder="chips.length === 0 ? (placeholder || '收件人 (多个用逗号分隔)') : ''"
+      :aria-label="ariaLabel || placeholder || '收件人'"
+      role="combobox"
+      :aria-expanded="showSuggestions"
+      aria-autocomplete="list"
+      aria-haspopup="listbox"
       class="flex-1 min-w-[120px] bg-transparent border-none outline-none text-sm
              text-gray-900 dark:text-gray-100 placeholder:text-gray-400"
     />
@@ -245,6 +251,8 @@ const focusInput = () => {
       <div
         v-if="showSuggestions"
         ref="suggestionsRef"
+        role="listbox"
+        :aria-label="(ariaLabel || '收件人') + '建议列表'"
         class="absolute left-0 right-0 top-full mt-1 z-50
                bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700
                rounded-xl shadow-lg max-h-[240px] overflow-y-auto"
@@ -252,6 +260,8 @@ const focusInput = () => {
         <button
           v-for="(s, idx) in suggestions"
           :key="s.email"
+          role="option"
+          :aria-selected="highlightIndex === idx"
           @mousedown.prevent="selectSuggestion(s)"
           :class="[
             'w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors',
