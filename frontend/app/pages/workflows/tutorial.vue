@@ -30,6 +30,8 @@ import {
 
 const router = useRouter()
 const route = useRoute()
+const config = useConfig()
+useHead({ title: `工作流教程 - ${config.appName}` })
 
 // 展开/折叠状态
 const expandedSections = ref<Record<string, boolean>>({

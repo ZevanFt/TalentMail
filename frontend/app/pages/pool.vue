@@ -11,7 +11,8 @@ const { getPoolMailboxes, getPoolMailboxEmails, deletePoolMailbox, getPoolStats,
 const router = useRouter()
 
 definePageMeta({ layout: 'pool' })
-useHead({ title: '临时邮箱 - TalentMail' })
+const config = useConfig()
+useHead({ title: `临时邮箱 - ${config.appName}` })
 
 // 权限检查
 const hasAccess = ref(false)
@@ -251,6 +252,38 @@ const getInitial = (email: string) => email?.[0]?.toUpperCase() || '?'
 // 获取发件人名称
 const getSenderName = (sender: string) => sender?.split('<')[0]?.trim() || sender || '未知'
 
+// ========== 自动刷新轮询 ==========
+let pollTimer: ReturnType<typeof setInterval> | null = null
+const POLL_INTERVAL = 10000 // 10秒
+
+const startPolling = () => {
+    stopPolling()
+    pollTimer = setInterval(async () => {
+        if (!selectedMailbox.value || !hasAccess.value) return
+        try {
+            // 静默刷新邮件列表（不影响 loading 状态）
+            const res = await getPoolMailboxEmails(selectedMailbox.value.id)
+            const newCount = res.items.length
+            const oldCount = emails.value.length
+            emails.value = res.items
+            // 如果有新邮件，更新邮箱列表和统计
+            if (newCount > oldCount) {
+                await Promise.all([loadMailboxes(), loadStats()])
+            }
+        } catch (e) {
+            // 静默失败，不干扰用户
+            console.debug('轮询刷新失败', e)
+        }
+    }, POLL_INTERVAL)
+}
+
+const stopPolling = () => {
+    if (pollTimer) {
+        clearInterval(pollTimer)
+        pollTimer = null
+    }
+}
+
 // 检查权限并加载数据
 onMounted(async () => {
     try {
@@ -258,12 +291,17 @@ onMounted(async () => {
         hasAccess.value = user.pool_enabled || user.role === 'admin'
         if (hasAccess.value) {
             await Promise.all([loadMailboxes(), loadStats()])
+            startPolling()
         }
     } catch (e) {
         hasAccess.value = false
     } finally {
         loading.value = false
     }
+})
+
+onUnmounted(() => {
+    stopPolling()
 })
 
 // 监听邮箱变化
@@ -308,7 +346,7 @@ watch(isGenerateOpen, (val) => {
                 <div class="p-3 pb-2">
                     <div class="relative">
                         <Search class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input v-model="searchQuery" type="text" placeholder="搜索账号..."
+                        <input v-model="searchQuery" type="text" placeholder="搜索邮箱或用途..."
                             class="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg py-1.5 pl-9 pr-4 text-xs focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all">
                     </div>
                 </div>
@@ -331,7 +369,7 @@ watch(isGenerateOpen, (val) => {
                     <div v-if="mailboxes.length === 0" class="p-4 text-center text-gray-400 text-sm">
                         暂无临时邮箱<br>点击右上角生成
                     </div>
-                    <div v-for="mailbox in mailboxes.filter(m => !searchQuery || m.email.includes(searchQuery))" :key="mailbox.id" 
+                    <div v-for="mailbox in mailboxes.filter(m => { if (!searchQuery) return true; const q = searchQuery.toLowerCase(); return m.email.toLowerCase().includes(q) || (m.purpose && m.purpose.toLowerCase().includes(q)) })" :key="mailbox.id"
                         @click="selectMailbox(mailbox)"
                         class="p-3 rounded-xl cursor-pointer hover:bg-white dark:hover:bg-gray-800 transition-all border border-transparent hover:border-gray-200 dark:hover:border-gray-700 relative group"
                         :class="{ 'bg-white dark:bg-gray-800 shadow-sm border-gray-200 dark:border-gray-700': selectedMailbox?.id === mailbox.id }">

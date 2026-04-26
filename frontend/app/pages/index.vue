@@ -1,5 +1,6 @@
 <script setup lang="ts">
-useHead({ title: '收件箱 - TalentMail' })
+const config = useConfig()
+useHead({ title: `收件箱 - ${config.appName}` })
 
 const { isMobile, isDesktop, mobileShowDetail, showEmailList } = useResponsive()
 const { selectedEmailId } = useEmails()

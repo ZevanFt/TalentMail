@@ -112,8 +112,12 @@ const handleResetPassword = async () => {
         error.value = '请输入新密码'
         return
     }
-    if (form.newPassword.length < 6) {
-        error.value = '密码长度至少为6位'
+    if (form.newPassword.length < 8) {
+        error.value = '密码至少 8 位'
+        return
+    }
+    if (!/[a-z]/.test(form.newPassword) || !/[A-Z]/.test(form.newPassword) || !/\d/.test(form.newPassword)) {
+        error.value = '密码必须包含大写字母、小写字母和数字'
         return
     }
     if (form.newPassword !== form.confirmPassword) {
@@ -176,7 +180,7 @@ onUnmounted(() => {
             <!-- 步骤 1: 输入邮箱 -->
             <form v-if="step === 1" @submit.prevent="handleSendCode" class="space-y-5">
                 <div class="space-y-1.5">
-                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">TalentMail 邮箱</label>
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ appName }} 邮箱</label>
                     <div class="flex items-stretch rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all">
                         <input v-model="form.username" type="text" placeholder="用户名"
                             class="flex-[5] min-w-0 px-4 py-3 bg-gray-50 dark:bg-gray-900 text-sm outline-none text-gray-900 dark:text-white placeholder-gray-400 border-none" required>
@@ -235,13 +239,14 @@ onUnmounted(() => {
                 <!-- 新密码 -->
                 <div class="space-y-1.5 relative">
                     <label class="text-sm font-medium text-gray-700 dark:text-gray-300">新密码</label>
-                    <input v-model="form.newPassword" :type="showPassword ? 'text' : 'password'" placeholder="至少6位"
+                    <input v-model="form.newPassword" :type="showPassword ? 'text' : 'password'" placeholder="至少8位，含大小写和数字"
                         class="input-field pr-10" required>
                     <button type="button" @click="showPassword = !showPassword"
                         class="absolute right-3 top-9 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
                         <EyeOff v-if="showPassword" class="w-5 h-5" />
                         <Eye v-else class="w-5 h-5" />
                     </button>
+                    <CommonPasswordStrength :password="form.newPassword" />
                 </div>
 
                 <!-- 确认密码 -->

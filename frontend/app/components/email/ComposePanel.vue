@@ -240,11 +240,32 @@ const removeAttachment = async (att: UploadedFile) => {
 
 // formatFileSize 来自 utils/format.ts (Nuxt 自动导入)
 
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+const validateRecipients = (field: string, label: string): string | null => {
+  if (!field.trim()) return null
+  const emails = field.split(/[,;，；]\s*/).map(e => e.trim()).filter(Boolean)
+  for (const email of emails) {
+    if (!emailRegex.test(email)) {
+      return `${label}中「${email}」不是有效的邮箱地址`
+    }
+  }
+  return null
+}
+
 const handleSend = async (scheduleTime?: string) => {
   if (!recipients.value || !subject.value) {
     error.value = '请填写收件人和主题'
     return
   }
+
+  // 校验所有收件人邮箱格式
+  const toError = validateRecipients(recipients.value, '收件人')
+  if (toError) { error.value = toError; return }
+  const ccError = validateRecipients(ccRecipients.value, '抄送')
+  if (ccError) { error.value = ccError; return }
+  const bccError = validateRecipients(bccRecipients.value, '密送')
+  if (bccError) { error.value = bccError; return }
 
   sending.value = true
   error.value = ''

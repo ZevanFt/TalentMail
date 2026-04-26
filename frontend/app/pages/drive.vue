@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { Upload, Trash2, Share2, Link, Copy, Check, Download, X, Lock, Unlock } from 'lucide-vue-next'
-useHead({ title: '文件中转站 - TalentMail' })
+const config = useConfig()
+useHead({ title: `文件中转站 - ${config.appName}` })
 const toast = useToast()
 const { confirm: confirmDialog } = useConfirmDialog()
 const { getDriveFiles, uploadDriveFile, deleteDriveFile, createDriveShare, removeDriveShare, downloadDriveFileUrl, token } = useApi()
-const config = useConfig()
 
 const files = ref<any[]>([])
 const loading = ref(true)

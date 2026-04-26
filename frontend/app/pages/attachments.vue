@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Paperclip, Download, Trash2, FileText, Image, File, Upload, Link, Check, Loader2 } from 'lucide-vue-next'
-useHead({ title: '附件管理 - TalentMail' })
+const config = useConfig()
+useHead({ title: `附件管理 - ${config.appName}` })
 const toast = useToast()
 const { confirm: confirmDialog } = useConfirmDialog()
 const { downloadAttachmentUrl, deleteAttachment, token } = useApi()

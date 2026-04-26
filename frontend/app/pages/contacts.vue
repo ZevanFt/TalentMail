@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Search, Plus, Pencil, Trash2, User, Loader2, AlertCircle } from 'lucide-vue-next'
-useHead({ title: '通讯录 - TalentMail' })
+const config = useConfig()
+useHead({ title: `通讯录 - ${config.appName}` })
 const toast = useToast()
 const { confirm: confirmDialog } = useConfirmDialog()
 const { getContacts, createContact, updateContact, deleteContact } = useApi()

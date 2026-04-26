@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Mail, ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-vue-next'
+import { Mail, ArrowLeft, ArrowRight, Check, Loader2, Eye, EyeOff } from 'lucide-vue-next'
 
 definePageMeta({ layout: false })
 
@@ -20,8 +20,12 @@ const form = reactive({
     displayName: '',
     emailPrefix: '',
     password: '',
+    confirmPassword: '',
     inviteCode: ''
 })
+
+const showPassword = ref(false)
+const showConfirmPassword = ref(false)
 
 const loading = ref(false)
 const sendingCode = ref(false)
@@ -95,8 +99,23 @@ const handleVerifyCode = async () => {
 // 注册
 const handleRegister = async () => {
     error.value = ''
+
+    // 前端密码校验（与后端一致: 8+, 大小写+数字）
+    if (form.password.length < 8) {
+        error.value = '密码至少 8 位'
+        return
+    }
+    if (!/[a-z]/.test(form.password) || !/[A-Z]/.test(form.password) || !/\d/.test(form.password)) {
+        error.value = '密码必须包含大写字母、小写字母和数字'
+        return
+    }
+    if (form.password !== form.confirmPassword) {
+        error.value = '两次输入的密码不一致'
+        return
+    }
+
     loading.value = true
-    
+
     try {
         const email = `${form.emailPrefix}@${config.baseDomain}`
         
@@ -277,7 +296,7 @@ onUnmounted(() => {
 
                 <!-- 邮箱 (组合输入框) -->
                 <div class="space-y-2">
-                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">TalentMail 邮箱地址</label>
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ config.appName }} 邮箱地址</label>
                     <div class="flex">
                         <input v-model="form.emailPrefix" type="text" placeholder="输入邮箱前缀"
                             class="flex-1 min-w-0 px-4 py-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 border-r-0 rounded-l-xl text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-gray-900 dark:text-white placeholder-gray-400" required>
@@ -291,8 +310,30 @@ onUnmounted(() => {
 
                 <!-- 密码 -->
                 <div class="space-y-2">
-                    <input v-model="form.password" type="password" placeholder="密码（至少6位）" class="input-field" required minlength="6">
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">密码</label>
+                    <div class="relative">
+                        <input v-model="form.password" :type="showPassword ? 'text' : 'password'" placeholder="至少8位，含大小写和数字" class="input-field pr-10" required minlength="8">
+                        <button type="button" @click="showPassword = !showPassword"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+                            <EyeOff v-if="showPassword" class="w-5 h-5" />
+                            <Eye v-else class="w-5 h-5" />
+                        </button>
+                    </div>
                     <CommonPasswordStrength :password="form.password" />
+                </div>
+
+                <!-- 确认密码 -->
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">确认密码</label>
+                    <div class="relative">
+                        <input v-model="form.confirmPassword" :type="showConfirmPassword ? 'text' : 'password'" placeholder="再次输入密码" class="input-field pr-10" required>
+                        <button type="button" @click="showConfirmPassword = !showConfirmPassword"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+                            <EyeOff v-if="showConfirmPassword" class="w-5 h-5" />
+                            <Eye v-else class="w-5 h-5" />
+                        </button>
+                    </div>
+                    <p v-if="form.confirmPassword && form.password !== form.confirmPassword" class="text-xs text-red-500">两次输入的密码不一致</p>
                 </div>
 
                 <!-- 注册按钮 -->

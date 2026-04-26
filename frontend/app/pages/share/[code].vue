@@ -4,6 +4,8 @@ import { Download, Lock } from 'lucide-vue-next'
 const route = useRoute()
 const code = route.params.code as string
 const { getShareInfo, downloadSharedFileUrl } = useApi()
+const config = useConfig()
+useHead({ title: computed(() => file.value ? `${file.value.original_filename} - 分享 - ${config.appName}` : `文件分享 - ${config.appName}`) })
 
 const file = ref<SharedFile | null>(null)
 const loading = ref(true)

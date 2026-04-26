@@ -78,7 +78,8 @@ const activeTabLabel = computed(() => {
   return '设置'
 })
 
-useHead({ title: computed(() => `${activeTabLabel.value} - 设置 - TalentMail`) })
+const config = useConfig()
+useHead({ title: computed(() => `${activeTabLabel.value} - 设置 - ${config.appName}`) })
 
 const setTabMobile = (tab: string) => {
   setTab(tab)

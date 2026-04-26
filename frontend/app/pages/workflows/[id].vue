@@ -25,6 +25,7 @@ import type { Component } from 'vue'
 
 const route = useRoute()
 const router = useRouter()
+const _config = useConfig()
 const workflowId = computed(() => route.params.id as string)
 const isNew = computed(() => workflowId.value === 'new')
 const isSystemWorkflow = computed(() => {
@@ -53,6 +54,8 @@ const workflow = ref<any>({
   status: 'draft',
   version: 1
 })
+
+useHead({ title: computed(() => `${workflow.value.name || '工作流'} - ${_config.appName}`) })
 
 // 新建工作流触发器选择弹窗
 const showTriggerSelector = ref(false)
