@@ -31,6 +31,18 @@ export const useApi = () => {
           router.push('/login')
         }
       }
+
+      // 为网络错误添加友好提示字段
+      if (!error?.response && !error?.statusCode) {
+        // 无 HTTP 响应 → 网络层失败（断网 / DNS / 超时等）
+        error._isNetworkError = true
+        error._friendlyMessage = '网络连接失败，请检查网络后重试'
+      } else if (error?.statusCode >= 500) {
+        error._friendlyMessage = '服务器出错，请稍后重试'
+      } else if (error?.statusCode === 429) {
+        error._friendlyMessage = '请求过于频繁，请稍后重试'
+      }
+
       // 重新抛出错误，让调用方可以处理
       throw error
     }

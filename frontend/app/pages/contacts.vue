@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Search, Plus, Pencil, Trash2, User, Loader2, AlertCircle } from 'lucide-vue-next'
+useHead({ title: '通讯录 - TalentMail' })
 const toast = useToast()
 const { confirm: confirmDialog } = useConfirmDialog()
 const { getContacts, createContact, updateContact, deleteContact } = useApi()
@@ -191,27 +192,27 @@ onMounted(loadContacts)
     <CommonModal v-model="showModal" :title="editingContact ? '编辑联系人' : '添加联系人'">
       <div class="space-y-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">姓名 <span class="text-red-500">*</span></label>
-          <input v-model="form.name" placeholder="输入姓名"
+          <label for="contact-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">姓名 <span class="text-red-500">*</span></label>
+          <input id="contact-name" v-model="form.name" placeholder="输入姓名"
             :class="['w-full px-3 py-2 border rounded-lg bg-white dark:bg-bg-panelDark text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all', formErrors.name ? 'border-red-400 dark:border-red-500' : 'border-gray-200 dark:border-border-dark']"
             @input="formErrors.name = ''" />
           <span v-if="formErrors.name" class="text-red-500 text-xs mt-1 block">{{ formErrors.name }}</span>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">邮箱 <span class="text-red-500">*</span></label>
-          <input v-model="form.email" type="email" placeholder="输入邮箱"
+          <label for="contact-email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">邮箱 <span class="text-red-500">*</span></label>
+          <input id="contact-email" v-model="form.email" type="email" placeholder="输入邮箱"
             :class="['w-full px-3 py-2 border rounded-lg bg-white dark:bg-bg-panelDark text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all', formErrors.email ? 'border-red-400 dark:border-red-500' : 'border-gray-200 dark:border-border-dark']"
             @input="formErrors.email = ''" />
           <span v-if="formErrors.email" class="text-red-500 text-xs mt-1 block">{{ formErrors.email }}</span>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">电话</label>
-          <input v-model="form.phone" placeholder="输入电话（可选）"
+          <label for="contact-phone" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">电话</label>
+          <input id="contact-phone" v-model="form.phone" placeholder="输入电话（可选）"
             class="w-full px-3 py-2 border border-gray-200 dark:border-border-dark rounded-lg bg-white dark:bg-bg-panelDark text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">备注</label>
-          <textarea v-model="form.notes" placeholder="输入备注（可选）" rows="2"
+          <label for="contact-notes" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">备注</label>
+          <textarea id="contact-notes" v-model="form.notes" placeholder="输入备注（可选）" rows="2"
             class="w-full px-3 py-2 border border-gray-200 dark:border-border-dark rounded-lg bg-white dark:bg-bg-panelDark text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none"></textarea>
         </div>
       </div>

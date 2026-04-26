@@ -3,6 +3,8 @@ import { Mail, ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-vue-next'
 
 definePageMeta({ layout: false })
 
+useHead({ title: `注册 - ${config.appName}` })
+
 const { login, sendVerificationCode, verifyCode, registerWithVerification } = useApi()
 const router = useRouter()
 const config = useConfig()

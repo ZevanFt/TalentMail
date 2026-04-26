@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import json
 import logging
 from db.database import get_db
@@ -17,17 +17,17 @@ router = APIRouter(prefix="/contacts", tags=["contacts"])
 
 
 class ContactCreate(BaseModel):
-    name: str
-    email: str
-    phone: str | None = None
-    notes: str | None = None
+    name: str = Field(..., min_length=1, max_length=200)
+    email: str = Field(..., min_length=3, max_length=320)  # RFC 5321
+    phone: str | None = Field(default=None, max_length=50)
+    notes: str | None = Field(default=None, max_length=2000)
 
 
 class ContactUpdate(BaseModel):
-    name: str | None = None
-    email: str | None = None
-    phone: str | None = None
-    notes: str | None = None
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    email: str | None = Field(default=None, min_length=3, max_length=320)
+    phone: str | None = Field(default=None, max_length=50)
+    notes: str | None = Field(default=None, max_length=2000)
 
 
 class ContactResponse(BaseModel):

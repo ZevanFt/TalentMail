@@ -11,6 +11,7 @@ const { getPoolMailboxes, getPoolMailboxEmails, deletePoolMailbox, getPoolStats,
 const router = useRouter()
 
 definePageMeta({ layout: 'pool' })
+useHead({ title: '临时邮箱 - TalentMail' })
 
 // 权限检查
 const hasAccess = ref(false)

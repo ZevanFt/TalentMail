@@ -1,24 +1,27 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from db import models
 from db.models.email import Alias
 from db.models.billing import Subscription, Plan
 from api import deps
 from core.config import settings
 from datetime import datetime, timezone
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
 class AliasCreate(BaseModel):
-    alias_prefix: str  # 别名前缀，不含域名
-    name: Optional[str] = None
+    alias_prefix: str = Field(..., min_length=1, max_length=64)  # 别名前缀，不含域名
+    name: Optional[str] = Field(default=None, max_length=200)
 
 
 class AliasUpdate(BaseModel):
-    name: Optional[str] = None
+    name: Optional[str] = Field(default=None, max_length=200)
     is_active: Optional[bool] = None
 
 
@@ -104,7 +107,8 @@ def create_alias(
     db.add(alias)
     db.commit()
     db.refresh(alias)
-    
+    logger.info(f"用户 {current_user.id} 创建别名: {alias_email}")
+
     return alias
 
 
@@ -128,10 +132,11 @@ def update_alias(
         alias.name = data.name
     if data.is_active is not None:
         alias.is_active = data.is_active
-    
+
     db.commit()
     db.refresh(alias)
-    
+    logger.info(f"用户 {current_user.id} 更新别名 {alias_id}: active={alias.is_active}")
+
     return alias
 
 
@@ -150,7 +155,9 @@ def delete_alias(
     if not alias:
         raise HTTPException(status_code=404, detail="别名不存在")
     
+    alias_email = alias.alias_email
     db.delete(alias)
     db.commit()
-    
+    logger.info(f"用户 {current_user.id} 删除别名: {alias_email}")
+
     return {"status": "success", "message": "别名已删除"}

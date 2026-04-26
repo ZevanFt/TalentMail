@@ -8,6 +8,8 @@ definePageMeta({
     layout: false
 })
 
+useHead({ title: `登录 - ${appName}` })
+
 const showPassword = ref(false)
 const loading = ref(false)
 const error = ref('')
@@ -118,7 +120,7 @@ const backToLogin = () => {
                     <!-- 邮箱（支持完整邮箱或用户名 + 可编辑域名） -->
                     <div class="space-y-1.5">
                         <div class="flex items-stretch rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all">
-                            <input v-model="form.username" type="text" placeholder="用户名"
+                            <input v-model="form.username" type="text" placeholder="用户名" aria-label="用户名"
                                 class="flex-[5] min-w-0 px-4 py-3 bg-gray-50 dark:bg-gray-900 text-sm outline-none text-gray-900 dark:text-white placeholder-gray-400 border-none" required>
                             <span class="px-2 py-3 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 flex items-center justify-center border-l border-r border-gray-200 dark:border-gray-700">
                                 @
@@ -138,7 +140,7 @@ const backToLogin = () => {
 
                     <!-- 密码 -->
                     <div class="relative">
-                        <input v-model="form.password" :type="showPassword ? 'text' : 'password'" placeholder="密码"
+                        <input v-model="form.password" :type="showPassword ? 'text' : 'password'" placeholder="密码" aria-label="密码"
                             class="input-field pr-12" required>
                         <!-- 眼睛图标 -->
                         <button type="button" @click="showPassword = !showPassword"

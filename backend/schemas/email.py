@@ -7,20 +7,20 @@ from .common import CustomEmailStr
 
 class EmailRecipient(BaseModel):
     """Represents a single email recipient."""
-    name: Optional[str] = None
+    name: Optional[str] = Field(default=None, max_length=200)
     email: CustomEmailStr
 
 class EmailCreate(BaseModel):
     """Schema for creating/sending a new email (input)."""
-    to: List[EmailRecipient]
-    cc: Optional[List[EmailRecipient]] = []
-    bcc: Optional[List[EmailRecipient]] = []
-    subject: str = ""
-    body_html: str = ""
-    body_text: Optional[str] = None
+    to: List[EmailRecipient] = Field(..., max_length=100)  # 最多 100 个收件人
+    cc: Optional[List[EmailRecipient]] = Field(default=[], max_length=100)
+    bcc: Optional[List[EmailRecipient]] = Field(default=[], max_length=100)
+    subject: str = Field(default="", max_length=998)  # RFC 2822 行长度限制
+    body_html: str = Field(default="", max_length=5_000_000)  # 5MB 上限
+    body_text: Optional[str] = Field(default=None, max_length=2_000_000)
     reply_to_id: Optional[int] = None  # 回复的邮件ID
     is_tracked: bool = False  # 是否启用追踪
-    attachment_ids: Optional[List[int]] = []  # 附件ID列表
+    attachment_ids: Optional[List[int]] = Field(default=[], max_length=50)  # 最多 50 个附件
     scheduled_send_at: Optional[datetime] = None  # 定时发送时间（UTC）
 
 class EmailRead(BaseModel):

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+useHead({ title: '收件箱 - TalentMail' })
+
 const { isMobile, isDesktop, mobileShowDetail, showEmailList } = useResponsive()
 const { selectedEmailId } = useEmails()
 

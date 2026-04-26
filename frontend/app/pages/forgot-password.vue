@@ -9,6 +9,8 @@ definePageMeta({
     layout: false
 })
 
+useHead({ title: `找回密码 - ${appName}` })
+
 // 步骤：1=输入邮箱, 2=输入验证码和新密码, 3=完成
 const step = ref(1)
 const loading = ref(false)

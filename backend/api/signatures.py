@@ -1,24 +1,27 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from api import deps
 from db import models
 from db.models.email import Signature
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
 class SignatureCreate(BaseModel):
-    name: str
-    content_html: str
+    name: str = Field(..., min_length=1, max_length=100)
+    content_html: str = Field(..., max_length=500_000)  # 500KB 上限
     is_default: bool = False
 
 
 class SignatureUpdate(BaseModel):
-    name: Optional[str] = None
-    content_html: Optional[str] = None
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    content_html: Optional[str] = Field(default=None, max_length=500_000)
     is_default: Optional[bool] = None
 
 
@@ -64,6 +67,7 @@ def create_signature(
     db.add(sig)
     db.commit()
     db.refresh(sig)
+    logger.info(f"用户 {current_user.id} 创建签名: id={sig.id}, name={sig.name}")
     return sig
 
 
@@ -98,6 +102,7 @@ def update_signature(
     
     db.commit()
     db.refresh(sig)
+    logger.info(f"用户 {current_user.id} 更新签名: id={sig_id}")
     return sig
 
 
@@ -115,8 +120,10 @@ def delete_signature(
     if not sig:
         raise HTTPException(status_code=404, detail="签名不存在")
     
+    sig_name = sig.name
     db.delete(sig)
     db.commit()
+    logger.info(f"用户 {current_user.id} 删除签名: id={sig_id}, name={sig_name}")
     return {"status": "success"}
 
 

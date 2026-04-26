@@ -1,24 +1,27 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from db.database import get_db
 from api.deps import get_current_user
 from db.models.user import User
 from db.models.features import Tag, EmailTag
 from db.models.email import Email, Folder
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/tags", tags=["tags"])
 
 
 class TagCreate(BaseModel):
-    name: str
-    color: str = "#3B82F6"
+    name: str = Field(..., min_length=1, max_length=50)
+    color: str = Field(default="#3B82F6", pattern=r"^#[0-9A-Fa-f]{6}$")
 
 
 class TagUpdate(BaseModel):
-    name: str | None = None
-    color: str | None = None
+    name: str | None = Field(default=None, min_length=1, max_length=50)
+    color: str | None = Field(default=None, pattern=r"^#[0-9A-Fa-f]{6}$")
 
 
 class TagResponse(BaseModel):
@@ -50,6 +53,7 @@ def create_tag(data: TagCreate, db: Session = Depends(get_db), user: User = Depe
     db.add(tag)
     db.commit()
     db.refresh(tag)
+    logger.info(f"用户 {user.id} 创建标签: id={tag.id}, name={tag.name}")
     return TagResponse(id=tag.id, name=tag.name, color=tag.color, email_count=0)
 
 
@@ -72,9 +76,11 @@ def delete_tag(tag_id: int, db: Session = Depends(get_db), user: User = Depends(
     tag = db.query(Tag).filter(Tag.id == tag_id, Tag.user_id == user.id).first()
     if not tag:
         raise HTTPException(404, "标签不存在")
+    tag_name = tag.name
     db.query(EmailTag).filter(EmailTag.tag_id == tag_id).delete()
     db.delete(tag)
     db.commit()
+    logger.info(f"用户 {user.id} 删除标签: id={tag_id}, name={tag_name}")
     return {"status": "success", "message": "删除成功"}
 
 

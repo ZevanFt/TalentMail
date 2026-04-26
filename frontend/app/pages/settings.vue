@@ -78,6 +78,8 @@ const activeTabLabel = computed(() => {
   return '设置'
 })
 
+useHead({ title: computed(() => `${activeTabLabel.value} - 设置 - TalentMail`) })
+
 const setTabMobile = (tab: string) => {
   setTab(tab)
   mobileMenuOpen.value = false
@@ -107,26 +109,46 @@ const handleLogout = () => {
 // 动态 tab 组件映射 — 使用 defineAsyncComponent 懒加载
 // Nuxt 自动导入的组件不在 Vue 全局注册表里，字符串方式不可用。
 // 这里显式用 defineAsyncComponent + import() 构建组件对象映射。
+
+// 统一的 loading / error 占位组件
+const AsyncLoadingPlaceholder = defineComponent({
+  render() { return h('div', { class: 'flex items-center justify-center py-20 text-gray-400' }, '加载中...') }
+})
+const AsyncErrorPlaceholder = defineComponent({
+  render() { return h('div', { class: 'flex flex-col items-center justify-center py-20 text-red-400 gap-2' }, [
+    h('span', '组件加载失败'),
+    h('button', { class: 'text-sm text-primary hover:underline', onClick: () => location.reload() }, '点击刷新')
+  ])}
+})
+
+const _lazy = (loader: () => Promise<any>) => defineAsyncComponent({
+  loader,
+  loadingComponent: AsyncLoadingPlaceholder,
+  errorComponent: AsyncErrorPlaceholder,
+  delay: 200,
+  timeout: 15000,
+})
+
 const settingsTabMap: Record<string, Component> = {
-  'profile': defineAsyncComponent(() => import('~/components/settings/Profile.vue')),
-  'accounts': defineAsyncComponent(() => import('~/components/settings/Accounts.vue')),
-  'theme': defineAsyncComponent(() => import('~/components/settings/Theme.vue')),
-  'mail': defineAsyncComponent(() => import('~/components/settings/Mail.vue')),
-  'automation': defineAsyncComponent(() => import('~/components/settings/AutomationRules.vue')),
-  'my-workflows': defineAsyncComponent(() => import('~/components/settings/MyWorkflows.vue')),
-  'notifications': defineAsyncComponent(() => import('~/components/settings/Notifications.vue')),
-  'privacy': defineAsyncComponent(() => import('~/components/settings/Privacy.vue')),
-  'security': defineAsyncComponent(() => import('~/components/settings/Security.vue')),
-  'storage': defineAsyncComponent(() => import('~/components/settings/Storage.vue')),
-  'billing': defineAsyncComponent(() => import('~/components/settings/Billing.vue')),
-  'invites': defineAsyncComponent(() => import('~/components/settings/InviteCodes.vue')),
-  'prefixes': defineAsyncComponent(() => import('~/components/settings/ReservedPrefixes.vue')),
-  'email-templates': defineAsyncComponent(() => import('~/components/settings/EmailTemplates.vue')),
-  'system-workflows': defineAsyncComponent(() => import('~/components/settings/SystemWorkflows.vue')),
-  'temp-mail-policy': defineAsyncComponent(() => import('~/components/settings/TempMailboxPolicy.vue')),
-  'changelog': defineAsyncComponent(() => import('~/components/settings/Changelog.vue')),
-  'about': defineAsyncComponent(() => import('~/components/settings/About.vue')),
-  'user-mgmt': defineAsyncComponent(() => import('~/components/settings/UserManagement.vue')),
+  'profile': _lazy(() => import('~/components/settings/Profile.vue')),
+  'accounts': _lazy(() => import('~/components/settings/Accounts.vue')),
+  'theme': _lazy(() => import('~/components/settings/Theme.vue')),
+  'mail': _lazy(() => import('~/components/settings/Mail.vue')),
+  'automation': _lazy(() => import('~/components/settings/AutomationRules.vue')),
+  'my-workflows': _lazy(() => import('~/components/settings/MyWorkflows.vue')),
+  'notifications': _lazy(() => import('~/components/settings/Notifications.vue')),
+  'privacy': _lazy(() => import('~/components/settings/Privacy.vue')),
+  'security': _lazy(() => import('~/components/settings/Security.vue')),
+  'storage': _lazy(() => import('~/components/settings/Storage.vue')),
+  'billing': _lazy(() => import('~/components/settings/Billing.vue')),
+  'invites': _lazy(() => import('~/components/settings/InviteCodes.vue')),
+  'prefixes': _lazy(() => import('~/components/settings/ReservedPrefixes.vue')),
+  'email-templates': _lazy(() => import('~/components/settings/EmailTemplates.vue')),
+  'system-workflows': _lazy(() => import('~/components/settings/SystemWorkflows.vue')),
+  'temp-mail-policy': _lazy(() => import('~/components/settings/TempMailboxPolicy.vue')),
+  'changelog': _lazy(() => import('~/components/settings/Changelog.vue')),
+  'about': _lazy(() => import('~/components/settings/About.vue')),
+  'user-mgmt': _lazy(() => import('~/components/settings/UserManagement.vue')),
 }
 
 // user-mgmt 使用全高度布局（overflow-hidden），其他 tab 使用滚动布局
