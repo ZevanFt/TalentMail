@@ -16,10 +16,10 @@ const loadAttachments = async () => {
   loading.value = true
   loadError.value = ''
   try {
-    const res = await $fetch<Attachment[]>('/api/attachments/list', {
+    const res = await $fetch<{ items: Attachment[]; total: number }>('/api/attachments/list', {
       headers: { Authorization: `Bearer ${token.value}` }
     })
-    attachments.value = res
+    attachments.value = res.items
   } catch (e: any) {
     console.error('加载附件失败', e)
     loadError.value = e.data?.detail || '加载附件失败'

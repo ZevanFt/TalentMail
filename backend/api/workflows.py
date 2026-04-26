@@ -441,22 +441,26 @@ async def create_workflow(
     return workflow
 
 
-@router.get("/", response_model=List[WorkflowResponse])
+@router.get("/")
 async def list_workflows(
     scope: Optional[str] = Query(None, description="范围: personal/system"),
     status: Optional[str] = Query(None, description="状态: draft/published/disabled"),
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """获取用户的工作流列表"""
+    """获取用户的工作流列表（分页）"""
     query = db.query(Workflow).filter(Workflow.owner_id == current_user.id)
-    
+
     if scope:
         query = query.filter(Workflow.scope == scope)
     if status:
         query = query.filter(Workflow.status == status)
-    
-    return query.order_by(Workflow.updated_at.desc()).all()
+
+    total = query.count()
+    items = query.order_by(Workflow.updated_at.desc()).offset((page - 1) * limit).limit(limit).all()
+    return {"items": items, "total": total}
 
 
 @router.get("/{workflow_id}", response_model=Dict)

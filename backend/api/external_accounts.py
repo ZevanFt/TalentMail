@@ -307,6 +307,9 @@ def test_connection(account_id: int, db: Session = Depends(get_db), user: User =
         
         return {"status": "success", "message": "连接成功"}
     except Exception as e:
-        account.sync_error = str(e)
+        import logging as _logging
+        _logging.getLogger(__name__).error(f"IMAP 连接测试失败: account_id={account.id}, err={e}")
+        account.sync_error = str(e)[:256]
         db.commit()
-        raise HTTPException(400, f"连接失败: {str(e)}")
+        # 脱敏：不向客户端暴露内部错误细节
+        raise HTTPException(400, "连接失败，请检查服务器地址、端口和凭据是否正确")

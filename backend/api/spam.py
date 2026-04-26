@@ -5,7 +5,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime, timezone
 import logging
 import asyncio
@@ -42,7 +42,7 @@ class TrustedSenderRead(BaseModel):
 
 
 class SpamActionRequest(BaseModel):
-    email_ids: List[int]
+    email_ids: List[int] = Field(..., max_length=500)
 
 
 class SpamReportRead(BaseModel):
@@ -162,33 +162,25 @@ def mark_as_spam(
     if not spam_folder:
         raise HTTPException(status_code=404, detail="垃圾邮件文件夹不存在")
 
+    # 批量查询用户拥有的邮件，避免 N+1
+    emails = db.query(Email).join(Folder).filter(
+        Email.id.in_(data.email_ids),
+        Folder.user_id == current_user.id,
+    ).all()
+
     moved_count = 0
     reports = []
-
-    for email_id in data.email_ids:
-        # 验证邮件属于当前用户
-        email = db.query(Email).join(Folder).filter(
-            Email.id == email_id,
-            Folder.user_id == current_user.id
-        ).first()
-
-        if not email:
-            continue
-
-        original_folder_id = email.folder_id
-
-        # 移动到垃圾邮件文件夹
+    for email in emails:
         if email.folder_id != spam_folder.id:
+            original_folder_id = email.folder_id
             email.folder_id = spam_folder.id
             moved_count += 1
-
-            # 创建报告记录
             report = SpamReport(
                 user_id=current_user.id,
-                email_id=email_id,
+                email_id=email.id,
                 report_type='spam',
                 original_folder_id=original_folder_id,
-                learned=False
+                learned=False,
             )
             db.add(report)
             reports.append(report)
@@ -220,32 +212,24 @@ def mark_as_not_spam(
     if not inbox_folder:
         raise HTTPException(status_code=404, detail="收件箱不存在")
 
+    # 批量查询用户拥有的邮件，避免 N+1
+    emails = db.query(Email).join(Folder).filter(
+        Email.id.in_(data.email_ids),
+        Folder.user_id == current_user.id,
+    ).all()
+
     moved_count = 0
     reports = []
-
-    for email_id in data.email_ids:
-        # 验证邮件属于当前用户
-        email = db.query(Email).join(Folder).filter(
-            Email.id == email_id,
-            Folder.user_id == current_user.id
-        ).first()
-
-        if not email:
-            continue
-
+    for email in emails:
         original_folder_id = email.folder_id
-
-        # 移动到收件箱
         email.folder_id = inbox_folder.id
         moved_count += 1
-
-        # 创建报告记录
         report = SpamReport(
             user_id=current_user.id,
-            email_id=email_id,
+            email_id=email.id,
             report_type='ham',
             original_folder_id=original_folder_id,
-            learned=False
+            learned=False,
         )
         db.add(report)
         reports.append(report)

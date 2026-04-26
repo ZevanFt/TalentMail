@@ -671,7 +671,10 @@ export const useApi = () => {
     share_expires_at: string | null
     created_at: string
   }
-  const getDriveFiles = () => api<DriveFile[]>('/drive')
+  const getDriveFiles = async () => {
+    const res = await api<{ items: DriveFile[]; total: number }>('/drive')
+    return res.items
+  }
   const uploadDriveFile = async (file: File) => {
     const formData = new FormData()
     formData.append('file', file)
@@ -777,13 +780,14 @@ export const useApi = () => {
       label: string | null
     }>
   }
-  const getWorkflows = (scope?: string, status?: string) => {
+  const getWorkflows = async (scope?: string, status?: string) => {
     let url = '/workflows/'
     const params: string[] = []
     if (scope) params.push(`scope=${scope}`)
     if (status) params.push(`status=${status}`)
     if (params.length > 0) url += '?' + params.join('&')
-    return api<CustomWorkflow[]>(url)
+    const res = await api<{ items: CustomWorkflow[]; total: number }>(url)
+    return res.items
   }
   const createWorkflow = (data: { name: string; description?: string; category?: string }) =>
     api<CustomWorkflow>('/workflows/', 'POST', data)

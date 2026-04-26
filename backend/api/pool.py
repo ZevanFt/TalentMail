@@ -118,11 +118,7 @@ def ensure_pool_access(user: models.User):
         raise HTTPException(status_code=403, detail="您没有账号池功能权限")
 
 
-def mailbox_to_read(db: Session, mailbox: models.TempMailbox) -> TempMailboxRead:
-    unread = db.query(models.Email).filter(
-        models.Email.mailbox_address == mailbox.email,
-        models.Email.is_read == False
-    ).count()
+def mailbox_to_read(mailbox: models.TempMailbox, unread_count: int = 0) -> TempMailboxRead:
     return TempMailboxRead(
         id=mailbox.id,
         email=mailbox.email,
@@ -133,8 +129,23 @@ def mailbox_to_read(db: Session, mailbox: models.TempMailbox) -> TempMailboxRead
         created_at=mailbox.created_at,
         expires_at=mailbox.expires_at,
         recovery_until=mailbox.recovery_until,
-        unread_count=unread,
+        unread_count=unread_count,
     )
+
+
+def _batch_unread_counts(db: Session, mailbox_emails: list[str]) -> dict[str, int]:
+    """批量查询未读计数，避免 N+1"""
+    if not mailbox_emails:
+        return {}
+    from sqlalchemy import func
+    rows = db.query(
+        models.Email.mailbox_address,
+        func.count(models.Email.id)
+    ).filter(
+        models.Email.mailbox_address.in_(mailbox_emails),
+        models.Email.is_read == False
+    ).group_by(models.Email.mailbox_address).all()
+    return {addr: cnt for addr, cnt in rows}
 
 
 def sync_temp_mailbox_to_server(temp_email: str):
@@ -164,8 +175,12 @@ def list_temp_mailboxes(
     total = query.count()
     mailboxes = query.order_by(models.TempMailbox.created_at.desc()).offset((page - 1) * limit).limit(limit).all()
 
+    # 批量查未读，避免 N+1
+    emails_list = [m.email for m in mailboxes]
+    unread_map = _batch_unread_counts(db, emails_list)
+
     return {
-        "items": [mailbox_to_read(db, mailbox) for mailbox in mailboxes],
+        "items": [mailbox_to_read(mailbox, unread_count=unread_map.get(mailbox.email, 0)) for mailbox in mailboxes],
         "total": total,
     }
 
@@ -235,7 +250,7 @@ def create_temp_mailbox(
     except Exception as e:
         logger.error(f"同步临时邮箱到邮件服务器失败: {e}")
 
-    return mailbox_to_read(db, mailbox)
+    return mailbox_to_read(mailbox)
 
 
 @router.post("/{mailbox_id}/extend", response_model=ExtendRestoreResponse)
@@ -282,7 +297,7 @@ def extend_temp_mailbox(
     return {
         "status": "success",
         "message": "临时邮箱已续期",
-        "mailbox": mailbox_to_read(db, mailbox),
+        "mailbox": mailbox_to_read(mailbox),
     }
 
 
@@ -331,7 +346,7 @@ def restore_temp_mailbox(
     return {
         "status": "success",
         "message": "临时邮箱已恢复",
-        "mailbox": mailbox_to_read(db, mailbox),
+        "mailbox": mailbox_to_read(mailbox),
     }
 
 

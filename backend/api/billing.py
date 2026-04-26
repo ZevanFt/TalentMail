@@ -144,15 +144,16 @@ def list_redemption_codes(
         query = query.filter(RedemptionCode.plan_id == plan_id)
     
     codes = query.order_by(RedemptionCode.created_at.desc()).offset((page - 1) * limit).limit(limit).all()
-    
-    # 构建返回数据，包含使用者邮箱
+
+    # 批量获取使用者邮箱，避免 N+1
+    used_by_ids = {c.used_by_id for c in codes if c.used_by_id}
+    user_map: dict = {}
+    if used_by_ids:
+        users = db.query(User).filter(User.id.in_(used_by_ids)).all()
+        user_map = {u.id: u.email for u in users}
+
     result = []
     for code in codes:
-        used_by_email = None
-        if code.used_by_id:
-            used_by = db.query(User).filter(User.id == code.used_by_id).first()
-            used_by_email = used_by.email if used_by else None
-        
         result.append({
             "id": code.id,
             "code": code.code,
@@ -161,7 +162,7 @@ def list_redemption_codes(
             "status": code.status,
             "created_by_id": code.created_by_id,
             "used_by_id": code.used_by_id,
-            "used_by_email": used_by_email,
+            "used_by_email": user_map.get(code.used_by_id),
             "used_at": code.used_at,
             "expires_at": code.expires_at,
             "created_at": code.created_at,
@@ -457,21 +458,30 @@ def get_subscription_history(
     """获取用户的订阅历史（包括自己兑换和管理员赠送）"""
     histories = db.query(SubscriptionHistory).filter(
         SubscriptionHistory.user_id == current_user.id
-    ).order_by(SubscriptionHistory.created_at.desc()).all()
-    
+    ).order_by(SubscriptionHistory.created_at.desc()).limit(100).all()
+
+    # 批量预加载 plan 和 operator，避免 N+1
+    plan_ids = {h.plan_id for h in histories if h.plan_id}
+    operator_ids = {h.operator_id for h in histories if h.operator_id}
+    plan_map: dict = {}
+    operator_map: dict = {}
+    if plan_ids:
+        plans = db.query(Plan).filter(Plan.id.in_(plan_ids)).all()
+        plan_map = {p.id: p.name for p in plans}
+    if operator_ids:
+        operators = db.query(User).filter(User.id.in_(operator_ids)).all()
+        operator_map = {u.id: (u.display_name or u.email) for u in operators}
+
     result = []
     for h in histories:
-        plan = db.query(Plan).filter(Plan.id == h.plan_id).first()
-        operator = db.query(User).filter(User.id == h.operator_id).first() if h.operator_id else None
-        
         # 判断操作者
         if h.operator_id == current_user.id:
             operator_name = "自己"
-        elif operator:
-            operator_name = operator.display_name or operator.email
+        elif h.operator_id:
+            operator_name = operator_map.get(h.operator_id, "系统")
         else:
             operator_name = "系统"
-        
+
         result.append({
             "id": h.id,
             "action": h.action,
@@ -481,12 +491,12 @@ def get_subscription_history(
                 "admin_modify": "管理员修改",
                 "expire": "订阅过期",
             }.get(h.action, h.action),
-            "plan_name": plan.name if plan else "未知套餐",
+            "plan_name": plan_map.get(h.plan_id, "未知套餐"),
             "duration_days": h.duration_days,
             "redemption_code": h.redemption_code,
             "operator_name": operator_name,
             "note": h.note,
             "created_at": h.created_at.isoformat() if h.created_at else None,
         })
-    
+
     return result

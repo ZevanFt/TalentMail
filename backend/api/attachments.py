@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import List
@@ -182,11 +182,15 @@ def get_email_attachments(
     return attachments
 
 
-@router.get("/list", response_model=List[AttachmentRead])
+@router.get("/list")
 def list_user_attachments(
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(deps.get_db),
-    current_user: models.User = Depends(deps.get_current_active_user)
+    current_user: models.User = Depends(deps.get_current_active_user),
 ):
-    """获取用户所有附件"""
-    attachments = db.query(Attachment).filter(Attachment.user_id == current_user.id).order_by(Attachment.id.desc()).all()
-    return attachments
+    """获取用户所有附件（分页）"""
+    query = db.query(Attachment).filter(Attachment.user_id == current_user.id).order_by(Attachment.id.desc())
+    total = query.count()
+    attachments = query.offset((page - 1) * limit).limit(limit).all()
+    return {"items": attachments, "total": total}

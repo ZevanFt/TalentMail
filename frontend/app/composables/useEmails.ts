@@ -342,9 +342,11 @@ export const useEmails = () => {
     // 优先使用 WebSocket
     connectWebSocket()
     
-    // 备用轮询（60秒，作为保底）
+    // 备用轮询（60秒，仅在 WebSocket 断开时实际拉取）
     if (autoSyncInterval.value) return
     autoSyncInterval.value = setInterval(async () => {
+      // WebSocket 已连接时跳过轮询，避免冗余请求
+      if (ws.value && ws.value.readyState === WebSocket.OPEN) return
       if (!syncing.value) {
         await sync()
       }

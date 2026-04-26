@@ -1,5 +1,5 @@
 """文件中转站 API"""
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -43,11 +43,18 @@ class ShareSettings(BaseModel):
     expires_days: Optional[int] = 7
 
 
-@router.get("", response_model=List[DriveFileResponse])
-def list_files(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    """获取用户的文件列表"""
-    files = db.query(DriveFile).filter(DriveFile.user_id == user.id).order_by(DriveFile.created_at.desc()).all()
-    return files
+@router.get("")
+def list_files(
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """获取用户的文件列表（分页）"""
+    query = db.query(DriveFile).filter(DriveFile.user_id == user.id).order_by(DriveFile.created_at.desc())
+    total = query.count()
+    files = query.offset((page - 1) * limit).limit(limit).all()
+    return {"items": files, "total": total}
 
 
 MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
