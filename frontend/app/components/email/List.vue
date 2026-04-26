@@ -403,6 +403,8 @@ onUnmounted(() => {
             title="更多操作">
             <MoreHorizontal class="w-4 h-4 text-gray-600 dark:text-gray-400" />
           </button>
+          <!-- 点击外部关闭遮罩 -->
+          <div v-if="showBulkMenu" class="fixed inset-0 z-40" @click="showBulkMenu = false; showMoveMenu = false"></div>
           <!-- 下拉菜单 - 改进样式 -->
           <div v-if="showBulkMenu"
             class="absolute right-0 top-full mt-2 w-44 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl shadow-gray-900/10 dark:shadow-black/30 z-50 py-1.5 animate-in fade-in slide-in-from-top-2 duration-200">

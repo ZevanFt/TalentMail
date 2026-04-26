@@ -626,7 +626,6 @@ const handleThreadEmailClick = (emailId: number) => {
             <!-- 隐藏的追踪像素（确保追踪功能正常工作） -->
             <div v-if="selectedEmailDetail.body_html" v-html="sanitizedBodyHtml" class="hidden"></div>
           </template>
-        </div>
 
           <!-- 会话线程 -->
           <div v-if="threadEmails.length > 0" class="mt-8 border-t border-gray-200 dark:border-gray-800 pt-6">
@@ -663,6 +662,7 @@ const handleThreadEmailClick = (emailId: number) => {
           <div v-else-if="threadLoading" class="mt-8 text-center text-sm text-gray-400">
             <Loader2 class="w-4 h-4 animate-spin inline-block mr-1" /> 加载会话...
           </div>
+        </div>
       </div>
 
       <!-- 底部浮动栏 - 桌面端绝对定位右下角，移动端 sticky 底部全宽 -->

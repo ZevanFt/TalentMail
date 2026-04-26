@@ -731,7 +731,7 @@ def refresh_access_token(
     """
     Refreshes an access token using a refresh token.
     """
-    token_data = security.verify_token(refresh_token)
+    token_data = security.verify_token(refresh_token, expected_type="refresh")
     if not token_data:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

@@ -27,3 +27,15 @@ dist/
 # Logs
 *.log
 .deploy_logs/
+
+# Sensitive config files (contain passwords/secrets)
+config/mail/dovecot-sql.conf.ext
+config/mail/dovecot-master-users
+
+# TLS certificates and private keys
+config/caddy/certs/
+*.pem
+*.key
+
+# Upload data
+backend/uploads/

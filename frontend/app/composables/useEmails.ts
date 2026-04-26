@@ -236,6 +236,40 @@ export const useEmails = () => {
     }
   }
 
+  // ===== 桌面通知 =====
+  const _requestNotificationPermission = () => {
+    if (typeof window === 'undefined') return
+    if (!('Notification' in window)) return
+    if (Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
+  }
+
+  const _showDesktopNotification = (emailData: { subject?: string; from_email?: string } | undefined) => {
+    if (typeof window === 'undefined') return
+    if (!('Notification' in window)) return
+    if (Notification.permission !== 'granted') return
+
+    const subject = emailData?.subject || '新邮件'
+    const sender = emailData?.from_email || '未知发件人'
+    try {
+      const n = new Notification(subject, {
+        body: `来自 ${sender}`,
+        icon: '/favicon.ico',
+        tag: 'talentmail-new-email', // 同 tag 的通知会合并
+      })
+      // 点击通知聚焦窗口
+      n.onclick = () => {
+        window.focus()
+        n.close()
+      }
+      // 5 秒后自动关闭
+      setTimeout(() => n.close(), 5000)
+    } catch {
+      // 移动端或 Service Worker 环境可能不支持 new Notification
+    }
+  }
+
   // WebSocket 实时通知
   const ws = useState<WebSocket | null>('emailWs', () => null)
   let wsRetryCount = 0
@@ -263,6 +297,8 @@ export const useEmails = () => {
         if (data.type === 'new_email') {
           await loadEmails()
           await loadFolders()
+          // 桌面通知
+          _showDesktopNotification(data.data)
         }
       } catch (e) {
         console.warn('WebSocket 消息解析失败:', e)
@@ -301,6 +337,8 @@ export const useEmails = () => {
   const autoSyncInterval = useState<ReturnType<typeof setInterval> | null>('autoSyncInterval', () => null)
   
   const startAutoSync = () => {
+    // 请求桌面通知权限
+    _requestNotificationPermission()
     // 优先使用 WebSocket
     connectWebSocket()
     

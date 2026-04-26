@@ -12,6 +12,18 @@
 {$WEB_DOMAIN} {
     encode gzip zstd
 
+    # 安全响应头
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        X-XSS-Protection "1; mode=block"
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        # 移除服务器标识
+        -Server
+    }
+
     @websocket {
         header Connection *Upgrade*
         header Upgrade websocket

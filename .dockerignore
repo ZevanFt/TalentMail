@@ -1,0 +1,37 @@
+# Git
+.git
+.gitignore
+
+# Data directories
+data/
+backend/uploads/
+
+# Config files with secrets
+.env
+.env.*
+
+# IDE
+.idea
+.vscode
+*.swp
+
+# Node modules (frontend will npm install inside container)
+frontend/node_modules
+frontend/.nuxt
+frontend/.output
+
+# Python cache
+backend/__pycache__
+backend/.venv
+backend/tests
+backend/.pytest_cache
+
+# Documentation
+*.md
+LICENSE
+
+# Scripts (not needed in frontend container)
+scripts/
+
+# Mail config (not needed in frontend)
+config/mail/

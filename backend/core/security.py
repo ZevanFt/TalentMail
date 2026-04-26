@@ -56,10 +56,16 @@ def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 
-def verify_token(token: str) -> Optional[schemas.TokenData]:
+def verify_token(token: str, expected_type: str = "access") -> Optional[schemas.TokenData]:
     """
     Verifies a JWT token and returns its data.
-    Returns None if the token is invalid.
+    Returns None if the token is invalid or token_type doesn't match expected_type.
+
+    Args:
+        token: JWT token string
+        expected_type: Expected token type ("access" or "refresh"). Prevents
+                       using a refresh token where an access token is required
+                       and vice versa.
     """
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -70,14 +76,16 @@ def verify_token(token: str) -> Optional[schemas.TokenData]:
         if sub is None or token_type is None:
             return None
 
+        # 校验 token 类型，防止 refresh/2fa token 被当作 access token 使用
+        if token_type != expected_type:
+            return None
+
         # 提取 session_id（如果存在）
         session_id = payload.get("session_id")
 
         return schemas.TokenData(sub=sub, session_id=session_id)
 
     except ExpiredSignatureError:
-        # You can log this event if needed
         return None
     except JWTError:
-        # You can log this event if needed
         return None

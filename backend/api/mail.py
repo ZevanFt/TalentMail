@@ -7,7 +7,9 @@ from pydantic import BaseModel
 import uuid
 import json
 import os
+import re
 import html as html_mod
+from html.parser import HTMLParser
 from urllib.parse import quote
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -1239,6 +1241,82 @@ def export_as_eml(email: Email, db: Session) -> Response:
     )
 
 
+# 用于 PDF 导出的 HTML 白名单清理 — 防止 weasyprint 回退 HTML 模式时的 XSS
+_SAFE_TAGS = frozenset({
+    'p', 'br', 'div', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+    'strong', 'b', 'em', 'i', 'u', 's', 'strike', 'del', 'ins', 'sub', 'sup',
+    'a', 'img', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'caption',
+    'ul', 'ol', 'li', 'dl', 'dt', 'dd', 'blockquote', 'pre', 'code',
+    'hr', 'font', 'center', 'small', 'big', 'abbr', 'address',
+})
+_SAFE_ATTRS = frozenset({
+    'href', 'src', 'alt', 'title', 'width', 'height', 'style',
+    'border', 'cellpadding', 'cellspacing', 'align', 'valign',
+    'bgcolor', 'color', 'size', 'face', 'colspan', 'rowspan', 'class',
+})
+_EVENT_ATTR_RE = re.compile(r'\bon\w+', re.IGNORECASE)
+
+
+class _HtmlSanitizer(HTMLParser):
+    """轻量级 HTML 白名单清理器（用于 PDF 导出，不引入额外依赖）"""
+
+    def __init__(self):
+        super().__init__()
+        self.result = []
+        self._skip_depth = 0  # 嵌套深度：正在跳过的危险标签
+
+    def handle_starttag(self, tag, attrs):
+        tag_lower = tag.lower()
+        if tag_lower in ('script', 'style', 'iframe', 'object', 'embed', 'form', 'input', 'textarea', 'select', 'button'):
+            self._skip_depth += 1
+            return
+        if self._skip_depth > 0:
+            return
+        if tag_lower not in _SAFE_TAGS:
+            return  # 跳过不安全标签但保留内容
+        # 过滤属性
+        safe = []
+        for name, value in attrs:
+            name_lower = name.lower()
+            if name_lower in _SAFE_ATTRS and not _EVENT_ATTR_RE.match(name_lower):
+                # 阻止 javascript: URL
+                if name_lower in ('href', 'src') and value and value.strip().lower().startswith('javascript:'):
+                    continue
+                safe.append((name, value or ''))
+        attr_str = ''.join(f' {n}="{html_mod.escape(v, quote=True)}"' for n, v in safe)
+        self.result.append(f'<{tag_lower}{attr_str}>')
+
+    def handle_endtag(self, tag):
+        tag_lower = tag.lower()
+        if tag_lower in ('script', 'style', 'iframe', 'object', 'embed', 'form', 'input', 'textarea', 'select', 'button'):
+            self._skip_depth = max(0, self._skip_depth - 1)
+            return
+        if self._skip_depth > 0:
+            return
+        if tag_lower in _SAFE_TAGS:
+            self.result.append(f'</{tag_lower}>')
+
+    def handle_data(self, data):
+        if self._skip_depth > 0:
+            return  # 跳过危险标签内的文本
+        self.result.append(html_mod.escape(data))
+
+    def handle_entityref(self, name):
+        if self._skip_depth == 0:
+            self.result.append(f'&{name};')
+
+    def handle_charref(self, name):
+        if self._skip_depth == 0:
+            self.result.append(f'&#{name};')
+
+
+def _sanitize_html_for_pdf(dirty_html: str) -> str:
+    """清理邮件 HTML，移除 script/style/iframe 等危险标签和 on* 事件属性"""
+    parser = _HtmlSanitizer()
+    parser.feed(dirty_html)
+    return ''.join(parser.result)
+
+
 def export_as_pdf(email: Email, db: Session, user_timezone: str = "Asia/Shanghai") -> Response:
     """导出邮件为 PDF 格式（简单 HTML 转 PDF）"""
     from zoneinfo import ZoneInfo
@@ -1294,10 +1372,12 @@ def export_as_pdf(email: Email, db: Session, user_timezone: str = "Asia/Shanghai
         att_list = ', '.join([att.filename or 'attachment' for att in attachments])
         attachments_html = f'<p style="color: #666; font-size: 12px; margin-top: 20px; padding-top: 10px; border-top: 1px solid #eee;">📎 附件: {att_list}</p>'
     
-    # 构建 HTML 内容 — 对用户输入进行 HTML 转义防止 XSS
+    # 构建 HTML 内容 — 对用户输入进行 HTML 转义/清理防止 XSS
     safe_subj = html_mod.escape(email.subject or '(无主题)')
     safe_sender = html_mod.escape(email.sender or '')
     safe_body_text = html_mod.escape(email.body_text or '(无正文内容)')
+    # 清理 body_html：移除 script/style/iframe 等危险标签
+    safe_body_html = _sanitize_html_for_pdf(email.body_html) if email.body_html else None
 
     html_content = f"""
 <!DOCTYPE html>
@@ -1358,7 +1438,7 @@ def export_as_pdf(email: Email, db: Session, user_timezone: str = "Asia/Shanghai
         </div>
     </div>
     <div class="body">
-        {email.body_html or f'<pre style="white-space: pre-wrap; font-family: inherit;">{safe_body_text}</pre>'}
+        {safe_body_html or f'<pre style="white-space: pre-wrap; font-family: inherit;">{safe_body_text}</pre>'}
     </div>
     {attachments_html}
     <div class="footer">
