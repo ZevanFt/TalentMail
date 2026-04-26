@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from db import models
 from db.models.user import BlockedSender
 from api import deps
@@ -10,8 +10,8 @@ router = APIRouter()
 
 
 class BlockedSenderCreate(BaseModel):
-    email: str
-    reason: Optional[str] = None
+    email: str = Field(..., min_length=3, max_length=320)
+    reason: Optional[str] = Field(default=None, max_length=500)
 
 
 class BlockedSenderRead(BaseModel):

@@ -29,8 +29,8 @@ router = APIRouter()
 
 
 class TempMailboxCreate(BaseModel):
-    prefix: Optional[str] = None
-    purpose: Optional[str] = None
+    prefix: Optional[str] = Field(default=None, max_length=64)
+    purpose: Optional[str] = Field(default=None, max_length=200)
     auto_verify_codes: bool = True
 
 

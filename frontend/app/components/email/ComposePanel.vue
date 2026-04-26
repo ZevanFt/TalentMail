@@ -449,10 +449,41 @@ watch(showDraftConfirm, (open) => {
   resolveCloseRequest(false)
 })
 
+// ========== Ctrl+Enter 发送 / Ctrl+S 保存草稿 / Esc 关闭定时菜单 ==========
+const handleComposeKeydown = (e: KeyboardEvent) => {
+  // Ctrl/Cmd + Enter → 发送
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault()
+    if (!sending.value) handleSend()
+    return
+  }
+  // Ctrl/Cmd + S → 保存草稿
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault()
+    if (!savingDraft.value) autoSaveDraft()
+    return
+  }
+  // Escape → 关闭定时菜单
+  if (e.key === 'Escape' && showScheduleMenu.value) {
+    showScheduleMenu.value = false
+  }
+}
+
+// 定时菜单 click-outside 关闭
+const handleClickOutsideSchedule = (e: MouseEvent) => {
+  if (!showScheduleMenu.value) return
+  const target = e.target as HTMLElement
+  if (!target.closest('.schedule-menu-container')) {
+    showScheduleMenu.value = false
+  }
+}
+
 onMounted(() => {
   composeCloseGuard.value = requestCloseWithDraftGuard
   if (import.meta.client) {
     window.addEventListener('beforeunload', beforeUnloadHandler)
+    window.addEventListener('keydown', handleComposeKeydown)
+    document.addEventListener('click', handleClickOutsideSchedule, true)
   }
 })
 
@@ -463,6 +494,8 @@ onUnmounted(() => {
   resolveCloseRequest(false)
   if (import.meta.client) {
     window.removeEventListener('beforeunload', beforeUnloadHandler)
+    window.removeEventListener('keydown', handleComposeKeydown)
+    document.removeEventListener('click', handleClickOutsideSchedule, true)
   }
   if (autoSaveTimer) {
     clearTimeout(autoSaveTimer)
@@ -705,12 +738,13 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
         <span class="transition-colors">追踪</span>
       </button>
 
-      <div class="relative flex items-center">
+      <div class="relative flex items-center schedule-menu-container">
         <button @click="handleSend()" :disabled="sending"
           class="flex items-center gap-2.5 px-6 py-2.5 bg-gradient-to-r from-primary to-primary-hover text-white
                  rounded-l-xl hover:shadow-lg hover:shadow-primary/30 active:scale-95
                  transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed
-                 disabled:hover:shadow-none disabled:active:scale-100">
+                 disabled:hover:shadow-none disabled:active:scale-100"
+          title="发送 (Ctrl+Enter)">
           <Loader2 v-if="sending" class="w-4 h-4 animate-spin" />
           <Send v-else class="w-4 h-4" />
           <span>{{ sending ? '发送中...' : '发送' }}</span>

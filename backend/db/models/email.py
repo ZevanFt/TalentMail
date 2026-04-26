@@ -1,5 +1,6 @@
 from sqlalchemy import (
     Column,
+    Index,
     Integer,
     String,
     Boolean,
@@ -29,7 +30,17 @@ class Folder(Base):
 
 class Email(Base):
     __tablename__ = "emails"
-    __table_args__ = {'comment': '存储所有邮件的核心内容和元数据'}
+    __table_args__ = (
+        # 核心复合索引：覆盖最常见的列表查询（文件夹 + 未清除 + 时间排序）
+        Index('ix_emails_folder_purged_received', 'folder_id', 'is_purged', 'received_at'),
+        # sender 单列索引：搜索 / spam 检查
+        Index('ix_emails_sender', 'sender'),
+        # is_read 单列索引：未读计数查询
+        Index('ix_emails_is_read', 'is_read'),
+        # received_at 单列索引：全局排序
+        Index('ix_emails_received_at', 'received_at'),
+        {'comment': '存储所有邮件的核心内容和元数据'},
+    )
     id = Column(Integer, primary_key=True, comment="邮件唯一标识符")
     folder_id = Column(Integer, ForeignKey("folders.id"), nullable=False, index=True, comment="邮件所在的文件夹ID")
     mailbox_address = Column(String, index=True, comment="接收该邮件的邮箱地址（用于区分不同别名/域名收到的邮件）")
@@ -81,7 +92,7 @@ class Signature(Base):
     __tablename__ = "signatures"
     __table_args__ = {'comment': '存储用户的邮件签名'}
     id = Column(Integer, primary_key=True, comment="签名唯一标识符")
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="所属用户的ID")
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True, comment="所属用户的ID")
     name = Column(String, comment="签名名称")
     content_html = Column(Text, comment="签名的HTML内容")
     is_default = Column(Boolean, default=False, comment="是否为默认签名")
@@ -92,7 +103,7 @@ class Alias(Base):
     __tablename__ = "aliases"
     __table_args__ = {'comment': '存储用户的邮箱别名'}
     id = Column(Integer, primary_key=True, comment="邮箱别名唯一标识符")
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="所属用户的ID")
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True, comment="所属用户的ID")
     alias_email = Column(String, unique=True, nullable=False, comment="别名邮箱地址")
     name = Column(String, nullable=True, comment="别名名称/描述")
     is_active = Column(Boolean, default=True, comment="别名是否激活")

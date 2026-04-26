@@ -1,8 +1,9 @@
 from datetime import timedelta, datetime, timezone
 import hashlib
 import logging
-import random
+import hmac
 import re
+import secrets
 import string
 
 logger = logging.getLogger(__name__)
@@ -235,8 +236,8 @@ class ResetPasswordRequest(BaseModel):
 # ============ 验证码相关函数 ============
 
 def generate_verification_code() -> str:
-    """生成6位数字验证码"""
-    return ''.join(random.choices(string.digits, k=6))
+    """生成6位数字验证码（使用密码学安全随机数）"""
+    return ''.join(secrets.choice(string.digits) for _ in range(6))
 
 
 def create_verification_code(db: Session, email: str, purpose: str = "register") -> str:
@@ -285,12 +286,12 @@ def verify_code(db: Session, email: str, code: str, purpose: str = "register") -
         db.commit()
         return False
     
-    # 验证码匹配
-    if verification.code == code:
+    # 验证码匹配（恒时比较，防止时序攻击）
+    if hmac.compare_digest(verification.code, code):
         verification.is_used = True
         db.commit()
         return True
-    
+
     db.commit()
     return False
 

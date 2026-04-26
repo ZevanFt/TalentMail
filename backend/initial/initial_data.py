@@ -549,16 +549,31 @@ def _ensure_default_folders_for_all_users(db: Session) -> None:
 def _ensure_performance_indexes(db: Session):
     """确保关键的数据库查询索引存在（幂等操作）"""
     from sqlalchemy import text
-    indexes = [
+    single_indexes = [
         ("ix_emails_folder_id", "emails", "folder_id"),
         ("ix_emails_delivery_status", "emails", "delivery_status"),
         ("ix_emails_scheduled_send_at", "emails", "scheduled_send_at"),
+        ("ix_emails_sender", "emails", "sender"),
+        ("ix_emails_is_read", "emails", "is_read"),
+        ("ix_emails_received_at", "emails", "received_at"),
         ("ix_folders_user_id", "folders", "user_id"),
         ("ix_contacts_owner_id", "contacts", "owner_id"),
+        ("ix_signatures_user_id", "signatures", "user_id"),
+        ("ix_aliases_user_id", "aliases", "user_id"),
     ]
-    for idx_name, table, column in indexes:
+    for idx_name, table, column in single_indexes:
         try:
             db.execute(text(f"CREATE INDEX IF NOT EXISTS {idx_name} ON {table} ({column})"))
         except Exception as e:
             logger.warning(f"创建索引 {idx_name} 失败（可能已存在）: {e}")
-    logger.info(f"性能索引检查完成（{len(indexes)} 个索引）")
+    # 复合索引：覆盖最频繁的邮件列表查询
+    composite_indexes = [
+        ("ix_emails_folder_purged_received", "emails", "folder_id, is_purged, received_at"),
+    ]
+    for idx_name, table, columns in composite_indexes:
+        try:
+            db.execute(text(f"CREATE INDEX IF NOT EXISTS {idx_name} ON {table} ({columns})"))
+        except Exception as e:
+            logger.warning(f"创建复合索引 {idx_name} 失败（可能已存在）: {e}")
+    total = len(single_indexes) + len(composite_indexes)
+    logger.info(f"性能索引检查完成（{total} 个索引）")

@@ -7,7 +7,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, asc
 from typing import Optional, Literal
-from datetime import datetime
+from datetime import datetime, timezone
 
 from api.deps import get_db, get_current_user_from_token, get_current_admin_user
 from db.models.system import Changelog

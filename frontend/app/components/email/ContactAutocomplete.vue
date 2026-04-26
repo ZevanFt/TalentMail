@@ -102,12 +102,22 @@ const closeSuggestions = () => {
   highlightIndex.value = -1
 }
 
+// ===== 邮箱格式校验 =====
+const isValidEmail = (email: string): boolean => {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+}
+
 // ===== Chip 操作 =====
 const addChip = (email: string) => {
   const trimmed = email.trim()
   if (!trimmed) return
   // 去重（不区分大小写）
   if (chips.value.some(c => c.toLowerCase() === trimmed.toLowerCase())) return
+  // 邮箱格式校验
+  if (!isValidEmail(trimmed)) {
+    // 仍允许添加（用户可能正在输入显示名），但标记为无效样式
+    // 对于纯手动输入（非选择建议），做宽松处理
+  }
   chips.value.push(trimmed)
   emitUpdate()
 }
@@ -200,9 +210,11 @@ const focusInput = () => {
       <span
         v-for="(chip, idx) in chips"
         :key="chip"
-        class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium
-               bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-light
-               max-w-[200px] truncate group/chip"
+        class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium max-w-[200px] truncate group/chip"
+        :class="isValidEmail(chip)
+          ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-light'
+          : 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 border border-red-300 dark:border-red-700'"
+        :title="isValidEmail(chip) ? chip : `${chip} — 邮箱格式无效`"
       >
         <span class="truncate">{{ chip }}</span>
         <button

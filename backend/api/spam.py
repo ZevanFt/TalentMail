@@ -26,8 +26,8 @@ logger = logging.getLogger(__name__)
 # ==================== Schemas ====================
 
 class TrustedSenderCreate(BaseModel):
-    email: str  # 可以是完整邮箱或 @domain.com 格式
-    note: Optional[str] = None
+    email: str = Field(..., min_length=3, max_length=320)  # 完整邮箱或 @domain.com
+    note: Optional[str] = Field(default=None, max_length=500)
 
 
 class TrustedSenderRead(BaseModel):
