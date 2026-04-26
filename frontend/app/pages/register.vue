@@ -290,7 +290,10 @@ onUnmounted(() => {
                 </div>
 
                 <!-- 密码 -->
-                <input v-model="form.password" type="password" placeholder="密码" class="input-field" required minlength="6">
+                <div class="space-y-2">
+                    <input v-model="form.password" type="password" placeholder="密码（至少6位）" class="input-field" required minlength="6">
+                    <CommonPasswordStrength :password="form.password" />
+                </div>
 
                 <!-- 注册按钮 -->
                 <button type="submit" :disabled="loading"

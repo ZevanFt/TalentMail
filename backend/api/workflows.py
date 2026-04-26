@@ -827,19 +827,20 @@ async def execute_user_workflow(
     except Exception as e:
         end_time = datetime.now(timezone.utc)
         duration_ms = int((end_time - execution.started_at).total_seconds() * 1000)
-        
-        # 更新执行记录为失败
+
+        # 更新执行记录为失败（DB 保存完整错误用于调试）
         execution.status = 'failed'
         execution.finished_at = end_time
-        execution.error_message = str(e)
+        execution.error_message = str(e)[:2048]
         db.commit()
-        
+        logger.error(f"工作流执行失败: workflow_id={workflow_id}, execution_id={execution.id}, err={e}")
+
         return {
             'success': False,
             'execution_id': execution.id,
             'status': 'failed',
             'result': {},
-            'error_message': str(e),
+            'error_message': '工作流执行失败，请检查节点配置后重试',
             'nodes_executed': 0,
             'duration_ms': duration_ms
         }
@@ -969,12 +970,13 @@ async def test_user_workflow(
         }
         
     except Exception as e:
+        logger.error(f"工作流测试失败: workflow_id={workflow_id}, err={e}")
         return {
             'success': False,
             'execution_id': 0,
             'status': 'failed',
             'result': {},
-            'error_message': str(e),
+            'error_message': '工作流测试失败，请检查节点配置后重试',
             'nodes_executed': 0,
             'duration_ms': 0
         }

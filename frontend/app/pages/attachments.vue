@@ -119,14 +119,25 @@ onMounted(loadAttachments)
     </header>
 
     <div class="flex-1 overflow-auto p-6">
-      <div v-if="loading" class="text-center py-12 text-gray-500">加载中...</div>
+      <!-- 骨架屏 -->
+      <div v-if="loading" class="space-y-3">
+        <div v-for="i in 6" :key="i" class="flex items-center gap-4 p-4 bg-white dark:bg-bg-panelDark rounded-xl border border-gray-200 dark:border-border-dark animate-pulse">
+          <div class="w-10 h-10 rounded-lg bg-gray-200 dark:bg-gray-700 shrink-0" />
+          <div class="flex-1 space-y-2">
+            <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-40" />
+            <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-24" />
+          </div>
+          <div class="h-8 w-16 bg-gray-200 dark:bg-gray-700 rounded" />
+        </div>
+      </div>
       <div v-else-if="loadError" class="text-center py-12">
         <p class="text-red-500 mb-3">{{ loadError }}</p>
         <button @click="loadAttachments" class="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary-hover transition-colors">重试</button>
       </div>
       <div v-else-if="attachments.length === 0" class="text-center py-12 text-gray-500">
-        <Paperclip class="w-12 h-12 mx-auto mb-3 opacity-50" />
-        <p>暂无附件</p>
+        <Paperclip class="w-12 h-12 mx-auto mb-3 opacity-30" />
+        <p class="text-lg font-medium mb-1">暂无附件</p>
+        <p class="text-sm text-gray-400">发送或接收带附件的邮件后会在这里显示</p>
       </div>
       <div v-else class="space-y-8">
         <!-- 中转站文件 -->

@@ -543,6 +543,7 @@ onMounted(() => {
                 <div class="space-y-2">
                     <label class="text-sm font-medium text-gray-700 dark:text-gray-300">新密码</label>
                     <input v-model="passwordForm.new" type="password" class="input-field" placeholder="输入新密码（至少6位）">
+                    <CommonPasswordStrength :password="passwordForm.new" />
                 </div>
                 <div class="space-y-2">
                     <label class="text-sm font-medium text-gray-700 dark:text-gray-300">确认新密码</label>

@@ -137,10 +137,18 @@ onMounted(loadContacts)
     </div>
 
     <div class="flex-1 overflow-auto p-4 lg:p-6">
-      <!-- 加载态 -->
-      <div v-if="loading" class="text-center py-12 text-gray-500">
-        <Loader2 class="w-8 h-8 mx-auto mb-3 animate-spin opacity-50" />
-        <p>加载中...</p>
+      <!-- 加载骨架屏 -->
+      <div v-if="loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div v-for="i in 6" :key="i" class="bg-white dark:bg-bg-panelDark rounded-xl p-4 border border-gray-200 dark:border-border-dark animate-pulse">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700" />
+            <div class="flex-1 space-y-2">
+              <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24" />
+              <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-36" />
+            </div>
+          </div>
+          <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-28 mt-2" />
+        </div>
       </div>
 
       <!-- 错误态 -->

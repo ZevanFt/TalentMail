@@ -503,13 +503,7 @@ onMounted(() => {
 }
 
 .th {
-    @apply px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider;
-    background-color: #f9fafb;
-}
-
-:deep(.dark) .th,
-.dark .th {
-    background-color: #1f2937;
+    @apply px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider bg-gray-50 dark:bg-gray-800;
 }
 
 .td {

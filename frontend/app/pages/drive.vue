@@ -153,13 +153,25 @@ onMounted(loadFiles)
 
       <!-- 文件列表 -->
       <div class="bg-white dark:bg-bg-panelDark rounded-xl border border-gray-200 dark:border-border-dark">
-        <div v-if="loading" class="p-8 text-center text-gray-500">加载中...</div>
+        <!-- 骨架屏 -->
+        <div v-if="loading" class="divide-y divide-gray-100 dark:divide-gray-800">
+          <div v-for="i in 5" :key="i" class="flex items-center gap-4 p-4 animate-pulse">
+            <div class="w-10 h-10 rounded-lg bg-gray-200 dark:bg-gray-700 shrink-0" />
+            <div class="flex-1 space-y-2">
+              <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-48" />
+              <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-32" />
+            </div>
+            <div class="h-8 w-20 bg-gray-200 dark:bg-gray-700 rounded" />
+          </div>
+        </div>
         <div v-else-if="loadError" class="p-8 text-center">
           <p class="text-red-500 mb-3">{{ loadError }}</p>
           <button @click="loadFiles" class="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary-hover transition-colors">重试</button>
         </div>
-        <div v-else-if="files.length === 0" class="p-8 text-center text-gray-500">
-          暂无文件，点击上方按钮上传
+        <div v-else-if="files.length === 0" class="p-12 text-center text-gray-500">
+          <Upload class="w-12 h-12 mx-auto mb-3 opacity-30" />
+          <p class="text-lg font-medium mb-1">暂无文件</p>
+          <p class="text-sm text-gray-400">点击上方按钮上传文件，支持最大 50MB</p>
         </div>
         <div v-else class="divide-y divide-gray-100 dark:divide-gray-800">
           <div v-for="file in files" :key="file.id" class="flex items-center gap-4 p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
