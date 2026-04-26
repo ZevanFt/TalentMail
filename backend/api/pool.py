@@ -357,6 +357,7 @@ def delete_temp_mailbox(
     db: Session = Depends(deps.get_db),
     current_user: models.User = Depends(deps.get_current_active_user)
 ):
+    ensure_pool_access(current_user)
     mailbox = db.query(models.TempMailbox).filter(
         models.TempMailbox.id == mailbox_id,
         models.TempMailbox.owner_id == current_user.id

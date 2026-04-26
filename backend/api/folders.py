@@ -99,7 +99,8 @@ def create_folder(
     if existing:
         raise HTTPException(status_code=400, detail="文件夹名称已存在")
 
-    # 验证父文件夹
+    # 验证父文件夹 + 嵌套深度限制（最多 3 层）
+    MAX_FOLDER_DEPTH = 3
     if data.parent_id:
         parent = db.query(Folder).filter(
             Folder.id == data.parent_id,
@@ -107,6 +108,16 @@ def create_folder(
         ).first()
         if not parent:
             raise HTTPException(status_code=404, detail="父文件夹不存在")
+        # 计算父文件夹的深度
+        depth = 1
+        p = parent
+        while p.parent_id and depth < MAX_FOLDER_DEPTH + 1:
+            p = db.query(Folder).filter(Folder.id == p.parent_id).first()
+            if not p:
+                break
+            depth += 1
+        if depth >= MAX_FOLDER_DEPTH:
+            raise HTTPException(status_code=400, detail=f"文件夹嵌套不能超过 {MAX_FOLDER_DEPTH} 层")
 
     folder = Folder(
         user_id=current_user.id,
@@ -194,12 +205,18 @@ def delete_folder(
         Email.folder_id == folder_id
     ).update({Email.folder_id: inbox.id}, synchronize_session=False)
 
-    # 处理子文件夹：也移邮件到收件箱并删除
-    children = db.query(Folder).filter(
-        Folder.parent_id == folder_id,
-        Folder.user_id == current_user.id
-    ).all()
-    for child in children:
+    # 递归处理所有后代文件夹：BFS 遍历，移邮件到收件箱并删除
+    pending_ids = [folder_id]
+    all_descendant_folders = []
+    while pending_ids:
+        children = db.query(Folder).filter(
+            Folder.parent_id.in_(pending_ids),
+            Folder.user_id == current_user.id
+        ).all()
+        all_descendant_folders.extend(children)
+        pending_ids = [c.id for c in children]
+
+    for child in all_descendant_folders:
         db.query(Email).filter(
             Email.folder_id == child.id
         ).update({Email.folder_id: inbox.id}, synchronize_session=False)

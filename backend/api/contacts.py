@@ -152,6 +152,14 @@ def get_contacts(
 
 @router.post("", response_model=ContactResponse)
 def create_contact(data: ContactCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    # 检查同用户下是否已存在相同 email 的联系人
+    if data.email:
+        existing = db.query(Contact).filter(
+            Contact.owner_id == user.id,
+            Contact.email == data.email.strip().lower()
+        ).first()
+        if existing:
+            raise HTTPException(400, f"联系人邮箱 {data.email} 已存在")
     contact = Contact(owner_id=user.id, name=data.name, email=data.email, phone=data.phone, notes=data.notes)
     db.add(contact)
     db.commit()

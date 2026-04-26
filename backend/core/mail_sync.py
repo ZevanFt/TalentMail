@@ -8,6 +8,7 @@ import imaplib
 import email
 import hashlib
 import asyncio
+import threading
 import logging
 from datetime import datetime, timezone
 from typing import Optional
@@ -19,7 +20,9 @@ from core.config import settings
 from core.email_parser import decode_mime_header, parse_email_date, get_email_body
 
 # 模块级事件队列：同步过程中收集新邮件元数据，由 periodic_sync 异步触发工作流
+# 使用锁保护并发访问（sync_all_mailboxes 与 periodic_sync 可能在不同上下文运行）
 _pending_email_events: list = []
+_events_lock = threading.Lock()
 
 logger = logging.getLogger(__name__)
 
@@ -154,13 +157,14 @@ def _sync_imap_inbox(
             existing_ids.add(msg_id)
             synced += 1
             # 收集新邮件元数据，用于后续触发工作流事件
-            _pending_email_events.append({
-                "from_email": new_email.sender or "",
-                "to_email": mailbox_address,
-                "subject": new_email.subject or "",
-                "received_at": (new_email.received_at or datetime.now(timezone.utc)).isoformat(),
-                "source": "imap_sync"
-            })
+            with _events_lock:
+                _pending_email_events.append({
+                    "from_email": new_email.sender or "",
+                    "to_email": mailbox_address,
+                    "subject": new_email.subject or "",
+                    "received_at": (new_email.received_at or datetime.now(timezone.utc)).isoformat(),
+                    "source": "imap_sync"
+                })
 
         if synced > 0:
             db.commit()
@@ -259,9 +263,10 @@ async def periodic_sync(interval: int = 30):
                 logger.info(f"邮件同步完成，共 {results['total']} 封新邮件")
 
             # 触发收集到的邮件到达事件（限制每批最多 10 个防过载）
-            if _pending_email_events:
+            with _events_lock:
                 events_batch = _pending_email_events[:10]
                 _pending_email_events[:10] = []
+            if events_batch:
                 try:
                     from core.workflow_service import WorkflowService
                     wf_db = SessionLocal()

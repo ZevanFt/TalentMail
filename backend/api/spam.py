@@ -257,6 +257,7 @@ def mark_as_not_spam(
 
 @router.get("/reports", response_model=List[SpamReportRead])
 def get_spam_reports(
+    page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(deps.get_db),
     current_user: models.User = Depends(deps.get_current_active_user)
@@ -264,7 +265,7 @@ def get_spam_reports(
     """获取用户的垃圾邮件报告记录"""
     reports = db.query(SpamReport).filter(
         SpamReport.user_id == current_user.id
-    ).order_by(SpamReport.created_at.desc()).limit(limit).all()
+    ).order_by(SpamReport.created_at.desc()).offset((page - 1) * limit).limit(limit).all()
 
     return [
         {

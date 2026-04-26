@@ -97,7 +97,7 @@ def list_temp_mailboxes_for_api_key(
     if not include_purged:
         query = query.filter(models.TempMailbox.status != STATUS_PURGED)
     items = query.order_by(models.TempMailbox.created_at.desc()).all()
-    return [mailbox_to_read(db, mailbox) for mailbox in items]
+    return [mailbox_to_read(mailbox) for mailbox in items]
 
 
 @router.post("", response_model=TempMailboxRead)
@@ -124,7 +124,7 @@ def create_temp_mailbox_for_api_key(
             models.TempMailbox.status != STATUS_PURGED,
         ).first()
         if existing_by_idempotency:
-            return mailbox_to_read(db, existing_by_idempotency)
+            return mailbox_to_read(existing_by_idempotency)
 
     limit = get_user_temp_mailbox_limit(db, user)
     if limit != -1:
@@ -178,7 +178,7 @@ def create_temp_mailbox_for_api_key(
     db.refresh(mailbox)
 
     sync_temp_mailbox_to_server(email)
-    return mailbox_to_read(db, mailbox)
+    return mailbox_to_read(mailbox)
 
 
 @router.get("/{mailbox_id}/emails", response_model=TempMailboxEmailListResponse)
@@ -310,7 +310,7 @@ def extend_temp_mailbox_for_api_key(
     db.commit()
     db.refresh(mailbox)
     sync_temp_mailbox_to_server(mailbox.email)
-    return ExtendRestoreResponse(status="success", message="临时邮箱已续期", mailbox=mailbox_to_read(db, mailbox))
+    return ExtendRestoreResponse(status="success", message="临时邮箱已续期", mailbox=mailbox_to_read(mailbox))
 
 
 @router.post("/{mailbox_id}/restore", response_model=ExtendRestoreResponse)
@@ -347,4 +347,4 @@ def restore_temp_mailbox_for_api_key(
     db.commit()
     db.refresh(mailbox)
     sync_temp_mailbox_to_server(mailbox.email)
-    return ExtendRestoreResponse(status="success", message="临时邮箱已恢复", mailbox=mailbox_to_read(db, mailbox))
+    return ExtendRestoreResponse(status="success", message="临时邮箱已恢复", mailbox=mailbox_to_read(mailbox))

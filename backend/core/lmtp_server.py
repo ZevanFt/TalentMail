@@ -107,13 +107,13 @@ class LMTPHandler:
             try:
                 for rcpt in envelope.rcpt_tos:
                     rcpt_email = extract_email_address(rcpt)
-                    
+
                     # 先检查是否是临时邮箱
                     temp_mailbox = db.query(TempMailbox).filter(
                         TempMailbox.email == rcpt_email,
                         TempMailbox.is_active == True
                     ).first()
-                    
+
                     if temp_mailbox:
                         # 临时邮箱：存入所有者的收件箱
                         user = db.query(User).filter(User.id == temp_mailbox.owner_id).first()
@@ -180,47 +180,55 @@ class LMTPHandler:
                         else:
                             thread_id = in_reply_to_header
 
-                    # 创建邮件记录
-                    db_email = Email(
-                        folder_id=target_folder.id,
-                        mailbox_address=rcpt_email,
-                        message_id=message_id or None,
-                        in_reply_to=in_reply_to_header or None,
-                        references=references_header or None,
-                        thread_id=thread_id,
-                        subject=subject,
-                        sender=sender,
-                        recipients=to_header,
-                        body_html=body_html,
-                        body_text=body_text,
-                        received_at=received_at,
-                        is_read=False,
-                        is_starred=False,
-                        is_draft=False,
-                    )
-                    db.add(db_email)
-                    db.flush()  # 获取 email id
-                    
-                    # 保存附件
-                    for att in attachments:
-                        ext = os.path.splitext(att["filename"])[1] if att["filename"] else ""
-                        unique_name = f"{uuid.uuid4()}{ext}"
-                        file_path = os.path.join(UPLOAD_DIR, unique_name)
-                        with open(file_path, "wb") as f:
-                            f.write(att["data"])
-                        
-                        db_attachment = Attachment(
-                            email_id=db_email.id,
-                            user_id=user.id,
-                            filename=att["filename"],
-                            content_type=att["content_type"],
-                            size=len(att["data"]),
-                            file_path=file_path
+                    # 使用 savepoint 隔离每个收件人的写入，失败不影响其他收件人
+                    try:
+                        savepoint = db.begin_nested()
+                        # 创建邮件记录
+                        db_email = Email(
+                            folder_id=target_folder.id,
+                            mailbox_address=rcpt_email,
+                            message_id=message_id or None,
+                            in_reply_to=in_reply_to_header or None,
+                            references=references_header or None,
+                            thread_id=thread_id,
+                            subject=subject,
+                            sender=sender,
+                            recipients=to_header,
+                            body_html=body_html,
+                            body_text=body_text,
+                            received_at=received_at,
+                            is_read=False,
+                            is_starred=False,
+                            is_draft=False,
                         )
-                        db.add(db_attachment)
-                    
-                    logger.info(f"LMTP: 邮件已存入数据库 to={rcpt_email} subject={subject[:50]} attachments={len(attachments)}")
-                    
+                        db.add(db_email)
+                        db.flush()  # 获取 email id
+
+                        # 保存附件
+                        for att in attachments:
+                            ext = os.path.splitext(att["filename"])[1] if att["filename"] else ""
+                            unique_name = f"{uuid.uuid4()}{ext}"
+                            file_path = os.path.join(UPLOAD_DIR, unique_name)
+                            with open(file_path, "wb") as f:
+                                f.write(att["data"])
+
+                            db_attachment = Attachment(
+                                email_id=db_email.id,
+                                user_id=user.id,
+                                filename=att["filename"],
+                                content_type=att["content_type"],
+                                size=len(att["data"]),
+                                file_path=file_path
+                            )
+                            db.add(db_attachment)
+
+                        savepoint.commit()
+                        logger.info(f"LMTP: 邮件已存入数据库 to={rcpt_email} subject={subject[:50]} attachments={len(attachments)}")
+                    except Exception as e:
+                        savepoint.rollback()
+                        logger.error(f"LMTP: 保存邮件失败 to={rcpt_email}: {e}")
+                        continue
+
                     # 通知用户有新邮件
                     try:
                         asyncio.create_task(ws_manager.notify_new_email(user.id, {

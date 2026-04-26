@@ -449,10 +449,14 @@ async def trigger_rule(
         AutomationRule.id == rule_id,
         (AutomationRule.owner_id == current_user.id) | (AutomationRule.is_system == True)
     ).first()
-    
+
     if not rule:
         raise HTTPException(status_code=404, detail="规则不存在")
-    
+
+    # 系统规则仅管理员可手动触发
+    if rule.is_system and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="系统规则仅管理员可手动触发")
+
     engine = RuleEngine(db)
     
     try:
