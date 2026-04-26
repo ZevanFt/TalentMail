@@ -808,34 +808,6 @@ const handleThreadEmailClick = (emailId: number) => {
          transition-all duration-200 hover:scale-105 active:scale-95;
 }
 
-.btn-primary {
-  @apply flex items-center gap-2.5 px-7 py-3
-         bg-gradient-to-r from-primary to-primary-hover text-white
-         rounded-xl hover:shadow-lg hover:shadow-primary/30
-         transition-all duration-200 font-semibold
-         active:scale-95 hover:-translate-y-0.5;
-}
-
-.btn-secondary {
-  @apply flex items-center gap-2.5 px-6 py-3
-         bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300
-         rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700
-         transition-all duration-200 font-semibold
-         hover:shadow-md active:scale-95;
-}
-
-/* 验证码按钮滑入动画 */
-.slide-up-enter-active,
-.slide-up-leave-active {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.slide-up-enter-from,
-.slide-up-leave-to {
-  opacity: 0;
-  transform: translateY(20px);
-}
-
 /* 邮件内容区域平滑滚动 */
 .email-detail-container {
   scroll-behavior: smooth;

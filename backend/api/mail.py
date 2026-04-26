@@ -243,7 +243,6 @@ def search_emails(
     current_user: User = Depends(deps.get_current_active_user),
 ):
     """搜索邮件（全文搜索 + 高级过滤）"""
-    from sqlalchemy import or_, text
     from datetime import datetime as dt
 
     # 获取用户文件夹范围
