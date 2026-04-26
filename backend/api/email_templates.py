@@ -12,7 +12,7 @@ from db.models.system import SystemEmailTemplate
 from db.models.template import TemplateMetadata, GlobalVariable
 from db.models.automation import AutomationRule
 from db.models.user import User
-from api.deps import get_current_user
+from api.deps import get_current_user, get_current_admin_user
 from core.template_engine import TemplateEngine
 from core.mail_service import MailService
 from core.event_publisher import EventPublisher
@@ -154,17 +154,11 @@ class EventTypeResponse(BaseModel):
 @router.get("/metadata", response_model=List[TemplateMetadataResponse])
 def get_template_metadata(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_user)
 ):
     """
     获取所有模板元数据（仅管理员）
     """
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="只有管理员可以查看模板元数据"
-        )
-    
     metadata = db.query(TemplateMetadata).order_by(TemplateMetadata.sort_order).all()
     return metadata
 
@@ -173,17 +167,11 @@ def get_template_metadata(
 def get_template_metadata_by_code(
     code: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_user)
 ):
     """
     获取单个模板元数据（仅管理员）
     """
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="只有管理员可以查看模板元数据"
-        )
-    
     metadata = db.query(TemplateMetadata).filter(TemplateMetadata.code == code).first()
     if not metadata:
         raise HTTPException(
@@ -196,17 +184,11 @@ def get_template_metadata_by_code(
 @router.get("/global-variables", response_model=List[GlobalVariableResponse])
 def get_global_variables(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_user)
 ):
     """
     获取所有全局变量（仅管理员）
     """
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="只有管理员可以查看全局变量"
-        )
-    
     # 使用 TemplateEngine 获取处理后的变量值（包括动态计算的值）
     engine = TemplateEngine(db)
     processed_vars = engine.get_global_variables()
@@ -236,17 +218,11 @@ def update_global_variable(
     var_id: int,
     var_data: GlobalVariableUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_user)
 ):
     """
     更新全局变量（仅管理员）
     """
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="只有管理员可以修改全局变量"
-        )
-    
     var = db.query(GlobalVariable).filter(GlobalVariable.id == var_id).first()
     if not var:
         raise HTTPException(
@@ -279,17 +255,11 @@ def update_global_variable(
 def get_email_templates(
     category: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_user)
 ):
     """
     获取所有邮件模板（仅管理员）
     """
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="只有管理员可以管理邮件模板"
-        )
-    
     query = db.query(SystemEmailTemplate)
     
     if category:
@@ -320,17 +290,11 @@ def get_email_templates(
 def get_email_template(
     template_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_user)
 ):
     """
     获取单个邮件模板（仅管理员）
     """
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="只有管理员可以管理邮件模板"
-        )
-    
     template = db.query(SystemEmailTemplate).filter(
         SystemEmailTemplate.id == template_id
     ).first()
@@ -361,18 +325,12 @@ def get_email_template(
 def create_email_template(
     template_data: EmailTemplateCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_user)
 ):
     """
     创建邮件模板（仅管理员）
     同时创建 template_metadata 记录以保存变量的详细信息
     """
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="只有管理员可以管理邮件模板"
-        )
-    
     # 检查 code 是否已存在
     existing = db.query(SystemEmailTemplate).filter(
         SystemEmailTemplate.code == template_data.code
@@ -488,18 +446,12 @@ def update_email_template(
     template_id: int,
     template_data: EmailTemplateUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_user)
 ):
     """
     更新邮件模板（仅管理员）
     同时更新 template_metadata 记录以保持变量定义同步
     """
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="只有管理员可以管理邮件模板"
-        )
-    
     template = db.query(SystemEmailTemplate).filter(
         SystemEmailTemplate.id == template_id
     ).first()
@@ -612,17 +564,11 @@ def update_email_template(
 def delete_email_template(
     template_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_user)
 ):
     """
     删除邮件模板（仅管理员）
     """
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="只有管理员可以管理邮件模板"
-        )
-    
     template = db.query(SystemEmailTemplate).filter(
         SystemEmailTemplate.id == template_id
     ).first()
@@ -644,18 +590,12 @@ def preview_email_template(
     template_id: int,
     variables: dict,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_user)
 ):
     """
     预览邮件模板（仅管理员）
     传入变量，返回渲染后的邮件内容
     """
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="只有管理员可以管理邮件模板"
-        )
-    
     template = db.query(SystemEmailTemplate).filter(
         SystemEmailTemplate.id == template_id
     ).first()
@@ -685,17 +625,11 @@ def send_test_email(
     template_id: int,
     test_data: EmailTemplateTest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_user)
 ):
     """
     发送测试邮件（仅管理员）
     """
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="只有管理员可以管理邮件模板"
-        )
-    
     template = db.query(SystemEmailTemplate).filter(
         SystemEmailTemplate.id == template_id
     ).first()
@@ -736,18 +670,12 @@ def send_test_email(
 def reset_template_to_default(
     template_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_user)
 ):
     """
     重置模板为默认值（仅管理员）
     从 TemplateMetadata 中获取默认值并更新模板
     """
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="只有管理员可以管理邮件模板"
-        )
-    
     template = db.query(SystemEmailTemplate).filter(
         SystemEmailTemplate.id == template_id
     ).first()
@@ -800,7 +728,7 @@ async def send_template_email(
     template_id: int,
     send_data: EmailTemplateSend,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_user)
 ):
     """
     使用模板手动发送邮件（仅管理员）
@@ -811,12 +739,6 @@ async def send_template_email(
     3. 填写变量
     4. 一键发送
     """
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="只有管理员可以发送模板邮件"
-        )
-    
     template = db.query(SystemEmailTemplate).filter(
         SystemEmailTemplate.id == template_id
     ).first()
@@ -873,17 +795,11 @@ async def send_template_email(
 
 @router.get("/events/available", response_model=List[EventTypeResponse])
 def get_available_events(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_user)
 ):
     """
     获取所有可用的系统事件类型（用于前端显示）
     """
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="只有管理员可以查看事件类型"
-        )
-    
     events = EventPublisher.get_available_events()
     return [EventTypeResponse(**e) for e in events]
 
@@ -892,7 +808,7 @@ def get_available_events(
 def get_template_trigger_rules(
     template_code: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_user)
 ):
     """
     获取某个模板关联的触发规则
@@ -901,12 +817,6 @@ def get_template_trigger_rules(
     其 actions 中包含 send_template_email 动作，
     且 template_code 匹配的规则
     """
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="只有管理员可以查看触发规则"
-        )
-    
     # 验证模板存在
     template = db.query(SystemEmailTemplate).filter(
         SystemEmailTemplate.code == template_code
@@ -952,19 +862,13 @@ def create_template_trigger_rule(
     template_code: str,
     rule_data: TemplateTriggerRuleCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_user)
 ):
     """
     为模板创建触发规则
     
     本质是创建一条 AutomationRule，动作为 send_template_email
     """
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="只有管理员可以创建触发规则"
-        )
-    
     # 验证模板存在
     template = db.query(SystemEmailTemplate).filter(
         SystemEmailTemplate.code == template_code
@@ -1030,17 +934,11 @@ def create_template_trigger_rule(
 def delete_template_trigger_rule(
     rule_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_user)
 ):
     """
     删除模板触发规则
     """
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="只有管理员可以删除触发规则"
-        )
-    
     rule = db.query(AutomationRule).filter(
         AutomationRule.id == rule_id
     ).first()
@@ -1061,17 +959,11 @@ def delete_template_trigger_rule(
 def toggle_template_trigger_rule(
     rule_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_user)
 ):
     """
     启用/禁用模板触发规则
     """
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="只有管理员可以修改触发规则"
-        )
-    
     rule = db.query(AutomationRule).filter(
         AutomationRule.id == rule_id
     ).first()

@@ -143,7 +143,8 @@ def list_redemption_codes(
         query = query.filter(RedemptionCode.status == status)
     if plan_id:
         query = query.filter(RedemptionCode.plan_id == plan_id)
-    
+
+    total = query.count()
     codes = query.order_by(RedemptionCode.created_at.desc()).offset((page - 1) * limit).limit(limit).all()
 
     # 批量获取使用者邮箱，避免 N+1
@@ -153,9 +154,9 @@ def list_redemption_codes(
         users = db.query(User).filter(User.id.in_(used_by_ids)).all()
         user_map = {u.id: u.email for u in users}
 
-    result = []
+    items = []
     for code in codes:
-        result.append({
+        items.append({
             "id": code.id,
             "code": code.code,
             "plan_id": code.plan_id,
@@ -168,8 +169,8 @@ def list_redemption_codes(
             "expires_at": code.expires_at,
             "created_at": code.created_at,
         })
-    
-    return result
+
+    return {"items": items, "total": total}
 
 
 @router.post("/codes", response_model=billing_schema.RedemptionCodeBatchResponse)
@@ -189,12 +190,16 @@ def generate_redemption_codes(
     
     generated_codes = []
     for _ in range(code_in.count):
-        # 生成唯一兑换码
-        while True:
-            code = generate_code(prefix=code_in.prefix or plan.name.upper())
-            existing = db.query(RedemptionCode).filter(RedemptionCode.code == code).first()
+        # 生成唯一兑换码（最多尝试 100 次防止死循环）
+        code = None
+        for _attempt in range(100):
+            candidate = generate_code(prefix=code_in.prefix or plan.name.upper())
+            existing = db.query(RedemptionCode).filter(RedemptionCode.code == candidate).first()
             if not existing:
+                code = candidate
                 break
+        if code is None:
+            raise HTTPException(500, "兑换码生成失败，请稍后重试")
         
         redemption_code = RedemptionCode(
             code=code,

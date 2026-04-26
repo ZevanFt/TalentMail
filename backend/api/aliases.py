@@ -9,10 +9,15 @@ from api import deps
 from core.config import settings
 from datetime import datetime, timezone
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+# 别名前缀正则：仅允许字母、数字、点、短横线、下划线（RFC 5321 local-part 安全子集）
+_ALIAS_PREFIX_RE = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9._-]*$')
 
 
 class AliasCreate(BaseModel):
@@ -89,6 +94,8 @@ def create_alias(
     prefix = data.alias_prefix.lower().strip()
     if not prefix:
         raise HTTPException(status_code=400, detail="别名前缀不能为空")
+    if not _ALIAS_PREFIX_RE.match(prefix):
+        raise HTTPException(status_code=400, detail="别名前缀只能包含字母、数字、点、短横线和下划线，且必须以字母或数字开头")
     
     alias_email = f"{prefix}@{settings.BASE_DOMAIN}"
     

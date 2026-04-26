@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List, Any
 from datetime import datetime
 from decimal import Decimal
@@ -74,8 +74,8 @@ class RedemptionCodeBase(BaseModel):
 
 
 class RedemptionCodeCreate(RedemptionCodeBase):
-    count: int = 1  # 批量生成数量
-    prefix: Optional[str] = None  # 兑换码前缀
+    count: int = Field(default=1, ge=1, le=500)  # 批量生成数量，上限 500
+    prefix: Optional[str] = Field(default=None, max_length=20)  # 兑换码前缀
 
 
 class RedemptionCodeRead(BaseModel):

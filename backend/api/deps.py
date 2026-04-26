@@ -40,10 +40,9 @@ def get_current_active_user(
 ) -> models.User:
     """
     Dependency to get the current active user.
-    In the future, you could add a check here for `user.is_active`.
+    注：User 模型目前没有 is_active 字段（只有 UserSession 有）。
+    如果未来 User 加了 is_active 字段，在此处启用检查。
     """
-    # if not current_user.is_active:
-    #     raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
 

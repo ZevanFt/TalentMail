@@ -3,14 +3,23 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel, Field
 from datetime import datetime
+import logging
 
 from db.database import get_db
 from api.deps import get_current_user
 from db.models.user import User
 from db.models.external_account import ExternalAccount
 from core.crypto import encrypt_password, decrypt_password
+from utils.rate_limit import SlidingWindowLimiter
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/external-accounts", tags=["external-accounts"])
+
+# 连接测试限流：每用户每分钟 5 次
+_test_limiter = SlidingWindowLimiter(max_attempts=5, window_seconds=60)
+
+# 每用户外部账户上限
+MAX_EXTERNAL_ACCOUNTS = 10
 
 
 # 常用邮箱提供商预设配置
@@ -125,10 +134,10 @@ class ExternalAccountCreate(BaseModel):
     password: str = Field(..., max_length=500)
     # 自定义服务器配置（provider=custom 时必填）
     imap_host: Optional[str] = Field(default=None, max_length=255)
-    imap_port: Optional[int] = 993
+    imap_port: Optional[int] = Field(default=993, ge=1, le=65535)
     imap_ssl: Optional[bool] = True
     smtp_host: Optional[str] = Field(default=None, max_length=255)
-    smtp_port: Optional[int] = 587
+    smtp_port: Optional[int] = Field(default=587, ge=1, le=65535)
     smtp_ssl: Optional[bool] = False
     smtp_starttls: Optional[bool] = True
 
@@ -195,6 +204,11 @@ def list_accounts(
 @router.post("", response_model=ExternalAccountResponse)
 def create_account(data: ExternalAccountCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     """添加外部邮箱账号"""
+    # 数量限制
+    count = db.query(ExternalAccount).filter(ExternalAccount.user_id == user.id).count()
+    if count >= MAX_EXTERNAL_ACCOUNTS:
+        raise HTTPException(400, f"最多绑定 {MAX_EXTERNAL_ACCOUNTS} 个外部邮箱")
+
     # 检查是否已存在
     existing = db.query(ExternalAccount).filter(
         ExternalAccount.user_id == user.id,
@@ -243,6 +257,7 @@ def create_account(data: ExternalAccountCreate, db: Session = Depends(get_db), u
     db.add(account)
     db.commit()
     db.refresh(account)
+    logger.info(f"用户 {user.id} 添加外部邮箱: {data.email} (provider={data.provider})")
     return account
 
 
@@ -280,14 +295,19 @@ def delete_account(account_id: int, db: Session = Depends(get_db), user: User = 
     if not account:
         raise HTTPException(404, "账号不存在")
     
+    account_email = account.email
     db.delete(account)
     db.commit()
+    logger.info(f"用户 {user.id} 删除外部邮箱: {account_email}")
     return {"message": "删除成功"}
 
 
 @router.post("/{account_id}/test")
 def test_connection(account_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     """测试邮箱连接"""
+    if not _test_limiter.allow(f"exttest:{user.id}"):
+        raise HTTPException(429, "测试过于频繁，请稍后再试")
+
     account = db.query(ExternalAccount).filter(
         ExternalAccount.id == account_id,
         ExternalAccount.user_id == user.id

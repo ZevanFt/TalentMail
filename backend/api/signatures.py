@@ -49,6 +49,9 @@ def list_signatures(
     return {"items": items, "total": total}
 
 
+MAX_SIGNATURES_PER_USER = 20
+
+
 @router.post("/", response_model=SignatureRead)
 def create_signature(
     data: SignatureCreate,
@@ -56,6 +59,11 @@ def create_signature(
     current_user: models.User = Depends(deps.get_current_active_user)
 ):
     """创建签名"""
+    # 数量限制
+    count = db.query(Signature).filter(Signature.user_id == current_user.id).count()
+    if count >= MAX_SIGNATURES_PER_USER:
+        raise HTTPException(status_code=400, detail=f"最多创建 {MAX_SIGNATURES_PER_USER} 个签名")
+
     # 如果设为默认，取消其他默认签名
     if data.is_default:
         db.query(Signature).filter(

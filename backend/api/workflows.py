@@ -6,7 +6,7 @@ import logging
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
@@ -361,15 +361,15 @@ async def get_workflow_execution_detail(
 # ==================== 用户工作流 API（自定义工作流） ====================
 
 class WorkflowCreate(BaseModel):
-    name: str
-    description: Optional[str] = None
-    category: Optional[str] = None
+    name: str = Field(..., min_length=1, max_length=200)
+    description: Optional[str] = Field(default=None, max_length=2000)
+    category: Optional[str] = Field(default=None, max_length=100)
 
 
 class WorkflowUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    category: Optional[str] = None
+    name: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    description: Optional[str] = Field(default=None, max_length=2000)
+    category: Optional[str] = Field(default=None, max_length=100)
     is_active: Optional[bool] = None
     config_schema: Optional[Dict] = None
     default_config: Optional[Dict] = None
@@ -377,22 +377,22 @@ class WorkflowUpdate(BaseModel):
 
 
 class WorkflowNodeCreate(BaseModel):
-    node_id: str
-    node_type: str
-    node_subtype: str
-    name: Optional[str] = None
+    node_id: str = Field(..., max_length=100)
+    node_type: str = Field(..., max_length=100)
+    node_subtype: str = Field(..., max_length=100)
+    name: Optional[str] = Field(default=None, max_length=200)
     position_x: int = 0
     position_y: int = 0
     config: Optional[Dict] = None
 
 
 class WorkflowEdgeCreate(BaseModel):
-    edge_id: str
-    source_node_id: str
-    target_node_id: str
-    source_handle: Optional[str] = None
-    target_handle: Optional[str] = None
-    label: Optional[str] = None
+    edge_id: str = Field(..., max_length=100)
+    source_node_id: str = Field(..., max_length=100)
+    target_node_id: str = Field(..., max_length=100)
+    source_handle: Optional[str] = Field(default=None, max_length=100)
+    target_handle: Optional[str] = Field(default=None, max_length=100)
+    label: Optional[str] = Field(default=None, max_length=200)
 
 
 class WorkflowSaveRequest(BaseModel):

@@ -70,9 +70,13 @@ def update_tag(tag_id: int, data: TagUpdate, db: Session = Depends(get_db), user
     tag = db.query(Tag).filter(Tag.id == tag_id, Tag.user_id == user.id).first()
     if not tag:
         raise HTTPException(404, "标签不存在")
-    if data.name:
+    if data.name is not None:
+        # 重名检查
+        dup = db.query(Tag).filter(Tag.user_id == user.id, Tag.name == data.name, Tag.id != tag_id).first()
+        if dup:
+            raise HTTPException(400, "标签名称已存在")
         tag.name = data.name
-    if data.color:
+    if data.color is not None:
         tag.color = data.color
     db.commit()
     count = db.query(EmailTag).filter(EmailTag.tag_id == tag.id).count()
@@ -126,7 +130,7 @@ def remove_tag_from_email(email_id: int, tag_id: int, db: Session = Depends(get_
 
 
 @router.get("/{tag_id}/emails")
-def get_emails_by_tag(tag_id: int, page: int = 1, limit: int = 50, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def get_emails_by_tag(tag_id: int, page: int = Query(1, ge=1), limit: int = Query(50, ge=1, le=200), db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     """获取标签下的邮件列表"""
     tag = db.query(Tag).filter(Tag.id == tag_id, Tag.user_id == user.id).first()
     if not tag:
