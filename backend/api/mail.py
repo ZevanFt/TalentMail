@@ -3,7 +3,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional, Dict
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import uuid
 import json
 import os
