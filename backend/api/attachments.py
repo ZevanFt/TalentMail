@@ -130,10 +130,25 @@ def download_attachment(
     if not attachment.file_path or not os.path.exists(attachment.file_path):
         raise HTTPException(status_code=404, detail="文件不存在")
     
+    # 强制作为下载文件返回，防止浏览器内联渲染恶意 HTML/SVG 附件（XSS）
+    from starlette.responses import Response
+    import mimetypes
+
+    # 仅允许安全的 MIME 类型内联，其他一律 application/octet-stream
+    SAFE_INLINE_TYPES = {
+        "image/png", "image/jpeg", "image/gif", "image/webp",
+        "application/pdf", "text/plain",
+    }
+    safe_type = attachment.content_type if attachment.content_type in SAFE_INLINE_TYPES else "application/octet-stream"
+
     return FileResponse(
         attachment.file_path,
         filename=attachment.filename,
-        media_type=attachment.content_type
+        media_type=safe_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{attachment.filename}"',
+            "X-Content-Type-Options": "nosniff",
+        },
     )
 
 

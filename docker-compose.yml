@@ -27,7 +27,6 @@ services:
       - ./backend/uploads:/app/uploads
       - ./config.json:/app/config.json
       - ./scripts:/scripts
-      - /var/run/docker.sock:/var/run/docker.sock:ro
     env_file:
       - .env
       - .env.domains
@@ -154,8 +153,7 @@ services:
       - ./data/mailserver/config/ssl/key.pem:/tmp/docker-mailserver/ssl/key.pem:ro
       # 时区
       - /etc/localtime:/etc/localtime:ro
-      # Docker socket (用于某些功能)
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Docker socket 已移除（安全风险：容器逃逸）
       # Dovecot SQL 认证配置
       - ./config/mail/dovecot-sql.conf.ext:/etc/dovecot/dovecot-sql.conf.ext:ro
       - ./config/mail/dovecot/10-auth.conf:/etc/dovecot/conf.d/10-auth.conf:ro

@@ -32,14 +32,14 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-    """Creates a new access token."""
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None, token_type: str = "access"):
+    """Creates a new JWT token with the specified type."""
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=15)
-    to_encode.update({"exp": expire, "token_type": "access"})
+    to_encode.update({"exp": expire, "token_type": token_type})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 

@@ -56,9 +56,9 @@ echo "Dovecot 99-talentmail.conf 已写入"
     echo "配置 Postfix SASL..."
     postconf -e "smtpd_sasl_type=dovecot"
     postconf -e "smtpd_sasl_path=/dev/shm/sasl-auth.sock"
-    postconf -e "smtpd_tls_auth_only=no"
+    postconf -e "smtpd_tls_auth_only=yes"
     postconf -e "smtpd_tls_security_level=may"
-    postconf -P "submission/inet/smtpd_tls_security_level=none"
+    postconf -P "submission/inet/smtpd_tls_security_level=encrypt"
 
     # 关键修复：移除已损坏的 dual-deliver 传输，恢复默认 Dovecot LMTP 投递
     CURRENT_TRANSPORT=$(postconf -h virtual_transport 2>/dev/null)

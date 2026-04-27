@@ -610,10 +610,11 @@ def login_for_access_token(
 
     # 检查是否启用了 2FA
     if user.two_factor_enabled and user.totp_secret:
-        # 生成临时 token（5分钟有效）
+        # 生成临时 token（5分钟有效，token_type="2fa_pending" 防止被当作 access token 使用）
         temp_token = security.create_access_token(
-            data={"sub": user.email, "type": "2fa_pending"},
-            expires_delta=timedelta(minutes=5)
+            data={"sub": user.email},
+            expires_delta=timedelta(minutes=5),
+            token_type="2fa_pending"
         )
         return {
             "requires_2fa": True,
@@ -704,8 +705,8 @@ def login_with_2fa(
 
     import pyotp
 
-    # 验证临时 token
-    token_data = security.verify_token(login_request.temp_token)
+    # 验证临时 token（必须是 2fa_pending 类型，防止普通 access token 冒充）
+    token_data = security.verify_token(login_request.temp_token, expected_type="2fa_pending")
     if not token_data:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -826,13 +827,17 @@ def refresh_access_token(
         )
 
     access_token_expires = timedelta(minutes=security.ACCESS_TOKEN_EXPIRE_MINUTES)
+    # 保留 session_id，确保刷新后的 token 仍可被会话撤销机制识别
+    new_token_data = {"sub": user.email}
+    if token_data.session_id:
+        new_token_data["session_id"] = token_data.session_id
     access_token = security.create_access_token(
-        data={"sub": user.email}, expires_delta=access_token_expires
+        data=new_token_data, expires_delta=access_token_expires
     )
 
     return {
         "access_token": access_token,
-        "refresh_token": refresh_token, # Return the same refresh token
+        "refresh_token": refresh_token,  # Return the same refresh token
         "token_type": "bearer",
     }
 

@@ -66,21 +66,31 @@ def get_current_user(
 ) -> models.User:
     """
     Dependency to get the current user from a token.
+    验证 JWT + 检查会话是否仍然有效（未被撤销）。
     """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    
+
     token_data = security.verify_token(token)
     if not token_data:
         raise credentials_exception
 
+    # 检查会话是否已被撤销（如果 token 中包含 session_id）
+    if token_data.session_id:
+        session = db.query(models.UserSession).filter(
+            models.UserSession.id == token_data.session_id,
+            models.UserSession.is_active == True,  # noqa: E712
+        ).first()
+        if not session:
+            raise credentials_exception
+
     user = crud_user.get_user_by_email(db, email=token_data.sub)
     if user is None:
         raise credentials_exception
-        
+
     return user
 
 
