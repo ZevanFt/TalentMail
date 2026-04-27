@@ -42,7 +42,9 @@ service lmtp {
 # Auth socket 权限
 service auth {
   unix_listener auth-userdb {
-    mode = 0777
+    mode = 0660
+    user = dovecot
+    group = dovecot
   }
 }
 DOVECOT_EOF

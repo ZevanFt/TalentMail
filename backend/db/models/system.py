@@ -18,7 +18,10 @@ from ..database import Base
 class VerificationCode(Base):
     """邮箱验证码，用于注册时验证外部邮箱"""
     __tablename__ = "verification_codes"
-    __table_args__ = {'comment': '邮箱验证码表，用于注册时验证用户的外部邮箱'}
+    __table_args__ = (
+        Index('ix_verification_codes_lookup', 'email', 'purpose', 'is_used', 'expires_at'),
+        {'comment': '邮箱验证码表，用于注册时验证用户的外部邮箱'},
+    )
     
     id = Column(Integer, primary_key=True, comment="验证码唯一标识符")
     email = Column(String(255), nullable=False, index=True, comment="接收验证码的邮箱地址")

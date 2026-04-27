@@ -1,2 +1,5 @@
 [DEFAULT]
 ignoreip = 127.0.0.1/8 172.16.0.0/12 192.168.0.0/16
+bantime = 1h
+maxretry = 3
+findtime = 10m

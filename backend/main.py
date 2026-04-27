@@ -45,7 +45,7 @@ def _on_task_done(name: str, task: asyncio.Task):
     if exc:
         logger.error(f"[TaskMonitor] 后台任务 '{name}' 崩溃: {exc}，5 秒后自动重启")
         # 延迟重启，避免快速崩溃循环
-        asyncio.get_event_loop().call_later(5, _restart_task, name)
+        asyncio.get_running_loop().call_later(5, _restart_task, name)
     else:
         logger.warning(f"[TaskMonitor] 后台任务 '{name}' 意外退出")
 
@@ -339,8 +339,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=_get_cors_origins(),
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "X-Requested-With"],
 )
 
 app.include_router(health.router, prefix="/api", tags=["Health"])

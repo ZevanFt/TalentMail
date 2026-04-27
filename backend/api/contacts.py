@@ -214,8 +214,8 @@ def export_contacts(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """导出联系人为 CSV 或 vCard 格式"""
-    contacts = db.query(Contact).filter(Contact.owner_id == user.id).order_by(Contact.name).all()
+    """导出联系人为 CSV 或 vCard 格式（上限 10000 条，防止 OOM）"""
+    contacts = db.query(Contact).filter(Contact.owner_id == user.id).order_by(Contact.name).limit(10000).all()
 
     if format == "csv":
         output = io.StringIO()

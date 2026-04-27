@@ -463,10 +463,19 @@ def admin_delete_user(
     from db.models.email import Email, Folder, Attachment, Signature, Alias
     from db.models.features import Tag, EmailTag, TrackingPixel, Contact, DriveFile
 
+    # 收集需要清理的磁盘文件路径（在删除 DB 记录之前）
+    import os
+    disk_paths_to_clean: list[str] = []
+
     user_folder_ids = [f.id for f in db.query(Folder.id).filter(Folder.user_id == user_id).all()]
     if user_folder_ids:
         email_ids = [e.id for e in db.query(Email.id).filter(Email.folder_id.in_(user_folder_ids)).all()]
         if email_ids:
+            # 收集附件磁盘路径
+            att_paths = db.query(Attachment.file_path).filter(
+                Attachment.email_id.in_(email_ids), Attachment.file_path.isnot(None)
+            ).all()
+            disk_paths_to_clean.extend(p for (p,) in att_paths if p)
             # 删除邮件关联的追踪像素、标签关联、附件
             db.query(TrackingPixel).filter(TrackingPixel.email_id.in_(email_ids)).delete(synchronize_session=False)
             db.query(EmailTag).filter(EmailTag.email_id.in_(email_ids)).delete(synchronize_session=False)
@@ -474,6 +483,18 @@ def admin_delete_user(
         # 删除所有邮件和文件夹
         db.query(Email).filter(Email.folder_id.in_(user_folder_ids)).delete(synchronize_session=False)
         db.query(Folder).filter(Folder.id.in_(user_folder_ids)).delete(synchronize_session=False)
+
+    # 收集孤儿附件 + Drive 文件的磁盘路径
+    orphan_att_paths = db.query(Attachment.file_path).filter(
+        Attachment.user_id == user_id, Attachment.email_id.is_(None), Attachment.file_path.isnot(None)
+    ).all()
+    disk_paths_to_clean.extend(p for (p,) in orphan_att_paths if p)
+
+    drive_paths = db.query(DriveFile.storage_path).filter(
+        DriveFile.user_id == user_id, DriveFile.storage_path.isnot(None)
+    ).all()
+    disk_paths_to_clean.extend(p for (p,) in drive_paths if p)
+
     # 删除用户级联数据
     db.query(Attachment).filter(Attachment.user_id == user_id, Attachment.email_id.is_(None)).delete(synchronize_session=False)
     db.query(Tag).filter(Tag.user_id == user_id).delete(synchronize_session=False)
@@ -487,6 +508,18 @@ def admin_delete_user(
     # 最后删除用户
     db.delete(user)
     db.commit()
+
+    # DB 事务成功后，清理磁盘文件（失败不影响用户删除）
+    cleaned = 0
+    for path in disk_paths_to_clean:
+        try:
+            if os.path.exists(path):
+                os.remove(path)
+                cleaned += 1
+        except OSError:
+            pass
+    if cleaned > 0:
+        logger.info(f"用户 {email} 删除：清理了 {cleaned} 个磁盘文件")
     
     logger.info(f"管理员 {current_user.email} 删除了用户 {email}")
     

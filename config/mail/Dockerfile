@@ -1,4 +1,4 @@
-FROM docker.io/mailserver/docker-mailserver:latest
+FROM docker.io/mailserver/docker-mailserver:14.0
 
 # 使用清华大学镜像源
 RUN sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
