@@ -7,6 +7,82 @@ adhering to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.1.0] - 2026-04-27
+
+### Highlights
+- 4 rounds of deep security audit + performance optimization for 2 vCPU / 4GB RAM deployment
+- 6 critical security vulnerabilities fixed (2FA bypass, session revocation, Docker socket, attachment XSS, mail TLS)
+- Background task registry with auto-restart and health monitoring
+- GitHub Actions CI pipeline with ruff + pytest + nuxt build
+
+### Security (P0 Critical)
+- **2FA bypass fixed**: `2fa_pending` tokens now use dedicated `token_type` instead of reusing `access`, preventing them from being used as regular API tokens during the 5-minute window
+- **Session revocation enforced**: `get_current_user()` now validates `UserSession.is_active` in DB on every request — revoking a session actually blocks the token immediately
+- **Refresh token session propagation**: refreshed access tokens now carry forward the `session_id`, ensuring revocation works after token refresh
+- **Attachment XSS prevention**: force `Content-Disposition: attachment` + `X-Content-Type-Options: nosniff`, only safe MIME types (images, PDF, text) allowed inline
+- **Docker socket removed**: eliminated `/var/run/docker.sock` mount from both backend and mailserver containers, closing container-escape-to-host attack vector
+- **Mail TLS enforced**: Dovecot `disable_plaintext_auth=yes`, Postfix `smtpd_tls_auth_only=yes`, submission port requires encryption
+- **Hardcoded password removed**: `scripts/reset_passwords.py` now requires `RESET_PASSWORD` env var (8-char minimum)
+- **scrypt upgrade**: password hashing parameter n upgraded from 2^14 to 2^16 with transparent rehash on login (backward compatible)
+
+### Performance
+- **2V4G server optimization**: Docker memory allocation reduced from 3.75GB to 2.4GB (ClamAV disabled, per-service limits tuned)
+- **IMAP incremental sync**: `SEARCH ALL` replaced with `SEARCH SINCE` (7-day window), reducing IMAP traffic by orders of magnitude on large mailboxes
+- **IMAP attachment preservation**: switched from `get_email_body()` to `get_email_body_and_attachments()`, matching LMTP behavior — attachments were previously silently dropped during IMAP sync
+- **Drive upload crash fixed**: `len(content)` called after `content=None` replaced with `total_size` from streaming accumulator
+- **IMAP sync non-blocking**: `sync_all_mailboxes()` now runs in `asyncio.to_thread()`, no longer blocking the event loop for 5-15 seconds every 30 seconds
+- **PostgreSQL tuned**: `shared_buffers=192MB`, `effective_cache_size=512MB`, `work_mem=8MB`, `max_connections=30`
+- **DB connection pool reduced**: 10+20 connections down to 5+10 (single worker doesn't need 30)
+- **Snooze N+1 fixed**: replaced per-email folder query loop with single JOIN query
+- **Orphan cleanup batched**: unlimited `.all()` replaced with `while True: ...limit(100)` batches
+- **Drive upload streaming**: file content no longer accumulated in memory, streamed directly to disk
+- **Composite indexes**: `blocked_senders(user_id, email)`, `trusted_senders(user_id, email)`, `verification_codes(email, purpose, is_used, expires_at)`
+- **Uvicorn production flags**: `--timeout-keep-alive 65 --limit-concurrency 50 --limit-max-requests 10000`
+- **Health check lightweight**: Python interpreter replaced with `wget` for Docker healthcheck
+
+### Observability
+- **Background task registry**: 8 bare `asyncio.create_task()` calls replaced with centralized `_register_task()` that tracks heartbeats and auto-restarts crashed tasks after 5-second delay
+- **Health endpoint enhanced**: `/api/health` now returns per-task status (`running`, `last_heartbeat_ago_sec`) and overall `healthy`/`degraded` status based on task liveness
+- **Shutdown simplified**: 80 lines of repetitive if-cancel-await blocks replaced with a 6-line unified loop
+
+### Quality & CI
+- **GitHub Actions CI**: 3 parallel jobs (ruff lint, pytest, nuxt build) with pip/npm caching
+- **Pre-commit hooks**: ruff check+format, trailing-whitespace, end-of-file-fixer, check-yaml, check-added-large-files
+- **Ruff config**: `pyproject.toml` with E/F/W/I rules, 120-char line length, isort with known-first-party
+- **Pytest config**: asyncio auto mode, testpaths set
+
+### Hardening
+- **Caddy CSP**: `Content-Security-Policy` header with strict `default-src 'self'` and `frame-ancestors 'none'`
+- **Caddy access logging**: request logs to `/var/log/caddy/access.log` with rotation (50MB, keep 5)
+- **CORS tightened**: `allow_headers` from wildcard to `["Authorization", "Content-Type", "Accept", "X-Requested-With"]`
+- **asyncio deprecation**: `get_event_loop()` replaced with `get_running_loop()` for Python 3.12+ compatibility
+- **Contact export capped**: limit 10,000 rows to prevent OOM on large datasets
+- **User deletion disk cleanup**: attachments and drive files now removed from disk after DB cascade
+- **Dovecot auth socket**: mode changed from 0777 to 0660 with proper user/group
+- **Fail2Ban hardened**: `bantime=1h`, `maxretry=3`, `findtime=10m`
+- **Dockerfile pins**: `python:3.12-slim-bookworm` and `mailserver:14.0` (was `:latest`)
+- **Frontend Dockerfile**: `npm install` replaced with `npm ci`, `NODE_ENV=production` added
+- **Console.log stripped**: esbuild `drop: ['console', 'debugger']` in production builds
+- **Static asset caching**: Caddy `immutable` cache headers for `/_nuxt/*` hash-named files
+- **Frontend devtools disabled**: Vue devtools and PWA dev service worker off in production
+- **Nitro compression**: `compressPublicAssets: true` for pre-compressed static assets
+- **deploy.sh**: pre-migration `pg_dump` backup + `pg_isready` polling (replaced `sleep 10`)
+- **Rate limiting**: added `SlidingWindowLimiter` to 9 API modules (folders, tags, aliases, calendar, signatures, api_keys, contacts, blocklist, spam)
+
+### auth-center (companion project)
+- **SQLite WAL mode**: eliminates `database is locked` under concurrent reads/writes
+- **PRAGMA tuning**: `foreign_keys=ON`, `synchronous=NORMAL`, `cache_size=-8000`, `busy_timeout=5000`
+- **cleanup() race fix**: `_last_cleanup` moved from unprotected class variable to lock-guarded access
+- **SPA path traversal**: `is_relative_to()` replaces incomplete `.parents` check
+- **Rate limiter hardened**: `request.client.host` instead of trusting `X-Forwarded-For`
+- **Graceful shutdown**: FastAPI lifespan context manager runs cleanup on SIGTERM
+- **PM2 logging**: log rotation (50MB max), date format, error/out file split
+- **scrypt upgrade**: n=2^14 to 2^16 with backward-compatible `verify_password` returning `tuple[bool, bool]`
+- **6 SQLite indexes**: sessions, login_attempts, audit_logs, user_emails
+- **cleanup() throttled**: 5-minute interval, avoiding 5 DELETE statements per request
+
+---
+
 ## [2.0.0] - 2026-04-26
 
 ### Highlights

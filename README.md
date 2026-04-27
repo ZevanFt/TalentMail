@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <code>v2.0.0</code>&nbsp;&nbsp;|&nbsp;&nbsp;
+  <code>v2.1.0</code>&nbsp;&nbsp;|&nbsp;&nbsp;
   <a href="docs/">Documentation</a>&nbsp;&nbsp;|&nbsp;&nbsp;
   <a href="docs/03-features/api-reference.md">API Reference</a>&nbsp;&nbsp;|&nbsp;&nbsp;
   <a href="docs/07-reference/changelog.md">Changelog</a>
@@ -55,19 +55,24 @@
 - See [API Reference](docs/03-features/api-reference.md) for complete documentation
 
 ### Security & Encryption
-- JWT auth with refresh tokens & token type enforcement
-- TOTP two-factor authentication (2FA) with **backup recovery codes**
+- JWT auth with refresh tokens & **strict token type isolation** (access / refresh / 2fa_pending)
+- TOTP two-factor authentication (2FA) with **backup recovery codes** and dedicated 2FA token type
 - **PGP end-to-end encryption**: client-side key generation (OpenPGP.js), public key exchange, encrypt-on-send, decrypt-on-read
-- Login device/session management with remote revoke
+- Login device/session management with **real-time session revocation** (DB-validated on every request)
 - Password strength enforcement (8+ chars, upper/lower/digit)
 - Rate limiting on all sensitive endpoints (login, register, send, upload, tracking)
 - SSRF-protected image proxy for remote email images
 - Constant-time verification code comparison (`hmac.compare_digest`)
 - XSS sanitization (DOMPurify frontend + HTML whitelist backend)
+- **Attachment download XSS protection** (forced Content-Disposition: attachment + MIME whitelist + nosniff)
 - Encrypted external account passwords (AES)
+- **Content-Security-Policy** header with strict directives
+- **Mail TLS enforcement** (Dovecot + Postfix require encrypted connections)
+- Fail2Ban hardened (3 retries, 1h ban, 10min window)
 
 ### External Accounts
 - **IMAP sync**: connect external email accounts (Gmail, Outlook, etc.) and sync messages on a 5-minute interval
+- **Incremental sync**: IMAP uses `SEARCH SINCE` (7-day window) instead of full scan, with **attachment preservation**
 - **Alias sending**: send emails as an external account's address
 - Encrypted credential storage (AES)
 
@@ -100,8 +105,14 @@
 - Contact autocomplete with chip input
 - Loading skeletons, undo toasts, auto-save indicators
 
+### DevOps & Quality
+- **GitHub Actions CI**: 3 parallel jobs (ruff lint, pytest, nuxt build) on push/PR
+- **Pre-commit hooks**: ruff check+format, trailing whitespace, EOF fixer, YAML validation
+- **Production optimizations**: Docker resource limits (2.4GB total), PostgreSQL tuning, uvicorn concurrency limits
+- **Health monitoring**: `/api/health` reports DB + all 8 background task statuses with heartbeat tracking
+
 ### Administration
-- User management (create, delete with full cascade, role assignment)
+- User management (create, delete with full cascade + **disk file cleanup**, role assignment)
 - Invite code system for controlled growth
 - Subscription & billing with redemption codes
 - Email template editor with variable insertion & test send
@@ -127,7 +138,7 @@
 | **Backend** | LMTP | aiosmtpd 1.4+ |
 | **Backend** | Calendar | icalendar 5.x (.ics parsing) |
 | **Database** | PostgreSQL | 15 (full-text search, tsvector) |
-| **Mail Server** | docker-mailserver | Postfix + Dovecot + Fail2Ban |
+| **Mail Server** | docker-mailserver | 14.0 (Postfix + Dovecot + Fail2Ban + SpamAssassin) |
 | **Reverse Proxy** | Caddy | Alpine (auto HTTPS) |
 | **Runtime** | Docker Compose | v2 |
 
@@ -262,7 +273,7 @@ talentmail/
 ### Public Endpoints (No Auth)
 | Endpoint | Description |
 |----------|-------------|
-| `GET /api/health` | Health check (API + DB) |
+| `GET /api/health` | Health check (API + DB + background tasks) |
 | `GET /api/readiness` | Readiness probe |
 | `GET /api/liveness` | Liveness probe |
 | `GET /api/track/open/{pixel_id}` | Email tracking pixel (returns 1x1 GIF) |
@@ -283,15 +294,18 @@ talentmail/
 
 ## Background Tasks
 
+All tasks are managed by a centralized **task registry** with automatic crash recovery (5s restart delay) and heartbeat tracking. The `/api/health` endpoint reports per-task status.
+
 | Task | Interval | Purpose |
 |------|----------|---------|
-| IMAP Sync | 30s | Sync mail from Dovecot (users + temp mailboxes) |
-| External Account Sync | 5min | IMAP sync from connected external accounts |
-| Scheduled Send | 60s | Send emails with `scheduled_send_at` |
-| Snooze Check | 60s | Wake snoozed emails past due time |
-| Temp Mailbox Cleanup | 10min | Lifecycle transitions + purge |
-| Session Cleanup | 24h | Remove sessions inactive >30 days |
-| Orphan Attachment Cleanup | 1h | Remove unlinked uploads >24h |
+| `mail_sync` | 30s | Incremental IMAP sync from Dovecot (users + temp mailboxes) |
+| `external_sync` | 5min | IMAP sync from connected external accounts |
+| `scheduled_sender` | 60s | Send emails with `scheduled_send_at` |
+| `snooze_check` | 60s | Wake snoozed emails past due time |
+| `temp_mailbox_cleanup` | 10min | Lifecycle transitions + purge |
+| `session_cleanup` | 24h | Remove sessions inactive >30 days |
+| `orphan_attachment_cleanup` | 1h | Remove unlinked uploads >24h |
+| `audit_log_cleanup` | 24h | Purge audit logs beyond retention period |
 
 ---
 
