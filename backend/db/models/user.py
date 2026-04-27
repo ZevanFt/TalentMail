@@ -42,6 +42,9 @@ class User(Base):
     auto_clean_trash = Column(Boolean, default=True, comment="是否自动清空垃圾箱（30天）")
     auto_archive_old = Column(Boolean, default=False, comment="是否自动归档旧邮件（1年）")
     role = Column(String, default="user", comment="用户角色 ('admin' 或 'user')")
+    pgp_public_key = Column(Text, nullable=True, comment="PGP公钥（ASCII Armor格式）")
+    pgp_key_fingerprint = Column(String(64), nullable=True, index=True, comment="PGP公钥指纹")
+    pgp_key_created_at = Column(DateTime(timezone=True), nullable=True, comment="PGP公钥上传时间")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="用户账户创建时间")
     
     # 关系

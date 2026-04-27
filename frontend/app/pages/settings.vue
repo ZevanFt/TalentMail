@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { User, Shield, Palette, LogOut, ArrowLeft, Mail, Bell, Lock, HardDrive, Users, Ticket, UserCog, CreditCard, AtSign, FileText, FilePen, Info, Zap, Workflow, ScrollText, Box, ChevronDown } from 'lucide-vue-next'
+import { User, Shield, Palette, LogOut, ArrowLeft, Mail, Bell, Lock, HardDrive, Users, Ticket, UserCog, CreditCard, AtSign, FileText, FilePen, Info, Zap, Workflow, ScrollText, Box, ChevronDown, Upload, KeyRound } from 'lucide-vue-next'
 const router = useRouter()
 const route = useRoute()
 const { logout, getMe } = useApi()
@@ -43,10 +43,12 @@ const tabGroups = computed(() => {
     { label: '邮件服务', tabs: [
       { key: 'mail', label: '邮件设置', icon: 'Mail' },
       { key: 'compose-templates', label: '写信模板', icon: 'FilePen' },
+      { key: 'email-import', label: '邮件导入', icon: 'Upload' },
       { key: 'automation', label: '自动化规则', icon: 'Zap' },
       { key: 'my-workflows', label: '我的工作流', icon: 'Workflow' },
       { key: 'notifications', label: '通知偏好', icon: 'Bell' },
       { key: 'privacy', label: '隐私与安全', icon: 'Lock' },
+      { key: 'encryption', label: '加密设置', icon: 'KeyRound' },
     ]},
     { label: '数据', tabs: [
       { key: 'security', label: '登录与安全', icon: 'Shield' },
@@ -137,6 +139,8 @@ const settingsTabMap: Record<string, Component> = {
   'theme': _lazy(() => import('~/components/settings/Theme.vue')),
   'mail': _lazy(() => import('~/components/settings/Mail.vue')),
   'compose-templates': _lazy(() => import('~/components/settings/ComposeTemplates.vue')),
+  'email-import': _lazy(() => import('~/components/settings/EmailImport.vue')),
+  'encryption': _lazy(() => import('~/components/settings/Encryption.vue')),
   'automation': _lazy(() => import('~/components/settings/AutomationRules.vue')),
   'my-workflows': _lazy(() => import('~/components/settings/MyWorkflows.vue')),
   'notifications': _lazy(() => import('~/components/settings/Notifications.vue')),
@@ -236,6 +240,9 @@ const activeComponent = computed(() => {
           <button @click="setTab('compose-templates')" :class="['tab-btn', activeTab === 'compose-templates' ? 'active' : '']">
             <FilePen class="w-4 h-4" /> 写信模板
           </button>
+          <button @click="setTab('email-import')" :class="['tab-btn', activeTab === 'email-import' ? 'active' : '']">
+            <Upload class="w-4 h-4" /> 邮件导入
+          </button>
           <button @click="setTab('automation')" :class="['tab-btn', activeTab === 'automation' ? 'active' : '']">
             <Zap class="w-4 h-4" /> 自动化规则
           </button>
@@ -248,6 +255,9 @@ const activeComponent = computed(() => {
           </button>
           <button @click="setTab('privacy')" :class="['tab-btn', activeTab === 'privacy' ? 'active' : '']">
             <Lock class="w-4 h-4" /> 隐私与安全
+          </button>
+          <button @click="setTab('encryption')" :class="['tab-btn', activeTab === 'encryption' ? 'active' : '']">
+            <KeyRound class="w-4 h-4" /> 加密设置
           </button>
         </div>
 

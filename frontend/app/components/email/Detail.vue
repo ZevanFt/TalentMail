@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, Trash2, Archive, Star, Reply, Forward, MoreHorizontal, Mail, MailOpen, ReplyAll, Eye, Send, CheckCircle, XCircle, Loader2, RefreshCw, Paperclip, Download, Copy, Check, Tag, Plus, X, FileDown, FileText, Printer } from 'lucide-vue-next'
+import { ArrowLeft, Trash2, Archive, Star, Reply, Forward, MoreHorizontal, Mail, MailOpen, ReplyAll, Eye, Send, CheckCircle, XCircle, Loader2, RefreshCw, Paperclip, Download, Copy, Check, Tag, Plus, X, FileDown, FileText, Printer, Shield, Unlock } from 'lucide-vue-next'
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
 import ComposePanel from './ComposePanel.vue'
 
@@ -16,6 +16,45 @@ const handleBack = () => {
   selectedEmailDetail.value = null
   showEmailList()
 }
+
+// PGP 解密
+const { decryptMessage, hasLocalPrivateKey } = usePGP()
+const decryptedContent = ref<string | null>(null)
+const decrypting = ref(false)
+const decryptError = ref('')
+
+const isEncrypted = computed(() => {
+  if (!selectedEmailDetail.value) return false
+  const body = selectedEmailDetail.value.body_text || selectedEmailDetail.value.body_html || ''
+  return body.includes('-----BEGIN PGP MESSAGE-----')
+})
+
+const handleDecrypt = async () => {
+  if (!selectedEmailDetail.value) return
+  decrypting.value = true
+  decryptError.value = ''
+  try {
+    const body = selectedEmailDetail.value.body_text || selectedEmailDetail.value.body_html || ''
+    // 提取 PGP 消息块
+    const pgpMatch = body.match(/-----BEGIN PGP MESSAGE-----[\s\S]*?-----END PGP MESSAGE-----/)
+    if (!pgpMatch) {
+      decryptError.value = '未找到有效的 PGP 加密内容'
+      return
+    }
+    decryptedContent.value = await decryptMessage(pgpMatch[0])
+  } catch (e: any) {
+    console.error('解密失败', e)
+    decryptError.value = e.message?.includes('passphrase') ? '密码短语错误' : '解密失败: ' + (e.message || '未知错误')
+  } finally {
+    decrypting.value = false
+  }
+}
+
+// 当邮件变化时清除解密状态
+watch(() => selectedEmailDetail.value?.id, () => {
+  decryptedContent.value = null
+  decryptError.value = ''
+})
 
 // 验证码检测和复制
 const detectedCode = ref<string | null>(null)
@@ -646,6 +685,34 @@ const handleThreadEmailClick = (emailId: number) => {
               class="text-xs font-medium px-3 py-1.5 bg-yellow-100 dark:bg-yellow-800/50 text-yellow-700 dark:text-yellow-300 rounded-md hover:bg-yellow-200 dark:hover:bg-yellow-800 transition-colors whitespace-nowrap">
               加载远程图片
             </button>
+          </div>
+
+          <!-- PGP 加密横幅 -->
+          <div v-if="isEncrypted" class="mb-4 p-4 rounded-xl border"
+            :class="decryptedContent ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800'">
+            <div class="flex items-center gap-3">
+              <Shield class="w-5 h-5 shrink-0" :class="decryptedContent ? 'text-green-600' : 'text-amber-600'" />
+              <div class="flex-1">
+                <div class="text-sm font-medium" :class="decryptedContent ? 'text-green-700 dark:text-green-300' : 'text-amber-700 dark:text-amber-300'">
+                  {{ decryptedContent ? '已解密的 PGP 加密邮件' : '此邮件已 PGP 加密' }}
+                </div>
+                <div v-if="decryptError" class="text-xs text-red-500 mt-1">{{ decryptError }}</div>
+              </div>
+              <button v-if="!decryptedContent && hasLocalPrivateKey" @click="handleDecrypt" :disabled="decrypting"
+                class="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary-hover disabled:opacity-50">
+                <Loader2 v-if="decrypting" class="w-3.5 h-3.5 animate-spin" />
+                <Unlock v-else class="w-3.5 h-3.5" />
+                {{ decrypting ? '解密中...' : '解密' }}
+              </button>
+              <span v-if="!decryptedContent && !hasLocalPrivateKey" class="text-xs text-amber-600">
+                需要在设置中导入私钥
+              </span>
+            </div>
+          </div>
+
+          <!-- 解密后的内容 -->
+          <div v-if="decryptedContent" class="prose prose-zinc dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 whitespace-pre-line leading-7 text-base mb-4 p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+            {{ decryptedContent }}
           </div>
 
           <!-- 正文 -->

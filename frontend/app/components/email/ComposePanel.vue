@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { Paperclip, Send, Loader2, Eye, X, FileText, FilePen, Clock, ChevronDown, CheckCircle, XCircle } from 'lucide-vue-next'
+import { Paperclip, Send, Loader2, Eye, X, FileText, FilePen, Clock, ChevronDown, CheckCircle, XCircle, Shield } from 'lucide-vue-next'
 import TemplateSelector from './TemplateSelector.vue'
 
 const toastNotify = useToast()
 const { isComposeOpen, composeCloseGuard } = useGlobalModal()
-const { sendEmail, saveDraft, updateDraft, deleteDraft, getDefaultSignature, uploadAttachment, deleteAttachment, getAliases, getMe, getComposeTemplates } = useApi()
+const { sendEmail, saveDraft, updateDraft, deleteDraft, getDefaultSignature, uploadAttachment, deleteAttachment, getAliases, getMe, getComposeTemplates, lookupPgpKey } = useApi()
+const { encryptMessage, hasLocalPrivateKey, exportPrivateKey } = usePGP()
 const { composeState, resetCompose, formatTime, folders, loadEmails, currentFolderId } = useEmails()
 
 interface UploadedFile {
@@ -23,6 +24,7 @@ const error = ref('')
 const showCc = ref(false)
 const showBcc = ref(false)
 const isTracked = ref(false)
+const encryptEnabled = ref(false)
 const draftId = ref<number | null>(null)
 const showDraftConfirm = ref(false)
 const closeRequestResolver = ref<((ok: boolean) => void) | null>(null)
@@ -295,13 +297,43 @@ const handleSend = async (scheduleTime?: string) => {
     const { mode, originalEmail } = composeState.value
     const safeHtml = sanitizeHtml(body.value)
 
+    let finalBodyHtml = safeHtml
+    let finalBodyText = editorRef.value?.getText() || stripHtml(safeHtml)
+
+    // PGP 加密：查找收件人公钥并加密正文
+    if (encryptEnabled.value) {
+      try {
+        const firstRecipient = recipients.value.split(',')[0].trim()
+        const emailMatch = firstRecipient.match(/<([^>]+)>/) || [null, firstRecipient]
+        const recipientEmail = (emailMatch[1] || firstRecipient).trim().toLowerCase()
+
+        const lookup = await lookupPgpKey(recipientEmail)
+        if (!lookup.has_key || !lookup.public_key) {
+          error.value = `收件人 ${recipientEmail} 未设置 PGP 公钥，无法加密发送`
+          sending.value = false
+          return
+        }
+
+        const localKey = exportPrivateKey()
+        const passphrase = localStorage.getItem('talentmail_pgp_passphrase') || undefined
+        const encrypted = await encryptMessage(finalBodyText, lookup.public_key, localKey || undefined, passphrase)
+        finalBodyHtml = `<pre style="white-space:pre-wrap;font-family:monospace;">${encrypted}</pre>`
+        finalBodyText = encrypted
+      } catch (e: any) {
+        console.error('PGP 加密失败', e)
+        error.value = 'PGP 加密失败: ' + (e.message || '未知错误')
+        sending.value = false
+        return
+      }
+    }
+
     const payload: Record<string, any> = {
       to: recipients.value,
       cc: ccRecipients.value || undefined,
       bcc: bccRecipients.value || undefined,
       subject: subject.value,
-      body_html: safeHtml,
-      body_text: editorRef.value?.getText() || stripHtml(safeHtml),
+      body_html: finalBodyHtml,
+      body_text: finalBodyText,
       reply_to_id: (mode === 'reply' || mode === 'replyAll') && originalEmail ? originalEmail.id : undefined,
       is_tracked: isTracked.value,
       attachment_ids: attachments.value.map(a => a.id),
@@ -896,6 +928,19 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
         </div>
         <Eye class="w-4 h-4 transition-transform duration-200" :class="isTracked ? 'scale-110' : ''" />
         <span class="transition-colors">追踪</span>
+      </button>
+
+      <button @click="encryptEnabled = !encryptEnabled"
+        class="flex items-center gap-2.5 px-3 py-2 text-sm font-medium mr-4 rounded-xl transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-800"
+        :class="encryptEnabled ? 'text-green-600' : 'text-gray-500 dark:text-gray-400'"
+        title="PGP 加密">
+        <div class="relative w-10 h-5 rounded-full transition-all duration-200 shadow-inner"
+          :class="encryptEnabled ? 'bg-green-500 shadow-green-500/30' : 'bg-gray-300 dark:bg-gray-600'">
+          <div class="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-md transition-all duration-200"
+            :class="encryptEnabled ? 'translate-x-5' : 'translate-x-0.5'"></div>
+        </div>
+        <Shield class="w-4 h-4 transition-transform duration-200" :class="encryptEnabled ? 'scale-110' : ''" />
+        <span class="transition-colors">加密</span>
       </button>
 
       <!-- 自动保存状态指示器 -->

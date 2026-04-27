@@ -63,6 +63,9 @@ class Email(Base):
     is_tracked = Column(Boolean, default=False, comment="是否启用邮件追踪")
     delivery_status = Column(String, default="pending", index=True, comment="投递状态: pending/sending/sent/delivered/failed")
     delivery_error = Column(Text, nullable=True, comment="投递失败的错误信息")
+    # Encryption fields
+    is_encrypted = Column(Boolean, default=False, comment="是否为加密邮件")
+    encryption_type = Column(String(20), nullable=True, comment="加密类型 (pgp/smime)")
     # Soft delete fields
     deleted_at = Column(DateTime(timezone=True), nullable=True, comment="软删除时间戳，非空表示已移入回收站")
     is_purged = Column(Boolean, default=False, comment="是否已从回收站彻底清除")

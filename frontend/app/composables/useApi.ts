@@ -743,6 +743,25 @@ export const useApi = () => {
     smtp_ssl: boolean
     smtp_starttls: boolean
   }
+  // Email Import (邮件导入)
+  interface ImportResult {
+    total_found: number
+    imported: number
+    skipped_duplicate: number
+    skipped_error: number
+    errors: string[]
+  }
+  const importEmails = async (file: File, folderId?: number) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    const params = folderId ? `?folder_id=${folderId}` : ''
+    return await $fetch<ImportResult>(`${API_BASE}/emails/import${params}`, {
+      method: 'POST',
+      headers: token.value ? { Authorization: `Bearer ${token.value}` } : {},
+      body: formData,
+    })
+  }
+
   const getExternalAccounts = async () => {
     const res = await api<{ items: ExternalAccount[]; total: number }>('/external-accounts/')
     return res.items
@@ -767,15 +786,27 @@ export const useApi = () => {
     is_public: boolean
     download_count: number
     share_expires_at: string | null
+    parent_id: number | null
+    is_folder: boolean
     created_at: string
+    updated_at: string | null
   }
-  const getDriveFiles = async (page = 1, limit = 20) => {
-    return await api<{ items: DriveFile[]; total: number }>(`/drive?page=${page}&limit=${limit}`)
+  const getDriveFiles = async (page = 1, limit = 20, parentId?: number | null) => {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) })
+    if (parentId != null) params.set('parent_id', String(parentId))
+    return await api<{ items: DriveFile[]; total: number; breadcrumbs: { id: number; name: string }[] }>(`/drive?${params}`)
   }
-  const uploadDriveFile = async (file: File) => {
+  const createDriveFolder = (name: string, parentId?: number | null) =>
+    api<DriveFile>('/drive/folders', 'POST', { name, parent_id: parentId ?? null })
+  const moveDriveItem = (itemId: number, targetParentId: number | null) =>
+    api<DriveFile>(`/drive/${itemId}/move`, 'PATCH', { target_parent_id: targetParentId })
+  const renameDriveItem = (itemId: number, name: string) =>
+    api<DriveFile>(`/drive/${itemId}/rename`, 'PATCH', { name })
+  const uploadDriveFile = async (file: File, parentId?: number | null) => {
     const formData = new FormData()
     formData.append('file', file)
-    return await $fetch<DriveFile>(`${API_BASE}/drive/upload`, {
+    const params = parentId != null ? `?parent_id=${parentId}` : ''
+    return await $fetch<DriveFile>(`${API_BASE}/drive/upload${params}`, {
       method: 'POST',
       headers: token.value ? { Authorization: `Bearer ${token.value}` } : {},
       body: formData
@@ -786,8 +817,80 @@ export const useApi = () => {
     api<DriveFile>(`/drive/${id}/share`, 'POST', data)
   const removeDriveShare = (id: number) => api<any>(`/drive/${id}/share`, 'DELETE')
   const downloadDriveFileUrl = (id: number) => `${API_BASE}/drive/${id}/download`
+  const previewDriveFileUrl = (id: number) => `${API_BASE}/drive/${id}/preview`
+  const previewSharedFileUrl = (shareCode: string, password?: string) => `${API_BASE}/drive/share/${shareCode}/preview${password ? `?password=${encodeURIComponent(password)}` : ''}`
   const getShareInfo = (shareCode: string, password?: string) => api<{ original_filename: string; size: number; content_type: string; has_password: boolean; download_count: number }>(`/drive/share/${shareCode}${password ? `?password=${encodeURIComponent(password)}` : ''}`)
   const downloadSharedFileUrl = (shareCode: string, password?: string) => `${API_BASE}/drive/share/${shareCode}/download${password ? `?password=${encodeURIComponent(password)}` : ''}`
+
+  // Calendar APIs (日历)
+  interface CalendarEvent {
+    id: number
+    title: string
+    description: string | null
+    location: string | null
+    start_time: string
+    end_time: string
+    all_day: boolean
+    color: string
+    reminder_minutes: number | null
+    source_email_id: number | null
+    created_at: string
+    updated_at: string | null
+  }
+  interface CalendarEventInput {
+    title: string
+    description?: string | null
+    location?: string | null
+    start_time: string
+    end_time: string
+    all_day?: boolean
+    color?: string
+    reminder_minutes?: number | null
+  }
+  const getCalendarEvents = (start?: string, end?: string) => {
+    const params = new URLSearchParams()
+    if (start) params.set('start', start)
+    if (end) params.set('end', end)
+    const qs = params.toString()
+    return api<CalendarEvent[]>(`/calendar${qs ? `?${qs}` : ''}`)
+  }
+  const createCalendarEvent = (data: CalendarEventInput) =>
+    api<CalendarEvent>('/calendar', 'POST', data)
+  const getCalendarEvent = (id: number) =>
+    api<CalendarEvent>(`/calendar/${id}`)
+  const updateCalendarEvent = (id: number, data: CalendarEventInput) =>
+    api<CalendarEvent>(`/calendar/${id}`, 'PUT', data)
+  const deleteCalendarEvent = (id: number) =>
+    api<any>(`/calendar/${id}`, 'DELETE')
+  const importIcs = async (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return await $fetch<{ total_found: number; imported: number; skipped: number; errors: string[] }>(`${API_BASE}/calendar/import-ics`, {
+      method: 'POST',
+      headers: token.value ? { Authorization: `Bearer ${token.value}` } : {},
+      body: formData,
+    })
+  }
+
+  // Encryption APIs (PGP 加密)
+  interface PgpKeyInfo {
+    has_key: boolean
+    fingerprint: string | null
+    created_at: string | null
+    public_key: string | null
+  }
+  interface PgpLookupResult {
+    email: string
+    has_key: boolean
+    fingerprint: string | null
+    public_key: string | null
+  }
+  const getMyPgpKey = () => api<PgpKeyInfo>('/encryption/my-key')
+  const uploadMyPgpKey = (publicKey: string, fingerprint?: string) =>
+    api<PgpKeyInfo>('/encryption/my-key', 'POST', { public_key: publicKey, fingerprint })
+  const deleteMyPgpKey = () => api<any>('/encryption/my-key', 'DELETE')
+  const lookupPgpKey = (email: string) =>
+    api<PgpLookupResult>(`/encryption/lookup?email=${encodeURIComponent(email)}`)
 
   // Workflow APIs (工作流)
   interface SystemWorkflow {
@@ -1037,5 +1140,5 @@ export const useApi = () => {
   const publishChangelog = (id: number) => api<Changelog>(`/changelogs/${id}/publish`, 'POST')
   const unpublishChangelog = (id: number) => api<Changelog>(`/changelogs/${id}/unpublish`, 'POST')
 
-  return { api, login, login2FA, logout, getFolders, createFolder, updateFolder, deleteFolder, getEmails, getEmail, getEmailThread, sendEmail, syncEmails, markEmailRead, deleteEmail, markEmailStarred, snoozeEmail, getAllEmails, getSnoozedEmails, searchEmails, getTrackingStats, resendEmail, bulkMarkRead, bulkMarkStarred, bulkMoveEmails, bulkDeleteEmails, bulkArchiveEmails, getWhitelist, addToWhitelist, removeFromWhitelist, markAsSpam, markAsNotSpam, getMe, updateMe, changePassword, getStorageStats, getInviteCodes, createInviteCode, deleteInviteCode, getInviteCodeUsages, getUsers, updateUserPermissions, adminCreateUser, adminDeleteUser, getPoolMailboxes, createPoolMailbox, deletePoolMailbox, extendPoolMailbox, restorePoolMailbox, getPoolMailboxEmails, getPoolStats, getPoolActivityLogs, markPoolEmailRead, getPoolAdminSettings, updatePoolAdminSettings, runPoolAdminCleanup, saveDraft, updateDraft, deleteDraft, getSignatures, createSignature, updateSignature, deleteSignature, getDefaultSignature, getAttachments, uploadAttachment, deleteAttachment, downloadAttachmentUrl, exportEmailUrl, getPlans, createPlan, updatePlan, deletePlan, getRedemptionCodes, generateRedemptionCodes, getRedemptionCodeStats, revokeRedemptionCode, getSubscriptionStatus, redeemCode, getRedemptionHistory, getLoginSessions, revokeSession, revokeAllSessions, getReservedPrefixes, createReservedPrefix, updateReservedPrefix, deleteReservedPrefix, getReservedPrefixCategories, checkPrefixAvailability, sendVerificationCode, verifyCode, registerWithVerification, forgotPassword, resetPassword, sendRecoveryEmailCode, updateRecoveryEmail, getEmailTemplates, getEmailTemplate, createEmailTemplate, updateEmailTemplate, deleteEmailTemplate, previewEmailTemplate, sendTestEmail, getTemplateMetadataList, getTemplateMetadata, getGlobalVariables, updateGlobalVariable, resetTemplateToDefault, sendTemplateEmail, getAvailableEvents, getTemplateTriggerRules, createTemplateTriggerRule, deleteTemplateTriggerRule, toggleTemplateTriggerRule, get2FAStatus, setup2FA, enable2FA, disable2FA, verify2FA, getBlockedSenders, addBlockedSender, removeBlockedSender, getAliases, createAlias, updateAlias, deleteAlias, getTags, createTag, updateTag, deleteTag, addTagToEmail, removeTagFromEmail, getEmailsByTag, getContacts, getContactSuggestions, createContact, updateContact, deleteContact, exportContactsUrl, importContacts, getComposeTemplates, getComposeTemplate, createComposeTemplate, updateComposeTemplate, deleteComposeTemplate, getExternalAccounts, createExternalAccount, updateExternalAccount, deleteExternalAccount, testExternalAccount, syncExternalAccount, getProviderPresets, getDriveFiles, uploadDriveFile, deleteDriveFile, createDriveShare, removeDriveShare, downloadDriveFileUrl, getShareInfo, downloadSharedFileUrl, getSystemWorkflows, getSystemWorkflow, getSystemWorkflowConfig, updateSystemWorkflow, updateSystemWorkflowConfig, executeSystemWorkflow, getWorkflowExecutions, getWorkflowExecutionDetail, getNodeTypes, getWorkflows, createWorkflow, getWorkflow, updateWorkflow, saveWorkflowCanvas, publishWorkflow, deleteWorkflow, executeWorkflow, testWorkflow, getWorkflowVersions, getWorkflowVersion, restoreWorkflowVersion, getWorkflowTemplates, getWorkflowTemplateCategories, getWorkflowTemplateTags, getWorkflowTemplate, useWorkflowTemplate, toggleWorkflowTemplateFavorite, createWorkflowTemplate, updateWorkflowTemplate, deleteWorkflowTemplate, getPendingWorkflowTemplates, reviewWorkflowTemplate, getChangelogs, getLatestChangelog, getChangelog, createChangelog, updateChangelog, deleteChangelog, publishChangelog, unpublishChangelog, token }
+  return { api, login, login2FA, logout, getFolders, createFolder, updateFolder, deleteFolder, getEmails, getEmail, getEmailThread, sendEmail, syncEmails, markEmailRead, deleteEmail, markEmailStarred, snoozeEmail, getAllEmails, getSnoozedEmails, searchEmails, getTrackingStats, resendEmail, bulkMarkRead, bulkMarkStarred, bulkMoveEmails, bulkDeleteEmails, bulkArchiveEmails, getWhitelist, addToWhitelist, removeFromWhitelist, markAsSpam, markAsNotSpam, getMe, updateMe, changePassword, getStorageStats, getInviteCodes, createInviteCode, deleteInviteCode, getInviteCodeUsages, getUsers, updateUserPermissions, adminCreateUser, adminDeleteUser, getPoolMailboxes, createPoolMailbox, deletePoolMailbox, extendPoolMailbox, restorePoolMailbox, getPoolMailboxEmails, getPoolStats, getPoolActivityLogs, markPoolEmailRead, getPoolAdminSettings, updatePoolAdminSettings, runPoolAdminCleanup, saveDraft, updateDraft, deleteDraft, getSignatures, createSignature, updateSignature, deleteSignature, getDefaultSignature, getAttachments, uploadAttachment, deleteAttachment, downloadAttachmentUrl, exportEmailUrl, getPlans, createPlan, updatePlan, deletePlan, getRedemptionCodes, generateRedemptionCodes, getRedemptionCodeStats, revokeRedemptionCode, getSubscriptionStatus, redeemCode, getRedemptionHistory, getLoginSessions, revokeSession, revokeAllSessions, getReservedPrefixes, createReservedPrefix, updateReservedPrefix, deleteReservedPrefix, getReservedPrefixCategories, checkPrefixAvailability, sendVerificationCode, verifyCode, registerWithVerification, forgotPassword, resetPassword, sendRecoveryEmailCode, updateRecoveryEmail, getEmailTemplates, getEmailTemplate, createEmailTemplate, updateEmailTemplate, deleteEmailTemplate, previewEmailTemplate, sendTestEmail, getTemplateMetadataList, getTemplateMetadata, getGlobalVariables, updateGlobalVariable, resetTemplateToDefault, sendTemplateEmail, getAvailableEvents, getTemplateTriggerRules, createTemplateTriggerRule, deleteTemplateTriggerRule, toggleTemplateTriggerRule, get2FAStatus, setup2FA, enable2FA, disable2FA, verify2FA, getBlockedSenders, addBlockedSender, removeBlockedSender, getAliases, createAlias, updateAlias, deleteAlias, getTags, createTag, updateTag, deleteTag, addTagToEmail, removeTagFromEmail, getEmailsByTag, getContacts, getContactSuggestions, createContact, updateContact, deleteContact, exportContactsUrl, importContacts, getComposeTemplates, getComposeTemplate, createComposeTemplate, updateComposeTemplate, deleteComposeTemplate, importEmails, getCalendarEvents, createCalendarEvent, getCalendarEvent, updateCalendarEvent, deleteCalendarEvent, importIcs, getMyPgpKey, uploadMyPgpKey, deleteMyPgpKey, lookupPgpKey, getExternalAccounts, createExternalAccount, updateExternalAccount, deleteExternalAccount, testExternalAccount, syncExternalAccount, getProviderPresets, getDriveFiles, uploadDriveFile, deleteDriveFile, createDriveFolder, moveDriveItem, renameDriveItem, createDriveShare, removeDriveShare, downloadDriveFileUrl, previewDriveFileUrl, getShareInfo, downloadSharedFileUrl, previewSharedFileUrl, getSystemWorkflows, getSystemWorkflow, getSystemWorkflowConfig, updateSystemWorkflow, updateSystemWorkflowConfig, executeSystemWorkflow, getWorkflowExecutions, getWorkflowExecutionDetail, getNodeTypes, getWorkflows, createWorkflow, getWorkflow, updateWorkflow, saveWorkflowCanvas, publishWorkflow, deleteWorkflow, executeWorkflow, testWorkflow, getWorkflowVersions, getWorkflowVersion, restoreWorkflowVersion, getWorkflowTemplates, getWorkflowTemplateCategories, getWorkflowTemplateTags, getWorkflowTemplate, useWorkflowTemplate, toggleWorkflowTemplateFavorite, createWorkflowTemplate, updateWorkflowTemplate, deleteWorkflowTemplate, getPendingWorkflowTemplates, reviewWorkflowTemplate, getChangelogs, getLatestChangelog, getChangelog, createChangelog, updateChangelog, deleteChangelog, publishChangelog, unpublishChangelog, token }
 }

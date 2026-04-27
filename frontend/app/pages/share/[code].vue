@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { Download, Lock } from 'lucide-vue-next'
+import { Download, Lock, Eye } from 'lucide-vue-next'
 
 const route = useRoute()
 const code = route.params.code as string
-const { getShareInfo, downloadSharedFileUrl } = useApi()
+const { getShareInfo, downloadSharedFileUrl, previewSharedFileUrl } = useApi()
 const config = useConfig()
 useHead({ title: computed(() => file.value ? `${file.value.original_filename} - 分享 - ${config.appName}` : `文件分享 - ${config.appName}`) })
 
@@ -13,6 +13,7 @@ const error = ref('')
 const password = ref('')
 const needPassword = ref(false)
 const downloading = ref(false)
+const showPreview = ref(false)
 
 const loadShare = async () => {
   loading.value = true
@@ -80,6 +81,11 @@ onMounted(loadShare)
         </div>
         <h2 class="text-lg font-bold mb-1 break-all">{{ file.original_filename }}</h2>
         <p class="text-sm text-gray-500 mb-6">{{ formatSize(file.size) }}</p>
+        <button v-if="isPreviewable(file.content_type)" @click="showPreview = true"
+          class="w-full py-3 mb-3 border border-primary text-primary rounded-lg hover:bg-primary/5 flex items-center justify-center gap-2 transition-colors">
+          <Eye class="w-5 h-5" />
+          预览文件
+        </button>
         <button @click="download" :disabled="downloading" class="w-full py-3 bg-primary text-white rounded-lg hover:bg-primary-hover flex items-center justify-center gap-2 disabled:opacity-50">
           <Download class="w-5 h-5" />
           {{ downloading ? '下载中...' : '下载文件' }}
@@ -87,5 +93,11 @@ onMounted(loadShare)
         <p class="text-xs text-gray-400 mt-4">已下载 {{ file.download_count }} 次</p>
       </div>
     </div>
+
+    <!-- 文件预览 -->
+    <CommonFilePreview v-if="file" v-model="showPreview"
+      :file-url="previewSharedFileUrl(code, password || undefined)"
+      :filename="file.original_filename"
+      :content-type="file.content_type" />
   </div>
 </template>

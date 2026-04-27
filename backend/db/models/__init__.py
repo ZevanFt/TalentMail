@@ -9,6 +9,7 @@ from .features import Contact, Filter, Template, Tag, EmailTag, TrackingPixel, T
 from .system import ServerLog, ApiKey, ApiKeyAuditLog, ReservedPrefix, SystemEmailTemplate, VerificationCode, Changelog, TempMailboxPolicy
 from .external_account import ExternalAccount
 from .drive import DriveFile
+from .calendar import CalendarEvent
 from .template import TemplateMetadata, GlobalVariable
 from .automation import AutomationRule, AutomationLog
 from .workflow import (
@@ -66,6 +67,7 @@ __all__ = [
     "TempMailboxPolicy",
     "ExternalAccount",
     "DriveFile",
+    "CalendarEvent",
     "TemplateMetadata",
     "GlobalVariable",
     "AutomationRule",

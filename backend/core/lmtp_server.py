@@ -207,6 +207,10 @@ class LMTPHandler:
                     try:
                         savepoint = db.begin_nested()
                         # 创建邮件记录
+                        # PGP 加密检测
+                        _is_pgp = bool(body_text and '-----BEGIN PGP MESSAGE-----' in body_text) or \
+                                  bool(body_html and '-----BEGIN PGP MESSAGE-----' in body_html)
+
                         db_email = Email(
                             folder_id=target_folder.id,
                             mailbox_address=rcpt_email,
@@ -223,6 +227,8 @@ class LMTPHandler:
                             is_read=False,
                             is_starred=False,
                             is_draft=False,
+                            is_encrypted=_is_pgp,
+                            encryption_type='pgp' if _is_pgp else None,
                         )
                         db.add(db_email)
                         db.flush()  # 获取 email id

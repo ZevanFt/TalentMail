@@ -3,7 +3,7 @@ import {
   Mail, Star, Send, File, Trash2, Plus, Box,
   Archive, AlertOctagon, CircleDot,
   ChevronRight, ChevronDown, RotateCw,
-  FolderOpen, Tag, Clock, Paperclip, Users, Cloud, PlusCircle, X, Check, Pencil
+  FolderOpen, Tag, Clock, Paperclip, Users, Cloud, CalendarDays, PlusCircle, X, Check, Pencil
 } from 'lucide-vue-next'
 
 const toast = useToast()
@@ -337,6 +337,7 @@ const tools = [
   { name: '附件中心', icon: Paperclip, to: '/attachments' },
   { name: '通讯录', icon: Users, to: '/contacts' },
   { name: '文件中转站', icon: Cloud, to: '/drive' },
+  { name: '日历', icon: CalendarDays, to: '/calendar' },
 ]
 
 const isActive = (path: string) => route.path === path
