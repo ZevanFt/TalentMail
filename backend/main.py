@@ -323,7 +323,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="TalentMail API",
     description="Backend API for TalentMail.",
-    version="0.1.0",
+    version="2.0.0",
     lifespan=lifespan,
 )
 

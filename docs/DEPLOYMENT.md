@@ -1,5 +1,8 @@
 # TalentMail 云端部署文档
 
+> **注意**: 本文档为早期版本，部分内容已过时（如 Nginx 部分）。
+> 推荐参考最新的 **[部署指南 (Caddy + Docker)](./05-operations/deployment.md)** 和 **[数据迁移指南](./05-operations/data-migration.md)**。
+
 ## 📋 目录
 
 - [概述](#概述)

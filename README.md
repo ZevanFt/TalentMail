@@ -31,6 +31,20 @@
 - Email tracking pixels with open count, device analytics, resend on failure
 - Email export as EML/PDF, print view
 - Bulk operations (move, delete, archive, star, read) with Gmail-style undo
+- **Email import**: batch import `.eml` / `.mbox` files with smart deduplication (by Message-ID)
+
+### Cloud Drive
+- File upload, download, sharing (public link with optional password & expiry)
+- **Folder system**: 5-level nested folders, create / rename / move / recursive delete
+- **File preview**: inline preview for images (JPEG/PNG/GIF/WebP), PDF, and text/code files
+- Per-user storage quota management
+- Shared file access with password protection
+
+### Calendar
+- Month-view calendar grid with event color coding (8 preset colors)
+- Event CRUD: title, start/end time, all-day toggle, location, description, reminders
+- **.ics import**: upload standard iCalendar files to batch-create events
+- Navigate between months with event-per-day summary
 
 ### Temp Mailbox & Automation API
 - Create disposable email addresses with auto-expiry (24h default, 10-day recovery)
@@ -40,9 +54,10 @@
 - Full audit logging with per-key rate limiting & scope-based permissions
 - See [API Reference](docs/03-features/api-reference.md) for complete documentation
 
-### Security
+### Security & Encryption
 - JWT auth with refresh tokens & token type enforcement
-- TOTP two-factor authentication (2FA)
+- TOTP two-factor authentication (2FA) with **backup recovery codes**
+- **PGP end-to-end encryption**: client-side key generation (OpenPGP.js), public key exchange, encrypt-on-send, decrypt-on-read
 - Login device/session management with remote revoke
 - Password strength enforcement (8+ chars, upper/lower/digit)
 - Rate limiting on all sensitive endpoints (login, register, send, upload, tracking)
@@ -51,6 +66,11 @@
 - XSS sanitization (DOMPurify frontend + HTML whitelist backend)
 - Encrypted external account passwords (AES)
 
+### External Accounts
+- **IMAP sync**: connect external email accounts (Gmail, Outlook, etc.) and sync messages on a 5-minute interval
+- **Alias sending**: send emails as an external account's address
+- Encrypted credential storage (AES)
+
 ### Workflow & Automation
 - Visual drag-and-drop workflow editor (Vue Flow)
 - 41 node handler types (email ops, HTTP, notifications, conditions, loops)
@@ -58,6 +78,16 @@
 - Rule engine with trigger-condition-action automation (13 action types)
 - Template marketplace with pre-built workflows
 - System workflows (welcome email, password change notification, etc.)
+
+### Contacts
+- Contact management with avatar, notes, and tags
+- **Import/Export**: vCard (`.vcf`) and CSV bidirectional import & export
+- Autocomplete chip input in compose
+
+### Compose Templates
+- User-defined compose templates for quick email drafting
+- Variable placeholders with preview & one-click insertion
+- Separate from system email templates (admin-managed)
 
 ### User Experience
 - Glassmorphism UI with customizable background skins & transparency
@@ -90,10 +120,12 @@
 | **Frontend** | Rich Editor | TipTap 3.x (13 extensions) |
 | **Frontend** | Workflow Editor | Vue Flow 1.48+ |
 | **Frontend** | PWA | @vite-pwa/nuxt |
+| **Frontend** | PGP Encryption | OpenPGP.js 6.x (client-side E2E) |
 | **Backend** | FastAPI | 0.122 (Python 3.12) |
 | **Backend** | SQLAlchemy | 2.0 + Alembic migrations |
 | **Backend** | Pydantic | V2 (2.12+) |
 | **Backend** | LMTP | aiosmtpd 1.4+ |
+| **Backend** | Calendar | icalendar 5.x (.ics parsing) |
 | **Database** | PostgreSQL | 15 (full-text search, tsvector) |
 | **Mail Server** | docker-mailserver | Postfix + Dovecot + Fail2Ban |
 | **Reverse Proxy** | Caddy | Alpine (auto HTTPS) |
@@ -199,19 +231,19 @@ bash deploy.sh --migrate
 ```
 talentmail/
 ├── backend/                 # FastAPI backend (Python 3.12)
-│   ├── api/                 # 27 API router modules
+│   ├── api/                 # 33 API router modules
 │   ├── core/                # Config, security, mail, LMTP, IMAP sync
 │   ├── crud/                # Database CRUD operations
-│   ├── db/models/           # SQLAlchemy models
+│   ├── db/models/           # 54 SQLAlchemy models
 │   ├── schemas/             # Pydantic request/response schemas
 │   ├── initial/             # DB seed data (admin, templates, workflows)
 │   ├── utils/               # Rate limiters, helpers
-│   └── alembic/             # Database migrations (40+)
+│   └── alembic/             # 44 database migrations
 ├── frontend/                # Nuxt 4 frontend
 │   └── app/
-│       ├── components/      # Vue components (email/, common/, settings/)
-│       ├── pages/           # 13 pages
-│       ├── composables/     # useApi, useEmails, useToast, etc.
+│       ├── components/      # 53 Vue components (email/, common/, settings/, calendar/)
+│       ├── pages/           # 14 pages
+│       ├── composables/     # useApi, useEmails, useToast, usePGP, etc.
 │       └── layouts/         # Default + blank layouts
 ├── config/                  # Infrastructure configs
 │   ├── caddy/               # Caddyfile (dev + prod)
@@ -254,6 +286,7 @@ talentmail/
 | Task | Interval | Purpose |
 |------|----------|---------|
 | IMAP Sync | 30s | Sync mail from Dovecot (users + temp mailboxes) |
+| External Account Sync | 5min | IMAP sync from connected external accounts |
 | Scheduled Send | 60s | Send emails with `scheduled_send_at` |
 | Snooze Check | 60s | Wake snoozed emails past due time |
 | Temp Mailbox Cleanup | 10min | Lifecycle transitions + purge |

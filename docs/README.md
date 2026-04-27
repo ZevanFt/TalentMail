@@ -6,42 +6,45 @@
 
 ```
 docs/
-├── README.md                 # 文档中心索引（本文件）
-├── 01-getting-started/       # 快速开始
-│   ├── README.md            # 快速开始概览
-│   ├── development.md       # 开发环境部署
-│   └── production.md        # 生产环境部署
-├── 02-architecture/         # 架构设计
-│   ├── README.md           # 架构概览
-│   ├── system-design.md    # 系统设计
-│   ├── database-schema.md  # 数据库设计
-│   └── api-design.md       # API 设计
-├── 03-features/            # 功能文档
-│   ├── README.md          # 功能概览
-│   ├── email-system.md    # 邮件系统
-│   ├── workflow-system.md # 工作流系统
-│   ├── template-system.md # 模板系统
-│   ├── automation.md      # 自动化功能
-│   └── api-reference.md   # Open API 接口文档
-├── 04-development/         # 开发指南
-│   ├── README.md          # 开发指南概览
-│   ├── coding-standards.md # 编码规范
-│   ├── testing-guide.md   # 测试指南
-│   └── debugging.md       # 调试技巧
-├── 05-operations/          # 运维指南
-│   ├── README.md          # 运维概览
-│   ├── deployment.md      # 部署指南
-│   ├── monitoring.md      # 监控配置
-│   └── troubleshooting.md # 故障排查
-├── 06-roadmap/            # 项目规划
-│   ├── README.md         # 规划概览
-│   ├── current-tasks.md  # 当前任务
-│   ├── todo-list.md      # 待办事项
-│   └── future-plans.md   # 未来计划
-└── 07-reference/          # 参考资料
-    ├── README.md         # 参考概览
-    ├── changelog.md      # 更新日志
-    └── glossary.md       # 术语表
+├── README.md                          # 文档中心索引（本文件）
+├── DEPLOYMENT.md                      # 部署快速参考
+├── 01-getting-started/                # 快速开始
+│   ├── README.md                     # 快速开始概览
+│   ├── development.md                # 开发环境部署
+│   └── production-deployment-guide.md # 生产环境部署详细指南
+├── 02-architecture/                   # 架构设计
+│   ├── README.md                     # 架构概览
+│   ├── system-design.md              # 系统架构设计（5 服务拓扑）
+│   ├── database-schema.md            # 数据库设计（54 模型）
+│   └── api-design.md                 # API 设计规范
+├── 03-features/                       # 功能文档
+│   ├── README.md                     # 功能概览
+│   ├── email-system.md               # 邮件系统（收发/搜索/追踪/加密/导入）
+│   ├── workflow-system.md            # 工作流系统（41 节点类型）
+│   ├── template-system.md            # 模板系统（系统模板 + 写信模板）
+│   ├── automation.md                 # 自动化（规则引擎 + API + 临时邮箱）
+│   └── api-reference.md              # Open API 接口文档
+├── 04-development/                    # 开发指南
+│   ├── README.md                     # 开发指南概览
+│   ├── coding-standards.md           # 编码规范
+│   ├── testing-guide.md              # 测试指南
+│   └── debugging.md                  # 调试技巧
+├── 05-operations/                     # 运维指南
+│   ├── README.md                     # 运维概览
+│   ├── deployment.md                 # 部署指南（Caddy + Docker）
+│   ├── data-migration.md             # 数据迁移指南
+│   ├── monitoring.md                 # 监控配置
+│   ├── troubleshooting.md            # 故障排查
+│   └── temp-mailbox-lifecycle.md     # 临时邮箱生命周期
+├── 06-roadmap/                        # 项目规划
+│   ├── README.md                     # 规划概览
+│   ├── current-tasks.md              # 当前任务
+│   ├── todo-list.md                  # 待办事项
+│   └── future-plans.md               # 未来计划
+└── 07-reference/                      # 参考资料
+    ├── README.md                     # 参考概览
+    ├── changelog.md                  # 更新日志
+    └── glossary.md                   # 术语表
 ```
 
 ## 🚀 快速链接
@@ -55,12 +58,24 @@ docs/
 - [🏗️ 系统架构设计](./02-architecture/system-design.md)
 - [📧 邮件系统文档](./03-features/email-system.md)
 - [🔄 工作流系统文档](./03-features/workflow-system.md)
+- [📝 模板系统文档](./03-features/template-system.md)
+- [⚡ 自动化功能文档](./03-features/automation.md)
 - [🔑 Open API Reference (Automation)](./03-features/api-reference.md)
+
+### 运维指南
+- [🚀 部署指南 (Caddy + Docker)](./05-operations/deployment.md)
+- [📦 数据迁移指南](./05-operations/data-migration.md)
+- [📊 监控配置](./05-operations/monitoring.md)
+- [🐛 故障排查](./05-operations/troubleshooting.md)
 
 ### 开发者资源
 - [💻 开发指南](./04-development/README.md)
 - [🧪 测试指南](./04-development/testing-guide.md)
-- [🐛 故障排查](./05-operations/troubleshooting.md)
+- [🔍 调试技巧](./04-development/debugging.md)
+
+### 参考资料
+- [📖 术语表](./07-reference/glossary.md)
+- [🔮 未来规划](./06-roadmap/future-plans.md)
 
 ### 故障排查记录
 - [邮件投递修复 - dual-deliver 链路断裂](./troubleshooting/mail-delivery-fix.md) (2026-03-03)
@@ -83,4 +98,4 @@ docs/
 
 ---
 
-最后更新时间：2026-04-26
+最后更新时间：2026-04-27
