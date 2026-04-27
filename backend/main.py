@@ -89,21 +89,25 @@ async def periodic_orphan_attachment_cleanup(interval: int = 3600):
             db = SessionLocal()
             try:
                 cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
-                orphans = db.query(Attachment).filter(
-                    Attachment.email_id.is_(None),
-                    Attachment.created_at < cutoff
-                ).all()
                 deleted_count = 0
-                for att in orphans:
-                    if att.file_path and os.path.exists(att.file_path):
-                        try:
-                            os.remove(att.file_path)
-                        except OSError:
-                            pass
-                    db.delete(att)
-                    deleted_count += 1
-                if deleted_count > 0:
+                # 分批处理，每批最多 100 个，避免大量孤儿附件一次性加载到内存
+                while True:
+                    batch = db.query(Attachment).filter(
+                        Attachment.email_id.is_(None),
+                        Attachment.created_at < cutoff
+                    ).limit(100).all()
+                    if not batch:
+                        break
+                    for att in batch:
+                        if att.file_path and os.path.exists(att.file_path):
+                            try:
+                                os.remove(att.file_path)
+                            except OSError:
+                                pass
+                        db.delete(att)
+                        deleted_count += 1
                     db.commit()
+                if deleted_count > 0:
                     logger.info(f"已清理 {deleted_count} 个孤儿附件")
             finally:
                 db.close()
@@ -126,16 +130,17 @@ async def periodic_snooze_check(interval: int = 60):
                     Email.snoozed_until <= now,
                 ).all()
                 if expired:
+                    # 一次 JOIN 查询获取所有受影响用户（替代 N+1 循环）
+                    expired_ids = [e.id for e in expired]
+                    user_ids = set(
+                        uid for (uid,) in db.query(Folder.user_id).join(
+                            Email, Email.folder_id == Folder.id
+                        ).filter(Email.id.in_(expired_ids)).distinct().all()
+                    )
                     for email in expired:
                         email.snoozed_until = None
                     db.commit()
                     logger.info(f"[Snooze] 唤醒了 {len(expired)} 封贪睡邮件")
-                    # 按用户分组发 WebSocket 通知
-                    user_ids = set()
-                    for email in expired:
-                        folder = db.query(Folder).filter(Folder.id == email.folder_id).first()
-                        if folder:
-                            user_ids.add(folder.user_id)
                     for uid in user_ids:
                         await ws_manager.broadcast_to_user(uid, "snooze_wakeup")
             finally:

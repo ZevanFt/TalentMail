@@ -135,26 +135,28 @@ async def upload_file(
     if content_type in BLOCKED_CONTENT_TYPES:
         raise HTTPException(400, f"不允许上传 {content_type} 类型的文件")
 
-    # 流式读取并检查大小限制
-    chunks = []
-    total_size = 0
-    while True:
-        chunk = await file.read(1024 * 1024)  # 1MB 块
-        if not chunk:
-            break
-        total_size += len(chunk)
-        if total_size > MAX_UPLOAD_SIZE:
-            raise HTTPException(413, f"文件大小超过限制 ({MAX_UPLOAD_SIZE // 1024 // 1024}MB)")
-        chunks.append(chunk)
-    content = b"".join(chunks)
-
     # 生成唯一文件名（ext 已在上方安全检查中获取）
     unique_filename = f"{uuid.uuid4().hex}{ext}"
     file_path = os.path.join(UPLOAD_DIR, unique_filename)
 
-    # 保存文件
-    with open(file_path, "wb") as f:
-        f.write(content)
+    # 流式写入磁盘并检查大小限制（避免整文件加载到内存）
+    total_size = 0
+    try:
+        with open(file_path, "wb") as f:
+            while True:
+                chunk = await file.read(1024 * 1024)  # 1MB 块
+                if not chunk:
+                    break
+                total_size += len(chunk)
+                if total_size > MAX_UPLOAD_SIZE:
+                    raise HTTPException(413, f"文件大小超过限制 ({MAX_UPLOAD_SIZE // 1024 // 1024}MB)")
+                f.write(chunk)
+    except HTTPException:
+        # 超出大小限制，清理已写入的文件
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        raise
+    content = None  # 不再持有文件内容引用
     
     # 创建数据库记录
     drive_file = DriveFile(

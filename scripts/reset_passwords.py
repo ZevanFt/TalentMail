@@ -26,10 +26,17 @@ def reset_passwords():
         print("Make sure the database is running and port 5432 is exposed.")
         return
 
-    new_password = "123456"
+    new_password = os.environ.get("RESET_PASSWORD")
+    if not new_password:
+        print("Error: 请通过环境变量 RESET_PASSWORD 指定新密码")
+        print("用法: RESET_PASSWORD='your_secure_password' python reset_passwords.py")
+        return
+    if len(new_password) < 8:
+        print("Error: 密码长度不能少于 8 位")
+        return
     hashed_password = get_password_hash(new_password)
-    
-    print(f"New password hash for '{new_password}': {hashed_password}")
+
+    print(f"New password hash generated (password length: {len(new_password)})")
 
     # 更新除 admin@talenting.test 以外的所有用户的密码
     # 注意：这里假设 admin 用户的邮箱是 admin@talenting.test

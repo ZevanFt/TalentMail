@@ -1,5 +1,6 @@
 from sqlalchemy import (
     Column,
+    Index,
     Integer,
     String,
     Boolean,
@@ -82,7 +83,10 @@ class PoolActivityLog(Base):
 
 class BlockedSender(Base):
     __tablename__ = "blocked_senders"
-    __table_args__ = {'comment': '用户屏蔽的发件人黑名单'}
+    __table_args__ = (
+        Index('ix_blocked_senders_user_email', 'user_id', 'email'),
+        {'comment': '用户屏蔽的发件人黑名单'},
+    )
     id = Column(Integer, primary_key=True, comment="黑名单记录ID")
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, comment="所属用户ID")
     email = Column(String(255), nullable=False, comment="被屏蔽的邮箱地址")
@@ -94,7 +98,10 @@ class BlockedSender(Base):
 class TrustedSender(Base):
     """白名单 - 信任的发件人"""
     __tablename__ = "trusted_senders"
-    __table_args__ = {'comment': '用户信任的发件人白名单'}
+    __table_args__ = (
+        Index('ix_trusted_senders_user_email', 'user_id', 'email'),
+        {'comment': '用户信任的发件人白名单'},
+    )
     id = Column(Integer, primary_key=True, comment="白名单记录ID")
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, comment="所属用户ID")
     email = Column(String(255), nullable=False, comment="信任的邮箱地址（可以是完整地址或域名如 @example.com）")

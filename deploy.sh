@@ -300,9 +300,21 @@ docker compose --env-file .env --env-file .env.domains build
 info "▶️  启动服务..."
 docker compose --env-file .env --env-file .env.domains up -d
 
-# 8. 等待数据库就绪
+# 8. 等待数据库就绪（轮询替代固定 sleep，最多等 60 秒）
 info "⏳ 等待数据库就绪..."
-sleep 10
+POSTGRES_USER=$(get_env_value "POSTGRES_USER")
+POSTGRES_DB=$(get_env_value "POSTGRES_DB")
+for i in $(seq 1 30); do
+    if docker compose --env-file .env --env-file .env.domains exec -T db pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" > /dev/null 2>&1; then
+        success "数据库已就绪（等待 ${i}×2 秒）"
+        break
+    fi
+    if [ "$i" -eq 30 ]; then
+        error "数据库在 60 秒内未就绪，请检查日志"
+        exit 1
+    fi
+    sleep 2
+done
 
 # 9. 根据部署模式执行数据库操作
 FIRST_DEPLOY=false
