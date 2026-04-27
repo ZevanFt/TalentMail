@@ -156,8 +156,6 @@ async def upload_file(
         if os.path.exists(file_path):
             os.remove(file_path)
         raise
-    content = None  # 不再持有文件内容引用
-    
     # 创建数据库记录
     drive_file = DriveFile(
         user_id=user.id,
@@ -165,7 +163,7 @@ async def upload_file(
         filename=unique_filename,
         original_filename=file.filename or "unknown",
         content_type=file.content_type,
-        size=len(content),
+        size=total_size,
         storage_path=file_path,
     )
     db.add(drive_file)

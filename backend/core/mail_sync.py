@@ -15,9 +15,11 @@ from typing import Optional
 from sqlalchemy.orm import Session
 from db.database import SessionLocal
 from db.models.user import User
-from db.models.email import Email, Folder, TempMailbox, Alias
+from db.models.email import Email, Folder, TempMailbox, Alias, Attachment
 from core.config import settings
-from core.email_parser import decode_mime_header, parse_email_date, get_email_body
+from core.email_parser import decode_mime_header, parse_email_date, get_email_body_and_attachments
+import os
+import uuid
 
 # 模块级事件队列：同步过程中收集新邮件元数据，由 periodic_sync 异步触发工作流
 # 使用锁保护并发访问（sync_all_mailboxes 与 periodic_sync 可能在不同上下文运行）
@@ -82,8 +84,14 @@ def _sync_imap_inbox(
         if status != "OK":
             return 0
 
-        _, data = imap.search(None, 'ALL')
+        # 增量同步：只拉取最近 7 天的邮件，大幅减少 IMAP 流量
+        from datetime import timedelta
+        since_date = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%d-%b-%Y")
+        _, data = imap.search(None, 'SINCE', since_date)
         email_ids = data[0].split()
+
+        UPLOAD_DIR = "/app/uploads/attachments"
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
 
         for eid in email_ids:
             _, msg_data = imap.fetch(eid, '(RFC822)')
@@ -99,7 +107,8 @@ def _sync_imap_inbox(
             if msg_id in existing_ids:
                 continue
 
-            body_text, body_html = get_email_body(msg)
+            # 提取正文 + 附件（注意：返回顺序是 html, text, attachments）
+            body_html, body_text, attachments = get_email_body_and_attachments(msg)
 
             # 提取线程信息
             in_reply_to_raw = msg.get("In-Reply-To", "")
@@ -154,6 +163,28 @@ def _sync_imap_inbox(
                 is_draft=False,
             )
             db.add(new_email)
+            db.flush()  # 获取 new_email.id 以关联附件
+
+            # 保存附件到磁盘 + 数据库（与 LMTP 服务器逻辑一致）
+            for att in attachments:
+                ext = os.path.splitext(att["filename"])[1] if att["filename"] else ""
+                unique_name = f"{uuid.uuid4()}{ext}"
+                att_path = os.path.join(UPLOAD_DIR, unique_name)
+                try:
+                    with open(att_path, "wb") as f:
+                        f.write(att["data"])
+                    db_att = Attachment(
+                        email_id=new_email.id,
+                        user_id=user_id,
+                        filename=att["filename"],
+                        content_type=att["content_type"],
+                        size=len(att["data"]),
+                        file_path=att_path,
+                    )
+                    db.add(db_att)
+                except Exception as e:
+                    logger.warning(f"IMAP 同步: 保存附件失败 {att['filename']}: {e}")
+
             existing_ids.add(msg_id)
             synced += 1
             # 收集新邮件元数据，用于后续触发工作流事件

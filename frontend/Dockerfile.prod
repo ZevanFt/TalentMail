@@ -6,8 +6,8 @@ WORKDIR /app
 # 复制依赖文件 (注意：由于上下文是根目录，路径需要调整)
 COPY frontend/package*.json ./
 
-# 安装所有依赖
-RUN npm install
+# 安装依赖（npm ci 确保可重复构建，且跳过 devDependencies 不需要的生命周期脚本）
+RUN npm ci
 
 # 复制源代码
 COPY frontend/ .
@@ -15,7 +15,8 @@ COPY frontend/ .
 # 复制根目录的 config.json 到容器的上一级目录，以匹配 nuxt.config.ts 中的 ../config.json
 COPY config.json ../config.json
 
-# 执行构建
+# 生产模式构建（启用所有优化）
+ENV NODE_ENV=production
 RUN npm run build
 
 # Stage 2: 运行阶段

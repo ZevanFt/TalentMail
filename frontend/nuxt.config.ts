@@ -164,6 +164,10 @@ export default defineNuxtConfig({
   // Vite server configuration for development
   // 注意：这些配置只在开发模式 (npm run dev) 下生效
   vite: {
+    // 生产构建移除 console.log/warn（减小 bundle + 不泄露内部信息）
+    esbuild: {
+      drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : [],
+    },
     server: {
       // 允许来自自定义域名的请求（通过 Caddy 反向代理）
       // 域名从 config.json 的当前环境配置中动态读取
