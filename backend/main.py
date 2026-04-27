@@ -23,15 +23,62 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# 定时任务
-sync_task = None
-external_sync_task = None
-cleanup_task = None
-temp_mailbox_cleanup_task = None
-scheduled_sender_task = None
-orphan_attachment_task = None
-snooze_task = None
-audit_log_cleanup_task = None
+# 后台任务注册表 + 心跳追踪
+_background_tasks: dict[str, asyncio.Task] = {}
+_task_heartbeats: dict[str, float] = {}  # 任务名→最后心跳时间戳
+_task_factories: dict[str, tuple] = {}   # 任务名→(工厂函数, kwargs)
+
+
+def _register_task(name: str, coro_factory, **kwargs):
+    """注册并启动一个后台任务，支持自动恢复"""
+    _task_factories[name] = (coro_factory, kwargs)
+    task = asyncio.create_task(coro_factory(**kwargs))
+    task.add_done_callback(lambda t, n=name: _on_task_done(n, t))
+    _background_tasks[name] = task
+    _task_heartbeats[name] = datetime.now(timezone.utc).timestamp()
+    return task
+
+
+def _on_task_done(name: str, task: asyncio.Task):
+    """后台任务完成/崩溃的回调 — 自动重启"""
+    exc = task.exception() if not task.cancelled() else None
+    if exc:
+        logger.error(f"[TaskMonitor] 后台任务 '{name}' 崩溃: {exc}，5 秒后自动重启")
+        # 延迟重启，避免快速崩溃循环
+        asyncio.get_event_loop().call_later(5, _restart_task, name)
+    else:
+        logger.warning(f"[TaskMonitor] 后台任务 '{name}' 意外退出")
+
+
+def _restart_task(name: str):
+    """重启一个已崩溃的后台任务"""
+    if name not in _task_factories:
+        return
+    factory, kwargs = _task_factories[name]
+    logger.info(f"[TaskMonitor] 重启后台任务 '{name}'")
+    task = asyncio.create_task(factory(**kwargs))
+    task.add_done_callback(lambda t, n=name: _on_task_done(n, t))
+    _background_tasks[name] = task
+    _task_heartbeats[name] = datetime.now(timezone.utc).timestamp()
+
+
+def update_task_heartbeat(name: str):
+    """由后台任务调用，更新心跳时间"""
+    _task_heartbeats[name] = datetime.now(timezone.utc).timestamp()
+
+
+def get_task_status() -> dict:
+    """获取所有后台任务的健康状态"""
+    now = datetime.now(timezone.utc).timestamp()
+    status = {}
+    for name, task in _background_tasks.items():
+        last_hb = _task_heartbeats.get(name, 0)
+        age = now - last_hb
+        status[name] = {
+            "running": not task.done(),
+            "last_heartbeat_ago_sec": round(age, 1),
+        }
+    return status
 
 
 async def periodic_session_cleanup(interval: int = 86400):
@@ -199,7 +246,6 @@ async def periodic_audit_log_cleanup(interval: int = 86400):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global sync_task, external_sync_task, cleanup_task, temp_mailbox_cleanup_task, scheduled_sender_task, orphan_attachment_task, snooze_task, audit_log_cleanup_task
     # Initialize the database and create the initial admin user
     initial_data.init_db()
 
@@ -222,39 +268,19 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("已禁用内置 LMTP 服务，使用 mailserver 的 Dovecot/IMAP 同步链路")
 
-    # 启动定时邮件同步任务（每30秒，确保临时邮箱验证码及时到达）
-    logger.info("启动定时邮件同步任务（间隔30秒）...")
-    sync_task = asyncio.create_task(periodic_sync(interval=30))
+    # ── 注册所有后台任务（崩溃自动重启 + 心跳追踪）──
+    logger.info("注册后台任务...")
+    _register_task("mail_sync", periodic_sync, interval=30)
+    _register_task("external_sync", periodic_external_sync, interval=300)
+    _register_task("session_cleanup", periodic_session_cleanup, interval=86400)
+    _register_task("temp_mailbox_cleanup", periodic_temp_mailbox_cleanup, interval=600)
+    _register_task("scheduled_sender", check_scheduled_emails, interval=60)
+    _register_task("orphan_attachment_cleanup", periodic_orphan_attachment_cleanup, interval=3600)
+    _register_task("snooze_check", periodic_snooze_check, interval=60)
+    _register_task("audit_log_cleanup", periodic_audit_log_cleanup, interval=86400)
+    logger.info("已注册 %d 个后台任务（崩溃自动恢复已启用）", len(_background_tasks))
 
-    # 启动外部邮箱同步任务（每5分钟）
-    logger.info("启动外部邮箱同步任务（间隔5分钟）...")
-    external_sync_task = asyncio.create_task(periodic_external_sync(interval=300))
-
-    # 启动定时会话清理任务（每24小时）
-    logger.info("启动定时会话清理任务（间隔24小时）...")
-    cleanup_task = asyncio.create_task(periodic_session_cleanup(interval=86400))
-
-    # 启动临时邮箱生命周期维护任务（每10分钟检查一次）
-    logger.info("启动临时邮箱生命周期维护任务（检查间隔10分钟）...")
-    temp_mailbox_cleanup_task = asyncio.create_task(periodic_temp_mailbox_cleanup(interval=600))
-
-    # 启动定时邮件发送调度器（每60秒检查到期的定时邮件）
-    logger.info("启动定时邮件发送调度器（间隔60秒）...")
-    scheduled_sender_task = asyncio.create_task(check_scheduled_emails(interval=60))
-
-    # 启动孤儿附件清理任务（每小时检查一次，清理 24 小时前未关联的上传）
-    logger.info("启动孤儿附件清理任务（间隔1小时）...")
-    orphan_attachment_task = asyncio.create_task(periodic_orphan_attachment_cleanup(interval=3600))
-
-    # 启动贪睡邮件唤醒任务（每60秒检查到期的贪睡邮件）
-    logger.info("启动贪睡邮件唤醒任务（间隔60秒）...")
-    snooze_task = asyncio.create_task(periodic_snooze_check(interval=60))
-
-    # 启动审计日志清理任务（每24小时，清理超过 AUDIT_LOG_RETENTION_DAYS 天的日志）
-    logger.info("启动审计日志清理任务（间隔24小时，保留 %d 天）...", settings.AUDIT_LOG_RETENTION_DAYS)
-    audit_log_cleanup_task = asyncio.create_task(periodic_audit_log_cleanup(interval=86400))
-
-    # 启动时先执行一次清理
+    # 启动时先执行一次会话清理
     try:
         db = SessionLocal()
         try:
@@ -268,57 +294,21 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    # Shutdown
+    # ── Shutdown：统一取消所有已注册后台任务 ──
     logger.info("停止 LMTP 服务...")
     stop_lmtp_server()
-    if sync_task:
-        sync_task.cancel()
+
+    logger.info("取消 %d 个后台任务...", len(_background_tasks))
+    for name, task in _background_tasks.items():
+        task.cancel()
+    for name, task in _background_tasks.items():
         try:
-            await sync_task
+            await task
         except asyncio.CancelledError:
             pass
-    if external_sync_task:
-        external_sync_task.cancel()
-        try:
-            await external_sync_task
-        except asyncio.CancelledError:
-            pass
-    if cleanup_task:
-        cleanup_task.cancel()
-        try:
-            await cleanup_task
-        except asyncio.CancelledError:
-            pass
-    if temp_mailbox_cleanup_task:
-        temp_mailbox_cleanup_task.cancel()
-        try:
-            await temp_mailbox_cleanup_task
-        except asyncio.CancelledError:
-            pass
-    if scheduled_sender_task:
-        scheduled_sender_task.cancel()
-        try:
-            await scheduled_sender_task
-        except asyncio.CancelledError:
-            pass
-    if orphan_attachment_task:
-        orphan_attachment_task.cancel()
-        try:
-            await orphan_attachment_task
-        except asyncio.CancelledError:
-            pass
-    if snooze_task:
-        snooze_task.cancel()
-        try:
-            await snooze_task
-        except asyncio.CancelledError:
-            pass
-    if audit_log_cleanup_task:
-        audit_log_cleanup_task.cancel()
-        try:
-            await audit_log_cleanup_task
-        except asyncio.CancelledError:
-            pass
+    _background_tasks.clear()
+    _task_factories.clear()
+    _task_heartbeats.clear()
 
     # 关闭数据库连接池
     engine.dispose()

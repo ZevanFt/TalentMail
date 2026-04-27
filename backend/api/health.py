@@ -29,10 +29,19 @@ async def health_check(db: Session = Depends(get_db)):
         # 测试数据库连接
         db.execute(text("SELECT 1"))
 
+        # 后台任务存活状态（延迟导入避免循环依赖）
+        from main import get_task_status
+        tasks = get_task_status()
+        dead_tasks = [n for n, s in tasks.items() if not s["running"]]
+
+        overall = "healthy" if not dead_tasks else "degraded"
+
         return {
-            "status": "healthy",
+            "status": overall,
             "service": "talentmail-backend",
-            "database": "connected"
+            "database": "connected",
+            "background_tasks": tasks,
+            **({"dead_tasks": dead_tasks} if dead_tasks else {}),
         }
     except Exception as e:
         # 仅在服务端日志记录完整错误，不暴露给客户端
