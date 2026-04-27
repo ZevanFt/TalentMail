@@ -650,7 +650,7 @@ const getVariableTypeIcon = (type: string) => {
     <!-- 编辑弹窗 -->
     <CommonModal v-model="showEditModal" :title="editingTemplate ? '编辑模板' : '新建模板'" width-class="w-full max-w-4xl">
       <template #header-actions>
-        <button v-if="editingTemplate && editingMetadata" @click="resetToDefault" :disabled="saving" class="flex items-center gap-1 px-3 py-1.5 text-sm text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors" title="重置为默认模板">
+        <button v-if="editingTemplate && editingMetadata" @click="resetToDefault" :disabled="saving" class="flex items-center gap-1 px-3 py-1.5 text-sm text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg whitespace-nowrap transition-colors" title="重置为默认模板">
           <RotateCcw class="w-4 h-4" /><span>重置为默认</span>
         </button>
       </template>
@@ -699,7 +699,7 @@ const getVariableTypeIcon = (type: string) => {
               <div v-else class="text-sm text-gray-400 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
                 暂无变量，点击下方按钮添加
               </div>
-              <button @click="showAddVariableModal = true" type="button" class="flex items-center gap-1 px-3 py-1.5 text-sm text-primary hover:bg-primary/10 rounded-lg transition-colors">
+              <button @click="showAddVariableModal = true" type="button" class="flex items-center gap-1 px-3 py-1.5 text-sm text-primary hover:bg-primary/10 rounded-lg whitespace-nowrap transition-colors">
                 <Plus class="w-4 h-4" />
                 <span>添加变量</span>
               </button>

@@ -382,7 +382,7 @@ watch(isGenerateOpen, (val) => {
                                 <div class="flex items-center gap-2">
                                     <div class="text-sm font-bold text-gray-900 dark:text-white truncate">{{ mailbox.email }}</div>
                                     <span v-if="mailbox.unread_count > 0" class="px-1.5 py-0.5 bg-primary text-white text-[10px] font-bold rounded-full min-w-[18px] text-center">{{ mailbox.unread_count }}</span>
-                                    <span class="px-1.5 py-0.5 text-[10px] rounded-full border"
+                                    <span class="px-1.5 py-0.5 text-[10px] rounded-full border whitespace-nowrap"
                                         :class="mailbox.status === 'active'
                                             ? 'text-green-600 border-green-200 bg-green-50'
                                             : 'text-amber-600 border-amber-200 bg-amber-50'">
@@ -463,7 +463,7 @@ watch(isGenerateOpen, (val) => {
                         </div>
                         <div class="text-xs text-gray-500 mb-2 truncate">{{ email.subject }}</div>
                         <div v-if="email.verification_code" class="flex items-center gap-2">
-                            <span class="px-2 py-0.5 bg-primary/10 text-primary text-xs font-bold font-mono rounded">{{ email.verification_code }}</span>
+                            <span class="px-2 py-0.5 bg-primary/10 text-primary text-xs font-bold font-mono rounded whitespace-nowrap">{{ email.verification_code }}</span>
                             <button @click.stop="copyCode(email.verification_code)" class="text-gray-400 hover:text-primary">
                                 <Check v-if="copiedCode === email.verification_code" class="w-3 h-3 text-green-500" />
                                 <Copy v-else class="w-3 h-3" />
@@ -487,7 +487,7 @@ watch(isGenerateOpen, (val) => {
                             <BarChart class="w-4 h-4" /> <span :class="{ 'hidden': isMobile }">统计</span>
                         </button>
                         <button @click="isGenerateOpen = true"
-                            class="flex items-center gap-2 px-4 py-1.5 bg-primary text-white rounded-lg hover:bg-primary-hover shadow-md shadow-primary/20 transition-all font-medium text-sm ml-2"
+                            class="flex items-center gap-2 px-4 py-1.5 bg-primary text-white rounded-lg hover:bg-primary-hover shadow-md shadow-primary/20 transition-all font-medium text-sm ml-2 whitespace-nowrap"
                             :class="{ '!px-2 !py-1 !text-xs !ml-1': isMobile }">
                             <Plus class="w-4 h-4" /> <span :class="{ 'hidden': isMobile }">生成临时邮箱</span>
                         </button>
@@ -548,7 +548,7 @@ watch(isGenerateOpen, (val) => {
 
 <style scoped>
 .btn-tool {
-    @apply flex items-center gap-2 px-3 py-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm transition-colors border border-gray-200 dark:border-border-dark bg-white dark:bg-bg-dark;
+    @apply flex items-center gap-2 px-3 py-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm whitespace-nowrap transition-colors border border-gray-200 dark:border-border-dark bg-white dark:bg-bg-dark;
 }
 
 .icon-btn {

@@ -997,7 +997,7 @@ definePageMeta({
           <!-- 教程按钮 -->
           <button
             @click="goToTutorial"
-            class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap transition-colors"
             title="查看教程"
           >
             <BookOpen class="w-4 h-4" />
@@ -1007,7 +1007,7 @@ definePageMeta({
           <!-- 工作流设置按钮 -->
           <button
             @click="showWorkflowSettings = true"
-            class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap transition-colors"
             title="工作流设置"
           >
             <Settings class="w-4 h-4" />
@@ -1018,7 +1018,7 @@ definePageMeta({
           <button
             @click="openVersionHistory"
             :disabled="isNew || !workflow.id"
-            class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="版本历史"
           >
             <History class="w-4 h-4" />
@@ -1032,7 +1032,7 @@ definePageMeta({
           <span
             v-if="workflow.status"
             :class="[
-              'px-2 py-1 text-xs font-medium rounded-full',
+              'px-2 py-1 text-xs font-medium rounded-full whitespace-nowrap',
               workflow.status === 'published' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
               workflow.status === 'draft' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' :
               'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'
@@ -1047,7 +1047,7 @@ definePageMeta({
           <button
             @click="testWorkflowData"
             :disabled="testing || !workflow.id || nodes.length === 0"
-            class="flex items-center gap-1.5 px-3 py-2 text-sm text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            class="flex items-center gap-1.5 px-3 py-2 text-sm text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/30 whitespace-nowrap transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="测试运行（不保存执行记录）"
           >
             <Loader2 v-if="testing" class="w-4 h-4 animate-spin" />
@@ -1059,7 +1059,7 @@ definePageMeta({
           <button
             @click="executeWorkflowData"
             :disabled="executing || workflow.status !== 'published'"
-            class="flex items-center gap-1.5 px-3 py-2 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            class="flex items-center gap-1.5 px-3 py-2 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 whitespace-nowrap transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="执行工作流（需要先发布）"
           >
             <Loader2 v-if="executing" class="w-4 h-4 animate-spin" />

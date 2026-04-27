@@ -305,7 +305,7 @@ onMounted(() => {
       <div class="flex items-center gap-2">
         <button
           @click="goToTutorial"
-          class="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+          class="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg whitespace-nowrap transition-colors"
           title="查看教程"
         >
           <BookOpen class="w-4 h-4" />
@@ -313,13 +313,13 @@ onMounted(() => {
         </button>
         <button
           @click="loadWorkflows"
-          class="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+          class="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg whitespace-nowrap transition-colors"
         >
           <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': loading }" />
         </button>
         <button
           @click="createSystemWorkflow"
-          class="flex items-center gap-2 px-4 py-2 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg transition-colors"
+          class="flex items-center gap-2 px-4 py-2 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg whitespace-nowrap transition-colors"
         >
           <Plus class="w-4 h-4" />
           新建系统工作流
@@ -343,7 +343,7 @@ onMounted(() => {
         <div class="absolute top-4 right-4 flex items-center gap-2">
           <button
             @click="openPreviewModal(workflow)"
-            class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg whitespace-nowrap transition-colors"
             title="预览流程图"
           >
             <Eye class="w-4 h-4" />
@@ -351,7 +351,7 @@ onMounted(() => {
           </button>
           <button
             @click="openExecutionModal(workflow)"
-            class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg whitespace-nowrap transition-colors"
             title="查看执行记录"
           >
             <Clock class="w-4 h-4" />
@@ -359,7 +359,7 @@ onMounted(() => {
           </button>
           <button
             @click="openConfigModal(workflow)"
-            class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg whitespace-nowrap transition-colors"
             title="配置工作流"
           >
             <Settings class="w-4 h-4" />
@@ -367,7 +367,7 @@ onMounted(() => {
           </button>
           <button
             @click="editSystemWorkflow(workflow)"
-            class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg whitespace-nowrap transition-colors"
             title="编辑工作流"
           >
             <Edit class="w-4 h-4" />
@@ -400,7 +400,7 @@ onMounted(() => {
           @click="deleteSystemWorkflow(workflow)"
           :disabled="deleting === workflow.id || !canDelete(workflow)"
           :class="[
-            'absolute bottom-4 right-4 flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-600 rounded-lg transition-colors',
+            'absolute bottom-4 right-4 flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-600 rounded-lg whitespace-nowrap transition-colors',
             canDelete(workflow)
               ? 'hover:bg-red-50 dark:hover:bg-red-900/20'
               : 'opacity-50 cursor-not-allowed'
@@ -456,7 +456,7 @@ onMounted(() => {
         </p>
         <button
           @click="createSystemWorkflow"
-          class="inline-flex items-center gap-2 px-5 py-2.5 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg transition-colors"
+          class="inline-flex items-center gap-2 px-5 py-2.5 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg whitespace-nowrap transition-colors"
         >
           <Plus class="w-5 h-5" />
           创建系统工作流

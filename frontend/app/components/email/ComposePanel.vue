@@ -919,7 +919,7 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
       </div>
 
       <button @click="isTracked = !isTracked"
-        class="flex items-center gap-2.5 px-3 py-2 text-sm font-medium mr-4 rounded-xl transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-800"
+        class="flex items-center gap-2.5 px-3 py-2 text-sm font-medium mr-4 rounded-xl whitespace-nowrap transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-800"
         :class="isTracked ? 'text-primary' : 'text-gray-500 dark:text-gray-400'">
         <div class="relative w-10 h-5 rounded-full transition-all duration-200 shadow-inner"
           :class="isTracked ? 'bg-primary shadow-primary/30' : 'bg-gray-300 dark:bg-gray-600'">
@@ -931,7 +931,7 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
       </button>
 
       <button @click="encryptEnabled = !encryptEnabled"
-        class="flex items-center gap-2.5 px-3 py-2 text-sm font-medium mr-4 rounded-xl transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-800"
+        class="flex items-center gap-2.5 px-3 py-2 text-sm font-medium mr-4 rounded-xl whitespace-nowrap transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-800"
         :class="encryptEnabled ? 'text-green-600' : 'text-gray-500 dark:text-gray-400'"
         title="PGP 加密">
         <div class="relative w-10 h-5 rounded-full transition-all duration-200 shadow-inner"

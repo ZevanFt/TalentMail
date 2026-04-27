@@ -98,7 +98,7 @@ watch(() => props.modelValue, (val) => {
             <button
               @click="handleConfirm"
               :disabled="!selectedTriggerType"
-              class="flex items-center gap-2 px-5 py-2 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              class="flex items-center gap-2 px-5 py-2 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg whitespace-nowrap transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Check class="w-4 h-4" />
               确认选择

@@ -301,7 +301,7 @@ definePageMeta({ layout: false })
           </button>
           <button
             @click="goToCreateWorkflow"
-            class="flex items-center gap-2 px-4 py-2 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg transition-colors"
+            class="flex items-center gap-2 px-4 py-2 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg whitespace-nowrap transition-colors"
           >
             <Sparkles class="w-4 h-4" />
             创建工作流
@@ -485,13 +485,13 @@ definePageMeta({ layout: false })
                         从左侧面板「触发器」分类中，<strong class="text-primary">拖拽</strong>一个触发器节点到画布上。每个工作流必须有一个触发器作为起点。
                       </p>
                       <div class="flex flex-wrap gap-2">
-                        <span class="inline-flex items-center gap-2 px-3 py-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-sm rounded-lg">
+                        <span class="inline-flex items-center gap-2 px-3 py-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-sm rounded-lg whitespace-nowrap">
                           📨 邮件接收触发
                         </span>
-                        <span class="inline-flex items-center gap-2 px-3 py-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-sm rounded-lg">
+                        <span class="inline-flex items-center gap-2 px-3 py-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-sm rounded-lg whitespace-nowrap">
                           ⏰ 定时触发
                         </span>
-                        <span class="inline-flex items-center gap-2 px-3 py-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-sm rounded-lg">
+                        <span class="inline-flex items-center gap-2 px-3 py-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-sm rounded-lg whitespace-nowrap">
                           👆 手动触发
                         </span>
                       </div>

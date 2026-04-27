@@ -210,7 +210,7 @@ const examples = [
       </div>
       <button
         @click="goToCreateWorkflow"
-        class="flex items-center gap-2 px-5 py-2.5 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg transition-colors"
+        class="flex items-center gap-2 px-5 py-2.5 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg whitespace-nowrap transition-colors"
       >
         <Sparkles class="w-4 h-4" />
         立即创建工作流
@@ -361,13 +361,13 @@ const examples = [
                     从左侧面板「触发器」分类中，<strong>拖拽</strong>一个触发器节点到画布上。每个工作流必须有一个触发器作为起点。
                   </p>
                   <div class="flex flex-wrap gap-2">
-                    <span class="inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded-full">
+                    <span class="inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded-full whitespace-nowrap">
                       📨 邮件接收触发
                     </span>
-                    <span class="inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded-full">
+                    <span class="inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded-full whitespace-nowrap">
                       ⏰ 定时触发
                     </span>
-                    <span class="inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded-full">
+                    <span class="inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded-full whitespace-nowrap">
                       👆 手动触发
                     </span>
                   </div>
@@ -447,11 +447,11 @@ const examples = [
                     完成设计后，点击「保存」按钮保存工作流。确认无误后，点击「发布」使工作流生效。
                   </p>
                   <div class="flex gap-3">
-                    <span class="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm rounded-lg">
+                    <span class="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm rounded-lg whitespace-nowrap">
                       <Save class="w-4 h-4" />
                       保存草稿
                     </span>
-                    <span class="inline-flex items-center gap-2 px-3 py-1.5 bg-primary text-white text-sm rounded-lg">
+                    <span class="inline-flex items-center gap-2 px-3 py-1.5 bg-primary text-white text-sm rounded-lg whitespace-nowrap">
                       <Send class="w-4 h-4" />
                       发布上线
                     </span>
@@ -662,14 +662,14 @@ const examples = [
       <div class="flex items-center gap-3">
         <button
           @click="goToMyWorkflows"
-          class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
+          class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg whitespace-nowrap transition-colors"
         >
           <Workflow class="w-4 h-4" />
           查看我的工作流
         </button>
         <button
           @click="goToCreateWorkflow"
-          class="flex items-center gap-2 px-5 py-2.5 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg transition-colors"
+          class="flex items-center gap-2 px-5 py-2.5 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg whitespace-nowrap transition-colors"
         >
           <Sparkles class="w-4 h-4" />
           创建工作流

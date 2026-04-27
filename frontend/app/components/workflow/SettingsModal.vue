@@ -74,7 +74,7 @@ const getNodeConfigFields = inject<(nodeId: string) => { key: string; title: str
                   <span class="w-1 h-4 bg-primary rounded-full"></span>
                   全局配置项
                 </h4>
-                <button @click="emit('add-config-item')" class="flex items-center gap-1.5 px-3 py-1.5 text-sm text-primary hover:bg-primary/10 rounded-lg transition-colors">
+                <button @click="emit('add-config-item')" class="flex items-center gap-1.5 px-3 py-1.5 text-sm text-primary hover:bg-primary/10 rounded-lg whitespace-nowrap transition-colors">
                   <Plus class="w-4 h-4" />
                   添加配置项
                 </button>
@@ -187,7 +187,7 @@ const getNodeConfigFields = inject<(nodeId: string) => { key: string; title: str
             <button @click="emit('update:modelValue', false)" class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
               取消
             </button>
-            <button @click="emit('save')" :disabled="savingSettings" class="flex items-center gap-2 px-4 py-2 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50">
+            <button @click="emit('save')" :disabled="savingSettings" class="flex items-center gap-2 px-4 py-2 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg whitespace-nowrap transition-colors disabled:opacity-50">
               <Save class="w-4 h-4" />
               {{ savingSettings ? '保存中...' : '保存设置' }}
             </button>

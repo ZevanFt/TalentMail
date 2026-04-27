@@ -54,7 +54,7 @@ const close = () => emit('update:modelValue', false)
             <div class="flex items-center gap-3">
               <button
                 @click="emit('edit')"
-                class="flex items-center gap-2 px-4 py-2 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg transition-colors"
+                class="flex items-center gap-2 px-4 py-2 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg whitespace-nowrap transition-colors"
               >
                 <Edit class="w-4 h-4" />
                 编辑
@@ -82,7 +82,7 @@ const close = () => emit('update:modelValue', false)
               <p class="text-gray-500 dark:text-gray-400 mb-4">该工作流暂无节点</p>
               <button
                 @click="emit('edit')"
-                class="flex items-center gap-2 px-4 py-2 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg transition-colors"
+                class="flex items-center gap-2 px-4 py-2 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg whitespace-nowrap transition-colors"
               >
                 <Edit class="w-4 h-4" />
                 开始编辑

@@ -356,7 +356,7 @@ onUnmounted(() => {
         <button 
           @click="previewTemplate"
           :disabled="previewing"
-          class="flex items-center gap-2 px-4 py-2 text-sm text-blue-600 dark:text-blue-400 border border-blue-300 dark:border-blue-700 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition disabled:opacity-50"
+          class="flex items-center gap-2 px-4 py-2 text-sm text-blue-600 dark:text-blue-400 border border-blue-300 dark:border-blue-700 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 whitespace-nowrap transition disabled:opacity-50"
         >
           <span v-if="previewing">生成中...</span>
           <span v-else>✨ 应用模板</span>
