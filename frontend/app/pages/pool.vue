@@ -330,7 +330,7 @@ watch(isGenerateOpen, (val) => {
 
         <template v-else>
             <!-- 第一栏：账号列表 -->
-            <div v-show="!isMobile || mobilePoolView === 'accounts'" class="pool-sidebar h-full bg-gray-50/80 dark:bg-bg-panelDark border-r border-gray-200 dark:border-border-dark flex flex-col shrink-0" :class="isMobile ? 'w-full' : 'w-64'">
+            <div v-show="!isMobile || mobilePoolView === 'accounts'" class="pool-sidebar h-full bg-gray-50/80 dark:bg-bg-panelDark border-r border-gray-200 dark:border-border-dark flex flex-col shrink-0" :class="isMobile ? 'w-full' : 'w-72'">
                 <!-- 顶部 Header -->
                 <div class="h-14 flex items-center px-4 gap-3 border-b border-gray-200/50 dark:border-gray-800 shrink-0">
                     <button @click="router.push('/')" class="p-2 -ml-2 text-gray-500 hover:text-gray-900 dark:hover:text-white rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
@@ -390,7 +390,7 @@ watch(isGenerateOpen, (val) => {
                                     </span>
                                 </div>
                                 <div class="flex items-center justify-between mt-0.5">
-                                    <span class="text-[10px] text-gray-400 truncate max-w-[130px]">{{ mailboxStatusText(mailbox) }}</span>
+                                    <span class="text-[10px] text-gray-400 whitespace-nowrap">{{ mailboxStatusText(mailbox) }}</span>
                                     <button @click.stop="handleDelete(mailbox)" class="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-red-500 transition-all">
                                         <Trash2 class="w-3 h-3" />
                                     </button>
@@ -423,7 +423,7 @@ watch(isGenerateOpen, (val) => {
                                 <Check v-if="copiedEmail === selectedMailbox.email" class="w-4 h-4 text-green-500" />
                                 <Copy v-else class="w-4 h-4" />
                             </button>
-                            <span class="text-[11px] text-gray-400 hidden md:inline">{{ mailboxStatusText(selectedMailbox) }}</span>
+                            <span class="text-[11px] text-gray-400 hidden md:inline whitespace-nowrap">{{ mailboxStatusText(selectedMailbox) }}</span>
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
