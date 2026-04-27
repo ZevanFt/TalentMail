@@ -12,6 +12,10 @@
 {$WEB_DOMAIN} {
     encode gzip zstd
 
+    # 静态资源永久缓存（Nuxt 文件名含 hash，安全缓存）
+    @static path /_nuxt/* /icons/* /favicon.ico
+    header @static Cache-Control "public, max-age=31536000, immutable"
+
     # 安全响应头
     header {
         X-Content-Type-Options "nosniff"

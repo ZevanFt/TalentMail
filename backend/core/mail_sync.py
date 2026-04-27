@@ -280,7 +280,7 @@ async def periodic_sync(interval: int = 30):
     while True:
         await asyncio.sleep(interval)
         try:
-            results = sync_all_mailboxes()
+            results = await asyncio.to_thread(sync_all_mailboxes)
             if results["total"] > 0:
                 logger.info(f"邮件同步完成，共 {results['total']} 封新邮件")
 

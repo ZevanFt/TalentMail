@@ -36,7 +36,7 @@ export default defineNuxtConfig({
   // 指定源码目录为 app
   srcDir: 'app',
   compatibilityDate: '2025-07-15',
-  devtools: { enabled: true },
+  devtools: { enabled: false },
   modules: ['@nuxtjs/tailwindcss', '@vite-pwa/nuxt'],
   // 这里的 ~ 代表 srcDir (即 app 目录)
   css: ['~/assets/css/main.css'],
@@ -141,7 +141,7 @@ export default defineNuxtConfig({
     },
     // 开发模式配置
     devOptions: {
-      enabled: true,
+      enabled: false,
       type: 'module'
     },
     // 客户端配置
@@ -149,6 +149,11 @@ export default defineNuxtConfig({
       installPrompt: true,
       periodicSyncForUpdates: 3600 // 每小时检查更新
     }
+  },
+
+  // Nitro 优化：构建时预压缩静态资源
+  nitro: {
+    compressPublicAssets: true,
   },
 
   // 3. 开启未来版本兼容性 (这可能就是您项目结构变化的原因)

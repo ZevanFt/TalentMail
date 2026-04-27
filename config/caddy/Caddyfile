@@ -15,6 +15,10 @@
     # Enable compression
     encode gzip zstd
 
+    # 静态资源缓存（Nuxt 文件名含 hash）
+    @static path /_nuxt/* /icons/* /favicon.ico
+    header @static Cache-Control "public, max-age=86400"
+
     # Reverse proxy API requests to the backend service
     reverse_proxy /api/* backend:8000 {
         # 健康检查配置

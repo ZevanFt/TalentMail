@@ -31,20 +31,24 @@ services:
     env_file:
       - .env
       - .env.domains
+    environment:
+      # 数据库连接池优化（单 worker 不需要 30 连接）
+      - DB_POOL_SIZE=5
+      - DB_MAX_OVERFLOW=10
     depends_on:
       db:
         condition: service_healthy
       mailserver:
         condition: service_started
-    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --timeout-keep-alive 65 --limit-concurrency 50 --limit-max-requests 10000
     # 生产环境：服务异常退出时自动重启
     restart: unless-stopped
-    # 资源限制
-    mem_limit: 1g
-    cpus: 1.0
-    # 健康检查：定期检查 API 是否正常响应
+    # 资源限制（2V4G 服务器优化）
+    mem_limit: 512m
+    cpus: 0.5
+    # 健康检查：使用 wget 替代 Python 解释器（省 ~30MB 内存尖峰）
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health').read()"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -67,9 +71,9 @@ services:
       - .env.domains
     # 生产环境：服务异常退出时自动重启
     restart: unless-stopped
-    # 资源限制
-    mem_limit: 512m
-    cpus: 0.5
+    # 资源限制（2V4G 服务器优化）
+    mem_limit: 256m
+    cpus: 0.25
     # 健康检查
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
@@ -81,6 +85,16 @@ services:
   # --- 数据库服务 (PostgreSQL) ---
   db:
     image: postgres:15
+    # PostgreSQL 性能调优（针对 768MB 容器）
+    command: >
+      postgres
+      -c shared_buffers=192MB
+      -c effective_cache_size=512MB
+      -c work_mem=8MB
+      -c max_connections=30
+      -c random_page_cost=1.1
+      -c wal_buffers=8MB
+      -c checkpoint_completion_target=0.9
     logging:
       driver: json-file
       options:
@@ -99,9 +113,9 @@ services:
       start_period: 10s
     # 生产环境：数据库崩溃时自动重启
     restart: unless-stopped
-    # 资源限制
-    mem_limit: 1g
-    cpus: 1.0
+    # 资源限制（2V4G 服务器优化）
+    mem_limit: 768m
+    cpus: 0.5
 
   # --- 邮件服务器 (docker-mailserver) ---
   # SSL 证书说明：
@@ -154,9 +168,9 @@ services:
         condition: service_healthy
     restart: unless-stopped
     stop_grace_period: 1m
-    # 资源限制
-    mem_limit: 1g
-    cpus: 1.0
+    # 资源限制（2V4G 服务器优化，ClamAV 已禁用）
+    mem_limit: 768m
+    cpus: 0.75
     cap_add:
       - NET_ADMIN
 
@@ -166,9 +180,9 @@ services:
     profiles: ["embedded-caddy"]
     image: caddy:alpine
     restart: unless-stopped
-    # 资源限制
-    mem_limit: 256m
-    cpus: 0.25
+    # 资源限制（2V4G 服务器优化）
+    mem_limit: 128m
+    cpus: 0.15
     ports:
       - "80:80"
       - "443:443"
