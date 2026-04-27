@@ -10,8 +10,10 @@ from core.api_keys import generate_api_key
 from core.config import settings
 from db import models
 from db.models.system import ApiKey, ApiKeyAuditLog
+from utils.rate_limit import SlidingWindowLimiter
 
 router = APIRouter()
+_key_limiter = SlidingWindowLimiter(max_attempts=10, window_seconds=300)
 
 
 ALLOWED_API_KEY_SCOPES = {
@@ -113,6 +115,8 @@ def create_api_key(
     db: Session = Depends(deps.get_db),
     current_user: models.User = Depends(deps.get_current_active_user),
 ):
+    if not _key_limiter.allow(f"apikey_create:{current_user.id}"):
+        raise HTTPException(status_code=429, detail="操作过于频繁，请稍后再试")
     if payload.expires_in_days > settings.API_KEY_MAX_EXPIRES_DAYS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

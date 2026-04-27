@@ -39,6 +39,9 @@ services:
     command: uvicorn main:app --host 0.0.0.0 --port 8000
     # 生产环境：服务异常退出时自动重启
     restart: unless-stopped
+    # 资源限制
+    mem_limit: 1g
+    cpus: 1.0
     # 健康检查：定期检查 API 是否正常响应
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health').read()"]
@@ -64,6 +67,9 @@ services:
       - .env.domains
     # 生产环境：服务异常退出时自动重启
     restart: unless-stopped
+    # 资源限制
+    mem_limit: 512m
+    cpus: 0.5
     # 健康检查
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
@@ -93,6 +99,9 @@ services:
       start_period: 10s
     # 生产环境：数据库崩溃时自动重启
     restart: unless-stopped
+    # 资源限制
+    mem_limit: 1g
+    cpus: 1.0
 
   # --- 邮件服务器 (docker-mailserver) ---
   # SSL 证书说明：
@@ -143,8 +152,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    restart: always
+    restart: unless-stopped
     stop_grace_period: 1m
+    # 资源限制
+    mem_limit: 1g
+    cpus: 1.0
     cap_add:
       - NET_ADMIN
 
@@ -153,7 +165,10 @@ services:
   caddy:
     profiles: ["embedded-caddy"]
     image: caddy:alpine
-    restart: always
+    restart: unless-stopped
+    # 资源限制
+    mem_limit: 256m
+    cpus: 0.25
     ports:
       - "80:80"
       - "443:443"

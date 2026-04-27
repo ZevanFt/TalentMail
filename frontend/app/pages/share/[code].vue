@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { Download, Lock, Eye } from 'lucide-vue-next'
 
+definePageMeta({ layout: false })
+
 const route = useRoute()
 const code = route.params.code as string
 const { getShareInfo, downloadSharedFileUrl, previewSharedFileUrl } = useApi()

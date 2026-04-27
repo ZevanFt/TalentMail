@@ -11,8 +11,11 @@ from db.database import get_db
 from api.deps import get_current_user
 from db.models.user import User
 from db.models.calendar import CalendarEvent
+from utils.rate_limit import SlidingWindowLimiter
 
 logger = logging.getLogger(__name__)
+_event_limiter = SlidingWindowLimiter(max_attempts=30, window_seconds=60)
+_ics_limiter = SlidingWindowLimiter(max_attempts=5, window_seconds=60)
 router = APIRouter(prefix="/calendar", tags=["Calendar"])
 
 MAX_EVENTS_PER_USER = 500
@@ -116,6 +119,8 @@ def create_event(
     user: User = Depends(get_current_user),
 ):
     """创建日历事件"""
+    if not _event_limiter.allow(f"cal_create:{user.id}"):
+        raise HTTPException(429, "操作过于频繁，请稍后再试")
     count = db.query(CalendarEvent).filter(CalendarEvent.user_id == user.id).count()
     if count >= MAX_EVENTS_PER_USER:
         raise HTTPException(400, f"事件数量已达上限（{MAX_EVENTS_PER_USER}）")
@@ -134,6 +139,7 @@ def create_event(
     db.add(event)
     db.commit()
     db.refresh(event)
+    logger.info(f"用户 {user.id} 创建日历事件: id={event.id}, title={event.title}")
     return event
 
 
@@ -161,6 +167,8 @@ def update_event(
     user: User = Depends(get_current_user),
 ):
     """更新日历事件"""
+    if not _event_limiter.allow(f"cal_update:{user.id}"):
+        raise HTTPException(429, "操作过于频繁，请稍后再试")
     event = db.query(CalendarEvent).filter(
         CalendarEvent.id == event_id,
         CalendarEvent.user_id == user.id,
@@ -178,6 +186,7 @@ def update_event(
     event.reminder_minutes = data.reminder_minutes
     db.commit()
     db.refresh(event)
+    logger.info(f"用户 {user.id} 更新日历事件: id={event.id}, title={event.title}")
     return event
 
 
@@ -195,8 +204,10 @@ def delete_event(
     if not event:
         raise HTTPException(404, "事件不存在")
 
+    event_title = event.title
     db.delete(event)
     db.commit()
+    logger.info(f"用户 {user.id} 删除日历事件: id={event_id}, title={event_title}")
     return {"status": "success", "message": "事件已删除"}
 
 
@@ -207,6 +218,8 @@ async def import_ics(
     user: User = Depends(get_current_user),
 ):
     """导入 .ics 日历文件"""
+    if not _ics_limiter.allow(f"ics_import:{user.id}"):
+        raise HTTPException(429, "导入过于频繁，请稍后再试")
     filename = (file.filename or "").lower()
     if not filename.endswith(".ics"):
         raise HTTPException(400, "仅支持 .ics 格式")

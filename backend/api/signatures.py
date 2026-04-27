@@ -6,9 +6,11 @@ from pydantic import BaseModel, Field
 from api import deps
 from db import models
 from db.models.email import Signature
+from utils.rate_limit import SlidingWindowLimiter
 import logging
 
 logger = logging.getLogger(__name__)
+_sig_limiter = SlidingWindowLimiter(max_attempts=20, window_seconds=60)
 
 router = APIRouter()
 
@@ -59,6 +61,8 @@ def create_signature(
     current_user: models.User = Depends(deps.get_current_active_user)
 ):
     """创建签名"""
+    if not _sig_limiter.allow(f"sig_create:{current_user.id}"):
+        raise HTTPException(429, "操作过于频繁，请稍后再试")
     # 数量限制
     count = db.query(Signature).filter(Signature.user_id == current_user.id).count()
     if count >= MAX_SIGNATURES_PER_USER:

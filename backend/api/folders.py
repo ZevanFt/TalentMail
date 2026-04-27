@@ -7,9 +7,11 @@ from api import deps
 from db.models import User
 from db.models.email import Folder, Email
 from pydantic import BaseModel, Field
+from utils.rate_limit import SlidingWindowLimiter
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+_folder_limiter = SlidingWindowLimiter(max_attempts=20, window_seconds=60)
 
 SYSTEM_ROLES = {"inbox", "sent", "drafts", "trash", "spam", "archive"}
 MAX_CUSTOM_FOLDERS = 20
@@ -83,6 +85,8 @@ def create_folder(
     current_user: User = Depends(deps.get_current_active_user),
 ):
     """创建自定义文件夹"""
+    if not _folder_limiter.allow(f"folder_create:{current_user.id}"):
+        raise HTTPException(429, "操作过于频繁，请稍后再试")
     # 检查自定义文件夹数量限制
     custom_count = db.query(func.count(Folder.id)).filter(
         Folder.user_id == current_user.id,

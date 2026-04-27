@@ -14,8 +14,11 @@ from db.models.user import User
 from db.models.features import Contact
 from db.models.email import Email, Folder
 from utils.db import escape_like
+from utils.rate_limit import SlidingWindowLimiter
 
 logger = logging.getLogger(__name__)
+_contact_limiter = SlidingWindowLimiter(max_attempts=30, window_seconds=60)
+_import_limiter = SlidingWindowLimiter(max_attempts=5, window_seconds=300)
 
 router = APIRouter(prefix="/contacts", tags=["contacts"])
 
@@ -156,6 +159,8 @@ def get_contacts(
 
 @router.post("", response_model=ContactResponse)
 def create_contact(data: ContactCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    if not _contact_limiter.allow(f"contact_create:{user.id}"):
+        raise HTTPException(429, "操作过于频繁，请稍后再试")
     # 检查同用户下是否已存在相同 email 的联系人
     if data.email:
         existing = db.query(Contact).filter(
@@ -265,6 +270,8 @@ async def import_contacts(
 
     限制：最大 1MB，最多 1000 条。
     """
+    if not _import_limiter.allow(f"contact_import:{user.id}"):
+        raise HTTPException(429, "导入过于频繁，请稍后再试")
     # 文件大小限制
     content = await file.read()
     if len(content) > 1_048_576:  # 1MB

@@ -7,9 +7,11 @@ from api.deps import get_current_user
 from db.models.user import User
 from db.models.features import Tag, EmailTag
 from db.models.email import Email, Folder
+from utils.rate_limit import SlidingWindowLimiter
 import logging
 
 logger = logging.getLogger(__name__)
+_tag_limiter = SlidingWindowLimiter(max_attempts=20, window_seconds=60)
 
 router = APIRouter(prefix="/tags", tags=["tags"])
 
@@ -54,6 +56,8 @@ def get_tags(
 
 @router.post("", response_model=TagResponse)
 def create_tag(data: TagCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    if not _tag_limiter.allow(f"tag_create:{user.id}"):
+        raise HTTPException(429, "操作过于频繁，请稍后再试")
     existing = db.query(Tag).filter(Tag.user_id == user.id, Tag.name == data.name).first()
     if existing:
         raise HTTPException(400, "标签名称已存在")

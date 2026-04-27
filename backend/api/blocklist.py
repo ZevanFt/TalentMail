@@ -5,8 +5,13 @@ from pydantic import BaseModel, Field
 from db import models
 from db.models.user import BlockedSender
 from api import deps
+from utils.rate_limit import SlidingWindowLimiter
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
+_block_limiter = SlidingWindowLimiter(max_attempts=20, window_seconds=60)
 
 
 class BlockedSenderCreate(BaseModel):
@@ -59,6 +64,8 @@ def add_blocked_sender(
     current_user: models.User = Depends(deps.get_current_active_user)
 ):
     """添加邮箱到黑名单"""
+    if not _block_limiter.allow(f"blocklist_add:{current_user.id}"):
+        raise HTTPException(429, "操作过于频繁，请稍后再试")
     email = data.email.lower().strip()
     
     # 检查是否已存在
@@ -78,7 +85,8 @@ def add_blocked_sender(
     db.add(blocked)
     db.commit()
     db.refresh(blocked)
-    
+    logger.info(f"用户 {current_user.id} 添加黑名单: {email}")
+
     return {
         "id": blocked.id,
         "email": blocked.email,
@@ -102,7 +110,9 @@ def remove_blocked_sender(
     if not blocked:
         raise HTTPException(status_code=404, detail="记录不存在")
     
+    blocked_email = blocked.email
     db.delete(blocked)
     db.commit()
-    
+    logger.info(f"用户 {current_user.id} 移除黑名单: {blocked_email}")
+
     return {"status": "success", "message": "已从黑名单移除"}

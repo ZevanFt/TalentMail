@@ -114,6 +114,7 @@ const formatDateKey = (d: Date): string => {
 // ---- 事件数据 ----
 const events = ref<any[]>([])
 const loading = ref(true)
+const loadError = ref(false)
 
 const eventsForDate = (date: Date): any[] => {
   const dateStr = formatDateKey(date)
@@ -126,14 +127,20 @@ const eventsForDate = (date: Date): any[] => {
   })
 }
 
+const hasEventsThisMonth = computed(() => {
+  return calendarDays.value.some(day => day.isCurrentMonth && day.events.length > 0)
+})
+
 const loadEvents = async () => {
   loading.value = true
+  loadError.value = false
   try {
     const start = new Date(currentYear.value, currentMonth.value - 1, 1).toISOString()
     const end = new Date(currentYear.value, currentMonth.value + 2, 0).toISOString()
     events.value = await getCalendarEvents(start, end)
   } catch (e: any) {
     console.error('加载事件失败', e)
+    loadError.value = true
     toast.error('加载日历失败')
   } finally {
     loading.value = false
@@ -244,7 +251,16 @@ onMounted(loadEvents)
         </div>
       </div>
 
-      <div class="flex gap-6">
+      <!-- 加载错误 -->
+      <div v-if="loadError && !loading" class="flex flex-col items-center justify-center py-20 gap-4">
+        <div class="text-5xl">😵</div>
+        <p class="text-gray-500 dark:text-gray-400">加载日历失败</p>
+        <button @click="loadEvents" class="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary-hover transition-colors">
+          重新加载
+        </button>
+      </div>
+
+      <div v-else class="flex gap-6">
         <!-- 月历网格 -->
         <div class="flex-1 bg-white dark:bg-bg-panelDark rounded-xl border border-gray-200 dark:border-border-dark overflow-hidden">
           <!-- 星期标题 -->
@@ -254,8 +270,20 @@ onMounted(loadEvents)
             </div>
           </div>
 
+          <!-- 加载骨架屏 -->
+          <div v-if="loading" class="grid grid-cols-7">
+            <div v-for="i in 42" :key="i" class="min-h-[90px] border-b border-r border-gray-100 dark:border-gray-800 p-1.5">
+              <div class="flex items-center justify-center mb-1">
+                <div class="w-7 h-7 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse"></div>
+              </div>
+              <div v-if="i % 5 === 0" class="space-y-0.5">
+                <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+
           <!-- 日期格子 -->
-          <div class="grid grid-cols-7">
+          <div v-else class="grid grid-cols-7">
             <div
               v-for="(day, idx) in calendarDays" :key="idx"
               @click="selectDate(day)"
@@ -292,6 +320,11 @@ onMounted(loadEvents)
                 </div>
               </div>
             </div>
+          </div>
+
+          <!-- 空状态提示 -->
+          <div v-if="!loading && !hasEventsThisMonth" class="py-4 text-center text-sm text-gray-400 border-t border-gray-100 dark:border-gray-800">
+            📅 本月暂无事件，点击日期或右上角「新建事件」添加
           </div>
         </div>
 

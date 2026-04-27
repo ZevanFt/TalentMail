@@ -352,7 +352,18 @@ PYTHON_SCRIPT
 elif [ "$DEPLOY_MODE" = "migrate" ]; then
     # 迁移部署：运行数据库迁移
     info "📦 执行迁移部署..."
-    
+
+    # 迁移前自动备份数据库
+    info "📦 迁移前自动备份数据库..."
+    POSTGRES_USER=$(get_env_value "POSTGRES_USER")
+    POSTGRES_DB=$(get_env_value "POSTGRES_DB")
+    BACKUP_FILE="/tmp/talentmail_pre_migrate_$(date +%Y%m%d_%H%M%S).sql"
+    if docker compose --env-file .env --env-file .env.domains exec -T db pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" > "$BACKUP_FILE" 2>/dev/null; then
+        success "备份已保存到: $BACKUP_FILE"
+    else
+        warn "备份失败，继续迁移（请注意风险）"
+    fi
+
     info "🔄 运行数据库迁移..."
     if ! run_alembic_migration; then
         collect_migration_diagnostics

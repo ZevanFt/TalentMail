@@ -7,11 +7,13 @@ from db.models.email import Alias
 from db.models.billing import Subscription, Plan
 from api import deps
 from core.config import settings
+from utils.rate_limit import SlidingWindowLimiter
 from datetime import datetime, timezone
 import logging
 import re
 
 logger = logging.getLogger(__name__)
+_alias_limiter = SlidingWindowLimiter(max_attempts=10, window_seconds=60)
 
 router = APIRouter()
 
@@ -83,6 +85,8 @@ def create_alias(
     current_user: models.User = Depends(deps.get_current_active_user)
 ):
     """创建新别名"""
+    if not _alias_limiter.allow(f"alias_create:{current_user.id}"):
+        raise HTTPException(429, "操作过于频繁，请稍后再试")
     # 检查配额
     limit = get_user_alias_limit(db, current_user)
     current_count = db.query(Alias).filter(Alias.user_id == current_user.id).count()

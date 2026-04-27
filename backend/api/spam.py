@@ -18,8 +18,11 @@ from api import deps
 from crud.folder import get_user_folder_by_role
 from core.config import settings
 from core.spamassassin import train_report_with_spamassassin
+from utils.rate_limit import SlidingWindowLimiter
 
 router = APIRouter()
+_spam_limiter = SlidingWindowLimiter(max_attempts=10, window_seconds=60)
+_whitelist_limiter = SlidingWindowLimiter(max_attempts=20, window_seconds=60)
 logger = logging.getLogger(__name__)
 
 
@@ -97,6 +100,8 @@ def add_trusted_sender(
     current_user: models.User = Depends(deps.get_current_active_user)
 ):
     """添加发件人到白名单"""
+    if not _whitelist_limiter.allow(f"whitelist_add:{current_user.id}"):
+        raise HTTPException(429, "操作过于频繁，请稍后再试")
     email = data.email.lower().strip()
 
     # 判断类型：如果以 @ 开头则是域名，否则是完整邮箱
@@ -164,6 +169,8 @@ def mark_as_spam(
     current_user: models.User = Depends(deps.get_current_active_user)
 ):
     """将邮件标记为垃圾邮件（移动到垃圾邮件文件夹）"""
+    if not _spam_limiter.allow(f"mark_spam:{current_user.id}"):
+        raise HTTPException(429, "操作过于频繁，请稍后再试")
     # 获取垃圾邮件文件夹
     spam_folder = get_user_folder_by_role(db, user_id=current_user.id, role="spam")
     if not spam_folder:
@@ -214,6 +221,8 @@ def mark_as_not_spam(
     current_user: models.User = Depends(deps.get_current_active_user)
 ):
     """将邮件标记为非垃圾邮件（移动到收件箱）"""
+    if not _spam_limiter.allow(f"mark_notspam:{current_user.id}"):
+        raise HTTPException(429, "操作过于频繁，请稍后再试")
     # 获取收件箱文件夹
     inbox_folder = get_user_folder_by_role(db, user_id=current_user.id, role="inbox")
     if not inbox_folder:
