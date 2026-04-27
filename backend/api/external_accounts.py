@@ -17,6 +17,8 @@ router = APIRouter(prefix="/external-accounts", tags=["external-accounts"])
 
 # 连接测试限流：每用户每分钟 5 次
 _test_limiter = SlidingWindowLimiter(max_attempts=5, window_seconds=60)
+# 手动同步限流：每账户每分钟 1 次
+_sync_limiter = SlidingWindowLimiter(max_attempts=1, window_seconds=60)
 
 # 每用户外部账户上限
 MAX_EXTERNAL_ACCOUNTS = 10
@@ -340,3 +342,37 @@ def test_connection(account_id: int, db: Session = Depends(get_db), user: User =
         db.commit()
         # 脱敏：不向客户端暴露内部错误细节
         raise HTTPException(400, "连接失败，请检查服务器地址、端口和凭据是否正确")
+
+
+@router.post("/{account_id}/sync")
+async def trigger_sync(account_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """手动触发单个外部账户同步（限速 1次/分钟/账户）"""
+    if not _sync_limiter.allow(f"extsync:{account_id}"):
+        raise HTTPException(429, "同步过于频繁，请稍后再试")
+
+    account = db.query(ExternalAccount).filter(
+        ExternalAccount.id == account_id,
+        ExternalAccount.user_id == user.id
+    ).first()
+    if not account:
+        raise HTTPException(404, "账号不存在")
+
+    if not account.is_active:
+        raise HTTPException(400, "账号已停用")
+
+    import asyncio
+    from core.external_sync import sync_external_account
+
+    try:
+        count = await asyncio.to_thread(sync_external_account, db, account)
+        # 重新读取 account 状态（sync_external_account 可能更新了字段）
+        db.refresh(account)
+        return {
+            "status": "success",
+            "synced": count,
+            "last_sync_at": account.last_sync_at.isoformat() if account.last_sync_at else None,
+            "sync_error": account.sync_error,
+        }
+    except Exception as e:
+        logger.error(f"手动同步外部账户 {account_id} 失败: {e}")
+        raise HTTPException(500, "同步失败，请稍后重试")

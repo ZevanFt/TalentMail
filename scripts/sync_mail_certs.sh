@@ -43,7 +43,9 @@ if [ -z "$MAIL_SERVER" ]; then
     exit 1
 fi
 
-CERT_SOURCE="${CADDY_CERT_SOURCE:-embedded}"
+# 默认使用 host 模式（宿主机统一 Caddy 管理证书）
+# 如需使用内置 caddy 容器，设置 CADDY_CERT_SOURCE=embedded
+CERT_SOURCE="${CADDY_CERT_SOURCE:-host}"
 CERT_DIR="./data/mailserver/config/ssl"
 MAILSERVER_ENV="./config/mail/production/mailserver.env"
 EMBEDDED_CERT_PATH="/data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/${MAIL_SERVER}"

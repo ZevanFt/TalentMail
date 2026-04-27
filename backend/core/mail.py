@@ -54,20 +54,25 @@ async def send_email(
     email_data: email_schema.EmailCreate,
     sender_email: str,
     attachments: Optional[List[dict]] = None,
+    actual_user_email: Optional[str] = None,
 ):
     """
     Connects to the SMTP server and sends an email.
     attachments: List of dicts with keys: filename, content_type, file_path
+    actual_user_email: 当使用别名发信时，填入真实用户邮箱（用于 Sender 头和 SMTP 认证）
     """
     # Create the email message (multipart/mixed for attachments)
     msg = MIMEMultipart('mixed')
-    
+
     # Create alternative part for text/html body
     body_part = MIMEMultipart('alternative')
-    
+
     # Format sender and recipients
     sender_name = sender_email.split('@')[0]
     msg['From'] = formataddr((str(Header(sender_name, 'utf-8')), sender_email))
+    # RFC 5322: 当 From 使用别名时，添加 Sender 头指向真实用户
+    if actual_user_email and actual_user_email != sender_email:
+        msg['Sender'] = formataddr((str(Header(actual_user_email.split('@')[0], 'utf-8')), actual_user_email))
     
     to_addrs = [formataddr((recipient.name, recipient.email)) for recipient in email_data.to]
     cc_addrs = [formataddr((recipient.name, recipient.email)) for recipient in email_data.cc]

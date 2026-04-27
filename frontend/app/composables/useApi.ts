@@ -689,6 +689,37 @@ export const useApi = () => {
   const createContact = (data: { name: string; email: string; phone?: string; notes?: string }) => api<Contact>('/contacts', 'POST', data)
   const updateContact = (id: number, data: { name?: string; email?: string; phone?: string; notes?: string }) => api<Contact>(`/contacts/${id}`, 'PUT', data)
   const deleteContact = (id: number) => api<any>(`/contacts/${id}`, 'DELETE')
+  const exportContactsUrl = (format: 'csv' | 'vcf') => `/api/contacts/export?format=${format}`
+  const importContacts = async (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return $fetch<{ status: string; imported: number; skipped: number; errors: string[] }>(`${API_BASE}/contacts/import`, {
+      method: 'POST',
+      headers: {
+        ...(token.value ? { Authorization: `Bearer ${token.value}` } : {})
+      },
+      body: formData,
+    })
+  }
+
+  // User Compose Templates APIs (用户写信模板)
+  interface ComposeTemplate {
+    id: number
+    name: string | null
+    subject: string | null
+    body_html: string | null
+    body_text: string | null
+    created_at: string | null
+  }
+  interface ComposeTemplateListResponse {
+    items: ComposeTemplate[]
+    total: number
+  }
+  const getComposeTemplates = (q?: string) => api<ComposeTemplateListResponse>(`/templates${q ? `?q=${encodeURIComponent(q)}` : ''}`)
+  const getComposeTemplate = (id: number) => api<ComposeTemplate>(`/templates/${id}`)
+  const createComposeTemplate = (data: { name: string; subject?: string; body_html?: string; body_text?: string }) => api<ComposeTemplate>('/templates', 'POST', data)
+  const updateComposeTemplate = (id: number, data: { name?: string; subject?: string; body_html?: string; body_text?: string }) => api<ComposeTemplate>(`/templates/${id}`, 'PUT', data)
+  const deleteComposeTemplate = (id: number) => api<any>(`/templates/${id}`, 'DELETE')
 
   // External Accounts APIs (外部邮箱账号)
   interface ExternalAccount {
@@ -722,6 +753,7 @@ export const useApi = () => {
     api<ExternalAccount>(`/external-accounts/${id}`, 'PUT', data)
   const deleteExternalAccount = (id: number) => api<any>(`/external-accounts/${id}`, 'DELETE')
   const testExternalAccount = (id: number) => api<{ success: boolean; message: string }>(`/external-accounts/${id}/test`, 'POST')
+  const syncExternalAccount = (id: number) => api<{ status: string; synced: number; last_sync_at: string | null; sync_error: string | null }>(`/external-accounts/${id}/sync`, 'POST')
   const getProviderPresets = () => api<Record<string, ProviderPreset>>('/external-accounts/providers')
 
   // Drive APIs (文件中转站)
@@ -1005,5 +1037,5 @@ export const useApi = () => {
   const publishChangelog = (id: number) => api<Changelog>(`/changelogs/${id}/publish`, 'POST')
   const unpublishChangelog = (id: number) => api<Changelog>(`/changelogs/${id}/unpublish`, 'POST')
 
-  return { api, login, login2FA, logout, getFolders, createFolder, updateFolder, deleteFolder, getEmails, getEmail, getEmailThread, sendEmail, syncEmails, markEmailRead, deleteEmail, markEmailStarred, snoozeEmail, getAllEmails, getSnoozedEmails, searchEmails, getTrackingStats, resendEmail, bulkMarkRead, bulkMarkStarred, bulkMoveEmails, bulkDeleteEmails, bulkArchiveEmails, getWhitelist, addToWhitelist, removeFromWhitelist, markAsSpam, markAsNotSpam, getMe, updateMe, changePassword, getStorageStats, getInviteCodes, createInviteCode, deleteInviteCode, getInviteCodeUsages, getUsers, updateUserPermissions, adminCreateUser, adminDeleteUser, getPoolMailboxes, createPoolMailbox, deletePoolMailbox, extendPoolMailbox, restorePoolMailbox, getPoolMailboxEmails, getPoolStats, getPoolActivityLogs, markPoolEmailRead, getPoolAdminSettings, updatePoolAdminSettings, runPoolAdminCleanup, saveDraft, updateDraft, deleteDraft, getSignatures, createSignature, updateSignature, deleteSignature, getDefaultSignature, getAttachments, uploadAttachment, deleteAttachment, downloadAttachmentUrl, exportEmailUrl, getPlans, createPlan, updatePlan, deletePlan, getRedemptionCodes, generateRedemptionCodes, getRedemptionCodeStats, revokeRedemptionCode, getSubscriptionStatus, redeemCode, getRedemptionHistory, getLoginSessions, revokeSession, revokeAllSessions, getReservedPrefixes, createReservedPrefix, updateReservedPrefix, deleteReservedPrefix, getReservedPrefixCategories, checkPrefixAvailability, sendVerificationCode, verifyCode, registerWithVerification, forgotPassword, resetPassword, sendRecoveryEmailCode, updateRecoveryEmail, getEmailTemplates, getEmailTemplate, createEmailTemplate, updateEmailTemplate, deleteEmailTemplate, previewEmailTemplate, sendTestEmail, getTemplateMetadataList, getTemplateMetadata, getGlobalVariables, updateGlobalVariable, resetTemplateToDefault, sendTemplateEmail, getAvailableEvents, getTemplateTriggerRules, createTemplateTriggerRule, deleteTemplateTriggerRule, toggleTemplateTriggerRule, get2FAStatus, setup2FA, enable2FA, disable2FA, verify2FA, getBlockedSenders, addBlockedSender, removeBlockedSender, getAliases, createAlias, updateAlias, deleteAlias, getTags, createTag, updateTag, deleteTag, addTagToEmail, removeTagFromEmail, getEmailsByTag, getContacts, getContactSuggestions, createContact, updateContact, deleteContact, getExternalAccounts, createExternalAccount, updateExternalAccount, deleteExternalAccount, testExternalAccount, getProviderPresets, getDriveFiles, uploadDriveFile, deleteDriveFile, createDriveShare, removeDriveShare, downloadDriveFileUrl, getShareInfo, downloadSharedFileUrl, getSystemWorkflows, getSystemWorkflow, getSystemWorkflowConfig, updateSystemWorkflow, updateSystemWorkflowConfig, executeSystemWorkflow, getWorkflowExecutions, getWorkflowExecutionDetail, getNodeTypes, getWorkflows, createWorkflow, getWorkflow, updateWorkflow, saveWorkflowCanvas, publishWorkflow, deleteWorkflow, executeWorkflow, testWorkflow, getWorkflowVersions, getWorkflowVersion, restoreWorkflowVersion, getWorkflowTemplates, getWorkflowTemplateCategories, getWorkflowTemplateTags, getWorkflowTemplate, useWorkflowTemplate, toggleWorkflowTemplateFavorite, createWorkflowTemplate, updateWorkflowTemplate, deleteWorkflowTemplate, getPendingWorkflowTemplates, reviewWorkflowTemplate, getChangelogs, getLatestChangelog, getChangelog, createChangelog, updateChangelog, deleteChangelog, publishChangelog, unpublishChangelog, token }
+  return { api, login, login2FA, logout, getFolders, createFolder, updateFolder, deleteFolder, getEmails, getEmail, getEmailThread, sendEmail, syncEmails, markEmailRead, deleteEmail, markEmailStarred, snoozeEmail, getAllEmails, getSnoozedEmails, searchEmails, getTrackingStats, resendEmail, bulkMarkRead, bulkMarkStarred, bulkMoveEmails, bulkDeleteEmails, bulkArchiveEmails, getWhitelist, addToWhitelist, removeFromWhitelist, markAsSpam, markAsNotSpam, getMe, updateMe, changePassword, getStorageStats, getInviteCodes, createInviteCode, deleteInviteCode, getInviteCodeUsages, getUsers, updateUserPermissions, adminCreateUser, adminDeleteUser, getPoolMailboxes, createPoolMailbox, deletePoolMailbox, extendPoolMailbox, restorePoolMailbox, getPoolMailboxEmails, getPoolStats, getPoolActivityLogs, markPoolEmailRead, getPoolAdminSettings, updatePoolAdminSettings, runPoolAdminCleanup, saveDraft, updateDraft, deleteDraft, getSignatures, createSignature, updateSignature, deleteSignature, getDefaultSignature, getAttachments, uploadAttachment, deleteAttachment, downloadAttachmentUrl, exportEmailUrl, getPlans, createPlan, updatePlan, deletePlan, getRedemptionCodes, generateRedemptionCodes, getRedemptionCodeStats, revokeRedemptionCode, getSubscriptionStatus, redeemCode, getRedemptionHistory, getLoginSessions, revokeSession, revokeAllSessions, getReservedPrefixes, createReservedPrefix, updateReservedPrefix, deleteReservedPrefix, getReservedPrefixCategories, checkPrefixAvailability, sendVerificationCode, verifyCode, registerWithVerification, forgotPassword, resetPassword, sendRecoveryEmailCode, updateRecoveryEmail, getEmailTemplates, getEmailTemplate, createEmailTemplate, updateEmailTemplate, deleteEmailTemplate, previewEmailTemplate, sendTestEmail, getTemplateMetadataList, getTemplateMetadata, getGlobalVariables, updateGlobalVariable, resetTemplateToDefault, sendTemplateEmail, getAvailableEvents, getTemplateTriggerRules, createTemplateTriggerRule, deleteTemplateTriggerRule, toggleTemplateTriggerRule, get2FAStatus, setup2FA, enable2FA, disable2FA, verify2FA, getBlockedSenders, addBlockedSender, removeBlockedSender, getAliases, createAlias, updateAlias, deleteAlias, getTags, createTag, updateTag, deleteTag, addTagToEmail, removeTagFromEmail, getEmailsByTag, getContacts, getContactSuggestions, createContact, updateContact, deleteContact, exportContactsUrl, importContacts, getComposeTemplates, getComposeTemplate, createComposeTemplate, updateComposeTemplate, deleteComposeTemplate, getExternalAccounts, createExternalAccount, updateExternalAccount, deleteExternalAccount, testExternalAccount, syncExternalAccount, getProviderPresets, getDriveFiles, uploadDriveFile, deleteDriveFile, createDriveShare, removeDriveShare, downloadDriveFileUrl, getShareInfo, downloadSharedFileUrl, getSystemWorkflows, getSystemWorkflow, getSystemWorkflowConfig, updateSystemWorkflow, updateSystemWorkflowConfig, executeSystemWorkflow, getWorkflowExecutions, getWorkflowExecutionDetail, getNodeTypes, getWorkflows, createWorkflow, getWorkflow, updateWorkflow, saveWorkflowCanvas, publishWorkflow, deleteWorkflow, executeWorkflow, testWorkflow, getWorkflowVersions, getWorkflowVersion, restoreWorkflowVersion, getWorkflowTemplates, getWorkflowTemplateCategories, getWorkflowTemplateTags, getWorkflowTemplate, useWorkflowTemplate, toggleWorkflowTemplateFavorite, createWorkflowTemplate, updateWorkflowTemplate, deleteWorkflowTemplate, getPendingWorkflowTemplates, reviewWorkflowTemplate, getChangelogs, getLatestChangelog, getChangelog, createChangelog, updateChangelog, deleteChangelog, publishChangelog, unpublishChangelog, token }
 }

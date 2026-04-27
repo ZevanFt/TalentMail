@@ -22,6 +22,7 @@ class EmailCreate(BaseModel):
     is_tracked: bool = False  # 是否启用追踪
     attachment_ids: Optional[List[int]] = Field(default=[], max_length=50)  # 最多 50 个附件
     scheduled_send_at: Optional[datetime] = None  # 定时发送时间（UTC）
+    from_alias_id: Optional[int] = None  # 使用别名地址发送
 
 class EmailRead(BaseModel):
     """Schema for reading email data (output)."""

@@ -1,5 +1,6 @@
 from sqlalchemy import (
     Column,
+    Index,
     Integer,
     String,
     BigInteger,
@@ -60,7 +61,11 @@ class ApiKey(Base):
 
 class ApiKeyAuditLog(Base):
     __tablename__ = "api_key_audit_logs"
-    __table_args__ = {'comment': 'API Key 调用审计日志'}
+    __table_args__ = (
+        # 复合索引：加速限流查询 WHERE api_key_id=? AND created_at>=?
+        Index('ix_audit_key_created', 'api_key_id', 'created_at'),
+        {'comment': 'API Key 调用审计日志'},
+    )
     id = Column(BigInteger, primary_key=True, autoincrement=True, comment="审计日志唯一标识符")
     api_key_id = Column(Integer, ForeignKey("api_keys.id", ondelete="SET NULL"), nullable=True, index=True, comment="关联的 API Key ID")
     user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True, comment="调用用户ID")

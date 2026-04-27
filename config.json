@@ -1,6 +1,6 @@
 {
   "_comment": "这是 TalentMail 项目的主要配置文件。它以 baseDomain 为核心，动态定义应用的结构和行为。",
-  "currentEnvironment": "development",
+  "currentEnvironment": "production",
   "appName": "TalentMail",
   "appIcon": "/logo.svg",
   "environments": {

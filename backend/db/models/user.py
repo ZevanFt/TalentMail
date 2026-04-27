@@ -27,6 +27,7 @@ class User(Base):
     recovery_email = Column(String, nullable=True, comment="备用恢复邮箱")
     two_factor_enabled = Column(Boolean, default=False, comment="是否启用双因素认证")
     totp_secret = Column(String(32), nullable=True, comment="TOTP密钥，用于双因素认证")
+    backup_codes = Column(Text, nullable=True, comment="2FA备份恢复码（JSON数组，bcrypt哈希）")
     storage_used_bytes = Column(BigInteger, default=0, comment="已使用的存储空间（字节）")
     auto_reply_enabled = Column(Boolean, default=False, comment="是否启用自动回复")
     auto_reply_start_date = Column(Date, nullable=True, comment="自动回复开始日期")

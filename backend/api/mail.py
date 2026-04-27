@@ -57,6 +57,20 @@ async def send_email_endpoint(
         raise HTTPException(status_code=429, detail="发送过于频繁，请稍后再试")
 
     try:
+        # 确定发件人地址（支持别名发信）
+        sender_email = current_user.email
+        if email_in.from_alias_id:
+            from db.models.email import Alias
+            alias = db.query(Alias).filter(
+                Alias.id == email_in.from_alias_id,
+                Alias.user_id == current_user.id,
+                Alias.is_active == True,
+            ).first()
+            if not alias:
+                raise HTTPException(status_code=400, detail="指定的别名不存在或已停用")
+            sender_email = alias.alias_email
+            logger.info(f"用户 {current_user.email} 使用别名 {sender_email} 发信")
+
         # Get the user's "Sent" folder
         sent_folder = get_user_folder_by_role(db, user_id=current_user.id, role="sent")
         if not sent_folder:
@@ -68,7 +82,7 @@ async def send_email_endpoint(
         in_reply_to = None
         references = None
         thread_id = None
-        
+
         if email_in.reply_to_id:
             # 查找原邮件
             original_email = db.query(Email).join(Folder).filter(
@@ -90,7 +104,7 @@ async def send_email_endpoint(
         db_email = email_crud.create_email(
             db=db,
             email=email_in,
-            sender_email=current_user.email,
+            sender_email=sender_email,
             user_id=current_user.id,
             folder_id=sent_folder.id,
             in_reply_to=in_reply_to,
@@ -156,8 +170,9 @@ async def send_email_endpoint(
                     email_to_send.body_html = (email_in.body_html or "") + tracking_pixel_html
                 message_id = await core_send_email(
                     email_data=email_to_send,
-                    sender_email=current_user.email,
+                    sender_email=sender_email,
                     attachments=attachments_data if attachments_data else None,
+                    actual_user_email=current_user.email if sender_email != current_user.email else None,
                 )
                 # 更新状态为已发送
                 with SessionLocal() as db_bg:

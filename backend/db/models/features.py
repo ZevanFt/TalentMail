@@ -46,6 +46,8 @@ class Template(Base):
     name = Column(String, comment="模板名称")
     subject = Column(String, comment="模板主题")
     body_html = Column(Text, comment="模板HTML内容")
+    body_text = Column(Text, nullable=True, comment="模板纯文本内容")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="创建时间")
     user = relationship("User")
 
 

@@ -5,13 +5,14 @@ from datetime import datetime, timezone
 import asyncio
 from db.database import engine, SessionLocal
 from db import models  # 确保导入 models 以注册表
-from api import auth, mail, users, folders, tracking, invite, pool, signatures, attachments, billing, reserved_prefixes, email_templates, totp, blocklist, aliases, tags, contacts, external_accounts, drive, automation, automation_temp_mailboxes, workflows, workflow_templates, changelog, spam, health, api_keys, proxy
+from api import auth, mail, users, folders, tracking, invite, pool, signatures, attachments, billing, reserved_prefixes, email_templates, totp, blocklist, aliases, tags, contacts, external_accounts, drive, automation, automation_temp_mailboxes, workflows, workflow_templates, changelog, spam, health, api_keys, proxy, system_mail, templates
 from api.deps import get_current_user_from_token
 from api.auth import cleanup_old_sessions
 from initial import initial_data
 from core.mailserver_sync import sync_users_to_mailserver
 from core.lmtp_server import start_lmtp_server, stop_lmtp_server
 from core.mail_sync import periodic_sync
+from core.external_sync import periodic_external_sync
 from core.temp_mailbox_lifecycle import run_temp_mailbox_maintenance
 from core.scheduled_sender import check_scheduled_emails
 from core.config import settings
@@ -24,11 +25,13 @@ logger = logging.getLogger(__name__)
 
 # 定时任务
 sync_task = None
+external_sync_task = None
 cleanup_task = None
 temp_mailbox_cleanup_task = None
 scheduled_sender_task = None
 orphan_attachment_task = None
 snooze_task = None
+audit_log_cleanup_task = None
 
 
 async def periodic_session_cleanup(interval: int = 86400):
@@ -141,9 +144,57 @@ async def periodic_snooze_check(interval: int = 60):
             logger.error(f"[Snooze] 贪睡检查失败: {e}")
 
 
+async def periodic_audit_log_cleanup(interval: int = 86400):
+    """
+    定期清理过期审计日志（默认每 24 小时执行一次）。
+    保留天数由 settings.AUDIT_LOG_RETENTION_DAYS 控制（默认 30 天）。
+    使用分批删除避免长事务锁表。
+    """
+    from db.models.system import ApiKeyAuditLog
+    from datetime import timedelta
+
+    BATCH_SIZE = 5000
+
+    while True:
+        await asyncio.sleep(interval)
+        try:
+            db = SessionLocal()
+            try:
+                cutoff = datetime.now(timezone.utc) - timedelta(days=settings.AUDIT_LOG_RETENTION_DAYS)
+                total_deleted = 0
+
+                while True:
+                    # 分批删除，每批 BATCH_SIZE 条，避免长事务
+                    subq = (
+                        db.query(ApiKeyAuditLog.id)
+                        .filter(ApiKeyAuditLog.created_at < cutoff)
+                        .limit(BATCH_SIZE)
+                        .subquery()
+                    )
+                    deleted = (
+                        db.query(ApiKeyAuditLog)
+                        .filter(ApiKeyAuditLog.id.in_(subq))
+                        .delete(synchronize_session=False)
+                    )
+                    db.commit()
+                    total_deleted += deleted
+                    if deleted < BATCH_SIZE:
+                        break  # 最后一批，不满则结束
+
+                if total_deleted > 0:
+                    logger.info(
+                        "审计日志清理完成: 删除 %d 条 (保留 %d 天, cutoff=%s)",
+                        total_deleted, settings.AUDIT_LOG_RETENTION_DAYS, cutoff.isoformat(),
+                    )
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"审计日志清理失败: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global sync_task, cleanup_task, temp_mailbox_cleanup_task, scheduled_sender_task, orphan_attachment_task, snooze_task
+    global sync_task, external_sync_task, cleanup_task, temp_mailbox_cleanup_task, scheduled_sender_task, orphan_attachment_task, snooze_task, audit_log_cleanup_task
     # Initialize the database and create the initial admin user
     initial_data.init_db()
 
@@ -170,6 +221,10 @@ async def lifespan(app: FastAPI):
     logger.info("启动定时邮件同步任务（间隔30秒）...")
     sync_task = asyncio.create_task(periodic_sync(interval=30))
 
+    # 启动外部邮箱同步任务（每5分钟）
+    logger.info("启动外部邮箱同步任务（间隔5分钟）...")
+    external_sync_task = asyncio.create_task(periodic_external_sync(interval=300))
+
     # 启动定时会话清理任务（每24小时）
     logger.info("启动定时会话清理任务（间隔24小时）...")
     cleanup_task = asyncio.create_task(periodic_session_cleanup(interval=86400))
@@ -189,6 +244,10 @@ async def lifespan(app: FastAPI):
     # 启动贪睡邮件唤醒任务（每60秒检查到期的贪睡邮件）
     logger.info("启动贪睡邮件唤醒任务（间隔60秒）...")
     snooze_task = asyncio.create_task(periodic_snooze_check(interval=60))
+
+    # 启动审计日志清理任务（每24小时，清理超过 AUDIT_LOG_RETENTION_DAYS 天的日志）
+    logger.info("启动审计日志清理任务（间隔24小时，保留 %d 天）...", settings.AUDIT_LOG_RETENTION_DAYS)
+    audit_log_cleanup_task = asyncio.create_task(periodic_audit_log_cleanup(interval=86400))
 
     # 启动时先执行一次清理
     try:
@@ -211,6 +270,12 @@ async def lifespan(app: FastAPI):
         sync_task.cancel()
         try:
             await sync_task
+        except asyncio.CancelledError:
+            pass
+    if external_sync_task:
+        external_sync_task.cancel()
+        try:
+            await external_sync_task
         except asyncio.CancelledError:
             pass
     if cleanup_task:
@@ -241,6 +306,12 @@ async def lifespan(app: FastAPI):
         snooze_task.cancel()
         try:
             await snooze_task
+        except asyncio.CancelledError:
+            pass
+    if audit_log_cleanup_task:
+        audit_log_cleanup_task.cancel()
+        try:
+            await audit_log_cleanup_task
         except asyncio.CancelledError:
             pass
 
@@ -305,6 +376,8 @@ app.include_router(changelog.router, prefix="/api/changelogs", tags=["Changelog"
 app.include_router(spam.router, prefix="/api/spam", tags=["Spam Management"])
 app.include_router(api_keys.router, prefix="/api/api-keys", tags=["API Keys"])
 app.include_router(proxy.router, prefix="/api", tags=["Proxy"])
+app.include_router(system_mail.router, prefix="/api", tags=["System Email"])
+app.include_router(templates.router, prefix="/api", tags=["User Templates"])
 
 
 @app.get("/")

@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { Paperclip, Send, Loader2, Eye, X, FileText, Clock, ChevronDown, CheckCircle, XCircle } from 'lucide-vue-next'
+import { Paperclip, Send, Loader2, Eye, X, FileText, FilePen, Clock, ChevronDown, CheckCircle, XCircle } from 'lucide-vue-next'
 import TemplateSelector from './TemplateSelector.vue'
 
 const toastNotify = useToast()
 const { isComposeOpen, composeCloseGuard } = useGlobalModal()
-const { sendEmail, saveDraft, updateDraft, deleteDraft, getDefaultSignature, uploadAttachment, deleteAttachment } = useApi()
+const { sendEmail, saveDraft, updateDraft, deleteDraft, getDefaultSignature, uploadAttachment, deleteAttachment, getAliases, getMe, getComposeTemplates } = useApi()
 const { composeState, resetCompose, formatTime, folders, loadEmails, currentFolderId } = useEmails()
 
 interface UploadedFile {
@@ -37,6 +37,22 @@ const scheduledSendAt = ref<string>('')
 const showScheduleMenu = ref(false)
 
 const appliedTemplate = ref<any>(null)
+
+// 发件人选择（别名发信）
+const selectedFromAlias = ref<number | null>(null)
+const userEmail = ref('')
+const aliasOptions = ref<Array<{ id: number; alias_email: string; name: string | null }>>([])
+
+const loadSenderOptions = async () => {
+  try {
+    const me = await getMe()
+    userEmail.value = me.email
+    const aliasesData = await getAliases()
+    aliasOptions.value = aliasesData.filter((a: any) => a.is_active)
+  } catch (e: any) {
+    console.error('加载发件人选项失败', e)
+  }
+}
 
 const loadDefaultSignature = async () => {
   try {
@@ -123,6 +139,11 @@ watch(() => [isComposeOpen.value, composeState.value], async () => {
   if (!defaultSignature.value) {
     await loadDefaultSignature()
   }
+  // 加载发件人选项（别名列表）
+  if (!userEmail.value) {
+    await loadSenderOptions()
+  }
+  selectedFromAlias.value = null
 
   const { mode, originalEmail } = composeState.value
   if (!originalEmail || mode === 'compose') {
@@ -283,7 +304,8 @@ const handleSend = async (scheduleTime?: string) => {
       body_text: editorRef.value?.getText() || stripHtml(safeHtml),
       reply_to_id: (mode === 'reply' || mode === 'replyAll') && originalEmail ? originalEmail.id : undefined,
       is_tracked: isTracked.value,
-      attachment_ids: attachments.value.map(a => a.id)
+      attachment_ids: attachments.value.map(a => a.id),
+      from_alias_id: selectedFromAlias.value || undefined
     }
 
     // 定时发送：将本地时间转为 UTC ISO 字符串
@@ -563,6 +585,59 @@ const handleTemplateClear = () => {
   appliedTemplate.value = null
 }
 
+// ========== 用户写信模板 ==========
+interface UserComposeTemplate {
+  id: number
+  name: string | null
+  subject: string | null
+  body_html: string | null
+}
+const showComposeTemplateMenu = ref(false)
+const composeTemplates = ref<UserComposeTemplate[]>([])
+const loadingComposeTemplates = ref(false)
+const composeTemplateMenuRef = ref<HTMLElement | null>(null)
+
+const loadComposeTemplates = async () => {
+  if (composeTemplates.value.length > 0) return // 已加载
+  loadingComposeTemplates.value = true
+  try {
+    const res = await getComposeTemplates()
+    composeTemplates.value = res.items || []
+  } catch (e: any) {
+    console.error('加载写信模板失败', e)
+  } finally {
+    loadingComposeTemplates.value = false
+  }
+}
+
+const applyComposeTemplate = async (tmpl: UserComposeTemplate) => {
+  showComposeTemplateMenu.value = false
+  if (tmpl.subject) {
+    subject.value = tmpl.subject
+  }
+  if (tmpl.body_html) {
+    await setBodyHtml(`${sanitizeHtml(tmpl.body_html)}${signatureHtml.value}`)
+  }
+  toastNotify.success(`已应用模板「${tmpl.name}」`)
+}
+
+watch(showComposeTemplateMenu, (v) => {
+  if (v) loadComposeTemplates()
+})
+
+const onClickOutsideComposeTemplate = (e: MouseEvent) => {
+  if (composeTemplateMenuRef.value && !composeTemplateMenuRef.value.contains(e.target as Node)) {
+    showComposeTemplateMenu.value = false
+  }
+}
+watch(showComposeTemplateMenu, (v) => {
+  if (v) {
+    setTimeout(() => document.addEventListener('click', onClickOutsideComposeTemplate), 0)
+  } else {
+    document.removeEventListener('click', onClickOutsideComposeTemplate)
+  }
+})
+
 // ========== 自动保存草稿（30 秒防抖） ==========
 let autoSaveTimer: ReturnType<typeof setTimeout> | null = null
 const autoSaveStatus = ref<'idle' | 'saving' | 'saved' | 'error'>('idle')
@@ -672,6 +747,36 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
           @select="handleTemplateSelect"
           @clear="handleTemplateClear"
         />
+        <!-- 用户写信模板 -->
+        <div ref="composeTemplateMenuRef" class="relative">
+          <button
+            @click="showComposeTemplateMenu = !showComposeTemplateMenu"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+            title="插入写信模板"
+          >
+            <FilePen class="w-3.5 h-3.5" />
+            <span class="hidden lg:inline">快捷模板</span>
+          </button>
+          <Transition enter-active-class="transition duration-100 ease-out" enter-from-class="transform scale-95 opacity-0" enter-to-class="transform scale-100 opacity-100"
+            leave-active-class="transition duration-75 ease-in" leave-from-class="transform scale-100 opacity-100" leave-to-class="transform scale-95 opacity-0">
+            <div v-if="showComposeTemplateMenu" class="absolute right-0 top-full mt-1 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-50 max-h-72 overflow-y-auto">
+              <div v-if="loadingComposeTemplates" class="p-4 text-center text-gray-500 text-sm">加载中...</div>
+              <div v-else-if="composeTemplates.length === 0" class="p-4 text-center text-gray-500 text-sm">
+                暂无模板，前往设置创建
+              </div>
+              <div v-else class="py-1">
+                <button
+                  v-for="tmpl in composeTemplates" :key="tmpl.id"
+                  @click="applyComposeTemplate(tmpl)"
+                  class="w-full text-left px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <div class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ tmpl.name }}</div>
+                  <div v-if="tmpl.subject" class="text-xs text-gray-400 truncate mt-0.5">{{ tmpl.subject }}</div>
+                </button>
+              </div>
+            </div>
+          </Transition>
+        </div>
         <button
           @click="handleSaveDraft"
           :disabled="savingDraft"
@@ -695,6 +800,18 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
         </svg>
         <span>{{ error }}</span>
+      </div>
+
+      <!-- 发件人选择（有别名时显示） -->
+      <div v-if="aliasOptions.length > 0" class="flex items-center gap-2">
+        <span class="text-xs font-medium text-gray-500 dark:text-gray-400 w-12 shrink-0">发件人</span>
+        <select v-model="selectedFromAlias"
+          class="flex-1 px-3 py-2 text-sm border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none">
+          <option :value="null">{{ userEmail }}</option>
+          <option v-for="alias in aliasOptions" :key="alias.id" :value="alias.id">
+            {{ alias.alias_email }}{{ alias.name ? ` (${alias.name})` : '' }}
+          </option>
+        </select>
       </div>
 
       <div class="flex items-stretch gap-2">

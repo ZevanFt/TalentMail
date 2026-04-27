@@ -15,7 +15,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 from db.database import SessionLocal
 from db.models.user import User
-from db.models.email import Email, Folder, TempMailbox
+from db.models.email import Email, Folder, TempMailbox, Alias
 from core.config import settings
 from core.email_parser import decode_mime_header, parse_email_date, get_email_body
 
@@ -247,6 +247,28 @@ def sync_all_mailboxes() -> dict:
             count = sync_temp_mailbox(db, temp_mb)
             results["temp_mailboxes"][temp_mb.email] = count
             results["total"] += count
+
+        # 3. 同步活跃的别名邮箱
+        aliases = db.query(Alias).filter(Alias.is_active == True).all()
+        if "aliases" not in results:
+            results["aliases"] = {}
+        for alias in aliases:
+            try:
+                owner = db.query(User).filter(User.id == alias.user_id).first()
+                if not owner:
+                    continue
+                inbox = db.query(Folder).filter(
+                    Folder.user_id == owner.id,
+                    Folder.role == "inbox"
+                ).first()
+                if not inbox:
+                    continue
+                count = _sync_imap_inbox(db, alias.alias_email, inbox.id, alias.alias_email, user_id=owner.id)
+                results["aliases"][alias.alias_email] = count
+                results["total"] += count
+            except Exception as e:
+                logger.debug(f"别名 {alias.alias_email} 同步跳过: {e}")
+                results["aliases"][alias.alias_email] = 0
 
     finally:
         db.close()

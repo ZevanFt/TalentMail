@@ -2,13 +2,16 @@
 两步验证 (2FA/TOTP) API
 """
 import io
+import json
 import base64
+import secrets
 import logging
 import pyotp
 import qrcode
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from passlib.hash import bcrypt
 
 from db import models
 from db.database import get_db
@@ -18,6 +21,37 @@ from utils.rate_limit import totp_manage_limiter
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+BACKUP_CODE_COUNT = 8  # 生成 8 个备份码
+
+
+def _generate_backup_codes() -> tuple[list[str], list[str]]:
+    """生成备份码，返回 (明文码列表, bcrypt哈希列表)"""
+    plain_codes = []
+    hashed_codes = []
+    for _ in range(BACKUP_CODE_COUNT):
+        # 生成 8 字符的随机码，格式化为 xxxx-xxxx
+        raw = secrets.token_hex(4)  # 8 hex chars
+        code = f"{raw[:4]}-{raw[4:]}"
+        plain_codes.append(code)
+        hashed_codes.append(bcrypt.hash(code))
+    return plain_codes, hashed_codes
+
+
+def _verify_backup_code(code: str, hashed_codes: list[str]) -> int:
+    """验证备份码，返回匹配的索引（-1 表示不匹配）"""
+    # 规范化输入：去除空格和横线后重新格式化
+    normalized = code.strip().replace("-", "").replace(" ", "").lower()
+    if len(normalized) == 8:
+        # 尝试匹配 xxxx-xxxx 格式
+        formatted = f"{normalized[:4]}-{normalized[4:]}"
+    else:
+        formatted = code.strip()
+
+    for i, hashed in enumerate(hashed_codes):
+        if bcrypt.verify(formatted, hashed):
+            return i
+    return -1
 
 
 class Enable2FAResponse(BaseModel):
@@ -138,13 +172,22 @@ def enable_2fa(
             detail="验证码错误，请重试"
         )
     
-    # 启用 2FA
+    # 生成备份恢复码
+    plain_codes, hashed_codes = _generate_backup_codes()
+
+    # 启用 2FA + 保存备份码
     current_user.two_factor_enabled = True
+    current_user.backup_codes = json.dumps(hashed_codes)
     db.add(current_user)
     db.commit()
 
-    logger.info(f"[2FA] 用户 {current_user.email} 成功启用两步验证")
-    return {"status": "success", "message": "两步验证已启用"}
+    logger.info(f"[2FA] 用户 {current_user.email} 成功启用两步验证，已生成 {BACKUP_CODE_COUNT} 个备份码")
+    return {
+        "status": "success",
+        "message": "两步验证已启用",
+        "backup_codes": plain_codes,
+        "backup_codes_count": BACKUP_CODE_COUNT,
+    }
 
 
 @router.post("/disable")
@@ -182,9 +225,10 @@ def disable_2fa(
             detail="验证码错误"
         )
     
-    # 禁用 2FA
+    # 禁用 2FA 并清除密钥和备份码
     current_user.two_factor_enabled = False
     current_user.totp_secret = None
+    current_user.backup_codes = None
     db.add(current_user)
     db.commit()
 
@@ -214,3 +258,57 @@ def verify_2fa(
         )
     
     return {"status": "success", "message": "验证码正确"}
+
+
+@router.post("/regenerate-backup-codes")
+def regenerate_backup_codes(
+    request: Verify2FARequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(deps.get_current_active_user)
+):
+    """
+    重新生成备份恢复码 — 需要当前 TOTP 验证码确认身份
+    """
+    if not totp_manage_limiter.allow(f"2fa_regen:{current_user.id}"):
+        raise HTTPException(status_code=429, detail="操作过于频繁，请 5 分钟后再试")
+
+    if not current_user.two_factor_enabled or not current_user.totp_secret:
+        raise HTTPException(status_code=400, detail="2FA 未启用")
+
+    # 验证 TOTP 码
+    totp = pyotp.TOTP(current_user.totp_secret)
+    if not totp.verify(request.code, valid_window=1):
+        raise HTTPException(status_code=400, detail="验证码错误，请重试")
+
+    # 生成新的备份码
+    plain_codes, hashed_codes = _generate_backup_codes()
+    current_user.backup_codes = json.dumps(hashed_codes)
+    db.add(current_user)
+    db.commit()
+
+    logger.info(f"[2FA] 用户 {current_user.email} 重新生成了备份恢复码")
+    return {
+        "status": "success",
+        "message": "备份恢复码已重新生成",
+        "backup_codes": plain_codes,
+        "backup_codes_count": BACKUP_CODE_COUNT,
+    }
+
+
+@router.get("/backup-codes-remaining")
+def get_backup_codes_remaining(
+    current_user: models.User = Depends(deps.get_current_active_user)
+):
+    """获取剩余备份码数量"""
+    if not current_user.two_factor_enabled:
+        return {"remaining": 0, "total": 0}
+
+    remaining = 0
+    if current_user.backup_codes:
+        try:
+            codes = json.loads(current_user.backup_codes)
+            remaining = len(codes)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    return {"remaining": remaining, "total": BACKUP_CODE_COUNT}

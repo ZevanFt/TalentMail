@@ -52,7 +52,7 @@ class LMTPHandler:
         """验证收件人地址"""
         # 提取纯邮箱地址
         email_addr = extract_email_address(address)
-        
+
         db: Session = SessionLocal()
         try:
             # 检查是否是注册用户
@@ -60,7 +60,7 @@ class LMTPHandler:
             if user:
                 envelope.rcpt_tos.append(address)
                 return '250 OK'
-            
+
             # 检查是否是临时邮箱
             temp_mailbox = db.query(TempMailbox).filter(
                 TempMailbox.email == email_addr,
@@ -69,7 +69,17 @@ class LMTPHandler:
             if temp_mailbox:
                 envelope.rcpt_tos.append(address)
                 return '250 OK'
-            
+
+            # 检查是否是活跃的别名
+            from db.models.email import Alias
+            alias = db.query(Alias).filter(
+                Alias.alias_email == email_addr,
+                Alias.is_active == True
+            ).first()
+            if alias:
+                envelope.rcpt_tos.append(address)
+                return '250 OK'
+
             logger.warning(f"LMTP: 拒绝投递到未知地址 {email_addr}")
             return '550 User not found'
         finally:
@@ -124,8 +134,21 @@ class LMTPHandler:
                         # 普通用户邮箱
                         user = db.query(User).filter(User.email == rcpt_email).first()
                         if not user:
-                            logger.warning(f"LMTP: 用户不存在 {rcpt_email}")
-                            continue
+                            # 检查是否是别名
+                            from db.models.email import Alias
+                            alias = db.query(Alias).filter(
+                                Alias.alias_email == rcpt_email,
+                                Alias.is_active == True
+                            ).first()
+                            if alias:
+                                user = db.query(User).filter(User.id == alias.user_id).first()
+                                if not user:
+                                    logger.warning(f"LMTP: 别名所有者不存在 {rcpt_email}")
+                                    continue
+                                logger.info(f"LMTP: 别名邮件 {rcpt_email} → 用户 {user.email}")
+                            else:
+                                logger.warning(f"LMTP: 用户不存在 {rcpt_email}")
+                                continue
                     
                     inbox = db.query(Folder).filter(
                         Folder.user_id == user.id,

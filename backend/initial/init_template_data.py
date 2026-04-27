@@ -245,6 +245,38 @@ TEMPLATE_METADATA = [
         "default_body_text": "{{inviter_name}} 邀请您加入 TalentMail。邀请码：{{invite_code}}。注册链接：{{invite_url}}",
         "is_system": True,
         "sort_order": 21
+    },
+    {
+        "code": "authcenter_email_verification",
+        "name": "Auth Center 邮箱验证",
+        "category": "auth",
+        "description": "Auth Center 用户注册时发送的邮箱验证链接",
+        "trigger_description": "用户在 Auth Center 注册时自动发送",
+        "variables": [
+            {"key": "verify_url", "label": "验证链接", "type": "url", "example": "https://auth.example.com/verify-email?token=xxx", "required": True},
+            {"key": "display_name", "label": "用户名", "type": "string", "example": "张三", "required": False},
+            {"key": "expires_hours", "label": "过期时间(小时)", "type": "number", "example": "24", "required": True}
+        ],
+        "default_subject": "验证您的邮箱 — Auth Center",
+        "default_body_html": """
+<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <h2 style="color: #3b82f6;">验证您的邮箱</h2>
+    <p>亲爱的 {{display_name|default:"用户"}}，</p>
+    <p>感谢您注册 Auth Center 账户！请点击下方按钮验证您的邮箱地址：</p>
+    <div style="text-align: center; margin: 30px 0;">
+        <a href="{{verify_url}}" style="background-color: #3b82f6; color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">验证邮箱</a>
+    </div>
+    <p style="color: #6b7280; font-size: 14px;">此链接有效期为 {{expires_hours}} 小时，请尽快完成验证。</p>
+    <p style="color: #6b7280; font-size: 14px;">如果按钮无法点击，请复制以下链接到浏览器：</p>
+    <p style="word-break: break-all; color: #3b82f6; font-size: 13px;">{{verify_url}}</p>
+    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+    <p style="color: #9ca3af; font-size: 12px;">如果您没有注册 Auth Center 账户，请忽略此邮件。</p>
+    <p style="color: #9ca3af; font-size: 12px;">此邮件由系统自动发送，请勿回复。</p>
+</div>
+""",
+        "default_body_text": "验证您的邮箱 — 请访问以下链接完成验证：{{verify_url}} 此链接有效期为 {{expires_hours}} 小时。如果您没有注册 Auth Center 账户，请忽略此邮件。",
+        "is_system": True,
+        "sort_order": 4
     }
 ]
 

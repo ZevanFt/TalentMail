@@ -727,14 +727,37 @@ def login_with_2fa(
             detail="该用户未启用两步验证"
         )
     
-    # 验证 TOTP 代码
+    # 验证 TOTP 代码（失败则尝试备份码）
     totp = pyotp.TOTP(user.totp_secret)
+    used_backup_code = False
+    backup_codes_warning = None
+
     if not totp.verify(login_request.code, valid_window=1):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="验证码错误，请重试"
-        )
-    
+        # TOTP 验证失败，尝试备份恢复码
+        import json
+        if user.backup_codes:
+            try:
+                from api.totp import _verify_backup_code
+                hashed_codes = json.loads(user.backup_codes)
+                match_idx = _verify_backup_code(login_request.code, hashed_codes)
+                if match_idx >= 0:
+                    # 匹配成功：删除已使用的码（一次性）
+                    hashed_codes.pop(match_idx)
+                    user.backup_codes = json.dumps(hashed_codes)
+                    db.add(user)
+                    db.flush()
+                    used_backup_code = True
+                    remaining = len(hashed_codes)
+                    logger.info(f"[2FA] 用户 {user.email} 使用了备份恢复码登录，剩余 {remaining} 个")
+                    if remaining <= 2:
+                        backup_codes_warning = f"您的备份恢复码仅剩 {remaining} 个，建议尽快重新生成"
+                else:
+                    raise HTTPException(status_code=400, detail="验证码错误，请重试")
+            except (json.JSONDecodeError, TypeError):
+                raise HTTPException(status_code=400, detail="验证码错误，请重试")
+        else:
+            raise HTTPException(status_code=400, detail="验证码错误，请重试")
+
     # 生成正式 token
     access_token_expires = timedelta(minutes=security.ACCESS_TOKEN_EXPIRE_MINUTES)
     refresh_token_expires = timedelta(days=security.REFRESH_TOKEN_EXPIRE_DAYS)
@@ -768,11 +791,16 @@ def login_with_2fa(
         session.token_hash = hashlib.sha256(access_token.encode()).hexdigest()[:64]
         db.commit()
 
-    return {
+    response = {
         "access_token": access_token,
         "refresh_token": refresh_token,
         "token_type": "bearer",
     }
+    if used_backup_code:
+        response["used_backup_code"] = True
+    if backup_codes_warning:
+        response["backup_codes_warning"] = backup_codes_warning
+    return response
 
 
 @router.post("/refresh", response_model=Token)

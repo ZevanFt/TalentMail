@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { User, Plus, Trash2, ToggleLeft, ToggleRight, Mail, RefreshCw, Settings } from 'lucide-vue-next'
+import { User, Plus, Trash2, ToggleLeft, ToggleRight, Mail, RefreshCw, Settings, Download, AlertCircle, Clock } from 'lucide-vue-next'
 
-const { getMe, getAliases, createAlias, updateAlias, deleteAlias, getSubscriptionStatus, getExternalAccounts, createExternalAccount, deleteExternalAccount, testExternalAccount, getProviderPresets } = useApi()
+const { getMe, getAliases, createAlias, updateAlias, deleteAlias, getSubscriptionStatus, getExternalAccounts, createExternalAccount, deleteExternalAccount, testExternalAccount, syncExternalAccount, getProviderPresets } = useApi()
 const config = useConfig()
 const toast = useToast()
 const { confirm: confirmDialog } = useConfirmDialog()
@@ -30,6 +30,7 @@ const newAccount = ref<ExternalAccountForm>({ email: '', password: '', provider:
 const addingAccount = ref(false)
 const accountError = ref('')
 const testingAccount = ref<number | null>(null)
+const syncingAccount = ref<number | null>(null)
 
 const isCustomProvider = computed(() => newAccount.value.provider === 'custom')
 
@@ -193,6 +194,42 @@ const handleTestAccount = async (id: number) => {
     }
 }
 
+const handleSyncAccount = async (id: number) => {
+    syncingAccount.value = id
+    try {
+        const result = await syncExternalAccount(id)
+        if (result.synced > 0) {
+            toast.success(`同步完成，获取了 ${result.synced} 封新邮件`)
+        } else {
+            toast.success('同步完成，没有新邮件')
+        }
+        // 更新本地状态
+        const account = externalAccounts.value.find(a => a.id === id)
+        if (account) {
+            account.last_sync_at = result.last_sync_at
+            account.sync_error = result.sync_error
+        }
+    } catch (e: any) {
+        toast.error('同步失败: ' + (e.data?.detail || '未知错误'))
+    } finally {
+        syncingAccount.value = null
+    }
+}
+
+const formatSyncTime = (dateStr: string | null) => {
+    if (!dateStr) return '从未同步'
+    const date = new Date(dateStr)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMin = Math.floor(diffMs / 60000)
+    if (diffMin < 1) return '刚刚'
+    if (diffMin < 60) return `${diffMin} 分钟前`
+    const diffHours = Math.floor(diffMin / 60)
+    if (diffHours < 24) return `${diffHours} 小时前`
+    const diffDays = Math.floor(diffHours / 24)
+    return `${diffDays} 天前`
+}
+
 const getProviderName = (provider: string) => {
     const names: Record<string, string> = { gmail: 'Gmail', outlook: 'Outlook', icloud: 'iCloud', yahoo: 'Yahoo', qq: 'QQ邮箱', '163': '163邮箱', '126': '126邮箱', yeah: 'Yeah.net', sina: '新浪', aliyun: '阿里云', zoho: 'Zoho', custom: '自定义' }
     return names[provider] || provider
@@ -243,23 +280,43 @@ onMounted(() => {
                 </div>
                 <div v-else class="space-y-2">
                     <div v-for="account in externalAccounts" :key="account.id"
-                        class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                        <div class="flex items-center gap-3">
-                            <Mail class="w-5 h-5 text-gray-400" />
-                            <div>
-                                <div class="font-medium text-gray-900 dark:text-white text-sm">{{ account.email }}</div>
-                                <div class="text-xs text-gray-500">{{ getProviderName(account.provider) }}</div>
+                        class="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <Mail class="w-5 h-5 text-gray-400" />
+                                <div>
+                                    <div class="font-medium text-gray-900 dark:text-white text-sm">{{ account.email }}</div>
+                                    <div class="text-xs text-gray-500">{{ getProviderName(account.provider) }}</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button @click="handleSyncAccount(account.id)" :disabled="syncingAccount === account.id"
+                                    class="text-gray-400 hover:text-green-500 transition-colors p-1" title="立即同步">
+                                    <Download class="w-4 h-4" :class="{ 'animate-bounce': syncingAccount === account.id }" />
+                                </button>
+                                <button @click="handleTestAccount(account.id)" :disabled="testingAccount === account.id"
+                                    class="text-gray-400 hover:text-primary transition-colors p-1" title="测试连接">
+                                    <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': testingAccount === account.id }" />
+                                </button>
+                                <button @click="handleDeleteAccount(account.id)"
+                                    class="text-gray-400 hover:text-red-500 transition-colors p-1">
+                                    <Trash2 class="w-4 h-4" />
+                                </button>
                             </div>
                         </div>
-                        <div class="flex items-center gap-2">
-                            <button @click="handleTestAccount(account.id)" :disabled="testingAccount === account.id"
-                                class="text-gray-400 hover:text-primary transition-colors p-1" title="测试连接">
-                                <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': testingAccount === account.id }" />
-                            </button>
-                            <button @click="handleDeleteAccount(account.id)"
-                                class="text-gray-400 hover:text-red-500 transition-colors p-1">
-                                <Trash2 class="w-4 h-4" />
-                            </button>
+                        <!-- 同步状态行 -->
+                        <div class="mt-2 flex items-center gap-3 text-xs">
+                            <span class="flex items-center gap-1 text-gray-400">
+                                <Clock class="w-3 h-3" />
+                                {{ formatSyncTime(account.last_sync_at) }}
+                            </span>
+                            <span v-if="account.sync_error" class="flex items-center gap-1 text-red-400" :title="account.sync_error">
+                                <AlertCircle class="w-3 h-3" />
+                                同步异常
+                            </span>
+                            <span v-if="!account.sync_enabled" class="text-orange-400">
+                                同步已暂停
+                            </span>
                         </div>
                     </div>
                 </div>

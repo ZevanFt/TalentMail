@@ -21,6 +21,7 @@ ALLOWED_API_KEY_SCOPES = {
     "temp_mailbox:restore",
     "temp_email:read",
     "temp_code:read",
+    "system_email:send",
 }
 
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { User, Shield, Palette, LogOut, ArrowLeft, Mail, Bell, Lock, HardDrive, Users, Ticket, UserCog, CreditCard, AtSign, FileText, Info, Zap, Workflow, ScrollText, Box, ChevronDown } from 'lucide-vue-next'
+import { User, Shield, Palette, LogOut, ArrowLeft, Mail, Bell, Lock, HardDrive, Users, Ticket, UserCog, CreditCard, AtSign, FileText, FilePen, Info, Zap, Workflow, ScrollText, Box, ChevronDown } from 'lucide-vue-next'
 const router = useRouter()
 const route = useRoute()
 const { logout, getMe } = useApi()
@@ -42,6 +42,7 @@ const tabGroups = computed(() => {
     ]},
     { label: '邮件服务', tabs: [
       { key: 'mail', label: '邮件设置', icon: 'Mail' },
+      { key: 'compose-templates', label: '写信模板', icon: 'FilePen' },
       { key: 'automation', label: '自动化规则', icon: 'Zap' },
       { key: 'my-workflows', label: '我的工作流', icon: 'Workflow' },
       { key: 'notifications', label: '通知偏好', icon: 'Bell' },
@@ -135,6 +136,7 @@ const settingsTabMap: Record<string, Component> = {
   'accounts': _lazy(() => import('~/components/settings/Accounts.vue')),
   'theme': _lazy(() => import('~/components/settings/Theme.vue')),
   'mail': _lazy(() => import('~/components/settings/Mail.vue')),
+  'compose-templates': _lazy(() => import('~/components/settings/ComposeTemplates.vue')),
   'automation': _lazy(() => import('~/components/settings/AutomationRules.vue')),
   'my-workflows': _lazy(() => import('~/components/settings/MyWorkflows.vue')),
   'notifications': _lazy(() => import('~/components/settings/Notifications.vue')),
@@ -230,6 +232,9 @@ const activeComponent = computed(() => {
           <div class="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">邮件服务</div>
           <button @click="setTab('mail')" :class="['tab-btn', activeTab === 'mail' ? 'active' : '']">
             <Mail class="w-4 h-4" /> 邮件设置
+          </button>
+          <button @click="setTab('compose-templates')" :class="['tab-btn', activeTab === 'compose-templates' ? 'active' : '']">
+            <FilePen class="w-4 h-4" /> 写信模板
           </button>
           <button @click="setTab('automation')" :class="['tab-btn', activeTab === 'automation' ? 'active' : '']">
             <Zap class="w-4 h-4" /> 自动化规则

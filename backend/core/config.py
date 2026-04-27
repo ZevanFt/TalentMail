@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     SPAMASSASSIN_MAX_RETRIES: int = 3
     SPAMASSASSIN_RETRY_DELAY_SECONDS: float = 0.5
 
+    # 系统 API IP 白名单（逗号分隔，空=不限制，依赖 Caddy 层）
+    SYSTEM_API_ALLOWED_IPS: str = ""
+    # 审计日志保留天数（超过此天数的日志将被自动清理）
+    AUDIT_LOG_RETENTION_DAYS: int = 30
+
     # --- Dynamically generated attributes ---
     DOMAIN: str = ""
     API_BASE_URL: str = ""

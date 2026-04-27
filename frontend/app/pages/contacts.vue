@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { Search, Plus, Pencil, Trash2, User, Loader2, AlertCircle } from 'lucide-vue-next'
+import { Search, Plus, Pencil, Trash2, User, Loader2, AlertCircle, Download, Upload, ChevronDown } from 'lucide-vue-next'
 const config = useConfig()
 useHead({ title: `通讯录 - ${config.appName}` })
 const toast = useToast()
 const { confirm: confirmDialog } = useConfirmDialog()
-const { getContacts, createContact, updateContact, deleteContact } = useApi()
+const { getContacts, createContact, updateContact, deleteContact, exportContactsUrl, importContacts } = useApi()
 
 interface Contact { id: number; name: string | null; email: string | null; phone: string | null; notes: string | null }
 const contacts = ref<Contact[]>([])
@@ -109,6 +109,89 @@ onUnmounted(() => {
   if (debounceTimer) clearTimeout(debounceTimer)
 })
 
+// ========== 导入/导出 ==========
+const showExportMenu = ref(false)
+const importing = ref(false)
+const fileInputRef = ref<HTMLInputElement | null>(null)
+
+const handleExport = (format: 'csv' | 'vcf') => {
+  showExportMenu.value = false
+  const token = useCookie('token')
+  const url = exportContactsUrl(format)
+  // 用 fetch 方式下载（带 Authorization header）
+  fetch(url, {
+    headers: { Authorization: `Bearer ${token.value}` }
+  }).then(res => {
+    if (!res.ok) throw new Error('导出失败')
+    return res.blob()
+  }).then(blob => {
+    const blobUrl = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = blobUrl
+    a.download = format === 'csv' ? 'contacts.csv' : 'contacts.vcf'
+    a.click()
+    URL.revokeObjectURL(blobUrl)
+    toast.success('导出成功')
+  }).catch((e: any) => {
+    console.error('导出失败', e)
+    toast.error('导出失败')
+  })
+}
+
+const triggerImport = () => {
+  fileInputRef.value?.click()
+}
+
+const handleImportFile = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+  // 验证文件类型
+  const validTypes = ['.csv', '.vcf', '.vcard']
+  const ext = '.' + file.name.split('.').pop()?.toLowerCase()
+  if (!validTypes.includes(ext)) {
+    toast.error('仅支持 CSV 和 VCF 文件')
+    target.value = ''
+    return
+  }
+  if (file.size > 1048576) {
+    toast.error('文件过大，最大 1MB')
+    target.value = ''
+    return
+  }
+  importing.value = true
+  try {
+    const res = await importContacts(file)
+    const msgs: string[] = []
+    if (res.imported > 0) msgs.push(`成功导入 ${res.imported} 个联系人`)
+    if (res.skipped > 0) msgs.push(`跳过 ${res.skipped} 个重复`)
+    if (res.errors?.length > 0) msgs.push(`${res.errors.length} 个错误`)
+    toast.success(msgs.join('，') || '导入完成')
+    await loadContacts()
+  } catch (e: any) {
+    console.error('导入失败', e)
+    toast.error(e.data?.detail || '导入失败')
+  } finally {
+    importing.value = false
+    target.value = ''
+  }
+}
+
+// 点击外部关闭导出菜单
+const exportMenuRef = ref<HTMLDivElement | null>(null)
+const onClickOutside = (e: MouseEvent) => {
+  if (exportMenuRef.value && !exportMenuRef.value.contains(e.target as Node)) {
+    showExportMenu.value = false
+  }
+}
+watch(showExportMenu, (v) => {
+  if (v) {
+    setTimeout(() => document.addEventListener('click', onClickOutside), 0)
+  } else {
+    document.removeEventListener('click', onClickOutside)
+  }
+})
+
 onMounted(loadContacts)
 </script>
 
@@ -122,6 +205,32 @@ onMounted(loadContacts)
           <input v-model="searchQuery" placeholder="搜索联系人..."
             class="pl-9 pr-4 py-2 w-64 border border-gray-200 dark:border-border-dark rounded-lg bg-white dark:bg-bg-panelDark text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
         </div>
+        <!-- 导入按钮 -->
+        <button @click="triggerImport" :disabled="importing"
+          class="hidden sm:flex items-center gap-1.5 px-3 py-2 border border-gray-200 dark:border-border-dark rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm text-gray-600 dark:text-gray-300 disabled:opacity-50">
+          <Loader2 v-if="importing" class="w-4 h-4 animate-spin" />
+          <Upload v-else class="w-4 h-4" />
+          导入
+        </button>
+        <input ref="fileInputRef" type="file" accept=".csv,.vcf,.vcard" class="hidden" @change="handleImportFile" />
+
+        <!-- 导出下拉 -->
+        <div ref="exportMenuRef" class="relative hidden sm:block">
+          <button @click="showExportMenu = !showExportMenu"
+            class="flex items-center gap-1.5 px-3 py-2 border border-gray-200 dark:border-border-dark rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm text-gray-600 dark:text-gray-300">
+            <Download class="w-4 h-4" />
+            导出
+            <ChevronDown class="w-3 h-3" />
+          </button>
+          <Transition enter-active-class="transition duration-100 ease-out" enter-from-class="transform scale-95 opacity-0" enter-to-class="transform scale-100 opacity-100"
+            leave-active-class="transition duration-75 ease-in" leave-from-class="transform scale-100 opacity-100" leave-to-class="transform scale-95 opacity-0">
+            <div v-if="showExportMenu" class="absolute right-0 mt-1 w-36 bg-white dark:bg-bg-panelDark border border-gray-200 dark:border-border-dark rounded-lg shadow-lg z-50 py-1">
+              <button @click="handleExport('csv')" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300">导出为 CSV</button>
+              <button @click="handleExport('vcf')" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300">导出为 vCard</button>
+            </div>
+          </Transition>
+        </div>
+
         <button @click="openModal()" class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors text-sm font-medium">
           <Plus class="w-4 h-4" /> 添加联系人
         </button>

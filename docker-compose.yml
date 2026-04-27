@@ -18,11 +18,16 @@ services:
       dockerfile: Dockerfile
     ports:
       - "127.0.0.1:18000:8000"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     volumes:
       - ./backend/uploads:/app/uploads
       - ./config.json:/app/config.json
       - ./scripts:/scripts
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     env_file:
       - .env
       - .env.domains
@@ -49,6 +54,11 @@ services:
       dockerfile: frontend/Dockerfile.prod
     ports:
       - "127.0.0.1:13000:3000"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     env_file:
       - .env
       - .env.domains
@@ -65,6 +75,11 @@ services:
   # --- 数据库服务 (PostgreSQL) ---
   db:
     image: postgres:15
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     env_file:
       - .env
       - .env.domains
@@ -89,6 +104,11 @@ services:
       context: ./config/mail
       dockerfile: Dockerfile
     container_name: ${MAILSERVER_CONTAINER_NAME:-talentmail-mailserver-1}
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
     env_file:
       - ./config/mail/production/mailserver.env
       - .env

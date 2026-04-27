@@ -1,7 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel, Field
+import csv
+import io
+import re
 import json
 import logging
 from db.database import get_db
@@ -193,3 +197,192 @@ def delete_contact(contact_id: int, db: Session = Depends(get_db), user: User = 
     db.delete(contact)
     db.commit()
     return {"status": "success", "message": "删除成功"}
+
+
+# =============================================================================
+# 导入/导出
+# =============================================================================
+
+@router.get("/export")
+def export_contacts(
+    format: str = Query("csv", pattern="^(csv|vcf)$"),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """导出联系人为 CSV 或 vCard 格式"""
+    contacts = db.query(Contact).filter(Contact.owner_id == user.id).order_by(Contact.name).all()
+
+    if format == "csv":
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["Name", "Email", "Phone", "Notes"])
+        for c in contacts:
+            writer.writerow([c.name or "", c.email or "", c.phone or "", c.notes or ""])
+        output.seek(0)
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=contacts.csv"},
+        )
+    else:  # vcf
+        lines = []
+        for c in contacts:
+            lines.append("BEGIN:VCARD")
+            lines.append("VERSION:3.0")
+            if c.name:
+                lines.append(f"FN:{c.name}")
+                # 简单拆分：取最后一个空格分 family/given
+                parts = c.name.rsplit(" ", 1)
+                if len(parts) == 2:
+                    lines.append(f"N:{parts[1]};{parts[0]};;;")
+                else:
+                    lines.append(f"N:{c.name};;;;")
+            if c.email:
+                lines.append(f"EMAIL;TYPE=INTERNET:{c.email}")
+            if c.phone:
+                lines.append(f"TEL;TYPE=CELL:{c.phone}")
+            if c.notes:
+                # vCard NOTE 字段需转义换行
+                safe_notes = c.notes.replace("\n", "\\n").replace(",", "\\,")
+                lines.append(f"NOTE:{safe_notes}")
+            lines.append("END:VCARD")
+            lines.append("")
+        vcf_content = "\r\n".join(lines)
+        return StreamingResponse(
+            iter([vcf_content]),
+            media_type="text/vcard",
+            headers={"Content-Disposition": "attachment; filename=contacts.vcf"},
+        )
+
+
+@router.post("/import")
+async def import_contacts(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """导入联系人（CSV 或 vCard 格式，自动检测）
+
+    限制：最大 1MB，最多 1000 条。
+    """
+    # 文件大小限制
+    content = await file.read()
+    if len(content) > 1_048_576:  # 1MB
+        raise HTTPException(400, "文件过大，最大 1MB")
+
+    text = content.decode("utf-8", errors="replace")
+
+    # 自动检测格式
+    if "BEGIN:VCARD" in text.upper():
+        contacts_data = _parse_vcf(text)
+    else:
+        contacts_data = _parse_csv(text)
+
+    if len(contacts_data) > 1000:
+        raise HTTPException(400, "联系人数量超过 1000 条上限")
+
+    # 获取已有邮箱（去重用）
+    existing_emails = set(
+        row[0].lower() for row in
+        db.query(Contact.email).filter(
+            Contact.owner_id == user.id,
+            Contact.email.isnot(None)
+        ).all()
+        if row[0]
+    )
+
+    imported = 0
+    skipped = 0
+    errors = []
+
+    for i, item in enumerate(contacts_data):
+        email_addr = (item.get("email") or "").strip().lower()
+        if not email_addr or "@" not in email_addr:
+            errors.append(f"第 {i + 1} 行: 无效邮箱")
+            continue
+        if email_addr in existing_emails:
+            skipped += 1
+            continue
+
+        name = (item.get("name") or "").strip()[:200]
+        phone = (item.get("phone") or "").strip()[:50] or None
+        notes = (item.get("notes") or "").strip()[:2000] or None
+
+        contact = Contact(
+            owner_id=user.id,
+            name=name or email_addr.split("@")[0],
+            email=email_addr,
+            phone=phone,
+            notes=notes,
+        )
+        db.add(contact)
+        existing_emails.add(email_addr)
+        imported += 1
+
+    if imported > 0:
+        db.commit()
+
+    return {
+        "status": "success",
+        "imported": imported,
+        "skipped": skipped,
+        "errors": errors[:20],  # 最多返回 20 条错误
+    }
+
+
+def _parse_csv(text: str) -> list[dict]:
+    """解析 CSV 文本，自动映射列名"""
+    reader = csv.DictReader(io.StringIO(text))
+    if not reader.fieldnames:
+        return []
+
+    # 模糊匹配列名
+    field_map = {}
+    for fn in reader.fieldnames:
+        fn_lower = fn.strip().lower()
+        if fn_lower in ("name", "姓名", "full name", "fullname", "display name"):
+            field_map["name"] = fn
+        elif fn_lower in ("email", "邮箱", "e-mail", "email address", "电子邮件"):
+            field_map["email"] = fn
+        elif fn_lower in ("phone", "电话", "tel", "telephone", "mobile", "手机"):
+            field_map["phone"] = fn
+        elif fn_lower in ("notes", "备注", "note", "comment", "description"):
+            field_map["notes"] = fn
+
+    results = []
+    for row in reader:
+        item = {
+            "name": row.get(field_map.get("name", ""), ""),
+            "email": row.get(field_map.get("email", ""), ""),
+            "phone": row.get(field_map.get("phone", ""), ""),
+            "notes": row.get(field_map.get("notes", ""), ""),
+        }
+        if item["email"]:
+            results.append(item)
+    return results
+
+
+def _parse_vcf(text: str) -> list[dict]:
+    """解析 vCard 文本"""
+    results = []
+    current: dict | None = None
+
+    for line in text.splitlines():
+        line = line.strip()
+        if line.upper() == "BEGIN:VCARD":
+            current = {"name": "", "email": "", "phone": "", "notes": ""}
+        elif line.upper() == "END:VCARD":
+            if current and current.get("email"):
+                results.append(current)
+            current = None
+        elif current is not None:
+            if line.upper().startswith("FN:"):
+                current["name"] = line[3:].strip()
+            elif "EMAIL" in line.upper() and ":" in line:
+                current["email"] = line.split(":", 1)[1].strip()
+            elif "TEL" in line.upper() and ":" in line:
+                current["phone"] = line.split(":", 1)[1].strip()
+            elif line.upper().startswith("NOTE:"):
+                current["notes"] = line[5:].replace("\\n", "\n").replace("\\,", ",").strip()
+
+    return results

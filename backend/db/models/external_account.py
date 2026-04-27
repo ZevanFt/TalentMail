@@ -34,7 +34,9 @@ class ExternalAccount(Base):
     sync_enabled = Column(Boolean, default=True, comment="是否启用同步")
     last_sync_at = Column(DateTime(timezone=True), nullable=True, comment="最后同步时间")
     sync_error = Column(Text, nullable=True, comment="同步错误信息")
-    
+    last_uid = Column(Integer, nullable=True, comment="上次同步的IMAP UID，用于增量拉取")
+    sync_fail_count = Column(Integer, default=0, comment="连续同步失败次数，达到3次自动禁用")
+
     created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="创建时间")
     
     user = relationship("User")
