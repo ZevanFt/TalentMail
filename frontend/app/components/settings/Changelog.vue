@@ -127,7 +127,7 @@
             <!-- 类型标签 -->
             <span
               :class="getTypeBadgeClass(log.type)"
-              class="px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0"
+              class="px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 whitespace-nowrap"
             >
               {{ getTypeLabel(log.type) }}
             </span>
@@ -135,7 +135,7 @@
             <!-- 重大更新标签 -->
             <span
               v-if="log.is_major"
-              class="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 flex-shrink-0"
+              class="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 flex-shrink-0 whitespace-nowrap"
             >
               重大更新
             </span>
@@ -143,7 +143,7 @@
             <!-- 未发布标签 -->
             <span
               v-if="!log.is_published"
-              class="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 flex-shrink-0"
+              class="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 flex-shrink-0 whitespace-nowrap"
             >
               未发布
             </span>
@@ -212,7 +212,7 @@
                 <span
                   v-for="tag in log.tags"
                   :key="tag"
-                  class="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs text-gray-600 dark:text-gray-400"
+                  class="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap"
                 >
                   #{{ tag }}
                 </span>

@@ -417,7 +417,7 @@ onMounted(() => {
                 v{{ workflow.version }}
               </p>
             </div>
-            <span :class="['px-2 py-1 text-xs font-medium rounded-full', getStatusColor(workflow.status)]">
+            <span :class="['px-2 py-1 text-xs font-medium rounded-full whitespace-nowrap', getStatusColor(workflow.status)]">
               {{ getStatusLabel(workflow.status) }}
             </span>
           </div>
@@ -525,7 +525,7 @@ onMounted(() => {
             </div>
             <div class="text-right">
               <span :class="[
-                'px-2 py-1 text-xs font-medium rounded-full',
+                'px-2 py-1 text-xs font-medium rounded-full whitespace-nowrap',
                 exec.status === 'success' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
                 exec.status === 'failed' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' :
                 exec.status === 'running' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :

@@ -205,9 +205,9 @@ onUnmounted(() => {
         @click="showDropdown = !showDropdown"
         :class="[
           props.toolbar
-            ? 'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition'
+            ? 'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs whitespace-nowrap transition'
             : props.compact
-            ? 'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs border transition'
+            ? 'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs whitespace-nowrap border transition'
             : 'flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition',
           selectedTemplate 
             ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-300 dark:border-blue-700'

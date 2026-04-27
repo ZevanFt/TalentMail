@@ -542,7 +542,7 @@ const handleThreadEmailClick = (emailId: number) => {
             <div class="flex items-center gap-2 shrink-0">
               <!-- 验证码复制按钮 -->
               <button v-if="detectedCode" @click="copyCode"
-                class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all"
                 :class="codeCopied
                   ? 'bg-green-500 text-white'
                   : 'bg-gradient-to-r from-primary to-purple-500 text-white hover:shadow-md'">
@@ -552,7 +552,7 @@ const handleThreadEmailClick = (emailId: number) => {
               </button>
               <!-- 已有标签 -->
               <div v-for="tag in selectedEmailDetail.tags" :key="tag.id"
-                class="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border"
+                class="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap border"
                 :style="{
                   backgroundColor: tag.color + '20',
                   color: tag.color,
@@ -567,7 +567,7 @@ const handleThreadEmailClick = (emailId: number) => {
 
               <!-- 添加标签按钮 -->
               <Menu as="div" class="relative">
-                <MenuButton class="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                <MenuButton class="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                   <Plus class="w-3 h-3" />
                   标签
                 </MenuButton>
@@ -699,12 +699,12 @@ const handleThreadEmailClick = (emailId: number) => {
                 <div v-if="decryptError" class="text-xs text-red-500 mt-1">{{ decryptError }}</div>
               </div>
               <button v-if="!decryptedContent && hasLocalPrivateKey" @click="handleDecrypt" :disabled="decrypting"
-                class="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary-hover disabled:opacity-50">
+                class="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary-hover disabled:opacity-50 whitespace-nowrap">
                 <Loader2 v-if="decrypting" class="w-3.5 h-3.5 animate-spin" />
                 <Unlock v-else class="w-3.5 h-3.5" />
                 {{ decrypting ? '解密中...' : '解密' }}
               </button>
-              <span v-if="!decryptedContent && !hasLocalPrivateKey" class="text-xs text-amber-600">
+              <span v-if="!decryptedContent && !hasLocalPrivateKey" class="text-xs text-amber-600 whitespace-nowrap">
                 需要在设置中导入私钥
               </span>
             </div>

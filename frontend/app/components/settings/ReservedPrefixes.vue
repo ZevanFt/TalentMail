@@ -309,7 +309,7 @@ onMounted(() => {
                                 </code>
                             </td>
                             <td class="td">
-                                <span :class="['px-2 py-0.5 rounded-full text-xs', categoryColors[prefix.category] || categoryColors.common]">
+                                <span :class="['px-2 py-0.5 rounded-full text-xs whitespace-nowrap', categoryColors[prefix.category] || categoryColors.common]">
                                     {{ categoryNames[prefix.category] || prefix.category }}
                                 </span>
                             </td>
@@ -329,7 +329,7 @@ onMounted(() => {
                                 <button
                                     @click="toggleActive(prefix)"
                                     :class="[
-                                        'px-2 py-0.5 rounded-full text-xs transition-colors',
+                                        'px-2 py-0.5 rounded-full text-xs whitespace-nowrap transition-colors',
                                         prefix.is_active
                                             ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50'
                                             : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'

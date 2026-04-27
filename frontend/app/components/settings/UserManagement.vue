@@ -301,7 +301,7 @@ onMounted(async () => {
                             <button
                                 @click="openPlanModal(user)"
                                 :disabled="user.role === 'admin'"
-                                class="flex items-center gap-1.5 px-2 py-1 text-xs font-medium rounded-lg transition-colors"
+                                class="flex items-center gap-1.5 px-2 py-1 text-xs font-medium rounded-lg whitespace-nowrap transition-colors"
                                 :class="user.role === 'admin'
                                     ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 cursor-default'
                                     : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer'"

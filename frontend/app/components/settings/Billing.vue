@@ -361,7 +361,7 @@ onMounted(async () => {
                             <td class="td">{{ getPlanName(code.plan_id) }}</td>
                             <td class="td">{{ code.duration_days }} 天</td>
                             <td class="td">
-                                <span :class="['px-2 py-0.5 rounded-full text-xs', getStatusBadge(code.status).class]">
+                                <span :class="['px-2 py-0.5 rounded-full text-xs whitespace-nowrap', getStatusBadge(code.status).class]">
                                     {{ getStatusBadge(code.status).text }}
                                 </span>
                             </td>

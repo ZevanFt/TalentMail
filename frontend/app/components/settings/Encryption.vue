@@ -187,19 +187,19 @@ onMounted(loadKeyInfo)
 
         <!-- 操作按钮 -->
         <div class="flex flex-wrap gap-2">
-          <button @click="copyPublicKey" class="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+          <button @click="copyPublicKey" class="flex items-center gap-1.5 px-3 py-1.5 text-sm whitespace-nowrap border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
             <Check v-if="copied" class="w-4 h-4 text-green-500" />
             <Copy v-else class="w-4 h-4" />
             复制公钥
           </button>
-          <button v-if="hasLocalPrivateKey" @click="downloadPrivateKey" class="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+          <button v-if="hasLocalPrivateKey" @click="downloadPrivateKey" class="flex items-center gap-1.5 px-3 py-1.5 text-sm whitespace-nowrap border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
             <Download class="w-4 h-4" /> 导出私钥
           </button>
           <button v-if="!hasLocalPrivateKey" @click="showImportModal = true; importForm.privateKey = ''; importForm.passphrase = ''"
-            class="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-primary text-primary rounded-lg hover:bg-primary/5 transition-colors">
+            class="flex items-center gap-1.5 px-3 py-1.5 text-sm whitespace-nowrap border border-primary text-primary rounded-lg hover:bg-primary/5 transition-colors">
             <Upload class="w-4 h-4" /> 导入私钥
           </button>
-          <button @click="handleDeleteKey" class="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-500 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+          <button @click="handleDeleteKey" class="flex items-center gap-1.5 px-3 py-1.5 text-sm whitespace-nowrap text-red-500 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
             <Trash2 class="w-4 h-4" /> 删除密钥
           </button>
         </div>

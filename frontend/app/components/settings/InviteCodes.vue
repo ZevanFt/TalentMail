@@ -179,7 +179,7 @@ onMounted(loadCodes)
                             <div class="flex items-center gap-2">
                                 <code class="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-sm font-mono"
                                     :class="{ 'line-through': code.deleted_at }">{{ code.code }}</code>
-                                <span :class="['px-2 py-0.5 rounded-full text-xs', getCodeStatus(code).class]">
+                                <span :class="['px-2 py-0.5 rounded-full text-xs whitespace-nowrap', getCodeStatus(code).class]">
                                     {{ getCodeStatus(code).text }}
                                 </span>
                             </div>

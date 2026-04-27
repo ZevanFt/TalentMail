@@ -1282,7 +1282,7 @@ definePageMeta({
               <!-- 执行ID -->
               <div class="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">
                 <span>执行 ID: #{{ executionResult.execution_id }}</span>
-                <span v-if="executionResult.mode === 'test'" class="px-2 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded text-xs">
+                <span v-if="executionResult.mode === 'test'" class="px-2 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded text-xs whitespace-nowrap">
                   测试模式
                 </span>
               </div>

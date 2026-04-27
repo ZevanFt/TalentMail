@@ -767,7 +767,7 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
     <div class="h-12 px-4 border-b border-gray-200/50 dark:border-gray-800/50 flex items-center justify-between shrink-0">
       <div class="flex items-center gap-2 min-w-0">
         <h2 class="text-xs font-bold text-gray-600 dark:text-gray-400 tracking-wide">{{ modalTitle }}</h2>
-        <div v-if="appliedTemplate" class="hidden md:flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+        <div v-if="appliedTemplate" class="hidden md:flex items-center gap-1.5 px-2 py-1 rounded-md text-xs whitespace-nowrap text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
           <FileText class="w-3.5 h-3.5" />
           <span class="font-medium max-w-36 truncate">{{ appliedTemplate.name }}</span>
         </div>
@@ -783,7 +783,7 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
         <div ref="composeTemplateMenuRef" class="relative">
           <button
             @click="showComposeTemplateMenu = !showComposeTemplateMenu"
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs whitespace-nowrap text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
             title="插入写信模板"
           >
             <FilePen class="w-3.5 h-3.5" />
@@ -945,7 +945,7 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
 
       <!-- 自动保存状态指示器 -->
       <Transition name="fade">
-        <span v-if="autoSaveStatus !== 'idle'" class="text-xs px-2 py-1 rounded-lg flex items-center gap-1 mr-2"
+        <span v-if="autoSaveStatus !== 'idle'" class="text-xs px-2 py-1 rounded-lg flex items-center gap-1 mr-2 whitespace-nowrap"
           :class="{
             'text-gray-400': autoSaveStatus === 'saving',
             'text-green-500': autoSaveStatus === 'saved',

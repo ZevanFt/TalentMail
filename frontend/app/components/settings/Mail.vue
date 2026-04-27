@@ -385,7 +385,7 @@ onMounted(loadSettings)
                             <div class="text-sm font-medium dark:text-white">IMAP / SMTP 服务</div>
                             <div class="text-xs text-gray-500 mt-0.5">系统默认开启，支持所有标准邮件客户端</div>
                         </div>
-                        <div class="flex items-center gap-2 text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400 px-3 py-1 rounded-full text-xs font-medium">
+                        <div class="flex items-center gap-2 text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400 px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap">
                             <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
                             运行中
                         </div>

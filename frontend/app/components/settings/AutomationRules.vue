@@ -234,7 +234,7 @@ onMounted(() => {
             <div class="flex items-center gap-3">
               <div :class="['w-2 h-2 rounded-full', rule.is_active ? 'bg-green-500' : 'bg-gray-400']"></div>
               <h3 class="font-medium text-gray-900 dark:text-white">{{ rule.name }}</h3>
-              <span v-if="rule.is_system" class="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded">
+              <span v-if="rule.is_system" class="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded whitespace-nowrap">
                 系统规则
               </span>
             </div>

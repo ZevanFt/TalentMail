@@ -245,7 +245,7 @@ const hasBackgroundImage = computed(() => {
                 <div>
                     <h2 class="section-title mb-0">自定义背景</h2>
                     <span v-if="!canUseBackground && subscriptionChecked"
-                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
                         <Crown class="w-3 h-3" />
                         会员功能
                     </span>
@@ -265,7 +265,7 @@ const hasBackgroundImage = computed(() => {
                         
                         <!-- 预览标签 -->
                         <div v-if="previewImage && !canUseBackground"
-                            class="absolute top-3 left-3 px-2 py-1 rounded bg-amber-500 text-white text-xs font-medium flex items-center gap-1"
+                            class="absolute top-3 left-3 px-2 py-1 rounded bg-amber-500 text-white text-xs font-medium flex items-center gap-1 whitespace-nowrap"
                             data-bg-preview>
                             <Eye class="w-3 h-3" />
                             预览模式
