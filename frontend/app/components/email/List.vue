@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { Star, RefreshCw, Loader2, Circle, Clock, X, Send, CheckCircle, XCircle, Eye, Paperclip, SquareCheck, Square, Trash2, Archive, FolderInput, CheckCheck, CircleDot, MoreHorizontal } from 'lucide-vue-next'
+import { Star, RefreshCw, Loader2, Circle, Clock, X, Send, CheckCircle, XCircle, Eye, Paperclip, SquareCheck, Square, Trash2, Archive, FolderInput, CheckCheck, CircleDot, MoreHorizontal, Tag } from 'lucide-vue-next'
 
 const { emails, selectedEmailId, folders, currentFolderId, loading, syncing, loadFolders, loadEmails, loadEmailDetail, sync, formatTime, toggleRead, toggleStar, snooze, searchQuery, isSearching, clearSearch, startAutoSync, stopAutoSync, editDraft, emailHasMore, loadingMore, loadMoreEmails, emailTotal } = useEmails()
 const { isComposeOpen, requestCloseCompose } = useGlobalModal()
-const { getEmail, bulkMarkRead, bulkMarkStarred, bulkDeleteEmails, bulkArchiveEmails, bulkMoveEmails, markAsSpam, markAsNotSpam } = useApi()
+const { getEmail, bulkMarkRead, bulkMarkStarred, bulkDeleteEmails, bulkArchiveEmails, bulkMoveEmails, markAsSpam, markAsNotSpam, getTags, bulkAddTag, bulkRemoveTag } = useApi()
 const { showEmailDetail } = useResponsive()
 const { confirm: confirmDialog } = useConfirmDialog()
 const toast = useToast()
@@ -172,6 +172,63 @@ const moveTargetFolders = computed(() =>
 
 // 批量操作菜单
 const showBulkMenu = ref(false)
+
+// ========== 批量标签操作 ==========
+const showTagMenu = ref(false)
+const userTags = ref<Array<{ id: number; name: string; color: string }>>([])
+
+const loadUserTags = async () => {
+  try {
+    userTags.value = await getTags()
+  } catch (e: any) {
+    console.error('加载标签失败', e)
+  }
+}
+
+const handleBulkAddTag = async (tagId: number) => {
+  if (selectedEmailIds.value.size === 0) return
+  bulkLoading.value = true
+  try {
+    const res = await bulkAddTag(Array.from(selectedEmailIds.value), tagId)
+    const tagName = userTags.value.find(t => t.id === tagId)?.name || ''
+    toast.success(`已为 ${res.success_count} 封邮件添加标签「${tagName}」`)
+    selectedEmailIds.value.clear()
+    isSelectionMode.value = false
+    if (currentFolderId.value) await loadEmails(currentFolderId.value)
+  } catch (e: any) {
+    console.error('批量添加标签失败', e)
+    toast.error(e.data?.detail || '批量添加标签失败')
+  } finally {
+    bulkLoading.value = false
+    showTagMenu.value = false
+    showBulkMenu.value = false
+  }
+}
+
+const handleBulkRemoveTag = async (tagId: number) => {
+  if (selectedEmailIds.value.size === 0) return
+  bulkLoading.value = true
+  try {
+    const res = await bulkRemoveTag(Array.from(selectedEmailIds.value), tagId)
+    const tagName = userTags.value.find(t => t.id === tagId)?.name || ''
+    toast.success(`已从 ${res.success_count} 封邮件移除标签「${tagName}」`)
+    selectedEmailIds.value.clear()
+    isSelectionMode.value = false
+    if (currentFolderId.value) await loadEmails(currentFolderId.value)
+  } catch (e: any) {
+    console.error('批量移除标签失败', e)
+    toast.error(e.data?.detail || '批量移除标签失败')
+  } finally {
+    bulkLoading.value = false
+    showTagMenu.value = false
+    showBulkMenu.value = false
+  }
+}
+
+// 进入选择模式时预加载标签
+watch(isSelectionMode, (val) => {
+  if (val && userTags.value.length === 0) loadUserTags()
+})
 
 // ========== 原有功能 ==========
 
@@ -443,6 +500,35 @@ onUnmounted(() => {
                   class="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors truncate">
                   {{ folder.name }}
                 </button>
+              </div>
+            </div>
+            <!-- 批量标签操作 -->
+            <div class="relative">
+              <button @click="showTagMenu = !showTagMenu"
+                class="w-full px-3 py-2.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2.5 transition-colors group">
+                <Tag class="w-4 h-4 text-gray-500 group-hover:text-emerald-500 transition-colors" />
+                <span class="group-hover:text-emerald-600 dark:group-hover:text-emerald-400 flex-1">标签...</span>
+              </button>
+              <div v-if="showTagMenu"
+                class="absolute left-full top-0 ml-1 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-50 py-1.5 max-h-60 overflow-y-auto">
+                <div v-if="userTags.length === 0" class="px-3 py-2 text-xs text-gray-400">暂无标签</div>
+                <template v-else>
+                  <div class="px-3 py-1 text-xs text-gray-400 font-medium">添加标签</div>
+                  <button v-for="tag in userTags" :key="'add-'+tag.id"
+                    @click="handleBulkAddTag(tag.id)"
+                    class="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2 truncate">
+                    <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="{ background: tag.color }"></span>
+                    {{ tag.name }}
+                  </button>
+                  <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
+                  <div class="px-3 py-1 text-xs text-gray-400 font-medium">移除标签</div>
+                  <button v-for="tag in userTags" :key="'rm-'+tag.id"
+                    @click="handleBulkRemoveTag(tag.id)"
+                    class="w-full px-3 py-2 text-left text-sm hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors flex items-center gap-2 truncate">
+                    <span class="w-2.5 h-2.5 rounded-full flex-shrink-0 opacity-50" :style="{ background: tag.color }"></span>
+                    {{ tag.name }}
+                  </button>
+                </template>
               </div>
             </div>
           </div>

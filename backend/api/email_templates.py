@@ -17,8 +17,12 @@ from core.template_engine import TemplateEngine
 from core.mail_service import MailService
 from core.event_publisher import EventPublisher
 from core.config import settings
+from utils.rate_limit import SlidingWindowLimiter
+import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
+_template_limiter = SlidingWindowLimiter(max_attempts=20, window_seconds=60)
 
 
 # ============ Schema ============
@@ -331,6 +335,8 @@ def create_email_template(
     创建邮件模板（仅管理员）
     同时创建 template_metadata 记录以保存变量的详细信息
     """
+    if not _template_limiter.allow(f"tpl_create:{current_user.id}"):
+        raise HTTPException(429, "操作过于频繁，请稍后再试")
     # 检查 code 是否已存在
     existing = db.query(SystemEmailTemplate).filter(
         SystemEmailTemplate.code == template_data.code

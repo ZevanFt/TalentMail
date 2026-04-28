@@ -20,8 +20,10 @@ from db.models.workflow import (
     WorkflowVersion
 )
 from core.workflow_service import WorkflowService
+from utils.rate_limit import SlidingWindowLimiter
 
 router = APIRouter()
+_wf_limiter = SlidingWindowLimiter(max_attempts=20, window_seconds=60)
 
 
 # ==================== Schemas ====================
@@ -426,6 +428,8 @@ async def create_workflow(
     current_user: User = Depends(get_current_user)
 ):
     """创建自定义工作流"""
+    if not _wf_limiter.allow(f"wf_create:{current_user.id}"):
+        raise HTTPException(429, "操作过于频繁，请稍后再试")
     workflow = Workflow(
         name=data.name,
         description=data.description,

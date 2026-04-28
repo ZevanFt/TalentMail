@@ -27,8 +27,12 @@ from core.temp_mailbox_lifecycle import (
 from db import models
 from db.models.system import ApiKey
 from utils.db import escape_like
+from utils.rate_limit import SlidingWindowLimiter
+import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/automation/temp-mailboxes", tags=["Automation Temp Mailboxes"])
+_auto_limiter = SlidingWindowLimiter(max_attempts=10, window_seconds=60)
 
 
 class TempMailboxEmailItem(BaseModel):
@@ -107,6 +111,8 @@ def create_temp_mailbox_for_api_key(
     db: Session = Depends(deps.get_db),
     api_key: ApiKey = Depends(deps.require_api_key_scopes(["temp_mailbox:create"])),
 ):
+    if not _auto_limiter.allow(f"auto_create:{api_key.id}"):
+        raise HTTPException(429, "操作过于频繁，请稍后再试")
     user = _get_api_key_user(db, api_key)
     policy = get_or_create_policy(db)
 

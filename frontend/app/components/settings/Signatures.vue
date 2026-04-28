@@ -28,9 +28,6 @@ const form = reactive({
 })
 const saving = ref(false)
 
-// 预览
-const showPreview = ref(false)
-
 const loadSignatures = async () => {
   loading.value = true
   try {
@@ -49,7 +46,6 @@ const openCreate = () => {
   form.name = ''
   form.content_html = ''
   form.is_default = false
-  showPreview.value = false
   showModal.value = true
 }
 
@@ -58,7 +54,6 @@ const openEdit = (sig: Signature) => {
   form.name = sig.name
   form.content_html = sig.content_html
   form.is_default = sig.is_default
-  showPreview.value = false
   showModal.value = true
 }
 
@@ -209,7 +204,7 @@ onMounted(loadSignatures)
     </div>
 
     <!-- 创建/编辑弹窗 -->
-    <CommonModal v-model="showModal" :title="editingId ? '编辑签名' : '新建签名'" max-width="lg">
+    <CommonModal v-model="showModal" :title="editingId ? '编辑签名' : '新建签名'" max-width="2xl">
       <div class="space-y-4">
         <!-- 签名名称 -->
         <div>
@@ -223,23 +218,14 @@ onMounted(loadSignatures)
           />
         </div>
 
-        <!-- 签名内容 (HTML) -->
+        <!-- 签名内容（富文本编辑器） -->
         <div>
-          <div class="flex items-center justify-between mb-1">
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">签名内容 (HTML)</label>
-            <button
-              @click="showPreview = !showPreview"
-              class="text-xs text-primary hover:underline"
-            >{{ showPreview ? '编辑模式' : '预览效果' }}</button>
-          </div>
-          <div v-if="showPreview" class="min-h-[120px] p-3 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm" v-html="form.content_html"></div>
-          <textarea
-            v-else
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">签名内容</label>
+          <EditorRichEditor
             v-model="form.content_html"
-            rows="6"
-            placeholder="<p>Best regards,</p><p><strong>Your Name</strong></p><p>Company Inc.</p>"
-            class="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-          ></textarea>
+            placeholder="在这里编辑您的邮件签名..."
+            :min-height="150"
+          />
         </div>
 
         <!-- 设为默认 -->

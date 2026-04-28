@@ -11,9 +11,11 @@ from pydantic import BaseModel
 from db.database import get_db
 from api.deps import get_current_user
 from db.models.user import User
+from utils.rate_limit import SlidingWindowLimiter
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/encryption", tags=["Encryption"])
+_key_limiter = SlidingWindowLimiter(max_attempts=10, window_seconds=60)
 
 PGP_PUBLIC_KEY_PATTERN = re.compile(
     r'-----BEGIN PGP PUBLIC KEY BLOCK-----.*?-----END PGP PUBLIC KEY BLOCK-----',
@@ -58,6 +60,8 @@ def upload_my_key(
     user: User = Depends(get_current_user),
 ):
     """上传/更新自己的 PGP 公钥"""
+    if not _key_limiter.allow(f"pgp_upload:{user.id}"):
+        raise HTTPException(429, "操作过于频繁，请稍后再试")
     key_text = data.public_key.strip()
 
     # 验证 PGP 公钥格式

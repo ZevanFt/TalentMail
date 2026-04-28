@@ -1141,16 +1141,13 @@ def bulk_archive_emails(
 def export_email(
     email_id: int,
     format: str = Query("eml", description="导出格式：eml 或 pdf"),
-    token: str = Query(..., description="认证 token"),
     tz: str = Query("Asia/Shanghai", description="用户时区，如 Asia/Shanghai"),
+    token: Optional[str] = Query(None, description="认证 token（已废弃，请使用 Authorization header）"),
     db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
 ):
-    """导出邮件为 EML 或 PDF 格式（通过 URL token 参数认证）"""
-    # 从 token 参数获取用户
-    user = deps.get_current_user_from_token(db, token)
-    
-    if not user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    """导出邮件为 EML 或 PDF 格式（通过 Authorization header 认证）"""
+    user = current_user
     
     email = db.query(Email).join(Folder).filter(
         Email.id == email_id,

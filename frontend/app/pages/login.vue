@@ -1,8 +1,12 @@
 <script setup lang="ts">
-import { Mail, Eye, EyeOff, Moon, Sun, Loader2, Shield } from 'lucide-vue-next'
+import { Mail, Eye, EyeOff, Moon, Sun, Loader2, Shield, LogIn } from 'lucide-vue-next'
 const { isDark, toggleTheme } = useTheme()
-const { login, login2FA } = useApi()
+const { login, login2FA, getSSOStatus, getSSOLoginUrl } = useApi()
 const { appName, emailDomain, baseDomain } = useConfig()
+
+// SSO 状态
+const ssoEnabled = ref(false)
+const ssoLoading = ref(false)
 
 definePageMeta({
     layout: false
@@ -103,6 +107,29 @@ const backToLogin = () => {
     twoFACode.value = ''
     error.value = ''
 }
+
+// SSO 登录
+const handleSSOLogin = async () => {
+    ssoLoading.value = true
+    error.value = ''
+    try {
+        const { redirect_url } = await getSSOLoginUrl()
+        window.location.href = redirect_url
+    } catch (e: any) {
+        error.value = 'SSO 登录请求失败'
+        ssoLoading.value = false
+    }
+}
+
+// 检查 SSO 是否可用
+onMounted(async () => {
+    try {
+        const status = await getSSOStatus()
+        ssoEnabled.value = status.enabled
+    } catch {
+        // SSO 不可用，静默忽略
+    }
+})
 </script>
 
 <template>
@@ -171,6 +198,21 @@ const backToLogin = () => {
                     </button>
 
                 </form>
+
+                <!-- SSO 登录 -->
+                <template v-if="ssoEnabled">
+                    <div class="my-5 flex items-center gap-3">
+                        <div class="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
+                        <span class="text-xs text-gray-400">或</span>
+                        <div class="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
+                    </div>
+                    <button @click="handleSSOLogin" :disabled="ssoLoading"
+                        class="w-full border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 text-gray-700 dark:text-gray-300 font-medium py-3 rounded-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+                        <Loader2 v-if="ssoLoading" class="w-5 h-5 animate-spin" />
+                        <LogIn v-else class="w-5 h-5" />
+                        {{ ssoLoading ? '跳转中...' : '使用统一认证登录' }}
+                    </button>
+                </template>
 
                 <!-- 忘记密码链接 -->
                 <div class="mt-4 text-center">

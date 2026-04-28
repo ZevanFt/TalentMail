@@ -24,8 +24,11 @@ from core.temp_mailbox_lifecycle import (
 from db import models
 from db.models.billing import Plan, Subscription
 
+from utils.rate_limit import SlidingWindowLimiter
+
 logger = logging.getLogger(__name__)
 router = APIRouter()
+_pool_limiter = SlidingWindowLimiter(max_attempts=10, window_seconds=60)
 
 
 class TempMailboxCreate(BaseModel):
@@ -193,6 +196,8 @@ def create_temp_mailbox(
     current_user: models.User = Depends(deps.get_current_active_user)
 ):
     ensure_pool_access(current_user)
+    if not _pool_limiter.allow(f"pool_create:{current_user.id}"):
+        raise HTTPException(429, "操作过于频繁，请稍后再试")
 
     policy = get_or_create_policy(db)
 

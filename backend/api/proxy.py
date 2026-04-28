@@ -9,10 +9,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 from api.deps import get_current_user
 from db.models.user import User
+from utils.rate_limit import SlidingWindowLimiter
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/proxy", tags=["proxy"])
+_proxy_limiter = SlidingWindowLimiter(max_attempts=30, window_seconds=60)
 
 # 允许代理的内容类型白名单（SVG 已移除 — 可携带 <script> 导致 XSS）
 ALLOWED_CONTENT_TYPES = {
@@ -89,6 +91,8 @@ def proxy_image(
     user: User = Depends(get_current_user),
 ):
     """代理远程图片，防止邮件中的图片直接暴露用户 IP"""
+    if not _proxy_limiter.allow(f"proxy:{user.id}"):
+        raise HTTPException(429, "请求过于频繁，请稍后再试")
     if not url.startswith(("http://", "https://")):
         raise HTTPException(400, "仅支持 HTTP/HTTPS URL")
 

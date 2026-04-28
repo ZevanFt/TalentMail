@@ -47,6 +47,13 @@ class Settings(BaseSettings):
     SPAMASSASSIN_MAX_RETRIES: int = 3
     SPAMASSASSIN_RETRY_DELAY_SECONDS: float = 0.5
 
+    # --- SSO (auth-center) ---
+    SSO_ENABLED: bool = False
+    SSO_AUTH_CENTER_URL: str = ""  # e.g. https://auth.talenting.vip
+    SSO_CLIENT_ID: str = ""
+    SSO_CLIENT_SECRET: str = ""
+    SSO_REDIRECT_URI: str = ""  # e.g. https://mail.talenting.vip/auth/sso/callback
+
     # 系统 API IP 白名单（逗号分隔，空=不限制，依赖 Caddy 层）
     SYSTEM_API_ALLOWED_IPS: str = ""
     # 审计日志保留天数（超过此天数的日志将被自动清理）

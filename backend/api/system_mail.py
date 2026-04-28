@@ -24,10 +24,12 @@ from core.config import settings
 from core.mail_service import MailService
 from db.database import get_db
 from db.models.system import ApiKey
+from utils.rate_limit import SlidingWindowLimiter
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/system", tags=["System Email"])
+_send_limiter = SlidingWindowLimiter(max_attempts=5, window_seconds=60)
 
 # ---------- IP 白名单（纵深防御，Caddy 层已做第一道） ----------
 
@@ -107,11 +109,13 @@ def send_template_email(
     需要 API Key 且具有 system_email:send 权限。
     """
     _check_ip_whitelist(request)
+    client_ip = request.client.host if request.client else "unknown"
+    if not _send_limiter.allow(f"sys_mail:{client_ip}"):
+        raise HTTPException(429, "发送过于频繁，请稍后再试")
 
     logger.info(
         "系统邮件发送请求(模板): to=%s, template=%s, api_key_id=%s, ip=%s",
-        payload.to_email, payload.template_code, api_key.id,
-        request.client.host if request.client else "unknown",
+        payload.to_email, payload.template_code, api_key.id, client_ip,
     )
 
     service = MailService(db)

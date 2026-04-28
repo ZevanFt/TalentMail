@@ -5,6 +5,7 @@
 import asyncio
 import json
 import logging
+import smtplib
 from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
@@ -90,6 +91,27 @@ async def _send_scheduled_email(email_id: int, sender_email: str):
                 email_obj.scheduled_send_at = None  # 清除定时标记
                 db.commit()
                 logger.info(f"[ScheduledSender] 定时邮件发送成功: {email_id}")
+
+        except (smtplib.SMTPRecipientsRefused, smtplib.SMTPSenderRefused, smtplib.SMTPDataError) as e:
+            # SMTP 5xx = 永久性退信（bounce），不重试
+            smtp_code = getattr(e, 'smtp_code', 0) or 0
+            is_bounce = smtp_code >= 500
+            logger.warning(f"[ScheduledSender] SMTP 错误 {email_id}: code={smtp_code}, {e}")
+            try:
+                with SessionLocal() as db:
+                    email_obj = db.query(Email).filter(Email.id == email_id).first()
+                    if email_obj:
+                        if is_bounce:
+                            email_obj.delivery_status = "bounced"
+                            email_obj.delivery_error = f"退信 (SMTP {smtp_code}): {str(e)}"
+                            logger.info(f"[ScheduledSender] 邮件退信: {email_id}, SMTP {smtp_code}")
+                        else:
+                            # 4xx 临时错误，保留重试
+                            email_obj.delivery_status = "scheduled"
+                            email_obj.delivery_error = f"SMTP 临时错误 ({smtp_code}): {str(e)}"
+                        db.commit()
+            except Exception:
+                logger.error(f"[ScheduledSender] 更新退信状态失败: {email_id}", exc_info=True)
 
         except Exception as e:
             logger.error(f"[ScheduledSender] 定时邮件发送失败 {email_id}: {e}", exc_info=True)

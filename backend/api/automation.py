@@ -25,8 +25,12 @@ from schemas.automation import (
 )
 from core.rule_engine import RuleEngine, TriggerType, ConditionOperator, ActionType
 from utils.db import escape_like
+from utils.rate_limit import SlidingWindowLimiter
+import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/automation", tags=["automation"])
+_rule_limiter = SlidingWindowLimiter(max_attempts=20, window_seconds=60)
 
 
 # ============== 元数据 API ==============
@@ -321,6 +325,8 @@ async def create_rule(
     current_user: User = Depends(get_current_user)
 ):
     """创建自动化规则"""
+    if not _rule_limiter.allow(f"rule_create:{current_user.id}"):
+        raise HTTPException(429, "操作过于频繁，请稍后再试")
     rule = AutomationRule(
         name=rule_data.name,
         description=rule_data.description,

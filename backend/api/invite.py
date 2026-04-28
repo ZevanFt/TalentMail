@@ -9,9 +9,11 @@ from typing import Optional, List
 from db import models
 from db.models.billing import InviteCodeUsage
 from api import deps
+from utils.rate_limit import SlidingWindowLimiter
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+_invite_limiter = SlidingWindowLimiter(max_attempts=5, window_seconds=60)
 
 
 class InviteCodeCreate(BaseModel):
@@ -49,6 +51,8 @@ def create_invite_code(
     current_user: models.User = Depends(deps.get_current_active_user)
 ):
     """创建邀请码（仅管理员）"""
+    if not _invite_limiter.allow(f"invite_create:{current_user.id}"):
+        raise HTTPException(429, "操作过于频繁，请稍后再试")
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="仅管理员可创建邀请码")
     

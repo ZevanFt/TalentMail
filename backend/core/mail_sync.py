@@ -263,24 +263,24 @@ def sync_all_mailboxes() -> dict:
     db = SessionLocal()
     results = {"total": 0, "users": {}, "temp_mailboxes": {}}
     try:
-        # 1. 同步注册用户邮箱
-        users = db.query(User).all()
+        # 1. 同步注册用户邮箱（分批加载，防止大量用户时 OOM）
+        users = db.query(User).yield_per(50)
         for user in users:
             count = sync_user_mailbox(db, user)
             results["users"][user.email] = count
             results["total"] += count
 
-        # 2. 同步活跃的临时邮箱
+        # 2. 同步活跃的临时邮箱（分批加载）
         temp_mailboxes = db.query(TempMailbox).filter(
-            TempMailbox.is_active == True
-        ).all()
+            TempMailbox.is_active == True  # noqa: E712
+        ).yield_per(50)
         for temp_mb in temp_mailboxes:
             count = sync_temp_mailbox(db, temp_mb)
             results["temp_mailboxes"][temp_mb.email] = count
             results["total"] += count
 
-        # 3. 同步活跃的别名邮箱
-        aliases = db.query(Alias).filter(Alias.is_active == True).all()
+        # 3. 同步活跃的别名邮箱（分批加载）
+        aliases = db.query(Alias).filter(Alias.is_active == True).yield_per(50)  # noqa: E712
         if "aliases" not in results:
             results["aliases"] = {}
         for alias in aliases:

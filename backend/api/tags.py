@@ -100,6 +100,78 @@ def delete_tag(tag_id: int, db: Session = Depends(get_db), user: User = Depends(
     return {"status": "success", "message": "删除成功"}
 
 
+class BulkTagRequest(BaseModel):
+    """批量标签操作请求"""
+    email_ids: list[int] = Field(..., max_length=500)
+    tag_id: int
+
+
+class BulkTagResponse(BaseModel):
+    """批量标签操作响应"""
+    status: str
+    success_count: int
+    skipped_count: int
+
+
+@router.post("/bulk/add", response_model=BulkTagResponse)
+def bulk_add_tag(
+    data: BulkTagRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """批量给邮件添加标签"""
+    tag = db.query(Tag).filter(Tag.id == data.tag_id, Tag.user_id == user.id).first()
+    if not tag:
+        raise HTTPException(404, "标签不存在")
+    # 获取用户拥有的邮件 ID
+    user_folder_ids = db.query(Folder.id).filter(Folder.user_id == user.id)
+    owned_ids = {
+        row[0] for row in db.query(Email.id).filter(
+            Email.id.in_(data.email_ids),
+            Email.folder_id.in_(user_folder_ids),
+        ).all()
+    }
+    # 查出已有标签关联的邮件
+    existing_ids = {
+        row[0] for row in db.query(EmailTag.email_id).filter(
+            EmailTag.email_id.in_(owned_ids),
+            EmailTag.tag_id == data.tag_id,
+        ).all()
+    }
+    to_add = owned_ids - existing_ids
+    for eid in to_add:
+        db.add(EmailTag(email_id=eid, tag_id=data.tag_id))
+    db.commit()
+    logger.info(f"用户 {user.id} 批量添加标签 {tag.name}: {len(to_add)} 封邮件")
+    return BulkTagResponse(status="success", success_count=len(to_add), skipped_count=len(existing_ids))
+
+
+@router.post("/bulk/remove", response_model=BulkTagResponse)
+def bulk_remove_tag(
+    data: BulkTagRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """批量移除邮件标签"""
+    tag = db.query(Tag).filter(Tag.id == data.tag_id, Tag.user_id == user.id).first()
+    if not tag:
+        raise HTTPException(404, "标签不存在")
+    user_folder_ids = db.query(Folder.id).filter(Folder.user_id == user.id)
+    owned_ids = {
+        row[0] for row in db.query(Email.id).filter(
+            Email.id.in_(data.email_ids),
+            Email.folder_id.in_(user_folder_ids),
+        ).all()
+    }
+    removed = db.query(EmailTag).filter(
+        EmailTag.email_id.in_(owned_ids),
+        EmailTag.tag_id == data.tag_id,
+    ).delete(synchronize_session=False)
+    db.commit()
+    logger.info(f"用户 {user.id} 批量移除标签 {tag.name}: {removed} 封邮件")
+    return BulkTagResponse(status="success", success_count=removed, skipped_count=len(owned_ids) - removed)
+
+
 @router.post("/email/{email_id}/tag/{tag_id}")
 def add_tag_to_email(email_id: int, tag_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     tag = db.query(Tag).filter(Tag.id == tag_id, Tag.user_id == user.id).first()

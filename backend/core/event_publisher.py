@@ -108,6 +108,13 @@ EVENT_METADATA = {
         "description": "当用户存储空间使用超过阈值时触发",
         "available_variables": ["user_name", "user_email", "used_percent", "used_size", "total_size"]
     },
+    EventType.EMAIL_BOUNCED: {
+        "name": "邮件退信",
+        "category": "email",
+        "category_label": "📬 邮件事件",
+        "description": "当发送的邮件被收件方服务器拒绝退回时触发",
+        "available_variables": ["user_name", "user_email", "recipient_email", "subject", "bounce_code", "bounce_reason"]
+    },
 }
 
 
