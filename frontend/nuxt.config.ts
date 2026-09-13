@@ -154,6 +154,13 @@ export default defineNuxtConfig({
   // Nitro 优化：构建时预压缩静态资源
   nitro: {
     compressPublicAssets: true,
+    // 无反向代理时（如直接访问 :3000），把 /api 转发到 backend
+    // 生产 Caddy 通常会先把 /api 打到 backend，此处作为兜底
+    routeRules: {
+      '/api/**': {
+        proxy: `${process.env.API_PROXY_TARGET || 'http://backend:8000'}/api/**`,
+      },
+    },
   },
 
   // 3. 开启未来版本兼容性 (这可能就是您项目结构变化的原因)

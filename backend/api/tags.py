@@ -44,8 +44,9 @@ def get_tags(
     user: User = Depends(get_current_user),
 ):
     # 单次查询获取所有标签 + 计数，避免 N+1
+    # EmailTag 是 (email_id, tag_id) 复合主键，没有独立 id 列
     from sqlalchemy import func
-    base = db.query(Tag, func.count(EmailTag.id).label("cnt")).outerjoin(
+    base = db.query(Tag, func.count(EmailTag.email_id).label("cnt")).outerjoin(
         EmailTag, EmailTag.tag_id == Tag.id
     ).filter(Tag.user_id == user.id).group_by(Tag.id)
     total = db.query(Tag).filter(Tag.user_id == user.id).count()
