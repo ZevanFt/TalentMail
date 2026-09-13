@@ -3,7 +3,7 @@
 """
 import pytest
 from unittest.mock import Mock, AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import asyncio
 
 # Import handlers
@@ -124,7 +124,9 @@ class TestGenerateCodeHandler:
         result = await handler.execute(config, context)
 
         expires_at = datetime.fromisoformat(result['expires_at'])
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
         # 验证过期时间大约在30分钟后
         assert (expires_at - now).total_seconds() > 29 * 60
         assert (expires_at - now).total_seconds() < 31 * 60
@@ -280,7 +282,7 @@ class TestSendTemplateEmailHandler:
             'variables': {'name': 'Test User'}
         }
 
-        with pytest.raises(ValueError, match="Recipient 'to' address is missing"):
+        with pytest.raises(ValueError, match="收件人地址"):
             await handler.execute(config, context)
 
     @pytest.mark.asyncio
@@ -294,7 +296,7 @@ class TestSendTemplateEmailHandler:
             'variables': {'name': 'Test User'}
         }
 
-        with pytest.raises(ValueError, match="Template code is missing"):
+        with pytest.raises(ValueError, match="模板代码"):
             await handler.execute(config, context)
 
     @pytest.mark.asyncio
@@ -309,9 +311,10 @@ class TestSendTemplateEmailHandler:
             'variables': {'name': 'Test User', 'code': '123456'}
         }
 
-        # Mock MailService
+        # Mock MailService — 实际调用 send_by_template（同步方法，经 asyncio.to_thread）
         with patch('core.workflow_service.MailService') as MockMailService:
-            mock_mail_service = AsyncMock()
+            mock_mail_service = Mock()
+            mock_mail_service.send_by_template.return_value = True
             MockMailService.return_value = mock_mail_service
 
             result = await handler.execute(config, context)
@@ -319,10 +322,10 @@ class TestSendTemplateEmailHandler:
             assert result['status'] == 'sent'
             assert result['to'] == 'user@example.com'
             assert result['template'] == 'welcome_email'
-            mock_mail_service.send_template_email.assert_called_once_with(
-                to='user@example.com',
+            mock_mail_service.send_by_template.assert_called_once_with(
                 template_code='welcome_email',
-                template_data={'name': 'Test User', 'code': '123456'}
+                to_email='user@example.com',
+                context={'name': 'Test User', 'code': '123456'}
             )
 
 

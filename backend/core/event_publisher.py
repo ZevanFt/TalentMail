@@ -4,7 +4,7 @@
 """
 import logging
 from typing import Dict, Any, Optional, List
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)

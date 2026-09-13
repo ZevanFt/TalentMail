@@ -3,7 +3,7 @@ SSO 单点登录 API — auth-center OAuth 2.0 授权码流程
 """
 import logging
 import secrets
-from datetime import timedelta
+from datetime import timedelta, timezone
 from typing import Optional
 
 import httpx

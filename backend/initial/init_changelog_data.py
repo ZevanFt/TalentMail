@@ -4,7 +4,7 @@
 """
 import logging
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from db.models.system import Changelog
 from db.database import SessionLocal
 

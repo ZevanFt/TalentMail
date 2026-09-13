@@ -1,7 +1,7 @@
 """日历循环事件展开（简化 RRULE：daily/weekly/monthly）"""
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 RECURRENCE_NONE = "none"
@@ -48,7 +48,6 @@ def expand_event_occurrences(
     end: datetime = event.end_time
     if start.tzinfo is None:
         # 粗暴补 UTC，避免 naive/aware 比较失败
-        from datetime import timezone
         start = start.replace(tzinfo=timezone.utc)
         end = end.replace(tzinfo=timezone.utc)
         if getattr(event, "recurrence_until", None) is not None and event.recurrence_until.tzinfo is None:

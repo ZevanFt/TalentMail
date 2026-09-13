@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, func
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timezone
 
 from db.database import get_db
 from api.deps import get_current_user, get_current_admin_user
