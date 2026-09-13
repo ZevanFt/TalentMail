@@ -16,6 +16,7 @@ const {
 } = useBackground()
 
 const { isDark, toggleTheme } = useTheme()
+const { locale, setLocale, availableLocales } = useI18n()
 
 // 预览图片状态
 const previewImage = ref<string | null>(null)
@@ -236,6 +237,27 @@ const hasBackgroundImage = computed(() => {
                     <Palette class="w-4 h-4" />
                     <span class="text-sm font-medium">{{ isDark ? '深色模式' : '浅色模式' }}</span>
                 </button>
+            </div>
+        </div>
+
+        <!-- 界面语言 -->
+        <div class="card bg-white dark:bg-bg-panelDark rounded-xl p-6 border border-gray-200 dark:border-border-dark">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="section-title mb-0">界面语言 / Language</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">切换界面显示语言（逐步覆盖中）</p>
+                </div>
+                <div class="flex gap-2">
+                    <button
+                        v-for="item in availableLocales" :key="item.code"
+                        @click="setLocale(item.code)"
+                        class="px-3 py-2 rounded-lg border text-sm transition-colors"
+                        :class="locale === item.code
+                            ? 'border-primary bg-primary/10 text-primary font-medium'
+                            : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'">
+                        {{ item.label }}
+                    </button>
+                </div>
             </div>
         </div>
 

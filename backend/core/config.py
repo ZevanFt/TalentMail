@@ -70,10 +70,15 @@ class Settings(BaseSettings):
 
 def load_config() -> Settings:
     settings = Settings()
-    config_path = Path("/app/config.json")
-    if not config_path.exists():
-        raise FileNotFoundError(f"Configuration file not found at {config_path}")
-    
+    candidates = [
+        Path("/app/config.json"),
+        Path(__file__).resolve().parents[2] / "config.json",  # 项目根
+        Path(__file__).resolve().parents[1] / "config.json",  # backend/
+    ]
+    config_path = next((p for p in candidates if p.exists()), None)
+    if config_path is None:
+        raise FileNotFoundError(f"Configuration file not found. Tried: {[str(p) for p in candidates]}")
+
     with open(config_path, "r") as f:
         config_json = json.load(f)
 

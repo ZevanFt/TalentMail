@@ -1,12 +1,32 @@
 """
 pytest 配置文件
 """
-import pytest
-import sys
 import os
+import sys
+from pathlib import Path
 
 # 将 backend 目录添加到 Python 路径
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(BACKEND_DIR))
+
+# 在导入任何依赖 settings 的模块前，补齐测试用环境变量
+_test_env = {
+    "ADMIN_PASSWORD": "test-admin-password",
+    "POSTGRES_USER": "test",
+    "POSTGRES_PASSWORD": "test",
+    "POSTGRES_DB": "talentmail_test",
+    "DATABASE_URL_DOCKER": "postgresql+psycopg2://test:test@localhost:5432/talentmail_test",
+    "SECRET_KEY": "test-secret-key-not-for-production",
+    "ACCESS_TOKEN_EXPIRE_MINUTES": "60",
+    "REFRESH_TOKEN_EXPIRE_DAYS": "7",
+    "JWT_ALGORITHM": "HS256",
+    "ENCRYPTION_KEY": "",
+    "CURRENT_ENVIRONMENT": "development",
+}
+for _k, _v in _test_env.items():
+    os.environ.setdefault(_k, _v)
+
+import pytest
 
 
 @pytest.fixture(scope="session")

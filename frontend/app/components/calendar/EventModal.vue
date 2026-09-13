@@ -13,6 +13,8 @@ const props = defineProps<{
     all_day: boolean
     color: string
     reminder_minutes: number | null
+    recurrence?: string
+    recurrence_until?: string | null
   } | null
 }>()
 
@@ -39,6 +41,8 @@ const form = reactive({
   all_day: false,
   color: '#3B82F6',
   reminder_minutes: null as number | null,
+  recurrence: 'none' as 'none' | 'daily' | 'weekly' | 'monthly',
+  recurrence_until: '',
 })
 
 const isEditing = computed(() => !!props.event?.id)
@@ -53,6 +57,10 @@ watch(() => props.modelValue, (open) => {
     form.all_day = props.event.all_day
     form.color = props.event.color || '#3B82F6'
     form.reminder_minutes = props.event.reminder_minutes
+    form.recurrence = (props.event.recurrence as any) || 'none'
+    form.recurrence_until = props.event.recurrence_until
+      ? toLocalInput(props.event.recurrence_until).slice(0, 10)
+      : ''
     // 转换为 datetime-local 格式
     form.start_time = toLocalInput(props.event.start_time)
     form.end_time = toLocalInput(props.event.end_time)
@@ -63,6 +71,8 @@ watch(() => props.modelValue, (open) => {
     form.all_day = false
     form.color = '#3B82F6'
     form.reminder_minutes = null
+    form.recurrence = 'none'
+    form.recurrence_until = ''
     // 默认当前时间向后 1 小时
     const now = new Date()
     now.setMinutes(0, 0, 0)
@@ -99,6 +109,10 @@ const handleSave = async () => {
       all_day: form.all_day,
       color: form.color,
       reminder_minutes: form.reminder_minutes,
+      recurrence: form.recurrence,
+      recurrence_until: form.recurrence !== 'none' && form.recurrence_until
+        ? new Date(form.recurrence_until + 'T23:59:59').toISOString()
+        : null,
     }
 
     if (isEditing.value && props.event) {
@@ -190,6 +204,25 @@ const handleDelete = async () => {
             class="w-7 h-7 rounded-full border-2 transition-all"
             :class="form.color === c ? 'border-gray-900 dark:border-white scale-110' : 'border-transparent'"
             :style="{ backgroundColor: c }" />
+        </div>
+      </div>
+
+      <!-- 重复 -->
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">重复</label>
+          <select v-model="form.recurrence"
+            class="w-full px-3 py-2 border border-gray-200 dark:border-border-dark rounded-lg bg-white dark:bg-bg-panelDark text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+            <option value="none">不重复</option>
+            <option value="daily">每天</option>
+            <option value="weekly">每周</option>
+            <option value="monthly">每月</option>
+          </select>
+        </div>
+        <div v-if="form.recurrence !== 'none'">
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">重复至</label>
+          <input v-model="form.recurrence_until" type="date"
+            class="w-full px-3 py-2 border border-gray-200 dark:border-border-dark rounded-lg bg-white dark:bg-bg-panelDark text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
         </div>
       </div>
     </div>

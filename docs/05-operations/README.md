@@ -7,7 +7,7 @@
 - **[部署指南](./deployment.md)** - 详细的部署步骤和配置
 - **[监控配置](./monitoring.md)** - 系统监控和告警设置（编写中）
 - **[故障排查](./troubleshooting.md)** - 常见问题诊断和解决方案
-- **[备份恢复](./backup-recovery.md)** - 数据备份和灾难恢复（编写中）
+- **[备份恢复](./backup-restore.md)** - 数据库备份、定时器与管理端 API
 - **[性能优化](./performance.md)** - 系统性能调优指南（编写中）
 
 ## 🚀 快速导航

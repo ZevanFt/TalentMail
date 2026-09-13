@@ -6,7 +6,7 @@ from .user import User, UserSession, PoolActivityLog, BlockedSender, TrustedSend
 from .email import Folder, Email, Attachment, Signature, Alias, TempMailbox, Domain
 from .billing import Plan, Subscription, Transaction, RedemptionCode, InviteCode, InviteCodeUsage, SubscriptionHistory
 from .features import Contact, Filter, Template, Tag, EmailTag, TrackingPixel, TrackingEvent
-from .system import ServerLog, ApiKey, ApiKeyAuditLog, ReservedPrefix, SystemEmailTemplate, VerificationCode, Changelog, TempMailboxPolicy
+from .system import ServerLog, ApiKey, ApiKeyAuditLog, ReservedPrefix, SystemEmailTemplate, VerificationCode, Changelog, TempMailboxPolicy, OperationAuditLog
 from .external_account import ExternalAccount
 from .drive import DriveFile
 from .calendar import CalendarEvent
@@ -65,6 +65,7 @@ __all__ = [
     "VerificationCode",
     "Changelog",
     "TempMailboxPolicy",
+    "OperationAuditLog",
     "ExternalAccount",
     "DriveFile",
     "CalendarEvent",

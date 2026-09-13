@@ -154,3 +154,25 @@ class TempMailboxPolicy(Base):
     last_cleanup_count = Column(Integer, default=0, nullable=False, comment="最近一次清理处理数量")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="创建时间")
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), comment="更新时间")
+
+
+class OperationAuditLog(Base):
+    """平台操作审计流水（登录、发信、删除、管理动作等）"""
+    __tablename__ = "operation_audit_logs"
+    __table_args__ = (
+        Index('ix_op_audit_user_created', 'user_id', 'created_at'),
+        Index('ix_op_audit_action_created', 'action', 'created_at'),
+        {'comment': '平台关键操作审计日志'},
+    )
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True, comment="审计日志唯一标识符")
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True, comment="操作用户ID")
+    actor_type = Column(String(32), nullable=False, default="user", comment="操作者类型: user/admin/system/api_key")
+    action = Column(String(64), nullable=False, comment="动作标识，如 email.send / admin.user.delete / backup.create")
+    resource_type = Column(String(64), nullable=True, comment="资源类型，如 email / user / mailbox / backup")
+    resource_id = Column(String(64), nullable=True, comment="资源 ID")
+    detail = Column(Text, nullable=True, comment="补充信息（JSON 文本）")
+    ip_address = Column(String(64), nullable=True, comment="请求来源 IP")
+    user_agent = Column(String(255), nullable=True, comment="客户端 UA")
+    status = Column(String(16), nullable=False, default="success", comment="结果: success/failure")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True, comment="创建时间")

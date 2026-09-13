@@ -5,6 +5,11 @@ const config = useConfig()
 useHead({ title: `日历 - ${config.appName}` })
 const toast = useToast()
 const { getCalendarEvents, importIcs } = useApi()
+const { t, locale } = useI18n()
+
+// ---- 视图模式：月 / 周 ----
+const viewMode = ref<'month' | 'week'>('month')
+const weekAnchor = ref(new Date())
 
 // ---- 当前月份 ----
 const today = new Date()
@@ -12,11 +17,23 @@ const currentYear = ref(today.getFullYear())
 const currentMonth = ref(today.getMonth()) // 0-indexed
 
 const monthLabel = computed(() => {
+  if (viewMode.value === 'week') {
+    const days = weekDays.value
+    const first = days[0]
+    const last = days[days.length - 1]
+    const fmt = (d: Date) => `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}`
+    return `${fmt(first)} – ${fmt(last)}`
+  }
   const months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
   return `${currentYear.value}年${months[currentMonth.value]}`
 })
 
 const prevMonth = () => {
+  if (viewMode.value === 'week') {
+    weekAnchor.value = new Date(weekAnchor.value.getTime() - 7 * 86400000)
+    loadEvents()
+    return
+  }
   if (currentMonth.value === 0) {
     currentMonth.value = 11
     currentYear.value--
@@ -27,6 +44,11 @@ const prevMonth = () => {
 }
 
 const nextMonth = () => {
+  if (viewMode.value === 'week') {
+    weekAnchor.value = new Date(weekAnchor.value.getTime() + 7 * 86400000)
+    loadEvents()
+    return
+  }
   if (currentMonth.value === 11) {
     currentMonth.value = 0
     currentYear.value++
@@ -40,6 +62,12 @@ const goToday = () => {
   const now = new Date()
   currentYear.value = now.getFullYear()
   currentMonth.value = now.getMonth()
+  weekAnchor.value = now
+  loadEvents()
+}
+
+const setViewMode = (mode: 'month' | 'week') => {
+  viewMode.value = mode
   loadEvents()
 }
 
@@ -107,6 +135,32 @@ const calendarDays = computed((): CalendarDay[] => {
   return days
 })
 
+// ---- 周视图 ----
+const weekDays = computed((): CalendarDay[] => {
+  const anchor = weekAnchor.value
+  // 周一为一周起始
+  let startDow = anchor.getDay() - 1
+  if (startDow < 0) startDow = 6
+  const weekStart = new Date(anchor)
+  weekStart.setDate(anchor.getDate() - startDow)
+  weekStart.setHours(0, 0, 0, 0)
+
+  const todayStr = formatDateKey(new Date())
+  const days: CalendarDay[] = []
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(weekStart)
+    d.setDate(weekStart.getDate() + i)
+    days.push({
+      date: d,
+      day: d.getDate(),
+      isCurrentMonth: d.getMonth() === currentMonth.value,
+      isToday: formatDateKey(d) === todayStr,
+      events: eventsForDate(d),
+    })
+  }
+  return days
+})
+
 const formatDateKey = (d: Date): string => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
@@ -135,13 +189,22 @@ const loadEvents = async () => {
   loading.value = true
   loadError.value = false
   try {
-    const start = new Date(currentYear.value, currentMonth.value - 1, 1).toISOString()
-    const end = new Date(currentYear.value, currentMonth.value + 2, 0).toISOString()
-    events.value = await getCalendarEvents(start, end)
+    let start: Date
+    let end: Date
+    if (viewMode.value === 'week') {
+      start = new Date(weekDays.value[0].date)
+      start.setDate(start.getDate() - 1)
+      end = new Date(weekDays.value[6].date)
+      end.setDate(end.getDate() + 1)
+    } else {
+      start = new Date(currentYear.value, currentMonth.value - 1, 1)
+      end = new Date(currentYear.value, currentMonth.value + 2, 0)
+    }
+    events.value = await getCalendarEvents(start.toISOString(), end.toISOString())
   } catch (e: any) {
     console.error('加载事件失败', e)
     loadError.value = true
-    toast.error('加载日历失败')
+    toast.error(t('calendar.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -214,7 +277,7 @@ const handleIcsImport = async (e: Event) => {
 }
 
 const formatTime = (isoStr: string, allDay: boolean): string => {
-  if (allDay) return '全天'
+  if (allDay) return t('calendar.allDay')
   const d = new Date(isoStr)
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
@@ -236,17 +299,29 @@ onMounted(loadEvents)
             <ChevronRight class="w-5 h-5" />
           </button>
           <button @click="goToday" class="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-            今天
+            {{ t('common.today') }}
           </button>
+          <div class="ml-2 flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <button
+              @click="setViewMode('month')"
+              class="px-3 py-1.5 text-sm transition-colors"
+              :class="viewMode === 'month' ? 'bg-primary text-white' : 'hover:bg-gray-100 dark:hover:bg-gray-800'"
+            >{{ t('calendar.monthView') }}</button>
+            <button
+              @click="setViewMode('week')"
+              class="px-3 py-1.5 text-sm transition-colors"
+              :class="viewMode === 'week' ? 'bg-primary text-white' : 'hover:bg-gray-100 dark:hover:bg-gray-800'"
+            >{{ t('calendar.weekView') }}</button>
+          </div>
         </div>
         <div class="flex items-center gap-2">
           <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
             <Upload class="w-4 h-4" />
-            {{ importingIcs ? '导入中...' : '导入 .ics' }}
+            {{ importingIcs ? t('calendar.importing') : t('calendar.importIcs') }}
             <input type="file" accept=".ics" class="hidden" @change="handleIcsImport" :disabled="importingIcs" />
           </label>
           <button @click="openNewEvent()" class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary-hover transition-colors">
-            <Plus class="w-4 h-4" /> 新建事件
+            <Plus class="w-4 h-4" /> {{ t('calendar.newEvent') }}
           </button>
         </div>
       </div>
@@ -254,14 +329,14 @@ onMounted(loadEvents)
       <!-- 加载错误 -->
       <div v-if="loadError && !loading" class="flex flex-col items-center justify-center py-20 gap-4">
         <div class="text-5xl">😵</div>
-        <p class="text-gray-500 dark:text-gray-400">加载日历失败</p>
+        <p class="text-gray-500 dark:text-gray-400">{{ t('calendar.loadFailed') }}</p>
         <button @click="loadEvents" class="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary-hover transition-colors">
-          重新加载
+          {{ t('common.retry') }}
         </button>
       </div>
 
       <div v-else class="flex gap-6">
-        <!-- 月历网格 -->
+        <!-- 月/周历网格 -->
         <div class="flex-1 bg-white dark:bg-bg-panelDark rounded-xl border border-gray-200 dark:border-border-dark overflow-hidden">
           <!-- 星期标题 -->
           <div class="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700">
@@ -272,7 +347,7 @@ onMounted(loadEvents)
 
           <!-- 加载骨架屏 -->
           <div v-if="loading" class="grid grid-cols-7">
-            <div v-for="i in 42" :key="i" class="min-h-[90px] border-b border-r border-gray-100 dark:border-gray-800 p-1.5">
+            <div v-for="i in (viewMode === 'week' ? 7 : 42)" :key="i" class="min-h-[90px] border-b border-r border-gray-100 dark:border-gray-800 p-1.5">
               <div class="flex items-center justify-center mb-1">
                 <div class="w-7 h-7 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse"></div>
               </div>
@@ -285,15 +360,18 @@ onMounted(loadEvents)
           <!-- 日期格子 -->
           <div v-else class="grid grid-cols-7">
             <div
-              v-for="(day, idx) in calendarDays" :key="idx"
+              v-for="(day, idx) in (viewMode === 'week' ? weekDays : calendarDays)" :key="idx"
               @click="selectDate(day)"
-              class="min-h-[90px] border-b border-r border-gray-100 dark:border-gray-800 p-1.5 cursor-pointer transition-colors"
-              :class="{
-                'bg-gray-50/50 dark:bg-gray-900/30': !day.isCurrentMonth,
-                'bg-blue-50/50 dark:bg-blue-900/20': day.isToday,
-                'hover:bg-gray-50 dark:hover:bg-gray-800/50': day.isCurrentMonth && !day.isToday,
-                'ring-2 ring-primary ring-inset': selectedDate && formatDateKey(selectedDate) === formatDateKey(day.date),
-              }"
+              class="border-b border-r border-gray-100 dark:border-gray-800 p-1.5 cursor-pointer transition-colors"
+              :class="[
+                viewMode === 'week' ? 'min-h-[220px]' : 'min-h-[90px]',
+                {
+                  'bg-gray-50/50 dark:bg-gray-900/30': viewMode === 'month' && !day.isCurrentMonth,
+                  'bg-blue-50/50 dark:bg-blue-900/20': day.isToday,
+                  'hover:bg-gray-50 dark:hover:bg-gray-800/50': !day.isToday,
+                  'ring-2 ring-primary ring-inset': selectedDate && formatDateKey(selectedDate) === formatDateKey(day.date),
+                }
+              ]"
             >
               <!-- 日期数字 -->
               <div class="flex items-center justify-center mb-1">
@@ -323,8 +401,8 @@ onMounted(loadEvents)
           </div>
 
           <!-- 空状态提示 -->
-          <div v-if="!loading && !hasEventsThisMonth" class="py-4 text-center text-sm text-gray-400 border-t border-gray-100 dark:border-gray-800">
-            📅 本月暂无事件，点击日期或右上角「新建事件」添加
+          <div v-if="!loading && viewMode === 'month' && !hasEventsThisMonth" class="py-4 text-center text-sm text-gray-400 border-t border-gray-100 dark:border-gray-800">
+            📅 {{ t('calendar.emptyMonth') }}
           </div>
         </div>
 

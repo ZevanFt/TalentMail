@@ -1,0 +1,13 @@
+# TalentMail 备份定时器 — 每天 03:17 执行一次
+# 避开整点，降低与其他任务撞车概率
+
+[Unit]
+Description=Run TalentMail backup daily
+
+[Timer]
+OnCalendar=*-*-* 03:17:00
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

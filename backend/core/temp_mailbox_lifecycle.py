@@ -49,8 +49,10 @@ def get_or_create_policy(db: Session) -> models.TempMailboxPolicy:
 def compute_new_expiry_windows(
     now: datetime, policy: models.TempMailboxPolicy
 ) -> tuple[datetime, datetime]:
-    expires_at = now + timedelta(hours=max(1, int(policy.ttl_hours or DEFAULT_TTL_HOURS)))
-    recovery_until = expires_at + timedelta(days=max(1, int(policy.recoverable_days or DEFAULT_RECOVERABLE_DAYS)))
+    ttl_hours = int(policy.ttl_hours) if policy.ttl_hours is not None else DEFAULT_TTL_HOURS
+    recoverable_days = int(policy.recoverable_days) if policy.recoverable_days is not None else DEFAULT_RECOVERABLE_DAYS
+    expires_at = now + timedelta(hours=max(1, ttl_hours))
+    recovery_until = expires_at + timedelta(days=max(1, recoverable_days))
     return expires_at, recovery_until
 
 
@@ -58,10 +60,12 @@ def normalize_mailbox_windows(
     mailbox: models.TempMailbox, policy: models.TempMailboxPolicy, now: Optional[datetime] = None
 ) -> None:
     now = now or _now_utc()
+    ttl_hours = int(policy.ttl_hours) if policy.ttl_hours is not None else DEFAULT_TTL_HOURS
+    recoverable_days = int(policy.recoverable_days) if policy.recoverable_days is not None else DEFAULT_RECOVERABLE_DAYS
     if mailbox.expires_at is None:
-        mailbox.expires_at = (mailbox.created_at or now) + timedelta(hours=max(1, int(policy.ttl_hours or DEFAULT_TTL_HOURS)))
+        mailbox.expires_at = (mailbox.created_at or now) + timedelta(hours=max(1, ttl_hours))
     if mailbox.recovery_until is None:
-        mailbox.recovery_until = mailbox.expires_at + timedelta(days=max(1, int(policy.recoverable_days or DEFAULT_RECOVERABLE_DAYS)))
+        mailbox.recovery_until = mailbox.expires_at + timedelta(days=max(1, recoverable_days))
 
 
 def expire_due_mailboxes(

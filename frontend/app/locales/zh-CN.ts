@@ -1,0 +1,38 @@
+/** 简易 i18n 词典 — 后续页面可逐步迁入 */
+export default {
+  common: {
+    appName: 'TalentMail',
+    today: '今天',
+    save: '保存',
+    cancel: '取消',
+    delete: '删除',
+    loading: '加载中...',
+    retry: '重新加载',
+    language: '语言',
+    theme: '主题',
+  },
+  calendar: {
+    title: '日历',
+    monthView: '月',
+    weekView: '周',
+    newEvent: '新建事件',
+    importIcs: '导入 .ics',
+    importing: '导入中...',
+    loadFailed: '加载日历失败',
+    noEvents: '暂无事件',
+    clickDateHint: '点击日期查看详情',
+    allDay: '全天',
+    emptyMonth: '本月暂无事件，点击日期或右上角「新建事件」添加',
+    more: '更多',
+    location: '地点',
+    createOnThisDay: '在此日新建事件',
+    recurrence: {
+      label: '重复',
+      none: '不重复',
+      daily: '每天',
+      weekly: '每周',
+      monthly: '每月',
+      until: '重复至',
+    },
+  },
+}

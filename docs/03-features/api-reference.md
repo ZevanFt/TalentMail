@@ -427,12 +427,20 @@ All errors follow a consistent format:
 
 ## 5. Rate Limiting
 
-- Default: **120 requests/minute** per API key (configurable per key, 1-10,000)
-- Rate limit window: sliding 1-minute window
-- Rate limit is enforced **per API key**, not per IP
-- Response header: rate limit status is logged in audit logs
+两层限流叠加：
 
-When rate limited, wait until the next minute window before retrying.
+| Layer | Rule |
+|-------|------|
+| **Per API Key** | Default **120 requests/minute** (configurable per key, 1–10,000) |
+| **Per scenario** | create 10/min · list/emails 60/min · codes 30/min · extend/restore 20/min |
+
+- Window: sliding 1-minute
+- Limit is **per API key**, not per IP
+- Hits are recorded in audit logs (`error_code: rate_limited`)
+
+When rate limited (HTTP 429), use exponential backoff before retrying.
+
+See also: [Developer Guide](./api-developer-guide.md)
 
 ---
 

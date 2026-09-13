@@ -673,6 +673,23 @@ def login_for_access_token(
         # 工作流触发失败不影响登录
         logger.error(f"登录工作流触发失败: {e}")
 
+    # 操作审计：登录成功
+    try:
+        from core.audit import record_operation
+        record_operation(
+            db,
+            action="auth.login",
+            user_id=user.id,
+            actor_type="user",
+            resource_type="session",
+            resource_id=session.id if session else None,
+            ip_address=get_client_ip(request),
+            user_agent=request.headers.get("User-Agent"),
+            detail={"email": user.email},
+        )
+    except Exception as e:
+        logger.error(f"登录审计写入失败: {e}")
+
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,

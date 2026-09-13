@@ -1,0 +1,25 @@
+# TalentMail 自动备份 — systemd timer
+# 安装:
+#   sudo cp scripts/talentmail-backup.service scripts/talentmail-backup.timer /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now talentmail-backup.timer
+# 查看:
+#   systemctl list-timers talentmail-backup.timer
+#   journalctl -u talentmail-backup.service -n 50
+
+[Unit]
+Description=TalentMail PostgreSQL database backup
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/talentmail
+# 请确认 .env 与 docker-compose.yml 位于 WorkingDirectory
+ExecStart=/opt/talentmail/scripts/backup-db.sh
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=600
+
+[Install]
+WantedBy=multi-user.target

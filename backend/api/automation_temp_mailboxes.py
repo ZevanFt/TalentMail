@@ -32,7 +32,12 @@ import logging
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/automation/temp-mailboxes", tags=["Automation Temp Mailboxes"])
-_auto_limiter = SlidingWindowLimiter(max_attempts=10, window_seconds=60)
+
+# 场景分层限流：创建/续期/恢复较严，读取与验证码轮询较松
+_auto_create_limiter = SlidingWindowLimiter(max_attempts=10, window_seconds=60)
+_auto_read_limiter = SlidingWindowLimiter(max_attempts=60, window_seconds=60)
+_auto_code_limiter = SlidingWindowLimiter(max_attempts=30, window_seconds=60)
+_auto_mutation_limiter = SlidingWindowLimiter(max_attempts=20, window_seconds=60)
 
 
 class TempMailboxEmailItem(BaseModel):
@@ -94,6 +99,8 @@ def list_temp_mailboxes_for_api_key(
     db: Session = Depends(deps.get_db),
     api_key: ApiKey = Depends(deps.require_api_key_scopes(["temp_mailbox:read"])),
 ):
+    if not _auto_read_limiter.allow(f"auto_list:{api_key.id}"):
+        raise HTTPException(429, "查询过于频繁，请稍后再试")
     user = _get_api_key_user(db, api_key)
     run_temp_mailbox_maintenance(db, force_cleanup=False, owner_id=user.id)
 
@@ -111,8 +118,8 @@ def create_temp_mailbox_for_api_key(
     db: Session = Depends(deps.get_db),
     api_key: ApiKey = Depends(deps.require_api_key_scopes(["temp_mailbox:create"])),
 ):
-    if not _auto_limiter.allow(f"auto_create:{api_key.id}"):
-        raise HTTPException(429, "操作过于频繁，请稍后再试")
+    if not _auto_create_limiter.allow(f"auto_create:{api_key.id}"):
+        raise HTTPException(429, "创建临时邮箱过于频繁，请稍后再试")
     user = _get_api_key_user(db, api_key)
     policy = get_or_create_policy(db)
 
@@ -196,6 +203,8 @@ def get_mailbox_emails_for_api_key(
     db: Session = Depends(deps.get_db),
     api_key: ApiKey = Depends(deps.require_api_key_scopes(["temp_email:read"])),
 ):
+    if not _auto_read_limiter.allow(f"auto_emails:{api_key.id}"):
+        raise HTTPException(429, "读取邮件过于频繁，请稍后再试")
     user = _get_api_key_user(db, api_key)
     run_temp_mailbox_maintenance(db, force_cleanup=False, owner_id=user.id)
 
@@ -240,6 +249,8 @@ def get_latest_verification_code(
     db: Session = Depends(deps.get_db),
     api_key: ApiKey = Depends(deps.require_api_key_scopes(["temp_code:read"])),
 ):
+    if not _auto_code_limiter.allow(f"auto_code:{api_key.id}"):
+        raise HTTPException(429, "验证码查询过于频繁，请稍后再试")
     user = _get_api_key_user(db, api_key)
     run_temp_mailbox_maintenance(db, force_cleanup=False, owner_id=user.id)
 
@@ -285,6 +296,8 @@ def extend_temp_mailbox_for_api_key(
     db: Session = Depends(deps.get_db),
     api_key: ApiKey = Depends(deps.require_api_key_scopes(["temp_mailbox:extend"])),
 ):
+    if not _auto_mutation_limiter.allow(f"auto_extend:{api_key.id}"):
+        raise HTTPException(429, "续期操作过于频繁，请稍后再试")
     user = _get_api_key_user(db, api_key)
     run_temp_mailbox_maintenance(db, force_cleanup=False, owner_id=user.id)
 
@@ -325,6 +338,8 @@ def restore_temp_mailbox_for_api_key(
     db: Session = Depends(deps.get_db),
     api_key: ApiKey = Depends(deps.require_api_key_scopes(["temp_mailbox:restore"])),
 ):
+    if not _auto_mutation_limiter.allow(f"auto_restore:{api_key.id}"):
+        raise HTTPException(429, "恢复操作过于频繁，请稍后再试")
     user = _get_api_key_user(db, api_key)
     run_temp_mailbox_maintenance(db, force_cleanup=False, owner_id=user.id)
 

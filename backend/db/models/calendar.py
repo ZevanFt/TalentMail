@@ -20,6 +20,8 @@ class CalendarEvent(Base):
     all_day = Column(Boolean, default=False, comment="是否全天事件")
     color = Column(String(20), default="#3B82F6", comment="颜色标记")
     reminder_minutes = Column(Integer, nullable=True, comment="提前提醒分钟数")
+    recurrence = Column(String(20), default="none", nullable=False, comment="重复规则: none/daily/weekly/monthly")
+    recurrence_until = Column(DateTime(timezone=True), nullable=True, comment="重复截止时间（含）")
     source_email_id = Column(Integer, ForeignKey("emails.id", ondelete="SET NULL"), nullable=True, comment="关联的邮件ID")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="创建时间")
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), comment="更新时间")

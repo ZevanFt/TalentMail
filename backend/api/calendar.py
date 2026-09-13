@@ -11,6 +11,7 @@ from db.database import get_db
 from api.deps import get_current_user
 from db.models.user import User
 from db.models.calendar import CalendarEvent
+from core.calendar_recurrence import expand_event_occurrences
 from utils.rate_limit import SlidingWindowLimiter
 
 logger = logging.getLogger(__name__)
@@ -45,6 +46,8 @@ class EventCreate(BaseModel):
     all_day: bool = False
     color: str = "#3B82F6"
     reminder_minutes: Optional[int] = None
+    recurrence: str = "none"
+    recurrence_until: Optional[datetime] = None
 
     @field_validator("title")
     @classmethod
@@ -61,6 +64,15 @@ class EventCreate(BaseModel):
             raise ValueError("结束时间不能早于开始时间")
         return v
 
+    @field_validator("recurrence")
+    @classmethod
+    def valid_recurrence(cls, v: str) -> str:
+        allowed = {"none", "daily", "weekly", "monthly"}
+        value = (v or "none").lower()
+        if value not in allowed:
+            raise ValueError(f"recurrence 必须是 {sorted(allowed)} 之一")
+        return value
+
 
 class EventUpdate(EventCreate):
     pass
@@ -76,6 +88,8 @@ class EventResponse(BaseModel):
     all_day: bool
     color: str
     reminder_minutes: Optional[int]
+    recurrence: str = "none"
+    recurrence_until: Optional[datetime] = None
     source_email_id: Optional[int]
     created_at: datetime
     updated_at: Optional[datetime]
@@ -97,19 +111,50 @@ class IcsImportResult(BaseModel):
 def list_events(
     start: Optional[datetime] = Query(None, description="范围开始（含）"),
     end: Optional[datetime] = Query(None, description="范围结束（含）"),
+    expand: bool = Query(True, description="是否展开循环事件实例"),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """获取日期范围内的事件（默认当月，最多 500 条）"""
+    """获取日期范围内的事件（默认当月，最多 500 条；循环事件可展开）"""
+    from datetime import timezone as _tz
+    now = datetime.now(_tz.utc)
+    window_start = start or now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    window_end = end or (window_start + timedelta(days=62))
+
     query = db.query(CalendarEvent).filter(CalendarEvent.user_id == user.id)
-
-    if start:
-        query = query.filter(CalendarEvent.end_time >= start)
-    if end:
-        query = query.filter(CalendarEvent.start_time <= end)
-
+    # 宽松过滤：非循环事件用 end/start；循环事件只要原始开始不晚于窗口结束
+    query = query.filter(
+        (CalendarEvent.recurrence.is_(None))
+        | (CalendarEvent.recurrence == "none")
+        | (CalendarEvent.start_time <= window_end)
+    )
     query = query.order_by(CalendarEvent.start_time.asc())
-    return query.limit(MAX_EVENTS_PER_USER).all()
+    rows = query.limit(MAX_EVENTS_PER_USER).all()
+
+    if not expand:
+        return rows
+
+    expanded: List[EventResponse] = []
+    for ev in rows:
+        for occ in expand_event_occurrences(ev, window_start, window_end):
+            expanded.append(EventResponse(
+                id=occ["id"],
+                title=occ["title"],
+                description=occ["description"],
+                location=occ["location"],
+                start_time=datetime.fromisoformat(occ["start_time"]),
+                end_time=datetime.fromisoformat(occ["end_time"]),
+                all_day=occ["all_day"],
+                color=occ["color"],
+                reminder_minutes=occ["reminder_minutes"],
+                recurrence=occ["recurrence"],
+                recurrence_until=datetime.fromisoformat(occ["recurrence_until"]) if occ["recurrence_until"] else None,
+                source_email_id=occ["source_email_id"],
+                created_at=datetime.fromisoformat(occ["created_at"]) if occ["created_at"] else now,
+                updated_at=datetime.fromisoformat(occ["updated_at"]) if occ["updated_at"] else None,
+            ))
+    expanded.sort(key=lambda e: e.start_time)
+    return expanded
 
 
 @router.post("", response_model=EventResponse)
@@ -135,6 +180,8 @@ def create_event(
         all_day=data.all_day,
         color=data.color,
         reminder_minutes=data.reminder_minutes,
+        recurrence=data.recurrence or "none",
+        recurrence_until=data.recurrence_until,
     )
     db.add(event)
     db.commit()
@@ -184,6 +231,8 @@ def update_event(
     event.all_day = data.all_day
     event.color = data.color
     event.reminder_minutes = data.reminder_minutes
+    event.recurrence = data.recurrence or "none"
+    event.recurrence_until = data.recurrence_until
     db.commit()
     db.refresh(event)
     logger.info(f"用户 {user.id} 更新日历事件: id={event.id}, title={event.title}")

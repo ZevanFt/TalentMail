@@ -15,6 +15,7 @@ from core import security
 from core.config import settings
 from db.database import get_db
 from db.models.user import User, UserSession
+from utils.sso_email import email_match_candidates, normalize_sso_email
 
 logger = logging.getLogger(__name__)
 
@@ -110,22 +111,24 @@ async def sso_callback(
     user = db.query(User).filter(User.sso_user_id == sso_user_id).first()
 
     if not user:
-        # 尝试通过邮箱匹配已有用户
-        if sso_username:
-            user = db.query(User).filter(User.email == sso_username).first()
+        # 尝试通过邮箱匹配已有用户（兼容纯用户名与完整邮箱）
+        for candidate in email_match_candidates(sso_username, settings.BASE_DOMAIN):
+            user = db.query(User).filter(User.email == candidate).first()
             if user:
-                # 关联已有用户
                 user.sso_user_id = sso_user_id
                 if sso_display_name and not user.display_name:
                     user.display_name = sso_display_name
                 db.commit()
                 logger.info(f"SSO: 已关联现有用户 {user.email} ← sso_id={sso_user_id}")
+                break
 
     if not user:
         # 新 SSO 用户：自动创建
         # 注意：SSO 用户可以没有密码（password_hash 设为不可验证的占位符）
+        email_local = normalize_sso_email(sso_username, sso_user_id, settings.BASE_DOMAIN)
+
         user = User(
-            email=sso_username or f"sso_{sso_user_id}@{settings.BASE_DOMAIN}",
+            email=email_local,
             password_hash="!SSO_USER_NO_PASSWORD",  # 不可通过密码登录
             display_name=sso_display_name or sso_username,
             sso_user_id=sso_user_id,
@@ -136,8 +139,14 @@ async def sso_callback(
         db.refresh(user)
         logger.info(f"SSO: 自动创建新用户 {user.email}, sso_id={sso_user_id}")
 
-        # TODO: 在 mailserver 中创建对应邮箱（需要 create_mail_user）
-        # 对于纯 SSO 场景，可能不需要立即创建邮箱
+        # 在 mailserver 中创建对应邮箱（随机密码，SSO 用户经 JWT 使用 Web/SMTP 代理）
+        try:
+            from core.mailserver_sync import create_mail_user
+            mail_password = secrets.token_urlsafe(24)
+            if not create_mail_user(user.email, mail_password):
+                logger.warning(f"SSO: mailserver 创建邮箱失败（登录不受影响）: {user.email}")
+        except Exception as e:
+            logger.error(f"SSO: mailserver 创建邮箱异常（登录不受影响）: {e}")
 
     # Step 3: 创建会话和 JWT token
     session = UserSession(
