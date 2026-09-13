@@ -13,7 +13,8 @@
 ### 扩展功能
 - **[Open API Reference](./api-reference.md)** - 临时邮箱自动化接口完整说明
 - **[开放平台开发者指南](./api-developer-guide.md)** - SDK 接入、限流、错误处理
-- **[CalDAV 只读接入](./caldav.md)** - 第三方日历客户端同步
+- **[CalDAV 接入](./caldav.md)** - 第三方日历客户端同步
+- **[Auth Center 对接](./auth-center-integration.md)** - TalentMail 作为 OAuth 客户端接入认证中心
 - **账号池功能** - 临时邮箱和验证码识别（见 API Reference）
 - **订阅计费系统** - 会员管理和套餐设置（文档编写中）
 - **文件中转站** - 大文件分享功能（文档编写中）

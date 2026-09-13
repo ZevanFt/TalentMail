@@ -194,3 +194,69 @@ def sso_status():
         "auth_center_url": settings.SSO_AUTH_CENTER_URL if settings.SSO_ENABLED else None,
         "client_id": settings.SSO_CLIENT_ID if settings.SSO_ENABLED else None,
     }
+
+
+class SSOIntrospectRequest(BaseModel):
+    username: Optional[str] = None
+    email: Optional[str] = None
+
+
+class SSOIntrospectResponse(BaseModel):
+    active: bool
+    mfa_enabled: bool = False
+    display_name: Optional[str] = None
+    local_email: Optional[str] = None
+    sso_user_id: Optional[str] = None
+
+
+@router.post("/introspect", response_model=SSOIntrospectResponse)
+async def sso_introspect(
+    body: SSOIntrospectRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    查询用户在认证中心是否仍有有效会话。
+
+    用途：单点登出前校验、关键操作二次确认。
+    入参可传 Auth Center username，或 TalentMail 本地邮箱（自动取 sso_user_id）。
+    """
+    _require_sso_enabled()
+
+    username = (body.username or "").strip()
+    if not username and body.email:
+        user = db.query(User).filter(User.email == body.email.strip()).first()
+        if user and user.sso_user_id:
+            # Auth Center introspect 按 username 查询；本地存的是 sso id
+            # 若 username 就是邮箱前缀/完整名，优先用完整邮箱；否则用 sso_user_id
+            username = user.email
+        elif user:
+            return SSOIntrospectResponse(active=False, local_email=user.email)
+    if not username:
+        raise HTTPException(400, "请提供 username 或 email")
+
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            resp = await client.post(
+                f"{settings.SSO_AUTH_CENTER_URL}/api/sso/introspect",
+                json={
+                    "client_id": settings.SSO_CLIENT_ID,
+                    "client_secret": settings.SSO_CLIENT_SECRET or "",
+                    "username": username,
+                },
+            )
+    except httpx.RequestError as e:
+        logger.error(f"SSO introspect 请求失败: {e}")
+        raise HTTPException(502, "无法连接认证中心")
+
+    if resp.status_code != 200:
+        raise HTTPException(502, f"认证中心返回 {resp.status_code}")
+
+    data = resp.json() or {}
+    local = db.query(User).filter(User.email == username).first()
+    return SSOIntrospectResponse(
+        active=bool(data.get("active")),
+        mfa_enabled=bool(data.get("mfa_enabled", False)),
+        display_name=data.get("display_name"),
+        local_email=local.email if local else None,
+        sso_user_id=local.sso_user_id if local else None,
+    )
