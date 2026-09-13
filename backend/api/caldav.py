@@ -47,7 +47,7 @@ def _authenticate(request: Request, db: Session) -> Optional[User]:
         return None
     username, password = creds
     user = db.query(User).filter(User.email == username).first()
-    if not user or not user.is_active:
+    if not user or not getattr(user, "is_active", True):
         return None
     # SSO 用户无可用密码
     if not user.password_hash or user.password_hash == "!SSO_USER_NO_PASSWORD":
