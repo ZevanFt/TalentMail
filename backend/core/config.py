@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     SMTP_PORT: int = 1025
     STRICT_EMAIL_VALIDATION: bool = False
     MAIL_STARTTLS: bool = False
+    MAIL_TLS_VERIFY: bool = True  # 本地自签证书可设 false
     MAIL_USE_SSL: bool = False  # 开发环境用非 SSL IMAP (143)，生产环境用 SSL (993)
     USE_CREDENTIALS: bool = False # Default to false, should be enabled in production
     MAIL_USERNAME: Optional[str] = None # Will be dynamically generated

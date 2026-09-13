@@ -38,6 +38,10 @@ services:
       # 数据库连接池优化（单 worker 不需要 30 连接）
       - DB_POOL_SIZE=5
       - DB_MAX_OVERFLOW=10
+      # 本地开发：backend 通过 compose 网络连 mailserver 容器
+      - MAIL_SERVER=mailserver
+      - MAIL_STARTTLS=true
+      - MAIL_TLS_VERIFY=false
     depends_on:
       db:
         condition: service_healthy
@@ -148,10 +152,10 @@ services:
       - "587:587"  # SMTP Submission (发送邮件)
       - "993:993"  # IMAPS (加密)
     volumes:
-      # 邮件数据持久化
-      - ./data/mailserver/mail-data/:/var/mail/
-      - ./data/mailserver/mail-state/:/var/mail-state/
-      - ./data/mailserver/mail-logs/:/var/log/mail/
+      # Windows 下 bind mount 会导致 Postfix/Dovecot 权限异常，改用 named volume
+      - mail-data:/var/mail/
+      - mail-state:/var/mail-state/
+      - mail-logs:/var/log/mail/
       - ./data/mailserver/config/:/tmp/docker-mailserver/
       - ./data/mailserver/config/ssl/cert.pem:/tmp/docker-mailserver/ssl/cert.pem:ro
       - ./data/mailserver/config/ssl/key.pem:/tmp/docker-mailserver/ssl/key.pem:ro
@@ -201,3 +205,6 @@ services:
 volumes:
   postgres_data:
   caddy_data:
+  mail-data:
+  mail-state:
+  mail-logs:

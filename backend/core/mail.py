@@ -20,12 +20,18 @@ logger = logging.getLogger(__name__)
 def _starttls_if_configured(server: smtplib.SMTP) -> None:
     """
     按配置尝试 STARTTLS；若服务端不支持则降级为明文 SMTP。
+    本地自签证书可设 MAIL_TLS_VERIFY=false 跳过证书校验。
     """
     if not settings.MAIL_STARTTLS:
         return
     try:
         logger.info("Starting TLS connection...")
-        server.starttls()
+        verify = getattr(settings, "MAIL_TLS_VERIFY", True)
+        if verify:
+            server.starttls()
+        else:
+            import ssl
+            server.starttls(context=ssl._create_unverified_context())
     except smtplib.SMTPNotSupportedError:
         logger.warning("SMTP server does not support STARTTLS, fallback to plain SMTP.")
 

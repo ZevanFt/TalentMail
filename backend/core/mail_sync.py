@@ -35,12 +35,20 @@ MASTER_PASSWORD = settings.MAIL_MASTER_PASSWORD or settings.ADMIN_PASSWORD
 
 def _connect_imap() -> imaplib.IMAP4:
     """建立 IMAP 连接（根据配置选择 SSL 或 STARTTLS）"""
+    import ssl
     if settings.MAIL_USE_SSL:
-        imap = imaplib.IMAP4_SSL(settings.MAIL_SERVER, 993)
+        ctx = ssl._create_unverified_context() if not getattr(settings, "MAIL_TLS_VERIFY", True) else None
+        if ctx:
+            imap = imaplib.IMAP4_SSL(settings.MAIL_SERVER, 993, ssl_context=ctx)
+        else:
+            imap = imaplib.IMAP4_SSL(settings.MAIL_SERVER, 993)
     else:
         imap = imaplib.IMAP4(settings.MAIL_SERVER, 143)
         try:
-            imap.starttls()
+            if getattr(settings, "MAIL_TLS_VERIFY", True):
+                imap.starttls()
+            else:
+                imap.starttls(ssl_context=ssl._create_unverified_context())
         except Exception:
             pass
     return imap
