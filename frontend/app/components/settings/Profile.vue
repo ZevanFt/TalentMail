@@ -10,7 +10,7 @@ const saving = ref(false)
 const message = ref('')
 
 // 认证中心绑定状态（TOTP 密钥在认证中心，这里仅展示状态）
-const ssoStatus = ref<{ sso_bound: boolean; auth_center_url: string | null; mfa_enabled: boolean; auth_center_session_active: boolean } | null>(null)
+const ssoStatus = ref<{ sso_bound: boolean; auth_center_url: string | null; auth_center_username: string | null; mfa_enabled: boolean; auth_center_session_active: boolean } | null>(null)
 
 const loadSsoStatus = async () => {
     try {
@@ -123,6 +123,9 @@ onMounted(() => {
                             <div>
                                 <p class="text-sm font-medium text-gray-900 dark:text-white">
                                     {{ ssoStatus?.sso_bound ? '已绑定认证中心' : '未绑定认证中心' }}
+                                </p>
+                                <p v-if="ssoStatus?.sso_bound && ssoStatus.auth_center_username" class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                    认证中心账号：<span class="font-mono text-gray-700 dark:text-gray-300">{{ ssoStatus.auth_center_username }}</span>
                                 </p>
                                 <p v-if="ssoStatus?.sso_bound" class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                                     两步验证 (TOTP)：

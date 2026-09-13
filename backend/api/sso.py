@@ -205,6 +205,7 @@ def sso_status():
 class MySsoStatusResponse(BaseModel):
     sso_bound: bool
     auth_center_url: Optional[str] = None
+    auth_center_username: Optional[str] = None
     mfa_enabled: bool = False
     auth_center_session_active: bool = False
     display_name: Optional[str] = None
@@ -226,8 +227,8 @@ async def my_sso_status(
         sso_bound=True,
         auth_center_url=settings.SSO_AUTH_CENTER_URL,
     )
-    # 用本地邮箱到认证中心 introspect（与单点登出校验同一通道）
-    username = current_user.email.strip()
+    # 优先按 sso_user_id 精确查询（本地邮箱可能 ≠ 认证中心用户名，如纯用户名注册），
+    # 回退到本地邮箱（兼容旧版认证中心）
     try:
         async with httpx.AsyncClient(timeout=8.0) as client:
             resp = await client.post(
@@ -235,7 +236,7 @@ async def my_sso_status(
                 json={
                     "client_id": settings.SSO_CLIENT_ID,
                     "client_secret": settings.SSO_CLIENT_SECRET or "",
-                    "username": username,
+                    "user_id": current_user.sso_user_id,
                 },
             )
         if resp.status_code == 200:
@@ -243,6 +244,7 @@ async def my_sso_status(
             status.mfa_enabled = bool(data.get("mfa_enabled", False))
             status.auth_center_session_active = bool(data.get("active", False))
             status.display_name = data.get("display_name")
+            status.auth_center_username = data.get("username")
     except httpx.RequestError as e:
         logger.warning(f"SSO my-status: introspect 请求失败（不影响绑定展示）: {e}")
     return status
@@ -276,15 +278,15 @@ async def sso_introspect(
     _require_sso_enabled()
 
     username = (body.username or "").strip()
+    sso_user_id = None
     if not username and body.email:
         user = db.query(User).filter(User.email == body.email.strip()).first()
         if user and user.sso_user_id:
-            # Auth Center introspect 按 username 查询；本地存的是 sso id
-            # 若 username 就是邮箱前缀/完整名，优先用完整邮箱；否则用 sso_user_id
-            username = user.email
+            # 优先按 sso_user_id 精确查询；回退到本地邮箱作为 username
+            sso_user_id = user.sso_user_id
         elif user:
             return SSOIntrospectResponse(active=False, local_email=user.email)
-    if not username:
+    if not username and not sso_user_id:
         raise HTTPException(400, "请提供 username 或 email")
 
     try:
@@ -294,7 +296,8 @@ async def sso_introspect(
                 json={
                     "client_id": settings.SSO_CLIENT_ID,
                     "client_secret": settings.SSO_CLIENT_SECRET or "",
-                    "username": username,
+                    "username": username or None,
+                    "user_id": sso_user_id,
                 },
             )
     except httpx.RequestError as e:
