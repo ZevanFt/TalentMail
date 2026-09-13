@@ -1,6 +1,7 @@
 """
 SSO 单点登录 API — auth-center OAuth 2.0 授权码流程
 """
+import hashlib
 import logging
 import secrets
 from datetime import timedelta, timezone
@@ -151,7 +152,7 @@ async def sso_callback(
     # Step 3: 创建会话和 JWT token
     session = UserSession(
         user_id=user.id,
-        device_name="SSO Login",
+        device_info="SSO Login",
         ip_address="sso",
         is_active=True,
     )
@@ -170,6 +171,10 @@ async def sso_callback(
         data={"sub": user.email, "session_id": session.id},
         expires_delta=refresh_token_expires,
     )
+
+    # 与本地登录一致：记录 token 哈希用于会话识别/吊销
+    session.token_hash = hashlib.sha256(access_token.encode()).hexdigest()[:64]
+    db.commit()
 
     logger.info(f"SSO: 用户 {user.email} 登录成功, session_id={session.id}")
 
