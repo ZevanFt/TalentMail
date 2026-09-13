@@ -88,7 +88,8 @@ def _multistatus(inner: str) -> Response:
 
 def _event_to_ics(event: CalendarEvent) -> str:
     lines = ["BEGIN:VEVENT"]
-    lines.append(f"UID:talentmail-{event.id}@{settings.BASE_DOMAIN}")
+    uid = getattr(event, "caldav_uid", None) or f"talentmail-{event.id}@{settings.BASE_DOMAIN}"
+    lines.append(f"UID:{uid}")
     lines.append(f"SUMMARY:{(event.title or '').replace(chr(13), ' ').replace(chr(10), ' ')}")
     start = event.start_time
     end = event.end_time
@@ -132,9 +133,9 @@ def _calendar_ics(db: Session, user: User) -> str:
     return "\r\n".join(parts) + "\r\n"
 
 
-@router.api_route("/.well-known/caldav", methods=["GET", "OPTIONS", "PROPFIND", "REPORT"])
-@router.api_route("/caldav", methods=["GET", "OPTIONS", "PROPFIND", "REPORT"])
-@router.api_route("/caldav/{path:path}", methods=["GET", "OPTIONS", "PROPFIND", "REPORT"])
+@router.api_route("/.well-known/caldav", methods=["GET", "OPTIONS", "PROPFIND", "REPORT", "PUT", "DELETE", "HEAD"])
+@router.api_route("/caldav", methods=["GET", "OPTIONS", "PROPFIND", "REPORT", "PUT", "DELETE", "HEAD"])
+@router.api_route("/caldav/{path:path}", methods=["GET", "OPTIONS", "PROPFIND", "REPORT", "PUT", "DELETE", "HEAD"])
 async def caldav_entry(
     request: Request,
     path: str = "",
@@ -148,7 +149,7 @@ async def caldav_entry(
             status_code=200,
             headers={
                 "DAV": "1, calendar-access, calendar-schedule",
-                "Allow": "OPTIONS, GET, PROPFIND, REPORT",
+                "Allow": "OPTIONS, GET, HEAD, PUT, DELETE, PROPFIND, REPORT",
             },
         )
 
@@ -223,9 +224,110 @@ async def caldav_entry(
 </D:response>'''
         return _multistatus(inner)
 
+    # 单个事件资源: {email}/calendar/{uid}.ics
+    event_prefix = f"{user.email}/calendar/"
+    if user_path.startswith(event_prefix) and user_path != event_prefix:
+        filename = user_path[len(event_prefix):]
+        if filename in ("", "calendar.ics"):
+            ics = _calendar_ics(db, user)
+            return Response(content=ics, media_type="text/calendar; charset=utf-8")
+        # 去掉 .ics 后缀得到 UID
+        uid = filename[:-4] if filename.endswith(".ics") else filename
+        href = f"{calendar}{uid}.ics"
+        event = (
+            db.query(CalendarEvent)
+            .filter(CalendarEvent.user_id == user.id, CalendarEvent.caldav_uid == uid)
+            .first()
+        )
+
+        if method in ("GET", "HEAD"):
+            if not event:
+                return Response(status_code=404, content="Not Found")
+            ics_body = _event_vevent_wrapper(event)
+            headers = {"ETag": _event_etag(event), "Content-Type": "text/calendar; charset=utf-8"}
+            if method == "HEAD":
+                return Response(status_code=200, headers=headers)
+            return Response(content=ics_body, media_type="text/calendar; charset=utf-8", headers=headers)
+
+        if method == "PROPFIND":
+            status = "HTTP/1.1 200 OK" if event else "HTTP/1.1 404 Not Found"
+            etag = _event_etag(event) if event else ""
+            getetag = f"<D:getetag>{etag}</D:getetag>" if event else ""
+            inner = f'''<D:response>
+  <D:href>{href}</D:href>
+  <D:propstat>
+    <D:prop>
+      <D:resourcetype/>
+      {getetag}
+      <D:getcontenttype>text/calendar; charset=utf-8</D:getcontenttype>
+    </D:prop>
+    <D:status>{status}</D:status>
+  </D:propstat>
+</D:response>'''
+            return _multistatus(inner)
+
+        if method == "PUT":
+            from core.caldav_write import parse_vevent_from_ics
+            body = await request.body()
+            parsed = parse_vevent_from_ics(body)
+            if not parsed or not parsed.get("start_time"):
+                return Response(status_code=400, content="Invalid VEVENT body")
+            if not event:
+                if db.query(CalendarEvent).filter(CalendarEvent.user_id == user.id).count() >= 500:
+                    return Response(status_code=403, content="Calendar event limit reached")
+                event = CalendarEvent(
+                    user_id=user.id,
+                    caldav_uid=uid,
+                    title=parsed["title"],
+                    start_time=parsed["start_time"],
+                    end_time=parsed["end_time"] or parsed["start_time"],
+                    color="#3B82F6",
+                    recurrence="none",
+                )
+                db.add(event)
+                created = True
+            else:
+                created = False
+            event.title = parsed["title"]
+            event.description = parsed.get("description")
+            event.location = parsed.get("location")
+            event.start_time = parsed["start_time"]
+            event.end_time = parsed.get("end_time") or parsed["start_time"]
+            event.all_day = bool(parsed.get("all_day"))
+            event.recurrence = parsed.get("recurrence") or "none"
+            event.recurrence_until = parsed.get("recurrence_until")
+            db.commit()
+            db.refresh(event)
+            return Response(
+                status_code=201 if created else 204,
+                headers={"ETag": _event_etag(event)},
+            )
+
+        if method == "DELETE":
+            if not event:
+                return Response(status_code=404, content="Not Found")
+            db.delete(event)
+            db.commit()
+            return Response(status_code=204)
+
     # calendar.ics 直链
     if user_path.endswith("calendar.ics") or user_path.endswith("calendar/export.ics"):
         ics = _calendar_ics(db, user)
         return Response(content=ics, media_type="text/calendar; charset=utf-8")
 
     return Response(status_code=404, content="Not Found")
+
+
+def _event_etag(event: CalendarEvent) -> str:
+    updated = event.updated_at.isoformat() if event.updated_at else str(event.id)
+    return f'"{event.id}-{updated}"'
+
+
+def _event_vevent_wrapper(event: CalendarEvent) -> str:
+    return (
+        "BEGIN:VCALENDAR\r\n"
+        "VERSION:2.0\r\n"
+        "PRODID:-//TalentMail//CalDAV//EN\r\n"
+        f"{_event_to_ics(event)}\r\n"
+        "END:VCALENDAR\r\n"
+    )

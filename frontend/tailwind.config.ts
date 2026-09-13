@@ -11,11 +11,11 @@ export default <Partial<Config>>{
     theme: {
         extend: {
             colors: {
-                // 定义语义化颜色
+                // 品牌色走 CSS 变量，便于主题预设运行时切换
                 primary: {
-                    DEFAULT: '#a855f7', // 紫色 (对应按钮)
-                    hover: '#9333ea',
-                    light: '#f3e8ff',   // 浅紫色背景 (选中态)
+                    DEFAULT: 'rgb(var(--color-primary) / <alpha-value>)',
+                    hover: 'rgb(var(--color-primary-hover) / <alpha-value>)',
+                    light: 'rgb(var(--color-primary-light) / <alpha-value>)',
                 },
                 bg: {
                     light: '#ffffff',      // 浅色背景

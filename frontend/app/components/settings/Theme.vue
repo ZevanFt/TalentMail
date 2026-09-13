@@ -17,6 +17,7 @@ const {
 
 const { isDark, toggleTheme } = useTheme()
 const { locale, setLocale, availableLocales } = useI18n()
+const { accent, setAccent, ACCENT_PRESETS } = useAccent()
 
 // 预览图片状态
 const previewImage = ref<string | null>(null)
@@ -236,6 +237,28 @@ const hasBackgroundImage = computed(() => {
                     class="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                     <Palette class="w-4 h-4" />
                     <span class="text-sm font-medium">{{ isDark ? '深色模式' : '浅色模式' }}</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 品牌色预设 -->
+        <div class="card bg-white dark:bg-bg-panelDark rounded-xl p-6 border border-gray-200 dark:border-border-dark">
+            <div>
+                <h2 class="section-title mb-0">品牌色</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">切换界面强调色</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3 mt-4">
+                <button
+                    v-for="item in ACCENT_PRESETS" :key="item.code"
+                    @click="setAccent(item.code)"
+                    class="flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all"
+                    :class="accent === item.code
+                        ? 'border-primary ring-2 ring-primary/30 font-medium'
+                        : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'"
+                    :title="item.label"
+                >
+                    <span class="w-4 h-4 rounded-full shrink-0" :style="{ backgroundColor: item.swatch }" />
+                    {{ item.label }}
                 </button>
             </div>
         </div>

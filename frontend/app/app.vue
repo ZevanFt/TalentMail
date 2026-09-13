@@ -7,6 +7,7 @@
 
 <script setup lang="ts">
 const { initTheme } = useTheme()
+const { initAccent } = useAccent()
 const { initBackground, settings: bgSettings } = useBackground()
 const token = useCookie('token')
 const { register, unregister } = useKeyboardShortcuts()
@@ -25,6 +26,7 @@ const isAuthPage = computed(() => {
 
 onMounted(async () => {
   initTheme()
+  initAccent()
   await initBackground()
   // 注册键盘快捷键
   if (token.value) {

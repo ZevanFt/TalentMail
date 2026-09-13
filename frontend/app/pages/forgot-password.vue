@@ -3,13 +3,14 @@ import { Mail, ArrowLeft, Loader2, Eye, EyeOff, Moon, Sun, CheckCircle } from 'l
 const { isDark, toggleTheme } = useTheme()
 const { forgotPassword, resetPassword } = useApi()
 const { appName, emailDomain, baseDomain } = useConfig()
+const { t } = useI18n()
 const router = useRouter()
 
 definePageMeta({
     layout: false
 })
 
-useHead({ title: `找回密码 - ${appName}` })
+useHead({ title: computed(() => `${t('auth.forgotTitle')} - ${appName}`) })
 
 // 步骤：1=输入邮箱, 2=输入验证码和新密码, 3=完成
 const step = ref(1)
@@ -173,7 +174,7 @@ onUnmounted(() => {
                 </div>
                 <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ appName }}</h1>
                 <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    {{ step === 3 ? '密码重置成功' : '重置密码' }}
+                    {{ step === 3 ? t('common.confirm') : t('auth.forgotTitle') }}
                 </p>
             </div>
 

@@ -6,8 +6,9 @@ definePageMeta({ layout: false })
 const { login, sendVerificationCode, verifyCode, registerWithVerification } = useApi()
 const router = useRouter()
 const config = useConfig()
+const { t, locale, setLocale, availableLocales } = useI18n()
 
-useHead({ title: `注册 - ${config.appName}` })
+useHead({ title: computed(() => `${t('auth.register')} - ${config.appName}`) })
 
 // 步骤：1=邮箱验证, 2=填写信息
 const step = ref(1)
@@ -161,8 +162,8 @@ onUnmounted(() => {
                     class="w-12 h-12 bg-gradient-to-tr from-primary to-purple-400 rounded-xl flex items-center justify-center text-white shadow-lg shadow-primary/30 mb-4">
                     <Mail class="w-6 h-6" />
                 </div>
-                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">创建账号</h1>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">开始使用 {{ config.appName }}</p>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t('auth.registerTitle') }}</h1>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ t('auth.registerHint') }} · {{ config.appName }}</p>
             </div>
 
             <!-- 步骤指示器 -->
@@ -346,16 +347,16 @@ onUnmounted(() => {
                 <button type="submit" :disabled="loading"
                     class="w-full bg-gradient-to-r from-primary to-purple-600 hover:from-primary-hover hover:to-purple-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-primary/25 transition-all active:scale-[0.98] mt-2 disabled:opacity-50 flex items-center justify-center gap-2">
                     <Loader2 v-if="loading" class="w-4 h-4 animate-spin" />
-                    <span>{{ loading ? '注册中...' : '完成注册' }}</span>
+                    <span>{{ loading ? t('common.loading') : t('auth.createAccount') }}</span>
                 </button>
 
             </form>
 
             <!-- 底部链接 -->
             <div class="mt-8 text-center text-sm text-gray-500">
-                已有账号？
+                {{ t('auth.hasAccount') }}
                 <NuxtLink to="/login" class="text-primary hover:text-primary-hover font-bold hover:underline">
-                    登录
+                    {{ t('auth.login') }}
                 </NuxtLink>
             </div>
 

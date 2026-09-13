@@ -1,17 +1,33 @@
-# CalDAV 只读接入
+# CalDAV 接入
 
-TalentMail 提供 **只读 CalDAV 子集**，可用系统账号密码让 Thunderbird / Apple Calendar 等客户端同步日历。
+TalentMail 提供 **CalDAV 子集**，可用系统账号密码让 Thunderbird / Apple Calendar 等客户端同步日历。
 
 ## 支持能力
 
 | 方法 | 说明 |
 |------|------|
 | OPTIONS | 声明 DAV 能力 |
-| PROPFIND | principal / calendar-home / calendar-collection |
-| GET | 下载整本日历 `.ics` |
+| PROPFIND | principal / calendar-home / calendar-collection / 单事件 |
+| GET / HEAD | 下载整本日历或单个 `.ics` 事件 |
 | REPORT | calendar-collection 属性（简化） |
+| PUT | 创建/更新单个 VEVENT |
+| DELETE | 删除单个事件 |
 
-暂不支持：PUT/DELETE 写事件、sync-token 增量、VTODO/VJOURNAL。
+暂不支持：sync-token 增量、VTODO/VJOURNAL、多 VEVENT 批量 PUT。
+
+### 写回示例
+
+```bash
+# 创建/更新
+curl -u 'alice@example.com:password' -X PUT \
+  -H 'Content-Type: text/calendar' \
+  --data-binary @event.ics \
+  https://mail.example.com/caldav/alice@example.com/calendar/my-uid-1.ics
+
+# 删除
+curl -u 'alice@example.com:password' -X DELETE \
+  https://mail.example.com/caldav/alice@example.com/calendar/my-uid-1.ics
+```
 
 ## 客户端配置
 
