@@ -6,6 +6,7 @@ import logging
 import json
 import random
 import string
+import threading
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional, List, Tuple
 from sqlalchemy.orm import Session
@@ -25,6 +26,28 @@ from core.workflow_runtime import WorkflowContext as RuntimeContext
 from core.workflow_runtime import WorkflowDefinition, WorkflowNode, WorkflowEdge, VariableResolver
 
 logger = logging.getLogger(__name__)
+
+
+def schedule_event(event_type: str, payload: Dict[str, Any]) -> None:
+    """在后台线程触发工作流事件。
+
+    同步 FastAPI 处理器里不能 asyncio.create_task（没有 running loop），
+    也不能复用请求的 db session（请求结束会关）。这里开独立线程 + 新 session。
+    """
+    def _run():
+        try:
+            import asyncio
+            from db.database import SessionLocal
+            db = SessionLocal()
+            try:
+                asyncio.run(WorkflowService(db).trigger_event(event_type, payload))
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"[schedule_event] {event_type} failed: {e}", exc_info=True)
+
+    threading.Thread(target=_run, name=f"wf-{event_type}", daemon=True).start()
+
 
 # Re-export RuntimeContext for compatibility if needed,
 # but logic should migrate to proper Runtime usage.
@@ -100,7 +123,14 @@ class GenerateCodeHandler(NodeHandler):
 
 
 class SendTemplateEmailHandler(NodeHandler):
-    """发送模板邮件节点处理器"""
+    """发送模板邮件节点处理器
+
+    支持直接传 to，或按 to_type 解析：
+      - form_field: 从 form_data[to_field] 取
+      - trigger_user: 从 trigger.user.email / trigger.email 取
+      - admin: 系统管理员邮箱
+      - fixed_email: node_config.to_email
+    """
 
     async def execute(self, node_config: Dict[str, Any], context: RuntimeContext) -> Dict[str, Any]:
         """
@@ -108,12 +138,33 @@ class SendTemplateEmailHandler(NodeHandler):
           - to: str (email address)
           - template_code: str
           - variables: dict (mapped values)
+          - to_type / to_field: 备用收件人解析
         """
         import asyncio
 
         to_email = node_config.get('to')
         template_code = node_config.get('template_code')
-        template_vars = node_config.get('variables', {})
+        template_vars = node_config.get('variables', {}) or {}
+
+        # 解析收件人
+        if not to_email:
+            to_type = node_config.get('to_type')
+            to_field = node_config.get('to_field') or 'email'
+            if to_type == 'form_field':
+                form_data = context.get_variable('form_data') or {}
+                to_email = form_data.get(to_field) or context.get_variable(to_field)
+            elif to_type == 'trigger_user':
+                to_email = (
+                    context.get_variable('trigger.user.email')
+                    or context.get_variable('user.email')
+                    or context.get_variable('email')
+                    or context.get_variable('trigger.email')
+                )
+            elif to_type == 'admin':
+                from core.config import settings as app_settings
+                to_email = app_settings.ADMIN_EMAIL
+            elif to_type == 'fixed_email':
+                to_email = node_config.get('to_email')
 
         if not to_email:
             raise ValueError("收件人地址 'to' 缺失")
@@ -213,41 +264,51 @@ class ConditionHandler(NodeHandler):
 
 
 class CreateUserHandler(NodeHandler):
-    """创建用户节点处理器"""
-    
+    """创建用户节点处理器（幂等：用户已存在时直接返回成功）"""
+
     async def execute(self, node_config: Dict[str, Any], context: WorkflowContext) -> Tuple[bool, Dict[str, Any], Optional[str]]:
         from core.security import get_password_hash
-        
-        form_data = context.get_variable('form_data', {})
-        
+
+        form_data = context.get_variable('form_data', {}) or {}
+
         email_field = node_config.get('email_field', 'email')
         password_field = node_config.get('password_field', 'password')
         display_name_field = node_config.get('display_name_field', 'display_name')
-        
+
         email = form_data.get(email_field) or context.get_variable(email_field)
         password = form_data.get(password_field) or context.get_variable(password_field)
-        display_name = form_data.get(display_name_field) or context.get_variable(display_name_field) or email.split('@')[0]
-        
-        if not email or not password:
-            return False, {'error': 'Email and password are required'}, None
-        
-        # 检查用户是否已存在
+        display_name = (
+            form_data.get(display_name_field)
+            or context.get_variable(display_name_field)
+            or (email.split('@')[0] if email else None)
+        )
+
+        if not email:
+            return False, {'error': 'Email is required'}, None
+
+        # 已存在则幂等成功（API 注册后触发的工作流会走到这里）
         existing = self.db.query(User).filter(User.email == email).first()
         if existing:
-            return False, {'error': 'User already exists'}, None
-        
-        # 创建用户
+            return True, {
+                'user_id': existing.id,
+                'user_email': existing.email,
+                'skipped': 'user_exists',
+            }, None
+
+        if not password:
+            return False, {'error': 'Email and password are required'}, None
+
         user = User(
             email=email,
             display_name=display_name,
             hashed_password=get_password_hash(password),
             is_active=True,
-            is_verified=True  # 如果通过验证码流程，则已验证
+            is_verified=True,
         )
         self.db.add(user)
         self.db.commit()
         self.db.refresh(user)
-        
+
         return True, {'user_id': user.id, 'user_email': user.email}, None
 
 
@@ -971,12 +1032,33 @@ class WorkflowService:
 
         for wf in workflows:
             logger.info(f"[trigger_event] 触发工作流: {wf.code}")
-            # Wrap trigger data
+            # 标准化用户上下文：API 事件传的是扁平字段
+            user_ctx = data.get('user') or {
+                'id': data.get('user_id'),
+                'email': data.get('email'),
+                'display_name': data.get('display_name'),
+            }
+            # 注册类工作流节点会读 form_data；API 触发时补一份
+            form_data = data.get('form_data') or {
+                'email': data.get('email'),
+                'display_name': data.get('display_name'),
+            }
             trigger_payload = {
                 "event": event_name,
-                "user": data.get('user', {}), # Flatten/Standardize structure if needed
+                "user": user_ctx,
+                "form_data": form_data,
                 **data
             }
+            # API 注册完成后再触发 user.registered：跳过表单验证/邀请码分支，只发欢迎信
+            if event_name == "user.registered" and data.get("user_id"):
+                cfg = {
+                    "require_verification": False,
+                    "require_invite_code": False,
+                    "send_welcome_email": True,
+                    "notify_admin": False,
+                }
+                cfg.update(data.get("config") or {})
+                trigger_payload["config"] = cfg
             await self.execute_system_workflow(wf.code, trigger_payload, user_id)
     
     async def execute_system_workflow(

@@ -278,17 +278,17 @@ def sync_all_mailboxes() -> dict:
             results["users"][user.email] = count
             results["total"] += count
 
-        # 2. 同步活跃的临时邮箱（分批加载）
+        # 2. 同步活跃的临时邮箱（先物化列表，避免 yield_per 游标在 commit 后失效）
         temp_mailboxes = db.query(TempMailbox).filter(
             TempMailbox.is_active == True  # noqa: E712
-        ).yield_per(50)
+        ).all()
         for temp_mb in temp_mailboxes:
             count = sync_temp_mailbox(db, temp_mb)
             results["temp_mailboxes"][temp_mb.email] = count
             results["total"] += count
 
-        # 3. 同步活跃的别名邮箱（分批加载）
-        aliases = db.query(Alias).filter(Alias.is_active == True).yield_per(50)  # noqa: E712
+        # 3. 同步活跃的别名邮箱
+        aliases = db.query(Alias).filter(Alias.is_active == True).all()  # noqa: E712
         if "aliases" not in results:
             results["aliases"] = {}
         for alias in aliases:

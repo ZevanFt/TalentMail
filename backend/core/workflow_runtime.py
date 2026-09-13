@@ -86,6 +86,7 @@ class WorkflowContext:
         """
         Retrieve a value using dot notation.
         e.g., "trigger.user.email" -> self.data["trigger"]["user"]["email"]
+        也支持 "config.xxx" / "form_data.xxx" 直接从 trigger 扁平字段读取。
         """
         parts = path.split('.')
         current = self.data
@@ -95,10 +96,27 @@ class WorkflowContext:
                 if isinstance(current, dict) and part in current:
                     current = current[part]
                 else:
-                    return None  # Path not found
-            return current
+                    current = None
+                    break
+            if current is not None:
+                return current
         except Exception:
-            return None
+            pass
+
+        # 兜底：trigger 顶层字段（API 注册事件会把 config/form_data 放在这里）
+        if parts:
+            trigger = self.data.get("trigger") or {}
+            current = trigger
+            try:
+                for part in parts:
+                    if isinstance(current, dict) and part in current:
+                        current = current[part]
+                    else:
+                        return None
+                return current
+            except Exception:
+                return None
+        return None
 
     def get_variable(self, name: str, default: Any = None) -> Any:
         """获取变量值（兼容旧接口）"""

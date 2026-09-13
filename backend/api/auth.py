@@ -446,27 +446,25 @@ def register_user(user: UserCreate, request: Request, db: Session = Depends(get_
 
     # 触发用户注册工作流事件
     try:
-        import asyncio
-        wf_service = WorkflowService(db)
-        asyncio.create_task(wf_service.trigger_event("user.registered", {
+        from core.workflow_service import schedule_event
+        schedule_event("user.registered", {
             "user_id": new_user.id,
             "email": new_user.email,
             "display_name": new_user.display_name or new_user.email.split('@')[0],
             "registered_at": datetime.now(timezone.utc).isoformat()
-        }))
+        })
     except Exception as e:
         logger.warning(f"[Register] 触发注册事件失败: {e}")
 
     # 触发邀请码使用通知
     try:
-        import asyncio
+        from core.workflow_service import schedule_event
         if invite and invite.creator:
-            wf_service = WorkflowService(db)
-            asyncio.create_task(wf_service.trigger_event("invite.used", {
+            schedule_event("invite.used", {
                 "inviter_email": invite.creator.email,
                 "inviter_name": invite.creator.display_name or invite.creator.email.split('@')[0],
                 "invitee_email": new_user.email
-            }))
+            })
     except Exception as e:
         logger.warning(f"[Register] 触发邀请通知失败: {e}")
 
@@ -550,27 +548,25 @@ def register_user_with_verification(
 
     # 触发用户注册工作流事件（与 legacy register 保持一致）
     try:
-        import asyncio
-        wf_service = WorkflowService(db)
-        asyncio.create_task(wf_service.trigger_event("user.registered", {
+        from core.workflow_service import schedule_event
+        schedule_event("user.registered", {
             "user_id": new_user.id,
             "email": new_user.email,
             "display_name": new_user.display_name or new_user.email.split('@')[0],
             "registered_at": datetime.now(timezone.utc).isoformat()
-        }))
+        })
     except Exception as e:
         logger.warning(f"[RegisterWithVerification] 触发注册事件失败: {e}")
 
     # 触发邀请码使用通知
     try:
-        import asyncio
+        from core.workflow_service import schedule_event
         if invite and invite.creator:
-            wf_service = WorkflowService(db)
-            asyncio.create_task(wf_service.trigger_event("invite.used", {
+            schedule_event("invite.used", {
                 "inviter_email": invite.creator.email,
                 "inviter_name": invite.creator.display_name or invite.creator.email.split('@')[0],
                 "invitee_email": new_user.email
-            }))
+            })
     except Exception as e:
         logger.warning(f"[RegisterWithVerification] 触发邀请通知失败: {e}")
 
@@ -657,10 +653,9 @@ def login_for_access_token(
 
     # 触发用户登录工作流事件（用于异地登录检测等）
     try:
-        import asyncio
-        wf_service = WorkflowService(db)
+        from core.workflow_service import schedule_event
         client_ip = get_client_ip(request)
-        asyncio.create_task(wf_service.trigger_event("user.login", {
+        schedule_event("user.login", {
             "user_id": user.id,
             "email": user.email,
             "display_name": user.display_name or user.email.split('@')[0],
@@ -668,7 +663,7 @@ def login_for_access_token(
             "user_agent": request.headers.get("User-Agent", ""),
             "session_id": session.id if session else None,
             "login_at": datetime.now(timezone.utc).isoformat()
-        }))
+        })
     except Exception as e:
         # 工作流触发失败不影响登录
         logger.error(f"登录工作流触发失败: {e}")
@@ -970,15 +965,14 @@ def reset_password(
 
     # 触发密码修改工作流事件（用于发送确认通知）
     try:
-        import asyncio
-        wf_service = WorkflowService(db)
-        asyncio.create_task(wf_service.trigger_event("password.changed", {
+        from core.workflow_service import schedule_event
+        schedule_event("password.changed", {
             "user_id": updated_user.id,
             "email": updated_user.email,
             "display_name": updated_user.display_name or updated_user.email.split('@')[0],
             "changed_at": datetime.now(timezone.utc).isoformat(),
             "method": "reset"  # 通过重置方式修改
-        }))
+        })
     except Exception as e:
         logger.error(f"密码重置后工作流触发失败: {e}")
 
