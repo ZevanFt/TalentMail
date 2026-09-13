@@ -54,8 +54,9 @@ services:
     mem_limit: 512m
     cpus: 0.5
     # 健康检查：使用 wget 替代 Python 解释器（省 ~30MB 内存尖峰）
+    # 注意：/api/health 只注册了 GET，--spider 会发 HEAD 被 405 拒绝，必须用 GET
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/api/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "-O", "/dev/null", "http://localhost:8000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
