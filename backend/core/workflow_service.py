@@ -87,9 +87,9 @@ class GenerateCodeHandler(NodeHandler):
             )
             self.db.add(verification)
             self.db.commit()
-            print(f"[GenerateCodeHandler] Saved code {code} for {email}")
+            logger.debug("[GenerateCodeHandler] Saved code for %s", email)
         else:
-            print(f"[GenerateCodeHandler] No email provided, code {code} generated in memory only.")
+            logger.debug("[GenerateCodeHandler] No email provided, code generated in memory only.")
         
         # 4. Return Output
         return {

@@ -3,9 +3,12 @@ import json
 import random
 import string
 import asyncio
+import logging
 from typing import Any, Dict, List, Optional, Set, Callable, Awaitable
 from pydantic import BaseModel
 from enum import Enum
+
+logger = logging.getLogger(__name__)
 
 # --- Data Structures ---
 
@@ -257,8 +260,8 @@ class WorkflowEngine:
         """
         context = WorkflowContext(trigger_data)
 
-        print(f"\n[ENGINE] Starting Workflow: {self.workflow.name}")
-        print(f"[ENGINE] Trigger Data: {json.dumps(trigger_data, default=str)}")
+        logger.debug("[ENGINE] Starting Workflow: %s", self.workflow.name)
+        logger.debug("[ENGINE] Trigger Data: %s", json.dumps(trigger_data, default=str))
 
         # 使用 BFS 遍历执行
         queue: List[str] = [self.workflow.start_node_id]
@@ -293,7 +296,7 @@ class WorkflowEngine:
                         if next_id not in self._executed_nodes and next_id not in queue:
                             queue.append(next_id)
 
-        print("\n[ENGINE] Workflow Finished Successfully.")
+        logger.debug("[ENGINE] Workflow Finished Successfully.")
         return context
 
     async def _execute_single_node(self, node_id: str, context: WorkflowContext) -> Optional[Dict]:
@@ -303,11 +306,11 @@ class WorkflowEngine:
 
         node = self.workflow.nodes.get(node_id)
         if not node:
-            print(f"[ENGINE] Error: Node {node_id} not found. Skipping.")
+            logger.warning("[ENGINE] Node %s not found. Skipping.", node_id)
             return None
 
         self._executed_nodes.add(node_id)
-        print(f"\n>> Executing Node: [{node.label}] ({node.type})")
+        logger.debug(">> Executing Node: [%s] (%s)", node.label, node.type)
 
         # 1. Resolve Config: Turn {{variables}} into real values
         resolved_config = VariableResolver.resolve(node.config, context)
@@ -335,7 +338,7 @@ class WorkflowEngine:
         context.set_step_output(node_id, output)
         if output_handle:
             context.set_node_output_handle(node_id, output_handle)
-        print(f"   Output Saved to 'steps.{node_id}': {output}")
+        logger.debug("   Output Saved to 'steps.%s'", node_id)
 
         return output
 
@@ -353,7 +356,7 @@ class WorkflowEngine:
 
         handler = self.handlers.get(node_type)
         if not handler:
-            print(f"[ENGINE] Warning: No handler registered for node type '{node_type}'")
+            logger.warning("[ENGINE] No handler registered for node type '%s'", node_type)
             return None
 
         try:
@@ -363,5 +366,5 @@ class WorkflowEngine:
             else:
                 return handler(config, context)
         except Exception as e:
-            print(f"[ENGINE] Error executing node {node_type}: {str(e)}")
+            logger.error("[ENGINE] Error executing node %s: %s", node_type, e)
             raise e
