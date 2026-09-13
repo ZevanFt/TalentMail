@@ -1,5 +1,4 @@
-import zhCN from '~/locales/zh-CN'
-import enUS from '~/locales/en-US'
+import { zhCNFull as zhCN, enUSFull as enUS } from '~/locales'
 
 export type LocaleCode = 'zh-CN' | 'en-US'
 

@@ -5,6 +5,7 @@ const { getMe, getAliases, createAlias, updateAlias, deleteAlias, getSubscriptio
 const config = useConfig()
 const toast = useToast()
 const { confirm: confirmDialog } = useConfirmDialog()
+const { t } = useI18n()
 
 const loading = ref(true)
 const user = ref<AppUser | null>(null)
@@ -39,7 +40,7 @@ const loadUser = async () => {
         user.value = await getMe()
     } catch (e: any) {
         console.error('加载用户信息失败', e)
-        toast.error(e.data?.detail || '加载用户信息失败')
+        toast.error(e.data?.detail || t('settingsSecurity.common.loadUserFailed'))
     } finally {
         loading.value = false
     }
@@ -51,7 +52,7 @@ const loadAliases = async () => {
         aliases.value = await getAliases()
     } catch (e: any) {
         console.error('加载别名失败', e)
-        toast.error(e.data?.detail || '加载别名失败')
+        toast.error(e.data?.detail || t('settingsSecurity.accounts.loadAliasesFailed'))
     } finally {
         loadingAliases.value = false
     }
@@ -62,7 +63,7 @@ const loadSubscription = async () => {
         subscription.value = await getSubscriptionStatus()
     } catch (e: any) {
         console.error('加载订阅状态失败', e)
-        toast.error(e.data?.detail || '加载订阅状态失败')
+        toast.error(e.data?.detail || t('settingsSecurity.accounts.loadSubFailed'))
     }
 }
 
@@ -72,7 +73,7 @@ const loadExternalAccounts = async () => {
         externalAccounts.value = await getExternalAccounts()
     } catch (e: any) {
         console.error('加载外部账号失败', e)
-        toast.error(e.data?.detail || '加载外部账号失败')
+        toast.error(e.data?.detail || t('settingsSecurity.accounts.loadExternalFailed'))
     } finally {
         loadingExternal.value = false
     }
@@ -83,7 +84,7 @@ const loadProviders = async () => {
         providers.value = await getProviderPresets()
     } catch (e: any) {
         console.error('加载服务商失败', e)
-        toast.error(e.data?.detail || '加载服务商失败')
+        toast.error(e.data?.detail || t('settingsSecurity.accounts.loadProvidersFailed'))
     }
 }
 
@@ -105,7 +106,7 @@ const handleAddAlias = async () => {
         newAliasPrefix.value = ''
         newAliasName.value = ''
     } catch (e: any) {
-        addError.value = e.data?.detail || '创建失败'
+        addError.value = e.data?.detail || t('settingsSecurity.accounts.createFailed')
     } finally {
         addingAlias.value = false
     }
@@ -117,20 +118,20 @@ const handleToggleAlias = async (alias: any) => {
         alias.is_active = result.is_active
     } catch (e: any) {
         console.error('更新失败', e)
-        toast.error(e.data?.detail || '更新失败')
+        toast.error(e.data?.detail || t('settingsSecurity.accounts.updateFailed'))
     }
 }
 
 const handleDeleteAlias = async (id: number) => {
-    const ok = await confirmDialog({ message: '确定删除此别名？删除后无法恢复。', type: 'danger' })
+    const ok = await confirmDialog({ message: t('settingsSecurity.accounts.deleteAliasConfirm'), type: 'danger' })
     if (!ok) return
     try {
         await deleteAlias(id)
         aliases.value = aliases.value.filter(a => a.id !== id)
-        toast.success('别名已删除')
+        toast.success(t('settingsSecurity.accounts.aliasDeleted'))
     } catch (e: any) {
         console.error('删除失败', e)
-        toast.error(e.data?.detail || '删除别名失败')
+        toast.error(e.data?.detail || t('settingsSecurity.accounts.deleteAliasFailed'))
     }
 }
 
@@ -159,22 +160,22 @@ const handleAddAccount = async () => {
         showAddAccountModal.value = false
         newAccount.value = { email: '', password: '', provider: 'gmail', imap_host: '', imap_port: 993, smtp_host: '', smtp_port: 587 }
     } catch (e: any) {
-        accountError.value = e.data?.detail || '添加失败'
+        accountError.value = e.data?.detail || t('settingsSecurity.accounts.addFailed')
     } finally {
         addingAccount.value = false
     }
 }
 
 const handleDeleteAccount = async (id: number) => {
-    const ok = await confirmDialog({ message: '确定删除此外部账号？删除后需重新配置。', type: 'danger' })
+    const ok = await confirmDialog({ message: t('settingsSecurity.accounts.deleteAccountConfirm'), type: 'danger' })
     if (!ok) return
     try {
         await deleteExternalAccount(id)
         externalAccounts.value = externalAccounts.value.filter(a => a.id !== id)
-        toast.success('外部账号已删除')
+        toast.success(t('settingsSecurity.accounts.accountDeleted'))
     } catch (e: any) {
         console.error('删除失败', e)
-        toast.error(e.data?.detail || '删除失败')
+        toast.error(e.data?.detail || t('settingsSecurity.accounts.deleteFailed'))
     }
 }
 
@@ -183,12 +184,12 @@ const handleTestAccount = async (id: number) => {
     try {
         const result = await testExternalAccount(id)
         if (result.success) {
-            toast.success('连接成功！')
+            toast.success(t('settingsSecurity.accounts.connectSuccess'))
         } else {
-            toast.error(`连接失败: ${result.message}`)
+            toast.error(t('settingsSecurity.accounts.connectFailed', { msg: result.message }))
         }
     } catch (e: any) {
-        toast.error('测试失败: ' + (e.data?.detail || '未知错误'))
+        toast.error(t('settingsSecurity.accounts.testFailed', { msg: e.data?.detail || t('settingsSecurity.accounts.unknownError') }))
     } finally {
         testingAccount.value = null
     }
@@ -199,9 +200,9 @@ const handleSyncAccount = async (id: number) => {
     try {
         const result = await syncExternalAccount(id)
         if (result.synced > 0) {
-            toast.success(`同步完成，获取了 ${result.synced} 封新邮件`)
+            toast.success(t('settingsSecurity.accounts.syncedWithCount', { n: result.synced }))
         } else {
-            toast.success('同步完成，没有新邮件')
+            toast.success(t('settingsSecurity.accounts.syncedNone'))
         }
         // 更新本地状态
         const account = externalAccounts.value.find(a => a.id === id)
@@ -210,28 +211,28 @@ const handleSyncAccount = async (id: number) => {
             account.sync_error = result.sync_error
         }
     } catch (e: any) {
-        toast.error('同步失败: ' + (e.data?.detail || '未知错误'))
+        toast.error(t('settingsSecurity.accounts.syncFailed', { msg: e.data?.detail || t('settingsSecurity.accounts.unknownError') }))
     } finally {
         syncingAccount.value = null
     }
 }
 
 const formatSyncTime = (dateStr: string | null) => {
-    if (!dateStr) return '从未同步'
+    if (!dateStr) return t('settingsSecurity.accounts.neverSynced')
     const date = new Date(dateStr)
     const now = new Date()
     const diffMs = now.getTime() - date.getTime()
     const diffMin = Math.floor(diffMs / 60000)
-    if (diffMin < 1) return '刚刚'
-    if (diffMin < 60) return `${diffMin} 分钟前`
+    if (diffMin < 1) return t('settingsSecurity.common.justNow')
+    if (diffMin < 60) return t('settingsSecurity.common.minutesAgo', { n: diffMin })
     const diffHours = Math.floor(diffMin / 60)
-    if (diffHours < 24) return `${diffHours} 小时前`
+    if (diffHours < 24) return t('settingsSecurity.common.hoursAgo', { n: diffHours })
     const diffDays = Math.floor(diffHours / 24)
-    return `${diffDays} 天前`
+    return t('settingsSecurity.common.daysAgo', { n: diffDays })
 }
 
 const getProviderName = (provider: string) => {
-    const names: Record<string, string> = { gmail: 'Gmail', outlook: 'Outlook', icloud: 'iCloud', yahoo: 'Yahoo', qq: 'QQ邮箱', '163': '163邮箱', '126': '126邮箱', yeah: 'Yeah.net', sina: '新浪', aliyun: '阿里云', zoho: 'Zoho', custom: '自定义' }
+    const names: Record<string, string> = { gmail: 'Gmail', outlook: 'Outlook', icloud: 'iCloud', yahoo: 'Yahoo', qq: t('settingsSecurity.accounts.providerQQ'), '163': t('settingsSecurity.accounts.provider163'), '126': t('settingsSecurity.accounts.provider126'), yeah: 'Yeah.net', sina: t('settingsSecurity.accounts.providerSina'), aliyun: t('settingsSecurity.accounts.providerAliyun'), zoho: 'Zoho', custom: t('settingsSecurity.accounts.providerCustom') }
     return names[provider] || provider
 }
 
@@ -247,19 +248,19 @@ onMounted(() => {
 <template>
     <div class="space-y-8">
         <div class="flex justify-between items-center">
-            <h2 class="section-title mb-0">多账号管理</h2>
+            <h2 class="section-title mb-0">{{ t('settingsSecurity.accounts.title') }}</h2>
             <button @click="showAddAccountModal = true"
                 class="bg-primary text-white px-4 py-2 rounded-lg text-sm hover:bg-primary-hover flex items-center gap-2">
-                <Plus class="w-4 h-4" /> 添加账号
+                <Plus class="w-4 h-4" /> {{ t('settingsSecurity.accounts.addAccount') }}
             </button>
         </div>
 
-        <div v-if="loading" class="text-gray-500">加载中...</div>
+        <div v-if="loading" class="text-gray-500">{{ t('common.loading') }}</div>
 
         <template v-else-if="user">
             <!-- 主账号 -->
             <div class="card bg-white dark:bg-bg-panelDark border-primary/30 relative overflow-hidden">
-                <div class="absolute top-0 right-0 bg-primary text-white text-xs px-2 py-1 rounded-bl-lg">当前</div>
+                <div class="absolute top-0 right-0 bg-primary text-white text-xs px-2 py-1 rounded-bl-lg">{{ t('settingsSecurity.accounts.current') }}</div>
                 <div class="flex items-center gap-4">
                     <div
                         class="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white text-xl font-bold">
@@ -273,10 +274,10 @@ onMounted(() => {
 
             <!-- 外部邮箱账号 -->
             <div class="card bg-white dark:bg-bg-panelDark">
-                <h3 class="font-bold text-gray-900 dark:text-white mb-4">外部邮箱账号</h3>
-                <div v-if="loadingExternal" class="text-sm text-gray-500 p-4 text-center">加载中...</div>
+                <h3 class="font-bold text-gray-900 dark:text-white mb-4">{{ t('settingsSecurity.accounts.externalAccounts') }}</h3>
+                <div v-if="loadingExternal" class="text-sm text-gray-500 p-4 text-center">{{ t('common.loading') }}</div>
                 <div v-else-if="externalAccounts.length === 0" class="text-sm text-gray-500 italic p-4 bg-gray-50 dark:bg-gray-900 rounded-lg text-center">
-                    暂未添加外部邮箱账号
+                    {{ t('settingsSecurity.accounts.noExternal') }}
                 </div>
                 <div v-else class="space-y-2">
                     <div v-for="account in externalAccounts" :key="account.id"
@@ -291,11 +292,11 @@ onMounted(() => {
                             </div>
                             <div class="flex items-center gap-2">
                                 <button @click="handleSyncAccount(account.id)" :disabled="syncingAccount === account.id"
-                                    class="text-gray-400 hover:text-green-500 transition-colors p-1" title="立即同步">
+                                    class="text-gray-400 hover:text-green-500 transition-colors p-1" :title="t('settingsSecurity.accounts.syncNow')">
                                     <Download class="w-4 h-4" :class="{ 'animate-bounce': syncingAccount === account.id }" />
                                 </button>
                                 <button @click="handleTestAccount(account.id)" :disabled="testingAccount === account.id"
-                                    class="text-gray-400 hover:text-primary transition-colors p-1" title="测试连接">
+                                    class="text-gray-400 hover:text-primary transition-colors p-1" :title="t('settingsSecurity.accounts.testConnection')">
                                     <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': testingAccount === account.id }" />
                                 </button>
                                 <button @click="handleDeleteAccount(account.id)"
@@ -312,10 +313,10 @@ onMounted(() => {
                             </span>
                             <span v-if="account.sync_error" class="flex items-center gap-1 text-red-400" :title="account.sync_error">
                                 <AlertCircle class="w-3 h-3" />
-                                同步异常
+                                {{ t('settingsSecurity.accounts.syncError') }}
                             </span>
                             <span v-if="!account.sync_enabled" class="text-orange-400">
-                                同步已暂停
+                                {{ t('settingsSecurity.accounts.syncPaused') }}
                             </span>
                         </div>
                     </div>
@@ -326,22 +327,22 @@ onMounted(() => {
             <div class="card bg-white dark:bg-bg-panelDark">
                 <div class="flex items-center justify-between mb-4">
                     <div>
-                        <h3 class="font-bold text-gray-900 dark:text-white">邮件别名 (Aliases)</h3>
+                        <h3 class="font-bold text-gray-900 dark:text-white">{{ t('settingsSecurity.accounts.aliasesTitle') }}</h3>
                         <p class="text-xs text-gray-500 mt-1">
-                            已使用 {{ aliases.length }} / {{ subscription?.max_aliases === -1 ? '∞' : subscription?.max_aliases || 0 }}
+                            {{ t('settingsSecurity.accounts.aliasUsage', { used: aliases.length, total: subscription?.max_aliases === -1 ? '∞' : subscription?.max_aliases || 0 }) }}
                         </p>
                     </div>
                     <button @click="showAddModal = true" :disabled="!canAddAlias"
                         class="text-primary text-sm font-medium flex items-center gap-1 hover:underline disabled:opacity-50 disabled:cursor-not-allowed">
-                        <Plus class="w-4 h-4" /> 添加别名
+                        <Plus class="w-4 h-4" /> {{ t('settingsSecurity.accounts.addAlias') }}
                     </button>
                 </div>
                 
                 <div v-if="loadingAliases" class="text-sm text-gray-500 p-4 text-center">
-                    加载中...
+                    {{ t('common.loading') }}
                 </div>
                 <div v-else-if="aliases.length === 0" class="text-sm text-gray-500 italic p-4 bg-gray-50 dark:bg-gray-900 rounded-lg text-center">
-                    暂无邮件别名
+                    {{ t('settingsSecurity.accounts.noAliases') }}
                 </div>
                 <div v-else class="space-y-2">
                     <div v-for="alias in aliases" :key="alias.id"
@@ -349,13 +350,13 @@ onMounted(() => {
                         <div>
                             <div class="font-medium text-gray-900 dark:text-white text-sm flex items-center gap-2">
                                 {{ alias.alias_email }}
-                                <span v-if="!alias.is_active" class="text-xs bg-gray-200 dark:bg-gray-700 text-gray-500 px-1.5 py-0.5 rounded">已停用</span>
+                                <span v-if="!alias.is_active" class="text-xs bg-gray-200 dark:bg-gray-700 text-gray-500 px-1.5 py-0.5 rounded">{{ t('settingsSecurity.accounts.inactive') }}</span>
                             </div>
                             <div v-if="alias.name" class="text-xs text-gray-500">{{ alias.name }}</div>
                         </div>
                         <div class="flex items-center gap-2">
                             <button @click="handleToggleAlias(alias)"
-                                class="text-gray-400 hover:text-primary transition-colors p-1" :title="alias.is_active ? '停用' : '启用'">
+                                class="text-gray-400 hover:text-primary transition-colors p-1" :title="alias.is_active ? t('settingsSecurity.accounts.disable') : t('settingsSecurity.accounts.enable')">
                                 <ToggleRight v-if="alias.is_active" class="w-5 h-5 text-primary" />
                                 <ToggleLeft v-else class="w-5 h-5" />
                             </button>
@@ -370,10 +371,10 @@ onMounted(() => {
         </template>
 
         <!-- 添加别名弹窗 -->
-        <CommonModal v-model="showAddModal" title="添加邮件别名">
+        <CommonModal v-model="showAddModal" :title="t('settingsSecurity.accounts.addAliasModalTitle')">
             <div class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">别名地址</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('settingsSecurity.common.aliasAddress') }}</label>
                     <div class="flex items-center">
                         <input v-model="newAliasPrefix" type="text"
                             class="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-l-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
@@ -384,68 +385,68 @@ onMounted(() => {
                     </div>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">备注名称（可选）</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('settingsSecurity.common.aliasNameOptional') }}</label>
                     <input v-model="newAliasName" type="text"
                         class="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
-                        placeholder="例如：工作邮箱">
+                        :placeholder="t('settingsSecurity.accounts.aliasNamePlaceholder')">
                 </div>
                 <div v-if="addError" class="text-red-500 text-sm">{{ addError }}</div>
                 <div class="flex justify-end gap-2 pt-2">
                     <button @click="showAddModal = false" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm">
-                        取消
+                        {{ t('common.cancel') }}
                     </button>
                     <button @click="handleAddAlias" :disabled="addingAlias || !newAliasPrefix.trim()"
                         class="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary-hover disabled:opacity-50">
-                        {{ addingAlias ? '创建中...' : '创建' }}
+                        {{ addingAlias ? t('settingsSecurity.accounts.creating') : t('settingsSecurity.accounts.create') }}
                     </button>
                 </div>
             </div>
         </CommonModal>
 
         <!-- 添加外部账号弹窗 -->
-        <CommonModal v-model="showAddAccountModal" title="添加外部邮箱账号">
+        <CommonModal v-model="showAddAccountModal" :title="t('settingsSecurity.accounts.addExternalTitle')">
             <div class="space-y-4 max-h-96 overflow-y-auto">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">邮箱服务商</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('settingsSecurity.accounts.provider') }}</label>
                     <select v-model="newAccount.provider"
                         class="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none">
-                        <optgroup label="国际邮箱">
+                        <optgroup :label="t('settingsSecurity.accounts.groupInternational')">
                             <option value="gmail">Gmail</option>
                             <option value="outlook">Outlook / Hotmail</option>
                             <option value="icloud">iCloud</option>
                             <option value="yahoo">Yahoo Mail</option>
                             <option value="zoho">Zoho Mail</option>
                         </optgroup>
-                        <optgroup label="国内邮箱">
-                            <option value="qq">QQ 邮箱</option>
-                            <option value="163">网易 163 邮箱</option>
-                            <option value="126">网易 126 邮箱</option>
-                            <option value="yeah">Yeah.net 邮箱</option>
-                            <option value="sina">新浪邮箱</option>
-                            <option value="aliyun">阿里云邮箱</option>
+                        <optgroup :label="t('settingsSecurity.accounts.groupChina')">
+                            <option value="qq">{{ t('settingsSecurity.accounts.optQQ') }}</option>
+                            <option value="163">{{ t('settingsSecurity.accounts.opt163') }}</option>
+                            <option value="126">{{ t('settingsSecurity.accounts.opt126') }}</option>
+                            <option value="yeah">{{ t('settingsSecurity.accounts.optYeah') }}</option>
+                            <option value="sina">{{ t('settingsSecurity.accounts.optSina') }}</option>
+                            <option value="aliyun">{{ t('settingsSecurity.accounts.optAliyun') }}</option>
                         </optgroup>
-                        <optgroup label="其他">
-                            <option value="custom">自定义 IMAP/SMTP</option>
+                        <optgroup :label="t('settingsSecurity.accounts.groupOther')">
+                            <option value="custom">{{ t('settingsSecurity.accounts.optCustom') }}</option>
                         </optgroup>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">邮箱地址</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('settingsSecurity.common.emailAddress') }}</label>
                     <input v-model="newAccount.email" type="email"
                         class="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
                         placeholder="your@email.com">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">密码/应用专用密码</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('settingsSecurity.accounts.passwordLabel') }}</label>
                     <input v-model="newAccount.password" type="password"
                         class="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
-                        placeholder="请输入密码或应用专用密码">
-                    <p class="text-xs text-gray-500 mt-1">Gmail/Outlook/iCloud 需使用应用专用密码</p>
+                        :placeholder="t('settingsSecurity.accounts.passwordPlaceholder')">
+                    <p class="text-xs text-gray-500 mt-1">{{ t('settingsSecurity.accounts.appPasswordHint') }}</p>
                 </div>
                 <!-- 自定义服务器配置 -->
                 <template v-if="isCustomProvider">
                     <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">IMAP 收件服务器</label>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{{ t('settingsSecurity.accounts.imapHost') }}</label>
                         <div class="flex gap-2">
                             <input v-model="newAccount.imap_host" type="text" placeholder="imap.example.com"
                                 class="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm">
@@ -454,7 +455,7 @@ onMounted(() => {
                         </div>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">SMTP 发件服务器</label>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{{ t('settingsSecurity.accounts.smtpHost') }}</label>
                         <div class="flex gap-2">
                             <input v-model="newAccount.smtp_host" type="text" placeholder="smtp.example.com"
                                 class="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm">
@@ -466,11 +467,11 @@ onMounted(() => {
                 <div v-if="accountError" class="text-red-500 text-sm">{{ accountError }}</div>
                 <div class="flex justify-end gap-2 pt-2">
                     <button @click="showAddAccountModal = false" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm">
-                        取消
+                        {{ t('common.cancel') }}
                     </button>
                     <button @click="handleAddAccount" :disabled="addingAccount || !newAccount.email || !newAccount.password || (isCustomProvider && (!newAccount.imap_host || !newAccount.smtp_host))"
                         class="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary-hover disabled:opacity-50">
-                        {{ addingAccount ? '添加中...' : '添加' }}
+                        {{ addingAccount ? t('settingsSecurity.common.adding') : t('settingsSecurity.common.add') }}
                     </button>
                 </div>
             </div>

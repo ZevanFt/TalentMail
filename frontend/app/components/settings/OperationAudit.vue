@@ -80,7 +80,7 @@ onMounted(load)
           <ShieldCheck class="w-4 h-4" /> {{ t('admin.auditTitle') }}
         </h2>
         <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          共 {{ total }} 条 · 保留 30 天
+          {{ t('admin.auditSummary', { n: total }) }}
         </p>
       </div>
       <button @click="load" :disabled="loading"

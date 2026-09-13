@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Search, RefreshCw, Crown, Plus, Trash2, AlertTriangle } from 'lucide-vue-next'
 
+const { t } = useI18n()
 const { getUsers, updateUserPermissions, adminCreateUser, adminDeleteUser, getPlans } = useApi()
 const config = useConfig()
 const toast = useToast()
@@ -60,7 +61,7 @@ const loadPlans = async () => {
         plans.value = await getPlans()
     } catch (e: any) {
         console.error('加载套餐失败', e)
-        toast.error(e.data?.detail || '加载套餐失败')
+        toast.error(e.data?.detail || t('admin.users.loadPlansFailed'))
     }
 }
 
@@ -72,7 +73,7 @@ const loadUsers = async () => {
         total.value = res.total
     } catch (e: any) {
         console.error('加载用户失败', e)
-        toast.error(e.data?.detail || '加载用户失败')
+        toast.error(e.data?.detail || t('admin.users.loadFailed'))
     } finally {
         loading.value = false
     }
@@ -84,10 +85,10 @@ const updateRole = async (user: User, newRole: string) => {
         user.role = newRole
         if (newRole === 'admin') {
             user.pool_enabled = true
-            user.plan_name = '管理员 (无限)'
+            user.plan_name = t('admin.users.adminUnlimitedPlan')
         }
     } catch (e: any) {
-        toast.error(e.data?.detail || '操作失败')
+        toast.error(e.data?.detail || t('admin.users.operationFailed'))
     }
 }
 
@@ -97,7 +98,7 @@ const togglePool = async (user: User) => {
         await updateUserPermissions(user.id, { pool_enabled: newValue })
         user.pool_enabled = newValue
     } catch (e: any) {
-        toast.error(e.data?.detail || '操作失败')
+        toast.error(e.data?.detail || t('admin.users.operationFailed'))
     }
 }
 
@@ -122,7 +123,7 @@ const savePlan = async () => {
         editingUser.value.subscription_expires_at = res.subscription_expires_at
         showPlanModal.value = false
     } catch (e: any) {
-        toast.error(e.data?.detail || '操作失败')
+        toast.error(e.data?.detail || t('admin.users.operationFailed'))
     }
 }
 
@@ -145,11 +146,11 @@ const openCreateModal = () => {
 
 const handleCreateUser = async () => {
     if (!createForm.emailPrefix.trim()) {
-        toast.warning('请输入邮箱前缀')
+        toast.warning(t('admin.users.emailPrefixRequired'))
         return
     }
     if (!createForm.password || createForm.password.length < 6) {
-        toast.warning('密码至少6位')
+        toast.warning(t('admin.users.passwordMinLength'))
         return
     }
     
@@ -167,7 +168,7 @@ const handleCreateUser = async () => {
         showCreateModal.value = false
         await loadUsers()
     } catch (e: any) {
-        toast.error(e.data?.detail || '创建失败')
+        toast.error(e.data?.detail || t('admin.createFailed'))
     } finally {
         creating.value = false
     }
@@ -188,7 +189,7 @@ const handleDeleteUser = async () => {
         userToDelete.value = null
         await loadUsers()
     } catch (e: any) {
-        toast.error(e.data?.detail || '删除失败')
+        toast.error(e.data?.detail || t('admin.deleteFailed'))
     } finally {
         deleting.value = false
     }
@@ -214,7 +215,7 @@ onMounted(async () => {
     <div class="h-full flex flex-col">
         <!-- 固定头部 -->
         <div class="shrink-0 space-y-6 pb-4">
-            <h2 class="text-2xl font-bold text-gray-900 dark:text-white">用户权限管理</h2>
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t('admin.users.title') }}</h2>
             
             <!-- 搜索栏 -->
             <div class="flex items-center gap-3">
@@ -224,19 +225,19 @@ onMounted(async () => {
                         v-model="searchQuery"
                         @keyup.enter="handleSearch"
                         type="text"
-                        placeholder="搜索邮箱或名称..."
+                        :placeholder="t('admin.users.searchPlaceholder')"
                         class="w-full pl-12 pr-4 py-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-gray-900 dark:text-white placeholder-gray-400"
                     >
                 </div>
                 <button @click="handleSearch" class="px-5 py-3 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-hover transition-colors shadow-sm shadow-primary/20">
-                    搜索
+                    {{ t('common.search') }}
                 </button>
-                <button @click="loadUsers" class="p-3 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" title="刷新">
+                <button @click="loadUsers" class="p-3 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" :title="t('admin.refresh')">
                     <RefreshCw class="w-5 h-5" :class="{ 'animate-spin': loading }" />
                 </button>
                 <button @click="openCreateModal" class="px-5 py-3 bg-green-600 text-white text-sm font-medium rounded-xl hover:bg-green-700 transition-colors shadow-sm flex items-center gap-2">
                     <Plus class="w-4 h-4" />
-                    创建用户
+                    {{ t('admin.users.createUser') }}
                 </button>
             </div>
         </div>
@@ -246,12 +247,12 @@ onMounted(async () => {
             <!-- 固定表头 -->
             <div class="shrink-0 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700">
                 <div class="grid grid-cols-12 gap-4 px-6 py-3">
-                    <div class="col-span-3 text-xs font-bold text-gray-500 uppercase tracking-wider">用户</div>
-                    <div class="col-span-2 text-xs font-bold text-gray-500 uppercase tracking-wider">角色</div>
-                    <div class="col-span-2 text-xs font-bold text-gray-500 uppercase tracking-wider">套餐</div>
-                    <div class="col-span-2 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">账号池</div>
-                    <div class="col-span-2 text-xs font-bold text-gray-500 uppercase tracking-wider">注册时间</div>
-                    <div class="col-span-1 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">操作</div>
+                    <div class="col-span-3 text-xs font-bold text-gray-500 uppercase tracking-wider">{{ t('admin.user') }}</div>
+                    <div class="col-span-2 text-xs font-bold text-gray-500 uppercase tracking-wider">{{ t('admin.users.role') }}</div>
+                    <div class="col-span-2 text-xs font-bold text-gray-500 uppercase tracking-wider">{{ t('admin.users.plan') }}</div>
+                    <div class="col-span-2 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">{{ t('admin.users.pool') }}</div>
+                    <div class="col-span-2 text-xs font-bold text-gray-500 uppercase tracking-wider">{{ t('admin.users.registeredAt') }}</div>
+                    <div class="col-span-1 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">{{ t('admin.actions') }}</div>
                 </div>
             </div>
 
@@ -278,7 +279,7 @@ onMounted(async () => {
                         </div>
                     </div>
                 </div>
-                <div v-else-if="users.length === 0" class="p-12 text-center text-gray-500">暂无用户</div>
+                <div v-else-if="users.length === 0" class="p-12 text-center text-gray-500">{{ t('admin.users.empty') }}</div>
                 <div v-else class="divide-y divide-gray-100 dark:divide-gray-800">
                     <div v-for="user in users" :key="user.id"
                         class="grid grid-cols-12 gap-4 px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors items-center">
@@ -292,8 +293,8 @@ onMounted(async () => {
                             <select :value="user.role" @change="updateRole(user, ($event.target as HTMLSelectElement).value)"
                                 class="px-2 py-1 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 outline-none cursor-pointer"
                                 :class="user.role === 'admin' ? 'text-purple-700 dark:text-purple-400' : 'text-gray-600 dark:text-gray-400'">
-                                <option value="user">用户</option>
-                                <option value="admin">管理员</option>
+                                <option value="user">{{ t('admin.user') }}</option>
+                                <option value="admin">{{ t('admin.users.adminRole') }}</option>
                             </select>
                         </div>
                         <!-- 套餐 -->
@@ -310,7 +311,7 @@ onMounted(async () => {
                                 {{ user.plan_name || 'Free' }}
                             </button>
                             <div v-if="user.subscription_expires_at && user.role !== 'admin'" class="text-xs text-gray-400 mt-0.5">
-                                {{ formatDate(user.subscription_expires_at) }} 到期
+                                {{ t('admin.users.expiresOn', { date: formatDate(user.subscription_expires_at) }) }}
                             </div>
                         </div>
                         <!-- 账号池开关 -->
@@ -326,7 +327,7 @@ onMounted(async () => {
                             <button
                                 @click="confirmDeleteUser(user)"
                                 class="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                                title="删除用户"
+                                :title="t('admin.users.deleteUser')"
                             >
                                 <Trash2 class="w-4 h-4" />
                             </button>
@@ -338,100 +339,100 @@ onMounted(async () => {
             <!-- 分页 -->
             <div v-if="total > 0" class="shrink-0 flex items-center justify-between px-6 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/30">
                 <div class="flex items-center gap-4">
-                    <span class="text-sm text-gray-500">共 {{ total }} 个用户</span>
+                    <span class="text-sm text-gray-500">{{ t('admin.users.totalUsers', { n: total }) }}</span>
                     <div class="flex items-center gap-2">
-                        <span class="text-sm text-gray-500">每页</span>
+                        <span class="text-sm text-gray-500">{{ t('admin.perPage') }}</span>
                         <select v-model="limit" @change="changeLimit(Number(limit))"
                             class="px-2 py-1 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 outline-none">
                             <option v-for="opt in limitOptions" :key="opt" :value="opt">{{ opt }}</option>
                         </select>
-                        <span class="text-sm text-gray-500">条</span>
+                        <span class="text-sm text-gray-500">{{ t('admin.perPageUnit') }}</span>
                     </div>
                 </div>
                 <div class="flex items-center gap-2">
                     <button @click="page--; loadUsers()" :disabled="page <= 1"
                         class="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg disabled:opacity-40 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                        上一页
+                        {{ t('admin.prevPage') }}
                     </button>
                     <span class="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400">{{ page }} / {{ totalPages }}</span>
                     <button @click="page++; loadUsers()" :disabled="page >= totalPages"
                         class="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg disabled:opacity-40 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                        下一页
+                        {{ t('admin.nextPage') }}
                     </button>
                 </div>
             </div>
         </div>
 
         <!-- 套餐修改弹窗 -->
-        <CommonModal v-model="showPlanModal" title="修改用户套餐">
+        <CommonModal v-model="showPlanModal" :title="t('admin.users.changePlanTitle')">
             <div v-if="editingUser" class="space-y-4">
                 <div class="text-sm text-gray-500">
-                    用户：<span class="font-medium text-gray-900 dark:text-white">{{ editingUser.email }}</span>
+                    {{ t('admin.users.userLabel') }}<span class="font-medium text-gray-900 dark:text-white">{{ editingUser.email }}</span>
                 </div>
                 <div class="space-y-1">
-                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">选择套餐</label>
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('admin.users.selectPlan') }}</label>
                     <select v-model="selectedPlanId" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none focus:border-primary">
                         <option v-for="plan in plans" :key="plan.id" :value="plan.id">{{ plan.name }}</option>
                     </select>
                 </div>
                 <div class="space-y-1">
-                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">订阅天数</label>
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('admin.users.subscriptionDays') }}</label>
                     <input v-model.number="subscriptionDays" type="number" min="1" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none focus:border-primary">
-                    <p class="text-xs text-gray-400">如果用户已有该套餐的订阅，将在现有到期时间基础上累加</p>
+                    <p class="text-xs text-gray-400">{{ t('admin.users.subscriptionExtendHint') }}</p>
                 </div>
             </div>
             <template #footer>
-                <button @click="showPlanModal = false" class="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">取消</button>
-                <button @click="savePlan" class="px-4 py-2 bg-primary text-white text-sm rounded-lg hover:bg-primary-hover transition-colors">保存</button>
+                <button @click="showPlanModal = false" class="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">{{ t('common.cancel') }}</button>
+                <button @click="savePlan" class="px-4 py-2 bg-primary text-white text-sm rounded-lg hover:bg-primary-hover transition-colors">{{ t('common.save') }}</button>
             </template>
         </CommonModal>
 
         <!-- 创建用户弹窗 -->
-        <CommonModal v-model="showCreateModal" title="创建新用户">
+        <CommonModal v-model="showCreateModal" :title="t('admin.users.createUserTitle')">
             <div class="space-y-4">
                 <div class="space-y-1">
-                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">邮箱地址 *</label>
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('admin.users.emailLabel') }}</label>
                     <div class="flex">
                         <input
                             v-model="createForm.emailPrefix"
                             type="text"
-                            placeholder="输入邮箱前缀"
+                            :placeholder="t('admin.users.emailPrefixPlaceholder')"
                             class="flex-1 min-w-0 px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 border-r-0 rounded-l-lg text-sm outline-none focus:border-primary"
                         >
                         <div class="px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-r-lg text-gray-500 text-sm flex items-center">
                             {{ config.emailDomain }}
                         </div>
                     </div>
-                    <p class="text-xs text-gray-400">管理员创建用户可使用保留前缀</p>
+                    <p class="text-xs text-gray-400">{{ t('admin.users.adminPrefixHint') }}</p>
                 </div>
                 <div class="space-y-1">
-                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">密码 *</label>
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('admin.users.passwordLabel') }}</label>
                     <input
                         v-model="createForm.password"
                         type="password"
-                        placeholder="至少6位"
+                        :placeholder="t('admin.users.passwordPlaceholder')"
                         class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none focus:border-primary"
                     >
                 </div>
                 <div class="space-y-1">
-                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">显示名称</label>
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('admin.users.displayName') }}</label>
                     <input
                         v-model="createForm.displayName"
                         type="text"
-                        placeholder="可选"
+                        :placeholder="t('admin.users.optional')"
                         class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none focus:border-primary"
                     >
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div class="space-y-1">
-                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">角色</label>
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('admin.users.role') }}</label>
                         <select v-model="createForm.role" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none focus:border-primary">
-                            <option value="user">普通用户</option>
-                            <option value="admin">管理员</option>
+                            <option value="user">{{ t('admin.users.normalUser') }}</option>
+                            <option value="admin">{{ t('admin.users.adminRole') }}</option>
                         </select>
                     </div>
                     <div class="space-y-1">
-                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">套餐</label>
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('admin.users.plan') }}</label>
                         <select v-model="createForm.planId" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none focus:border-primary">
                             <option v-for="plan in plans" :key="plan.id" :value="plan.id">{{ plan.name }}</option>
                         </select>
@@ -439,7 +440,7 @@ onMounted(async () => {
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div class="space-y-1">
-                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">订阅天数</label>
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('admin.users.subscriptionDays') }}</label>
                         <input
                             v-model.number="createForm.subscriptionDays"
                             type="number"
@@ -448,40 +449,40 @@ onMounted(async () => {
                         >
                     </div>
                     <div class="space-y-1">
-                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">账号池权限</label>
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('admin.users.poolPermission') }}</label>
                         <div class="flex items-center h-[38px]">
                             <CommonToggle v-model="createForm.poolEnabled" />
-                            <span class="ml-2 text-sm text-gray-500">{{ createForm.poolEnabled ? '开启' : '关闭' }}</span>
+                            <span class="ml-2 text-sm text-gray-500">{{ createForm.poolEnabled ? t('admin.users.on') : t('admin.users.off') }}</span>
                         </div>
                     </div>
                 </div>
             </div>
             <template #footer>
-                <button @click="showCreateModal = false" class="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" :disabled="creating">取消</button>
+                <button @click="showCreateModal = false" class="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" :disabled="creating">{{ t('common.cancel') }}</button>
                 <button @click="handleCreateUser" class="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors" :disabled="creating">
-                    {{ creating ? '创建中...' : '创建用户' }}
+                    {{ creating ? t('admin.creating') : t('admin.users.createUser') }}
                 </button>
             </template>
         </CommonModal>
 
         <!-- 删除用户确认弹窗 -->
-        <CommonModal v-model="showDeleteModal" title="确认删除用户">
+        <CommonModal v-model="showDeleteModal" :title="t('admin.users.deleteConfirmTitle')">
             <div class="flex items-start gap-4">
                 <div class="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
                     <AlertTriangle class="w-6 h-6 text-red-600 dark:text-red-400" />
                 </div>
                 <div>
-                    <p class="text-gray-900 dark:text-white font-medium mb-2">确定要删除此用户吗？</p>
+                    <p class="text-gray-900 dark:text-white font-medium mb-2">{{ t('admin.users.deleteConfirmMessage') }}</p>
                     <p class="text-sm text-gray-500">
-                        用户 <span class="font-medium text-gray-700 dark:text-gray-300">{{ userToDelete?.email }}</span>
-                        将被永久删除，包括其所有邮件、订阅等数据。此操作不可恢复。
+                        {{ t('admin.user') }} <span class="font-medium text-gray-700 dark:text-gray-300">{{ userToDelete?.email }}</span>
+                        {{ t('admin.users.deleteWarning') }}
                     </p>
                 </div>
             </div>
             <template #footer>
-                <button @click="showDeleteModal = false" class="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" :disabled="deleting">取消</button>
+                <button @click="showDeleteModal = false" class="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" :disabled="deleting">{{ t('common.cancel') }}</button>
                 <button @click="handleDeleteUser" class="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors" :disabled="deleting">
-                    {{ deleting ? '删除中...' : '确认删除' }}
+                    {{ deleting ? t('admin.deleting') : t('admin.confirmDelete') }}
                 </button>
             </template>
         </CommonModal>

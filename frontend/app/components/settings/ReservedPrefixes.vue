@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Plus, Trash2, Edit2, Search, Filter, AlertTriangle, Check, X, Tag, User } from 'lucide-vue-next'
 
+const { t } = useI18n()
 const { getReservedPrefixes, createReservedPrefix, updateReservedPrefix, deleteReservedPrefix, getReservedPrefixCategories } = useApi()
 const toast = useToast()
 
@@ -64,13 +65,13 @@ const categoryColors: Record<string, string> = {
 }
 
 // 分类中文名
-const categoryNames: Record<string, string> = {
-    system: '系统',
-    business: '业务',
-    test: '测试',
-    security: '安全',
-    common: '常见'
-}
+const categoryNames = computed<Record<string, string>>(() => ({
+    system: t('admin.prefixes.catSystem'),
+    business: t('admin.prefixes.catBusiness'),
+    test: t('admin.prefixes.catTest'),
+    security: t('admin.prefixes.catSecurity'),
+    common: t('admin.prefixes.catCommon')
+}))
 
 const loadPrefixes = async () => {
     loading.value = true
@@ -86,7 +87,7 @@ const loadPrefixes = async () => {
         totalCount.value = result.total
     } catch (e: any) {
         console.error('加载保留前缀失败', e)
-        toast.error(e.data?.detail || '加载保留前缀失败')
+        toast.error(e.data?.detail || t('admin.prefixes.loadFailed'))
     } finally {
         loading.value = false
     }
@@ -97,7 +98,7 @@ const loadCategories = async () => {
         categories.value = await getReservedPrefixCategories()
     } catch (e: any) {
         console.error('加载分类失败', e)
-        toast.error(e.data?.detail || '加载分类失败')
+        toast.error(e.data?.detail || t('admin.prefixes.loadCategoriesFailed'))
     }
 }
 
@@ -133,7 +134,7 @@ const openEditModal = (prefix: ReservedPrefix) => {
 
 const handleSave = async () => {
     if (!formData.prefix.trim()) {
-        toast.warning('请输入前缀')
+        toast.warning(t('admin.prefixes.prefixRequired'))
         return
     }
     
@@ -157,7 +158,7 @@ const handleSave = async () => {
         await loadPrefixes()
         await loadCategories()
     } catch (e: any) {
-        toast.error(e.data?.detail || '保存失败')
+        toast.error(e.data?.detail || t('admin.saveFailed'))
     } finally {
         saving.value = false
     }
@@ -177,7 +178,7 @@ const handleDelete = async () => {
         prefixToDelete.value = null
         await loadPrefixes()
     } catch (e: any) {
-        toast.error(e.data?.detail || '删除失败')
+        toast.error(e.data?.detail || t('admin.deleteFailed'))
     } finally {
         deleting.value = false
     }
@@ -190,7 +191,7 @@ const toggleActive = async (prefix: ReservedPrefix) => {
         })
         await loadPrefixes()
     } catch (e: any) {
-        toast.error(e.data?.detail || '更新失败')
+        toast.error(e.data?.detail || t('admin.updateFailed'))
     }
 }
 
@@ -224,7 +225,7 @@ onMounted(() => {
 
 <template>
     <div class="space-y-8">
-        <h2 class="section-title">保留邮箱前缀管理</h2>
+        <h2 class="section-title">{{ t('admin.prefixes.title') }}</h2>
 
         <!-- 操作栏 -->
         <div class="card p-5">
@@ -238,29 +239,29 @@ onMounted(() => {
                             @keyup.enter="handleSearch"
                             type="text"
                             class="search-input w-52"
-                            placeholder="搜索前缀..."
+                            :placeholder="t('admin.prefixes.searchPlaceholder')"
                         >
                     </div>
                     <select v-model="filterCategory" @change="handleFilterChange" class="input-field w-28">
-                        <option value="">全部分类</option>
+                        <option value="">{{ t('admin.prefixes.allCategories') }}</option>
                         <option v-for="cat in categories" :key="cat" :value="cat">
                             {{ categoryNames[cat] || cat }}
                         </option>
                     </select>
                     <select v-model="filterActive" @change="handleFilterChange" class="input-field w-24">
-                        <option :value="null">全部</option>
-                        <option :value="true">启用</option>
-                        <option :value="false">禁用</option>
+                        <option :value="null">{{ t('admin.prefixes.all') }}</option>
+                        <option :value="true">{{ t('admin.prefixes.enabled') }}</option>
+                        <option :value="false">{{ t('admin.prefixes.disabled') }}</option>
                     </select>
-                    <button @click="handleSearch" class="btn-icon" title="搜索">
+                    <button @click="handleSearch" class="btn-icon" :title="t('common.search')">
                         <Filter class="w-4 h-4" />
                     </button>
                 </div>
-                
+
                 <!-- 创建按钮 -->
                 <button @click="openCreateModal" class="btn-primary flex items-center gap-2 shrink-0">
                     <Plus class="w-4 h-4" />
-                    添加前缀
+                    {{ t('admin.prefixes.addPrefix') }}
                 </button>
             </div>
         </div>
@@ -284,19 +285,19 @@ onMounted(() => {
 
         <!-- 前缀列表 -->
         <div class="card overflow-hidden">
-            <div v-if="loading" class="p-8 text-center text-gray-500">加载中...</div>
-            <div v-else-if="prefixes.length === 0" class="p-8 text-center text-gray-500">暂无保留前缀</div>
+            <div v-if="loading" class="p-8 text-center text-gray-500">{{ t('common.loading') }}</div>
+            <div v-else-if="prefixes.length === 0" class="p-8 text-center text-gray-500">{{ t('admin.prefixes.empty') }}</div>
             <div v-else class="table-container">
                 <table class="w-full">
                     <thead class="sticky top-0 z-10">
                         <tr>
-                            <th class="th">前缀</th>
-                            <th class="th">分类</th>
-                            <th class="th">描述</th>
-                            <th class="th">使用状态</th>
-                            <th class="th">启用状态</th>
-                            <th class="th">创建时间</th>
-                            <th class="th">操作</th>
+                            <th class="th">{{ t('admin.prefixes.prefix') }}</th>
+                            <th class="th">{{ t('admin.prefixes.category') }}</th>
+                            <th class="th">{{ t('admin.prefixes.description') }}</th>
+                            <th class="th">{{ t('admin.prefixes.usageStatus') }}</th>
+                            <th class="th">{{ t('admin.prefixes.activeStatus') }}</th>
+                            <th class="th">{{ t('admin.prefixes.createdAt') }}</th>
+                            <th class="th">{{ t('admin.actions') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
@@ -320,10 +321,10 @@ onMounted(() => {
                                 <div v-if="prefix.is_used" class="flex items-center gap-1.5">
                                     <User class="w-3.5 h-3.5 text-orange-500" />
                                     <span class="text-xs text-orange-600 dark:text-orange-400" :title="prefix.used_by || ''">
-                                        已使用
+                                        {{ t('admin.prefixes.used') }}
                                     </span>
                                 </div>
-                                <span v-else class="text-xs text-gray-400">未使用</span>
+                                <span v-else class="text-xs text-gray-400">{{ t('admin.prefixes.unused') }}</span>
                             </td>
                             <td class="td">
                                 <button
@@ -335,16 +336,16 @@ onMounted(() => {
                                             : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
                                     ]"
                                 >
-                                    {{ prefix.is_active ? '启用' : '禁用' }}
+                                    {{ prefix.is_active ? t('admin.prefixes.enabled') : t('admin.prefixes.disabled') }}
                                 </button>
                             </td>
                             <td class="td text-gray-500">{{ formatDate(prefix.created_at) }}</td>
                             <td class="td">
                                 <div class="flex gap-2">
-                                    <button @click="openEditModal(prefix)" class="icon-btn" title="编辑">
+                                    <button @click="openEditModal(prefix)" class="icon-btn" :title="t('admin.prefixes.edit')">
                                         <Edit2 class="w-4 h-4" />
                                     </button>
-                                    <button @click="confirmDelete(prefix)" class="icon-btn text-red-500" title="删除">
+                                    <button @click="confirmDelete(prefix)" class="icon-btn text-red-500" :title="t('common.delete')">
                                         <Trash2 class="w-4 h-4" />
                                     </button>
                                 </div>
@@ -358,12 +359,12 @@ onMounted(() => {
             <div class="flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-gray-800">
                 <div class="flex items-center gap-4">
                     <span class="text-sm text-gray-500">
-                        共 {{ totalCount }} 条记录
+                        {{ t('admin.prefixes.totalRecords', { n: totalCount }) }}
                     </span>
                     <div class="flex items-center gap-2">
-                        <span class="text-sm text-gray-500">每页</span>
+                        <span class="text-sm text-gray-500">{{ t('admin.perPage') }}</span>
                         <select v-model="pageSize" @change="handlePageSizeChange" class="input-field text-sm py-1 px-2 w-20">
-                            <option v-for="size in pageSizeOptions" :key="size" :value="size">{{ size }} 条</option>
+                            <option v-for="size in pageSizeOptions" :key="size" :value="size">{{ size }} {{ t('admin.perPageUnit') }}</option>
                         </select>
                     </div>
                 </div>
@@ -373,7 +374,7 @@ onMounted(() => {
                         :disabled="currentPage <= 1"
                         class="btn-secondary text-sm px-3 py-1"
                     >
-                        上一页
+                        {{ t('admin.prevPage') }}
                     </button>
                     <span class="px-3 py-1 text-sm text-gray-600 dark:text-gray-400">
                         {{ currentPage }} / {{ totalPages }}
@@ -383,47 +384,47 @@ onMounted(() => {
                         :disabled="currentPage >= totalPages"
                         class="btn-secondary text-sm px-3 py-1"
                     >
-                        下一页
+                        {{ t('admin.nextPage') }}
                     </button>
                 </div>
             </div>
         </div>
 
         <!-- 创建/编辑弹窗 -->
-        <CommonModal v-model="showEditModal" :title="editingPrefix ? '编辑保留前缀' : '添加保留前缀'">
+        <CommonModal v-model="showEditModal" :title="editingPrefix ? t('admin.prefixes.editTitle') : t('admin.prefixes.addTitle')">
             <div class="space-y-4">
                 <div class="space-y-1">
-                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">前缀 *</label>
-                    <input 
-                        v-model="formData.prefix" 
-                        type="text" 
-                        class="input-field w-full" 
-                        placeholder="例如: admin, support, noreply"
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('admin.prefixes.prefixLabel') }}</label>
+                    <input
+                        v-model="formData.prefix"
+                        type="text"
+                        class="input-field w-full"
+                        :placeholder="t('admin.prefixes.prefixPlaceholder')"
                         :disabled="!!editingPrefix"
                     >
-                    <p class="text-xs text-gray-500">前缀将自动转为小写，创建后不可修改</p>
+                    <p class="text-xs text-gray-500">{{ t('admin.prefixes.prefixHint') }}</p>
                 </div>
                 <div class="space-y-1">
-                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">分类 *</label>
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('admin.prefixes.categoryLabel') }}</label>
                     <select v-model="formData.category" class="input-field w-full">
-                        <option value="system">系统 - 系统级别保留</option>
-                        <option value="business">业务 - 业务相关保留</option>
-                        <option value="test">测试 - 测试用途保留</option>
-                        <option value="security">安全 - 安全相关保留</option>
-                        <option value="common">常见 - 常见名称保留</option>
+                        <option value="system">{{ t('admin.prefixes.optSystem') }}</option>
+                        <option value="business">{{ t('admin.prefixes.optBusiness') }}</option>
+                        <option value="test">{{ t('admin.prefixes.optTest') }}</option>
+                        <option value="security">{{ t('admin.prefixes.optSecurity') }}</option>
+                        <option value="common">{{ t('admin.prefixes.optCommon') }}</option>
                     </select>
                 </div>
                 <div class="space-y-1">
-                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">描述</label>
-                    <input 
-                        v-model="formData.description" 
-                        type="text" 
-                        class="input-field w-full" 
-                        placeholder="可选，说明保留原因"
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('admin.prefixes.description') }}</label>
+                    <input
+                        v-model="formData.description"
+                        type="text"
+                        class="input-field w-full"
+                        :placeholder="t('admin.prefixes.descriptionPlaceholder')"
                     >
                 </div>
                 <div class="flex items-center gap-3">
-                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">启用状态</label>
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('admin.prefixes.activeStatus') }}</label>
                     <button 
                         @click="formData.is_active = !formData.is_active"
                         :class="[
@@ -438,35 +439,35 @@ onMounted(() => {
                             ]"
                         />
                     </button>
-                    <span class="text-sm text-gray-500">{{ formData.is_active ? '启用' : '禁用' }}</span>
+                    <span class="text-sm text-gray-500">{{ formData.is_active ? t('admin.prefixes.enabled') : t('admin.prefixes.disabled') }}</span>
                 </div>
             </div>
             <template #footer>
-                <button @click="showEditModal = false" class="btn-secondary" :disabled="saving">取消</button>
+                <button @click="showEditModal = false" class="btn-secondary" :disabled="saving">{{ t('common.cancel') }}</button>
                 <button @click="handleSave" class="btn-primary" :disabled="saving">
-                    {{ saving ? '保存中...' : '保存' }}
+                    {{ saving ? t('admin.saving') : t('common.save') }}
                 </button>
             </template>
         </CommonModal>
 
         <!-- 删除确认弹窗 -->
-        <CommonModal v-model="showDeleteModal" title="确认删除">
+        <CommonModal v-model="showDeleteModal" :title="t('admin.confirmDelete')">
             <div class="flex items-start gap-4">
                 <div class="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
                     <AlertTriangle class="w-6 h-6 text-red-600 dark:text-red-400" />
                 </div>
                 <div>
-                    <p class="text-gray-900 dark:text-white font-medium mb-2">确定要删除此保留前缀吗？</p>
+                    <p class="text-gray-900 dark:text-white font-medium mb-2">{{ t('admin.prefixes.deleteConfirmMessage') }}</p>
                     <p class="text-sm text-gray-500">
-                        前缀 <code class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs font-mono">{{ prefixToDelete?.prefix }}</code>
-                        将被永久删除，删除后用户将可以使用此前缀注册邮箱。
+                        {{ t('admin.prefixes.prefix') }} <code class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs font-mono">{{ prefixToDelete?.prefix }}</code>
+                        {{ t('admin.prefixes.deleteWarning') }}
                     </p>
                 </div>
             </div>
             <template #footer>
-                <button @click="showDeleteModal = false" class="btn-secondary" :disabled="deleting">取消</button>
+                <button @click="showDeleteModal = false" class="btn-secondary" :disabled="deleting">{{ t('common.cancel') }}</button>
                 <button @click="handleDelete" class="btn-danger" :disabled="deleting">
-                    {{ deleting ? '删除中...' : '确认删除' }}
+                    {{ deleting ? t('admin.deleting') : t('admin.confirmDelete') }}
                 </button>
             </template>
         </CommonModal>

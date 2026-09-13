@@ -4,6 +4,7 @@ import { Plus, Trash2, Copy, Check, Package, Ticket, RefreshCw, Ban } from 'luci
 const { getPlans, createPlan, updatePlan, deletePlan: deletePlanApi, getRedemptionCodes, generateRedemptionCodes, getRedemptionCodeStats, revokeRedemptionCode } = useApi()
 const toast = useToast()
 const { confirm: confirmDialog } = useConfirmDialog()
+const { t } = useI18n()
 
 // ==================== 类型定义 ====================
 interface Plan {
@@ -79,7 +80,7 @@ const loadPlans = async () => {
         }
     } catch (e: any) {
         console.error('加载套餐失败', e)
-        toast.error(e.data?.detail || '加载套餐失败')
+        toast.error(e.data?.detail || t('settingsSecurity.billing.loadPlansFailed'))
     }
 }
 
@@ -94,7 +95,7 @@ const loadCodes = async () => {
         codeStats.value = statsData
     } catch (e: any) {
         console.error('加载兑换码失败', e)
-        toast.error(e.data?.detail || '加载兑换码失败')
+        toast.error(e.data?.detail || t('settingsSecurity.billing.loadCodesFailed'))
     } finally {
         loading.value = false
     }
@@ -120,18 +121,18 @@ const savePlan = async () => {
         showPlanModal.value = false
         await loadPlans()
     } catch (e: any) {
-        toast.error(e.data?.detail || '保存失败')
+        toast.error(e.data?.detail || t('settingsSecurity.billing.saveFailed'))
     }
 }
 
 const handleDeletePlan = async (plan: Plan) => {
-    const ok = await confirmDialog({ message: `确定删除套餐 "${plan.name}"？`, type: 'danger' })
+    const ok = await confirmDialog({ message: t('settingsSecurity.billing.deletePlanConfirm', { name: plan.name }), type: 'danger' })
     if (!ok) return
     try {
         await deletePlanApi(plan.id)
         await loadPlans()
     } catch (e: any) {
-        toast.error(e.data?.detail || '删除失败')
+        toast.error(e.data?.detail || t('settingsSecurity.billing.deleteFailed'))
     }
 }
 
@@ -142,18 +143,18 @@ const generateCodes = async () => {
         showGeneratedModal.value = true
         await loadCodes()
     } catch (e: any) {
-        toast.error(e.data?.detail || '生成失败')
+        toast.error(e.data?.detail || t('settingsSecurity.billing.generateFailed'))
     }
 }
 
 const revokeCode = async (code: RedemptionCode) => {
-    const ok = await confirmDialog({ message: '确定作废此兑换码？', type: 'warning' })
+    const ok = await confirmDialog({ message: t('settingsSecurity.billing.revokeConfirm'), type: 'warning' })
     if (!ok) return
     try {
         await revokeRedemptionCode(code.id)
         await loadCodes()
     } catch (e: any) {
-        toast.error(e.data?.detail || '操作失败')
+        toast.error(e.data?.detail || t('settingsSecurity.billing.operationFailed'))
     }
 }
 
@@ -204,14 +205,14 @@ const formatBytes = (bytes: number) => {
 // formatDate 来自 utils/format.ts (Nuxt 自动导入)
 
 const getPlanName = (planId: number) => {
-    return plans.value.find(p => p.id === planId)?.name || '未知'
+    return plans.value.find(p => p.id === planId)?.name || t('settingsSecurity.billing.unknown')
 }
 
 const getStatusBadge = (status: string) => {
     switch (status) {
-        case 'unused': return { text: '未使用', class: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' }
-        case 'used': return { text: '已使用', class: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400' }
-        case 'expired': return { text: '已过期', class: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' }
+        case 'unused': return { text: t('settingsSecurity.billing.unused'), class: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' }
+        case 'used': return { text: t('settingsSecurity.billing.used'), class: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400' }
+        case 'expired': return { text: t('settingsSecurity.billing.expired'), class: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' }
         default: return { text: status, class: 'bg-gray-100 text-gray-700' }
     }
 }
@@ -224,24 +225,24 @@ onMounted(async () => {
 
 <template>
     <div class="space-y-8">
-        <h2 class="section-title">会员订阅管理</h2>
+        <h2 class="section-title">{{ t('settingsSecurity.billing.title') }}</h2>
 
         <!-- 切换标签 -->
         <div class="flex gap-2 border-b border-gray-200 dark:border-gray-700">
             <button @click="activeSection = 'plans'" :class="['tab-item', activeSection === 'plans' ? 'active' : '']">
-                <Package class="w-4 h-4" /> 套餐管理
+                <Package class="w-4 h-4" /> {{ t('settingsSecurity.billing.plansTab') }}
             </button>
             <button @click="activeSection = 'codes'" :class="['tab-item', activeSection === 'codes' ? 'active' : '']">
-                <Ticket class="w-4 h-4" /> 兑换码管理
+                <Ticket class="w-4 h-4" /> {{ t('settingsSecurity.billing.codesTab') }}
             </button>
         </div>
 
         <!-- 套餐管理 -->
         <div v-if="activeSection === 'plans'" class="space-y-6">
             <div class="flex justify-between items-center">
-                <p class="text-gray-500 text-sm">管理系统中的订阅套餐，所有套餐数据存储在数据库中</p>
+                <p class="text-gray-500 text-sm">{{ t('settingsSecurity.billing.plansDesc') }}</p>
                 <button @click="openPlanModal()" class="btn-primary flex items-center gap-2">
-                    <Plus class="w-4 h-4" /> 新建套餐
+                    <Plus class="w-4 h-4" /> {{ t('settingsSecurity.billing.createPlan') }}
                 </button>
             </div>
 
@@ -250,30 +251,30 @@ onMounted(async () => {
                     class="card p-5 hover:shadow-lg transition-shadow cursor-pointer" @click="openPlanModal(plan)">
                     <div class="flex justify-between items-start mb-4">
                         <h3 class="font-bold text-lg text-gray-900 dark:text-white">{{ plan.name }}</h3>
-                        <button @click.stop="handleDeletePlan(plan)" class="icon-btn text-red-500" title="删除">
+                        <button @click.stop="handleDeletePlan(plan)" class="icon-btn text-red-500" :title="t('common.delete')">
                             <Trash2 class="w-4 h-4" />
                         </button>
                     </div>
                     <div class="space-y-2 text-sm text-gray-600 dark:text-gray-400">
                         <div class="flex justify-between">
-                            <span>月付</span>
+                            <span>{{ t('settingsSecurity.billing.monthly') }}</span>
                             <span class="font-medium text-gray-900 dark:text-white">¥{{ plan.price_monthly }}</span>
                         </div>
                         <div class="flex justify-between">
-                            <span>年付</span>
+                            <span>{{ t('settingsSecurity.billing.yearly') }}</span>
                             <span class="font-medium text-gray-900 dark:text-white">¥{{ plan.price_yearly }}</span>
                         </div>
                         <div class="flex justify-between">
-                            <span>存储空间</span>
+                            <span>{{ t('settingsSecurity.billing.storage') }}</span>
                             <span>{{ formatBytes(plan.storage_quota_bytes) }}</span>
                         </div>
                         <div class="flex justify-between">
-                            <span>临时邮箱</span>
-                            <span>{{ plan.max_temp_mailboxes }} 个</span>
+                            <span>{{ t('settingsSecurity.billing.tempMail') }}</span>
+                            <span>{{ t('settingsSecurity.billing.countUnit', { n: plan.max_temp_mailboxes }) }}</span>
                         </div>
                         <div class="flex justify-between">
-                            <span>别名数量</span>
-                            <span>{{ plan.max_aliases }} 个</span>
+                            <span>{{ t('settingsSecurity.billing.aliases') }}</span>
+                            <span>{{ t('settingsSecurity.billing.countUnit', { n: plan.max_aliases }) }}</span>
                         </div>
                     </div>
                 </div>
@@ -286,46 +287,46 @@ onMounted(async () => {
             <div class="grid grid-cols-4 gap-4">
                 <div class="card p-4 text-center">
                     <div class="text-2xl font-bold text-gray-900 dark:text-white">{{ codeStats.total }}</div>
-                    <div class="text-sm text-gray-500">总计</div>
+                    <div class="text-sm text-gray-500">{{ t('settingsSecurity.billing.total') }}</div>
                 </div>
                 <div class="card p-4 text-center">
                     <div class="text-2xl font-bold text-green-600">{{ codeStats.unused }}</div>
-                    <div class="text-sm text-gray-500">未使用</div>
+                    <div class="text-sm text-gray-500">{{ t('settingsSecurity.billing.unused') }}</div>
                 </div>
                 <div class="card p-4 text-center">
                     <div class="text-2xl font-bold text-gray-600">{{ codeStats.used }}</div>
-                    <div class="text-sm text-gray-500">已使用</div>
+                    <div class="text-sm text-gray-500">{{ t('settingsSecurity.billing.used') }}</div>
                 </div>
                 <div class="card p-4 text-center">
                     <div class="text-2xl font-bold text-red-600">{{ codeStats.expired }}</div>
-                    <div class="text-sm text-gray-500">已过期</div>
+                    <div class="text-sm text-gray-500">{{ t('settingsSecurity.billing.expired') }}</div>
                 </div>
             </div>
 
             <!-- 生成兑换码 -->
             <div class="card p-6">
-                <h3 class="font-bold text-gray-900 dark:text-white mb-4">批量生成兑换码</h3>
+                <h3 class="font-bold text-gray-900 dark:text-white mb-4">{{ t('settingsSecurity.billing.batchGenerate') }}</h3>
                 <div class="flex flex-wrap gap-x-4 gap-y-2 items-end">
                     <div class="flex items-center gap-2">
-                        <label class="text-sm text-gray-500 whitespace-nowrap">套餐</label>
+                        <label class="text-sm text-gray-500 whitespace-nowrap">{{ t('settingsSecurity.billing.plan') }}</label>
                         <select v-model="codeForm.plan_id" class="input-field w-32">
                             <option v-for="plan in plans" :key="plan.id" :value="plan.id">{{ plan.name }}</option>
                         </select>
                     </div>
                     <div class="flex items-center gap-2">
-                        <label class="text-sm text-gray-500 whitespace-nowrap">有效天数</label>
+                        <label class="text-sm text-gray-500 whitespace-nowrap">{{ t('settingsSecurity.billing.durationDays') }}</label>
                         <input v-model.number="codeForm.duration_days" type="number" min="1" class="input-field w-20">
                     </div>
                     <div class="flex items-center gap-2">
-                        <label class="text-sm text-gray-500 whitespace-nowrap">生成数量</label>
+                        <label class="text-sm text-gray-500 whitespace-nowrap">{{ t('settingsSecurity.billing.count') }}</label>
                         <input v-model.number="codeForm.count" type="number" min="1" max="100" class="input-field w-16">
                     </div>
                     <div class="flex items-center gap-2">
-                        <label class="text-sm text-gray-500 whitespace-nowrap">前缀（可选）</label>
-                        <input v-model="codeForm.prefix" type="text" class="input-field w-24" placeholder="如 PRO">
+                        <label class="text-sm text-gray-500 whitespace-nowrap">{{ t('settingsSecurity.billing.prefixOptional') }}</label>
+                        <input v-model="codeForm.prefix" type="text" class="input-field w-24" :placeholder="t('settingsSecurity.billing.prefixPlaceholder')">
                     </div>
                     <button @click="generateCodes" class="btn-primary flex items-center gap-2 h-[38px]">
-                        <Plus class="w-4 h-4" /> 生成
+                        <Plus class="w-4 h-4" /> {{ t('settingsSecurity.billing.generate') }}
                     </button>
                 </div>
             </div>
@@ -333,23 +334,23 @@ onMounted(async () => {
             <!-- 兑换码列表 -->
             <div class="card overflow-hidden">
                 <div class="flex justify-between items-center p-4 border-b border-gray-100 dark:border-gray-800">
-                    <h3 class="font-bold text-gray-900 dark:text-white">兑换码列表</h3>
-                    <button @click="loadCodes" class="icon-btn" title="刷新">
+                    <h3 class="font-bold text-gray-900 dark:text-white">{{ t('settingsSecurity.billing.codesList') }}</h3>
+                    <button @click="loadCodes" class="icon-btn" :title="t('settingsSecurity.billing.refresh')">
                         <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': loading }" />
                     </button>
                 </div>
-                <div v-if="loading" class="p-8 text-center text-gray-500">加载中...</div>
-                <div v-else-if="codes.length === 0" class="p-8 text-center text-gray-500">暂无兑换码</div>
+                <div v-if="loading" class="p-8 text-center text-gray-500">{{ t('common.loading') }}</div>
+                <div v-else-if="codes.length === 0" class="p-8 text-center text-gray-500">{{ t('settingsSecurity.billing.noCodes') }}</div>
                 <table v-else class="w-full">
                     <thead class="bg-gray-50 dark:bg-gray-800/50">
                         <tr>
-                            <th class="th">兑换码</th>
-                            <th class="th">套餐</th>
-                            <th class="th">天数</th>
-                            <th class="th">状态</th>
-                            <th class="th">使用者</th>
-                            <th class="th">创建时间</th>
-                            <th class="th">操作</th>
+                            <th class="th">{{ t('settingsSecurity.billing.code') }}</th>
+                            <th class="th">{{ t('settingsSecurity.billing.plan') }}</th>
+                            <th class="th">{{ t('settingsSecurity.billing.days') }}</th>
+                            <th class="th">{{ t('settingsSecurity.billing.status') }}</th>
+                            <th class="th">{{ t('settingsSecurity.billing.usedBy') }}</th>
+                            <th class="th">{{ t('settingsSecurity.billing.createdAt') }}</th>
+                            <th class="th">{{ t('settingsSecurity.billing.actions') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
@@ -359,7 +360,7 @@ onMounted(async () => {
                                     code.code }}</code>
                             </td>
                             <td class="td">{{ getPlanName(code.plan_id) }}</td>
-                            <td class="td">{{ code.duration_days }} 天</td>
+                            <td class="td">{{ t('settingsSecurity.billing.daysUnit', { n: code.duration_days }) }}</td>
                             <td class="td">
                                 <span :class="['px-2 py-0.5 rounded-full text-xs whitespace-nowrap', getStatusBadge(code.status).class]">
                                     {{ getStatusBadge(code.status).text }}
@@ -369,12 +370,12 @@ onMounted(async () => {
                             <td class="td text-gray-500">{{ formatDate(code.created_at) }}</td>
                             <td class="td">
                                 <div class="flex gap-2">
-                                    <button @click="copyCode(code)" class="icon-btn" title="复制">
+                                    <button @click="copyCode(code)" class="icon-btn" :title="t('settingsSecurity.billing.copy')">
                                         <Check v-if="copiedId === code.id" class="w-4 h-4 text-green-500" />
                                         <Copy v-else class="w-4 h-4" />
                                     </button>
                                     <button v-if="code.status === 'unused'" @click="revokeCode(code)"
-                                        class="icon-btn text-red-500" title="作废">
+                                        class="icon-btn text-red-500" :title="t('settingsSecurity.billing.revoke')">
                                         <Ban class="w-4 h-4" />
                                     </button>
                                 </div>
@@ -386,71 +387,71 @@ onMounted(async () => {
         </div>
 
         <!-- 套餐编辑弹窗 -->
-        <CommonModal v-model="showPlanModal" :title="editingPlan ? '编辑套餐' : '新建套餐'">
+        <CommonModal v-model="showPlanModal" :title="editingPlan ? t('settingsSecurity.billing.editPlan') : t('settingsSecurity.billing.createPlan')">
             <div class="space-y-4">
                 <div class="space-y-1">
-                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">套餐名称</label>
-                    <input v-model="planForm.name" type="text" class="input-field w-full" placeholder="如 Pro">
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('settingsSecurity.billing.planName') }}</label>
+                    <input v-model="planForm.name" type="text" class="input-field w-full" :placeholder="t('settingsSecurity.billing.planNamePlaceholder')">
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div class="space-y-1">
-                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">月付价格 (¥)</label>
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('settingsSecurity.billing.monthlyPrice') }}</label>
                         <input v-model.number="planForm.price_monthly" type="number" min="0" step="0.01"
                             class="input-field w-full">
                     </div>
                     <div class="space-y-1">
-                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">年付价格 (¥)</label>
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('settingsSecurity.billing.yearlyPrice') }}</label>
                         <input v-model.number="planForm.price_yearly" type="number" min="0" step="0.01"
                             class="input-field w-full">
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div class="space-y-1">
-                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">存储空间 (GB)</label>
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('settingsSecurity.billing.storageGb') }}</label>
                         <input v-model.number="planForm.storage_quota_gb" type="number" min="1"
                             class="input-field w-full">
                     </div>
                     <div class="space-y-1">
-                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">临时邮箱数量</label>
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('settingsSecurity.billing.tempMailboxes') }}</label>
                         <input v-model.number="planForm.max_temp_mailboxes" type="number" min="0"
                             class="input-field w-full">
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div class="space-y-1">
-                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">别名数量</label>
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('settingsSecurity.billing.aliases') }}</label>
                         <input v-model.number="planForm.max_aliases" type="number" min="0" class="input-field w-full">
                     </div>
                     <div class="space-y-1">
-                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">域名数量</label>
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('settingsSecurity.billing.domains') }}</label>
                         <input v-model.number="planForm.max_domains" type="number" min="0" class="input-field w-full">
                     </div>
                 </div>
                 <div class="flex items-center gap-2">
                     <input v-model="planForm.allow_temp_mail" type="checkbox" id="allow_temp_mail"
                         class="w-4 h-4 rounded border-gray-300">
-                    <label for="allow_temp_mail" class="text-sm text-gray-700 dark:text-gray-300">允许使用临时邮箱</label>
+                    <label for="allow_temp_mail" class="text-sm text-gray-700 dark:text-gray-300">{{ t('settingsSecurity.billing.allowTempMail') }}</label>
                 </div>
             </div>
             <template #footer>
-                <button @click="showPlanModal = false" class="btn-secondary">取消</button>
-                <button @click="savePlan" class="btn-primary">保存</button>
+                <button @click="showPlanModal = false" class="btn-secondary">{{ t('common.cancel') }}</button>
+                <button @click="savePlan" class="btn-primary">{{ t('common.save') }}</button>
             </template>
         </CommonModal>
 
         <!-- 生成成功弹窗 -->
-        <CommonModal v-model="showGeneratedModal" title="兑换码生成成功">
+        <CommonModal v-model="showGeneratedModal" :title="t('settingsSecurity.billing.generatedTitle')">
             <div class="space-y-4">
-                <p class="text-sm text-gray-500">已生成 {{ generatedCodes.length }} 个兑换码：</p>
+                <p class="text-sm text-gray-500">{{ t('settingsSecurity.billing.generatedCount', { n: generatedCodes.length }) }}</p>
                 <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 max-h-60 overflow-y-auto">
                     <div v-for="code in generatedCodes" :key="code" class="font-mono text-sm py-1">{{ code }}</div>
                 </div>
             </div>
             <template #footer>
                 <button @click="copyAllCodes" class="btn-secondary flex items-center gap-2">
-                    <Copy class="w-4 h-4" /> 复制全部
+                    <Copy class="w-4 h-4" /> {{ t('settingsSecurity.billing.copyAll') }}
                 </button>
-                <button @click="showGeneratedModal = false" class="btn-primary">关闭</button>
+                <button @click="showGeneratedModal = false" class="btn-primary">{{ t('common.close') }}</button>
             </template>
         </CommonModal>
     </div>

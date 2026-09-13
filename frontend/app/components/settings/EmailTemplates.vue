@@ -10,6 +10,7 @@ const {
   sendTemplateEmail
 } = useApi()
 const toast = useToast()
+const { t } = useI18n()
 
 interface TemplateVariable {
   key: string
@@ -64,11 +65,11 @@ const globalVariables = ref<GlobalVariable[]>([])
 const loading = ref(false)
 const error = ref('')
 const selectedCategory = ref('')
-const categories = [
-  { value: 'auth', label: '认证相关' },
-  { value: 'notification', label: '系统通知' },
-  { value: 'collaboration', label: '协作分享' }
-]
+const categories = computed(() => [
+  { value: 'auth', label: t('adminTools.emailTemplates.category.auth') },
+  { value: 'notification', label: t('adminTools.emailTemplates.category.notification') },
+  { value: 'collaboration', label: t('adminTools.emailTemplates.category.collaboration') }
+])
 
 const showEditModal = ref(false)
 const editingTemplate = ref<EmailTemplate | null>(null)
@@ -189,7 +190,7 @@ const doSend = async () => {
     })
     sendResult.value = { success: true, message: res.message }
   } catch (e: any) {
-    sendResult.value = { success: false, message: e.data?.detail || '发送失败' }
+    sendResult.value = { success: false, message: e.data?.detail || t('adminTools.common.sendFailed') }
   } finally {
     sending.value = false
   }
@@ -207,7 +208,7 @@ const loadTemplates = async () => {
     templates.value = templatesRes
     metadataList.value = metadataRes
   } catch (e: any) {
-    error.value = e.data?.detail || '加载失败'
+    error.value = e.data?.detail || t('adminTools.common.loadFailed')
   } finally {
     loading.value = false
   }
@@ -218,7 +219,7 @@ const loadGlobalVariables = async () => {
     globalVariables.value = await getGlobalVariables()
   } catch (e: any) {
     console.error('加载全局变量失败:', e)
-    toast.error(e.data?.detail || '加载全局变量失败')
+    toast.error(e.data?.detail || t('adminTools.emailTemplates.loadGlobalVarsFailed'))
   }
 }
 
@@ -286,7 +287,7 @@ const saveTemplate = async () => {
     showEditModal.value = false
     await loadTemplates()
   } catch (e: any) {
-    error.value = e.data?.detail || '保存失败'
+    error.value = e.data?.detail || t('adminTools.common.saveFailed')
   } finally {
     saving.value = false
   }
@@ -302,7 +303,7 @@ const resetToDefault = async () => {
     editForm.body_text = updated.body_text || ''
     editorRef.value?.setContent(updated.body_html)
   } catch (e: any) {
-    error.value = e.data?.detail || '重置失败'
+    error.value = e.data?.detail || t('adminTools.emailTemplates.resetFailed')
   } finally {
     saving.value = false
   }
@@ -341,7 +342,7 @@ const doPreview = async (templateId: number) => {
   try {
     previewData.value = await previewEmailTemplate(templateId, previewVariables.value)
   } catch (e: any) {
-    previewError.value = e.data?.detail || '预览失败，请检查模板是否存在'
+    previewError.value = e.data?.detail || t('adminTools.emailTemplates.previewFailed')
     previewData.value = null
   } finally {
     previewing.value = false
@@ -356,7 +357,7 @@ const doSendTest = async () => {
     const res = await sendTestEmail(editingTemplate.value.id, testEmailTo.value, previewVariables.value)
     testResult.value = { success: true, message: res.message }
   } catch (e: any) {
-    testResult.value = { success: false, message: e.data?.detail || '发送失败' }
+    testResult.value = { success: false, message: e.data?.detail || t('adminTools.common.sendFailed') }
   } finally {
     sendingTest.value = false
   }
@@ -376,7 +377,7 @@ const doDelete = async () => {
     deletingTemplate.value = null
     await loadTemplates()
   } catch (e: any) {
-    error.value = e.data?.detail || '删除失败'
+    error.value = e.data?.detail || t('adminTools.common.deleteFailed')
   } finally {
     deleting.value = false
   }
@@ -398,13 +399,18 @@ const saveGlobalVars = async () => {
     await loadGlobalVariables()
     showGlobalVarsModal.value = false
   } catch (e: any) {
-    error.value = e.data?.detail || '保存失败'
+    error.value = e.data?.detail || t('adminTools.common.saveFailed')
   } finally {
     savingGlobalVars.value = false
   }
 }
 
-const categoryNames: Record<string, string> = { auth: '认证相关', notification: '系统通知', collaboration: '协作分享', system: '系统' }
+const categoryNames = computed<Record<string, string>>(() => ({
+  auth: t('adminTools.emailTemplates.category.auth'),
+  notification: t('adminTools.emailTemplates.category.notification'),
+  collaboration: t('adminTools.emailTemplates.category.collaboration'),
+  system: t('adminTools.emailTemplates.category.system')
+}))
 const formatVariable = (v: string) => `{{${v}}}`
 const togglingTemplates = ref<Set<number>>(new Set())
 
@@ -415,7 +421,7 @@ const toggleTemplateActive = async (template: EmailTemplate) => {
     await updateEmailTemplate(template.id, { is_active: !template.is_active })
     template.is_active = !template.is_active
   } catch (e: any) {
-    error.value = e.data?.detail || '更新失败'
+    error.value = e.data?.detail || t('adminTools.common.updateFailed')
   } finally {
     togglingTemplates.value.delete(template.id)
   }
@@ -475,7 +481,7 @@ const addVariable = () => {
   // 检查是否已存在
   const exists = customVariables.value.some(v => v.key === newVariable.key)
   if (exists) {
-    error.value = '变量名已存在'
+    error.value = t('adminTools.emailTemplates.variableExists')
     return
   }
   
@@ -569,30 +575,30 @@ const getVariableTypeIcon = (type: string) => {
   <div class="space-y-6">
     <div class="flex items-center justify-between">
       <div>
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">邮件模板管理</h2>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">管理系统邮件模板，如验证码、欢迎邮件等</p>
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('adminTools.emailTemplates.title') }}</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ t('adminTools.emailTemplates.subtitle') }}</p>
       </div>
       <div class="flex items-center gap-2">
         <button @click="openGlobalVarsModal" class="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors">
-          <Settings class="w-4 h-4" /><span>全局变量</span>
+          <Settings class="w-4 h-4" /><span>{{ t('adminTools.emailTemplates.globalVariables') }}</span>
         </button>
         <button @click="openEditModal()" class="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg transition-colors">
-          <Plus class="w-4 h-4" /><span>新建模板</span>
+          <Plus class="w-4 h-4" /><span>{{ t('adminTools.emailTemplates.newTemplate') }}</span>
         </button>
       </div>
     </div>
 
     <div class="flex items-center gap-4">
       <select v-model="selectedCategory" class="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm">
-        <option value="">全部分类</option>
+        <option value="">{{ t('adminTools.emailTemplates.allCategories') }}</option>
         <option v-for="cat in categories" :key="cat.value" :value="cat.value">{{ cat.label }}</option>
       </select>
     </div>
 
     <div v-if="error" class="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-lg">{{ error }}</div>
 
-    <div v-if="loading" class="text-center py-8 text-gray-500">加载中...</div>
-    <div v-else-if="templates.length === 0" class="text-center py-8 text-gray-500">暂无模板</div>
+    <div v-if="loading" class="text-center py-8 text-gray-500">{{ t('adminTools.common.loading') }}</div>
+    <div v-else-if="templates.length === 0" class="text-center py-8 text-gray-500">{{ t('adminTools.emailTemplates.noTemplates') }}</div>
     <div v-else class="space-y-4">
       <div v-for="template in templates" :key="template.id" :class="['bg-white dark:bg-gray-800 border rounded-xl p-4 transition-all', template.is_active ? 'border-gray-200 dark:border-gray-700' : 'border-gray-200 dark:border-gray-700 opacity-60']">
         <div class="flex items-start justify-between">
@@ -601,7 +607,7 @@ const getVariableTypeIcon = (type: string) => {
               <Toggle :model-value="template.is_active" @update:model-value="toggleTemplateActive(template)" :disabled="togglingTemplates.has(template.id)" />
               <h3 class="font-medium text-gray-900 dark:text-white">{{ template.name }}</h3>
               <span class="px-2 py-0.5 text-xs rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">{{ categoryNames[template.category] || template.category }}</span>
-              <span v-if="getMetadataForTemplate(template)?.is_system" class="px-2 py-0.5 text-xs rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">系统模板</span>
+              <span v-if="getMetadataForTemplate(template)?.is_system" class="px-2 py-0.5 text-xs rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">{{ t('adminTools.emailTemplates.systemTemplate') }}</span>
             </div>
             <p class="text-sm text-gray-500 dark:text-gray-400 mt-2 ml-12">
               <code class="text-xs bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded">{{ template.code }}</code>
@@ -610,9 +616,9 @@ const getVariableTypeIcon = (type: string) => {
             <div v-if="getMetadataForTemplate(template)?.trigger_description" class="mt-2 ml-12 flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400">
               <Zap class="w-4 h-4" /><span>{{ getMetadataForTemplate(template)?.trigger_description }}</span>
             </div>
-            <p class="text-sm text-gray-600 dark:text-gray-300 mt-2 ml-12"><strong>主题：</strong>{{ template.subject }}</p>
+            <p class="text-sm text-gray-600 dark:text-gray-300 mt-2 ml-12"><strong>{{ t('adminTools.emailTemplates.subjectLabel') }}</strong>{{ template.subject }}</p>
             <div v-if="getMetadataForTemplate(template)?.variables?.length" class="mt-3 ml-12">
-              <div class="flex items-center gap-1 mb-2"><Variable class="w-4 h-4 text-gray-400" /><span class="text-xs text-gray-500">可用变量：</span></div>
+              <div class="flex items-center gap-1 mb-2"><Variable class="w-4 h-4 text-gray-400" /><span class="text-xs text-gray-500">{{ t('adminTools.emailTemplates.availableVariables') }}</span></div>
               <div class="flex flex-wrap gap-2">
                 <div v-for="v in getMetadataForTemplate(template)?.variables" :key="v.key" class="group relative">
                   <span :class="['px-2 py-1 text-xs rounded cursor-help transition-colors', v.required ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300']">
@@ -621,37 +627,37 @@ const getVariableTypeIcon = (type: string) => {
                   <div class="absolute bottom-full left-0 mb-2 hidden group-hover:block z-10">
                     <div class="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
                       <div class="font-medium">{{ v.label }}</div>
-                      <div class="text-gray-400 mt-1">类型: {{ v.type }}</div>
-                      <div v-if="v.example" class="text-gray-400">示例: {{ v.example }}</div>
-                      <div v-if="v.required" class="text-red-400 mt-1">* 必填</div>
+                      <div class="text-gray-400 mt-1">{{ t('adminTools.emailTemplates.varType', { type: v.type }) }}</div>
+                      <div v-if="v.example" class="text-gray-400">{{ t('adminTools.emailTemplates.varExample', { example: v.example }) }}</div>
+                      <div v-if="v.required" class="text-red-400 mt-1">{{ t('adminTools.emailTemplates.varRequired') }}</div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
             <div v-else-if="template.variables && template.variables.length > 0" class="mt-2 ml-12 flex items-center gap-1 flex-wrap">
-              <span class="text-xs text-gray-500">变量：</span>
+              <span class="text-xs text-gray-500">{{ t('adminTools.emailTemplates.variablesLabel') }}</span>
               <span v-for="(v, idx) in template.variables" :key="idx" class="px-2 py-0.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded" :title="typeof v === 'object' ? v.label : v">
                 {{ formatVariable(typeof v === 'object' ? v.key : v) }}
               </span>
             </div>
           </div>
           <div class="flex items-center gap-2">
-            <button @click="openSendModal(template)" class="p-2 text-gray-500 hover:text-green-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors" title="发送邮件"><Mail class="w-4 h-4" /></button>
-            <button @click="openTriggerConfig(template)" class="p-2 text-gray-500 hover:text-amber-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors" title="触发设置"><Cog class="w-4 h-4" /></button>
-            <button @click="openPreviewModal(template)" class="p-2 text-gray-500 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors" title="预览"><Eye class="w-4 h-4" /></button>
-            <button @click="openEditModal(template)" class="p-2 text-gray-500 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors" title="编辑"><Edit class="w-4 h-4" /></button>
-            <button @click="confirmDelete(template)" class="p-2 text-gray-500 hover:text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors" title="删除"><Trash2 class="w-4 h-4" /></button>
+            <button @click="openSendModal(template)" class="p-2 text-gray-500 hover:text-green-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors" :title="t('adminTools.emailTemplates.sendEmailTitle')"><Mail class="w-4 h-4" /></button>
+            <button @click="openTriggerConfig(template)" class="p-2 text-gray-500 hover:text-amber-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors" :title="t('adminTools.templateTriggerConfig.title')"><Cog class="w-4 h-4" /></button>
+            <button @click="openPreviewModal(template)" class="p-2 text-gray-500 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors" :title="t('adminTools.common.preview')"><Eye class="w-4 h-4" /></button>
+            <button @click="openEditModal(template)" class="p-2 text-gray-500 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors" :title="t('adminTools.common.edit')"><Edit class="w-4 h-4" /></button>
+            <button @click="confirmDelete(template)" class="p-2 text-gray-500 hover:text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors" :title="t('adminTools.common.delete')"><Trash2 class="w-4 h-4" /></button>
           </div>
         </div>
       </div>
     </div>
 
     <!-- 编辑弹窗 -->
-    <CommonModal v-model="showEditModal" :title="editingTemplate ? '编辑模板' : '新建模板'" width-class="w-full max-w-4xl">
+    <CommonModal v-model="showEditModal" :title="editingTemplate ? t('adminTools.emailTemplates.editTemplate') : t('adminTools.emailTemplates.newTemplate')" width-class="w-full max-w-4xl">
       <template #header-actions>
-        <button v-if="editingTemplate && editingMetadata" @click="resetToDefault" :disabled="saving" class="flex items-center gap-1 px-3 py-1.5 text-sm text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg whitespace-nowrap transition-colors" title="重置为默认模板">
-          <RotateCcw class="w-4 h-4" /><span>重置为默认</span>
+        <button v-if="editingTemplate && editingMetadata" @click="resetToDefault" :disabled="saving" class="flex items-center gap-1 px-3 py-1.5 text-sm text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg whitespace-nowrap transition-colors" :title="t('adminTools.emailTemplates.resetToDefaultTitle')">
+          <RotateCcw class="w-4 h-4" /><span>{{ t('adminTools.emailTemplates.resetToDefault') }}</span>
         </button>
       </template>
       <div class="space-y-4">
@@ -662,30 +668,30 @@ const getVariableTypeIcon = (type: string) => {
               <h4 class="font-medium text-blue-900 dark:text-blue-100">{{ editingMetadata.name }}</h4>
               <p class="text-sm text-blue-700 dark:text-blue-300 mt-1">{{ editingMetadata.description }}</p>
               <div v-if="editingMetadata.trigger_description" class="flex items-center gap-2 mt-2 text-sm text-blue-600 dark:text-blue-400">
-                <Zap class="w-4 h-4" /><span>触发条件：{{ editingMetadata.trigger_description }}</span>
+                <Zap class="w-4 h-4" /><span>{{ t('adminTools.emailTemplates.triggerConditionPrefix') }}{{ editingMetadata.trigger_description }}</span>
               </div>
             </div>
           </div>
         </div>
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">模板代码</label>
-            <input v-model="editForm.code" type="text" :disabled="!!editingTemplate" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm disabled:opacity-50" placeholder="如 verification_code_register">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('adminTools.emailTemplates.templateCode') }}</label>
+            <input v-model="editForm.code" type="text" :disabled="!!editingTemplate" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm disabled:opacity-50" :placeholder="t('adminTools.emailTemplates.templateCodePlaceholder')">
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">模板名称</label>
-            <input v-model="editForm.name" type="text" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm" placeholder="如 注册验证码">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('adminTools.emailTemplates.templateName') }}</label>
+            <input v-model="editForm.name" type="text" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm" :placeholder="t('adminTools.emailTemplates.templateNamePlaceholder')">
           </div>
         </div>
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">分类</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('adminTools.emailTemplates.categoryLabel') }}</label>
             <select v-model="editForm.category" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm">
               <option v-for="cat in categories" :key="cat.value" :value="cat.value">{{ cat.label }}</option>
             </select>
           </div>
           <div v-if="!editingMetadata">
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">模板变量</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('adminTools.emailTemplates.templateVariables') }}</label>
             <div class="space-y-2">
               <div v-if="customVariables.length > 0" class="flex flex-wrap gap-2 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
                 <div v-for="v in customVariables" :key="v.key" class="flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg text-sm group">
@@ -697,58 +703,58 @@ const getVariableTypeIcon = (type: string) => {
                 </div>
               </div>
               <div v-else class="text-sm text-gray-400 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
-                暂无变量，点击下方按钮添加
+                {{ t('adminTools.emailTemplates.noVariables') }}
               </div>
               <button @click="showAddVariableModal = true" type="button" class="flex items-center gap-1 px-3 py-1.5 text-sm text-primary hover:bg-primary/10 rounded-lg whitespace-nowrap transition-colors">
                 <Plus class="w-4 h-4" />
-                <span>添加变量</span>
+                <span>{{ t('adminTools.emailTemplates.addVariable') }}</span>
               </button>
             </div>
           </div>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">描述</label>
-          <input v-model="editForm.description" type="text" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm" placeholder="模板用途说明">
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('adminTools.emailTemplates.description') }}</label>
+          <input v-model="editForm.description" type="text" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm" :placeholder="t('adminTools.emailTemplates.descriptionPlaceholder')">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">邮件主题</label>
-          <input v-model="editForm.subject" type="text" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm" placeholder="支持变量如 {{code}}">
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('adminTools.emailTemplates.emailSubject') }}</label>
+          <input v-model="editForm.subject" type="text" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm" :placeholder="t('adminTools.emailTemplates.subjectPlaceholder')">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">邮件内容</label>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('adminTools.emailTemplates.emailContent') }}</label>
           <LazyEditorRichEditor
             ref="editorRef"
             v-model="editForm.body_html"
             :show-variable-bar="true"
             :variables="availableVariables.map(v => ({ key: v.key, label: v.label || v.key }))"
             :min-height="256"
-            placeholder="编辑邮件模板内容..."
+            :placeholder="t('adminTools.emailTemplates.contentPlaceholder')"
             @update:model-value="extractVariablesFromContent"
           />
           <details class="mt-2">
-            <summary class="text-xs text-gray-500 cursor-pointer hover:text-primary">查看 HTML 源码</summary>
+            <summary class="text-xs text-gray-500 cursor-pointer hover:text-primary">{{ t('adminTools.emailTemplates.viewHtmlSource') }}</summary>
             <textarea v-model="editForm.body_html" @input="editorRef?.setContent(editForm.body_html)" rows="5" class="w-full mt-2 px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-mono text-gray-600 dark:text-gray-400"></textarea>
           </details>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">纯文本内容（可选）</label>
-          <textarea v-model="editForm.body_text" rows="3" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm" placeholder="纯文本版本"></textarea>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('adminTools.emailTemplates.plainTextOptional') }}</label>
+          <textarea v-model="editForm.body_text" rows="3" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm" :placeholder="t('adminTools.emailTemplates.plainTextPlaceholder')"></textarea>
         </div>
         <div class="flex items-center gap-2">
           <input v-model="editForm.is_active" type="checkbox" id="is_active" class="w-4 h-4 text-primary rounded">
-          <label for="is_active" class="text-sm text-gray-700 dark:text-gray-300">启用此模板</label>
+          <label for="is_active" class="text-sm text-gray-700 dark:text-gray-300">{{ t('adminTools.emailTemplates.enableTemplate') }}</label>
         </div>
       </div>
       <template #footer>
-        <button @click="showEditModal = false" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">取消</button>
+        <button @click="showEditModal = false" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">{{ t('adminTools.common.cancel') }}</button>
         <button @click="saveTemplate" :disabled="saving" class="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg transition-colors disabled:opacity-50">
-          <Save class="w-4 h-4" /><span>{{ saving ? '保存中...' : '保存' }}</span>
+          <Save class="w-4 h-4" /><span>{{ saving ? t('adminTools.common.saving') : t('adminTools.common.save') }}</span>
         </button>
       </template>
     </CommonModal>
 
     <!-- 预览弹窗 - 左右分栏设计 -->
-    <CommonModal v-model="showPreviewModal" :title="`预览模板: ${editingTemplate?.name || ''}`" width-class="w-full max-w-6xl">
+    <CommonModal v-model="showPreviewModal" :title="t('adminTools.emailTemplates.previewModalTitle', { name: editingTemplate?.name || '' })" width-class="w-full max-w-6xl">
       <!-- 主体内容 - 左右分栏 -->
       <div class="flex -mx-6 -my-6 min-h-[60vh]">
         <!-- 左侧：变量设置 + 测试邮件 -->
@@ -758,8 +764,8 @@ const getVariableTypeIcon = (type: string) => {
             <div class="space-y-3">
               <div class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                 <Variable class="w-4 h-4" />
-                <span>变量设置</span>
-                <span v-if="previewing" class="ml-auto text-xs text-primary animate-pulse">刷新中...</span>
+                <span>{{ t('adminTools.emailTemplates.variableSettings') }}</span>
+                <span v-if="previewing" class="ml-auto text-xs text-primary animate-pulse">{{ t('adminTools.emailTemplates.refreshing') }}</span>
               </div>
 
               <div v-if="editingMetadata?.variables?.length" class="space-y-3">
@@ -777,7 +783,7 @@ const getVariableTypeIcon = (type: string) => {
                 </div>
               </div>
               <div v-else class="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
-                此模板没有变量
+                {{ t('adminTools.emailTemplates.noVariablesInTemplate') }}
               </div>
             </div>
 
@@ -788,7 +794,7 @@ const getVariableTypeIcon = (type: string) => {
             <div class="space-y-3">
               <div class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                 <Send class="w-4 h-4" />
-                <span>发送测试邮件</span>
+                <span>{{ t('adminTools.emailTemplates.sendTestEmail') }}</span>
               </div>
 
               <div class="space-y-2">
@@ -796,7 +802,7 @@ const getVariableTypeIcon = (type: string) => {
                   v-model="testEmailTo"
                   type="email"
                   class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
-                  placeholder="收件人邮箱"
+                  :placeholder="t('adminTools.emailTemplates.recipientPlaceholder')"
                 >
                 <button
                   @click="doSendTest"
@@ -804,7 +810,7 @@ const getVariableTypeIcon = (type: string) => {
                   class="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Send class="w-4 h-4" />
-                  <span>{{ sendingTest ? '发送中...' : '发送测试' }}</span>
+                  <span>{{ sendingTest ? t('adminTools.common.sending') : t('adminTools.emailTemplates.sendTest') }}</span>
                 </button>
               </div>
 
@@ -831,19 +837,19 @@ const getVariableTypeIcon = (type: string) => {
             <div v-if="previewing && !previewData" class="flex items-center justify-center h-full">
               <div class="text-center">
                 <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto"></div>
-                <p class="mt-3 text-gray-500 dark:text-gray-400">正在加载预览...</p>
+                <p class="mt-3 text-gray-500 dark:text-gray-400">{{ t('adminTools.emailTemplates.loadingPreview') }}</p>
               </div>
             </div>
 
             <!-- 错误提示 -->
             <div v-else-if="previewError" class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
               <p class="text-red-600 dark:text-red-400 text-sm font-medium">{{ previewError }}</p>
-              <p class="text-red-500 dark:text-red-500 text-xs mt-2">请确保模板已正确初始化，或尝试重新加载页面。</p>
+              <p class="text-red-500 dark:text-red-500 text-xs mt-2">{{ t('adminTools.emailTemplates.previewErrorHint') }}</p>
               <button
                 @click="doPreview(editingTemplate!.id)"
                 class="mt-3 px-3 py-1.5 bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 text-sm rounded-lg transition-colors"
               >
-                重试
+                {{ t('adminTools.common.retry') }}
               </button>
             </div>
 
@@ -852,7 +858,7 @@ const getVariableTypeIcon = (type: string) => {
               <div>
                 <div class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   <Eye class="w-4 h-4" />
-                  <span>主题</span>
+                  <span>{{ t('adminTools.common.subject') }}</span>
                 </div>
                 <div class="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg text-sm border border-gray-200 dark:border-gray-700">
                   {{ previewData.subject }}
@@ -862,7 +868,7 @@ const getVariableTypeIcon = (type: string) => {
               <div class="flex-1">
                 <div class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   <Eye class="w-4 h-4" />
-                  <span>HTML 邮件预览</span>
+                  <span>{{ t('adminTools.emailTemplates.htmlPreview') }}</span>
                 </div>
                 <div class="bg-white border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
                   <iframe
@@ -879,7 +885,7 @@ const getVariableTypeIcon = (type: string) => {
                   class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors"
                 >
                   <Eye class="w-4 h-4" />
-                  <span>纯文本预览</span>
+                  <span>{{ t('adminTools.emailTemplates.plainTextPreview') }}</span>
                   <svg :class="['w-4 h-4 transition-transform', showTextPreview ? 'rotate-180' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                   </svg>
@@ -894,7 +900,7 @@ const getVariableTypeIcon = (type: string) => {
             <div v-else class="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
               <div class="text-center">
                 <Eye class="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>输入变量后将自动预览</p>
+                <p>{{ t('adminTools.emailTemplates.autoPreviewHint') }}</p>
               </div>
             </div>
           </div>
@@ -902,46 +908,46 @@ const getVariableTypeIcon = (type: string) => {
       </div>
       <template #footer>
         <button @click="showPreviewModal = false" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-          关闭
+          {{ t('adminTools.common.close') }}
         </button>
       </template>
     </CommonModal>
 
     <!-- 删除确认弹窗 -->
-    <CommonModal v-model="showDeleteConfirm" title="确认删除" width-class="w-full max-w-md">
-      <p class="text-gray-600 dark:text-gray-400">确定要删除模板 <strong>{{ deletingTemplate?.name }}</strong> 吗？此操作不可撤销。</p>
+    <CommonModal v-model="showDeleteConfirm" :title="t('adminTools.emailTemplates.deleteConfirmTitle')" width-class="w-full max-w-md">
+      <p class="text-gray-600 dark:text-gray-400">{{ t('adminTools.emailTemplates.deleteConfirmPrefix') }}<strong>{{ deletingTemplate?.name }}</strong>{{ t('adminTools.emailTemplates.deleteConfirmSuffix') }}</p>
       <template #footer>
-        <button @click="showDeleteConfirm = false" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">取消</button>
-        <button @click="doDelete" :disabled="deleting" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors disabled:opacity-50">{{ deleting ? '删除中...' : '删除' }}</button>
+        <button @click="showDeleteConfirm = false" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">{{ t('adminTools.common.cancel') }}</button>
+        <button @click="doDelete" :disabled="deleting" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors disabled:opacity-50">{{ deleting ? t('adminTools.common.deleting') : t('adminTools.common.delete') }}</button>
       </template>
     </CommonModal>
 
     <!-- 全局变量弹窗 -->
-    <CommonModal v-model="showGlobalVarsModal" title="全局变量设置" width-class="w-full max-w-lg">
+    <CommonModal v-model="showGlobalVarsModal" :title="t('adminTools.emailTemplates.globalVarsTitle')" width-class="w-full max-w-lg">
       <!-- 使用说明 -->
       <div class="space-y-4">
         <div class="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm text-blue-700 dark:text-blue-300 space-y-2">
-          <p class="font-medium">💡 全局变量使用说明</p>
+          <p class="font-medium">{{ t('adminTools.emailTemplates.globalVarsGuideTitle') }}</p>
           <ul class="list-disc list-inside space-y-1 text-xs">
-            <li>全局变量可在所有邮件模板中使用</li>
-            <li>在模板中使用 <code class="bg-blue-100 dark:bg-blue-800 px-1 rounded">&lbrace;&lbrace;变量名&rbrace;&rbrace;</code> 语法引用</li>
-            <li><span class="text-amber-600 dark:text-amber-400">动态变量</span> 由系统自动计算，无法手动修改</li>
-            <li><span class="text-green-600 dark:text-green-400">配置变量</span> 从 config.json 读取</li>
-            <li><span class="text-purple-600 dark:text-purple-400">静态变量</span> 可自由编辑</li>
+            <li>{{ t('adminTools.emailTemplates.guideAllTemplates') }}</li>
+            <li>{{ t('adminTools.emailTemplates.guideSyntaxPrefix') }} <code class="bg-blue-100 dark:bg-blue-800 px-1 rounded">&lbrace;&lbrace;{{ t('adminTools.emailTemplates.guideSyntaxVarName') }}&rbrace;&rbrace;</code> {{ t('adminTools.emailTemplates.guideSyntaxSuffix') }}</li>
+            <li><span class="text-amber-600 dark:text-amber-400">{{ t('adminTools.emailTemplates.guideDynamicLabel') }}</span> {{ t('adminTools.emailTemplates.guideDynamicDesc') }}</li>
+            <li><span class="text-green-600 dark:text-green-400">{{ t('adminTools.emailTemplates.guideConfigLabel') }}</span> {{ t('adminTools.emailTemplates.guideConfigDesc') }}</li>
+            <li><span class="text-purple-600 dark:text-purple-400">{{ t('adminTools.emailTemplates.guideStaticLabel') }}</span> {{ t('adminTools.emailTemplates.guideStaticDesc') }}</li>
           </ul>
         </div>
 
         <!-- 变量列表 -->
         <div v-if="editingGlobalVars.length === 0" class="text-center py-4 text-gray-500">
-          暂无全局变量，请重启后端服务初始化
+          {{ t('adminTools.emailTemplates.noGlobalVars') }}
         </div>
         <div v-for="v in editingGlobalVars" :key="v.id" class="space-y-1">
           <label class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
             {{ v.label }}
             <code class="text-xs bg-gray-100 dark:bg-gray-700 px-1 rounded" v-text="'{{' + v.key + '}}'"></code>
-            <span v-if="v.value_type === 'dynamic'" class="px-1.5 py-0.5 text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded">动态</span>
-            <span v-else-if="v.value_type === 'config'" class="px-1.5 py-0.5 text-xs bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded">配置</span>
-            <span v-else class="px-1.5 py-0.5 text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded">静态</span>
+            <span v-if="v.value_type === 'dynamic'" class="px-1.5 py-0.5 text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded">{{ t('adminTools.emailTemplates.badgeDynamic') }}</span>
+            <span v-else-if="v.value_type === 'config'" class="px-1.5 py-0.5 text-xs bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded">{{ t('adminTools.emailTemplates.badgeConfig') }}</span>
+            <span v-else class="px-1.5 py-0.5 text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded">{{ t('adminTools.emailTemplates.badgeStatic') }}</span>
           </label>
           <input
             v-model="v.value"
@@ -954,9 +960,9 @@ const getVariableTypeIcon = (type: string) => {
         </div>
       </div>
       <template #footer>
-        <button @click="showGlobalVarsModal = false" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">取消</button>
+        <button @click="showGlobalVarsModal = false" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">{{ t('adminTools.common.cancel') }}</button>
         <button @click="saveGlobalVars" :disabled="savingGlobalVars" class="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg transition-colors disabled:opacity-50">
-          <Save class="w-4 h-4" /><span>{{ savingGlobalVars ? '保存中...' : '保存' }}</span>
+          <Save class="w-4 h-4" /><span>{{ savingGlobalVars ? t('adminTools.common.saving') : t('adminTools.common.save') }}</span>
         </button>
       </template>
     </CommonModal>
@@ -969,15 +975,15 @@ const getVariableTypeIcon = (type: string) => {
     />
 
     <!-- 手动发送弹窗 -->
-    <CommonModal v-model="showSendModal" :title="`发送邮件 — ${sendingTemplate?.name || ''}`" width-class="w-full max-w-lg">
+    <CommonModal v-model="showSendModal" :title="t('adminTools.emailTemplates.sendModalTitle', { name: sendingTemplate?.name || '' })" width-class="w-full max-w-lg">
       <div class="space-y-4">
         <!-- 收件人 -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">收件人 <span class="text-red-500">*</span></label>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('adminTools.emailTemplates.recipient') }} <span class="text-red-500">*</span></label>
           <input v-model="sendForm.to" type="email" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm" placeholder="recipient@example.com">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">抄送（可选）</label>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('adminTools.emailTemplates.cc') }}</label>
           <input v-model="sendForm.cc" type="email" class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm" placeholder="cc@example.com">
         </div>
 
@@ -985,7 +991,7 @@ const getVariableTypeIcon = (type: string) => {
         <div v-if="sendingMetadata?.variables?.length || (sendingTemplate?.variables && sendingTemplate.variables.length > 0)" class="space-y-3">
           <div class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
             <Variable class="w-4 h-4" />
-            <span>模板变量</span>
+            <span>{{ t('adminTools.emailTemplates.templateVariables') }}</span>
           </div>
           <div class="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl space-y-3">
             <template v-if="sendingMetadata?.variables?.length">
@@ -1008,7 +1014,7 @@ const getVariableTypeIcon = (type: string) => {
                   v-model="sendForm.variables[typeof v === 'object' ? v.key : v]"
                   type="text"
                   class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm"
-                  :placeholder="typeof v === 'object' ? v.example : `输入 ${v}`"
+                  :placeholder="typeof v === 'object' ? v.example : t('adminTools.emailTemplates.inputVar', { name: v })"
                 >
               </div>
             </template>
@@ -1021,29 +1027,29 @@ const getVariableTypeIcon = (type: string) => {
         </div>
       </div>
       <template #footer>
-        <button @click="showSendModal = false" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">取消</button>
+        <button @click="showSendModal = false" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">{{ t('adminTools.common.cancel') }}</button>
         <button @click="doSend" :disabled="sending || !sendForm.to" class="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors disabled:opacity-50">
           <Loader2 v-if="sending" class="w-4 h-4 animate-spin" />
           <Send v-else class="w-4 h-4" />
-          <span>{{ sending ? '发送中...' : '发送' }}</span>
+          <span>{{ sending ? t('adminTools.common.sending') : t('adminTools.common.send') }}</span>
         </button>
       </template>
     </CommonModal>
 
     <!-- 添加变量弹窗 -->
-    <CommonModal v-model="showAddVariableModal" title="添加模板变量" width-class="w-full max-w-md">
+    <CommonModal v-model="showAddVariableModal" :title="t('adminTools.emailTemplates.addVariableModalTitle')" width-class="w-full max-w-md">
       <div class="space-y-4">
         <!-- 变量名（英文） -->
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            变量名 <span class="text-red-500">*</span>
-            <span class="text-xs text-gray-400 ml-2">用于模板中引用，如 <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">&lbrace;&lbrace;variable&rbrace;&rbrace;</code></span>
+            {{ t('adminTools.emailTemplates.variableName') }} <span class="text-red-500">*</span>
+            <span class="text-xs text-gray-400 ml-2">{{ t('adminTools.emailTemplates.variableNameHint') }} <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">&lbrace;&lbrace;variable&rbrace;&rbrace;</code></span>
           </label>
           <input
             v-model="newVariable.key"
             type="text"
             class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm"
-            placeholder="如 user_name, email_code"
+            :placeholder="t('adminTools.emailTemplates.variableNamePlaceholder')"
             pattern="[a-zA-Z_][a-zA-Z0-9_]*"
           >
         </div>
@@ -1051,56 +1057,56 @@ const getVariableTypeIcon = (type: string) => {
         <!-- 中文名称 -->
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            中文名称 <span class="text-red-500">*</span>
-            <span class="text-xs text-gray-400 ml-2">显示给用户看的名称</span>
+            {{ t('adminTools.emailTemplates.variableDisplayName') }} <span class="text-red-500">*</span>
+            <span class="text-xs text-gray-400 ml-2">{{ t('adminTools.emailTemplates.variableDisplayNameHint') }}</span>
           </label>
           <input
             v-model="newVariable.label"
             type="text"
             class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm"
-            placeholder="如 用户名, 验证码"
+            :placeholder="t('adminTools.emailTemplates.variableDisplayNamePlaceholder')"
           >
         </div>
 
         <!-- 变量类型 -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">变量类型</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('adminTools.emailTemplates.variableType') }}</label>
           <select
             v-model="newVariable.type"
             class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm"
           >
-            <option value="string">📝 文本</option>
-            <option value="number">🔢 数字</option>
-            <option value="url">🔗 链接</option>
-            <option value="datetime">📅 日期时间</option>
+            <option value="string">{{ t('adminTools.emailTemplates.typeText') }}</option>
+            <option value="number">{{ t('adminTools.emailTemplates.typeNumber') }}</option>
+            <option value="url">{{ t('adminTools.emailTemplates.typeUrl') }}</option>
+            <option value="datetime">{{ t('adminTools.emailTemplates.typeDatetime') }}</option>
           </select>
         </div>
 
         <!-- 示例值 -->
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            示例值
-            <span class="text-xs text-gray-400 ml-2">用于预览和发送测试时的默认值</span>
+            {{ t('adminTools.emailTemplates.exampleValue') }}
+            <span class="text-xs text-gray-400 ml-2">{{ t('adminTools.emailTemplates.exampleValueHint') }}</span>
           </label>
           <input
             v-model="newVariable.example"
             type="text"
             class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm"
-            placeholder="如 张三, 123456"
+            :placeholder="t('adminTools.emailTemplates.exampleValuePlaceholder')"
           >
         </div>
 
         <!-- 是否必填 -->
         <div class="flex items-center gap-2">
           <input v-model="newVariable.required" type="checkbox" id="var_required" class="w-4 h-4 text-primary rounded">
-          <label for="var_required" class="text-sm text-gray-700 dark:text-gray-300">必填变量</label>
+          <label for="var_required" class="text-sm text-gray-700 dark:text-gray-300">{{ t('adminTools.emailTemplates.requiredVariable') }}</label>
         </div>
       </div>
       <template #footer>
-        <button @click="showAddVariableModal = false" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">取消</button>
+        <button @click="showAddVariableModal = false" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">{{ t('adminTools.common.cancel') }}</button>
         <button @click="addVariable" :disabled="!newVariable.key || !newVariable.label" class="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg transition-colors disabled:opacity-50">
           <Plus class="w-4 h-4" />
-          <span>添加</span>
+          <span>{{ t('adminTools.common.add') }}</span>
         </button>
       </template>
     </CommonModal>

@@ -4,6 +4,7 @@ const router = useRouter()
 const route = useRoute()
 const { logout, getMe } = useApi()
 const { isMobile, initResponsive } = useResponsive()
+const { t } = useI18n()
 
 const activeTab = ref('profile')
 const isAdmin = ref(false)
@@ -35,42 +36,42 @@ const setTab = (tab: string) => {
 // Tab 配置（label 用于移动端显示）
 const tabGroups = computed(() => {
   const groups = [
-    { label: '通用', tabs: [
-      { key: 'profile', label: '账号信息', icon: 'User' },
-      { key: 'accounts', label: '多账号管理', icon: 'Users' },
-      { key: 'theme', label: '外观主题', icon: 'Palette' },
+    { label: t('settings.groups.general'), tabs: [
+      { key: 'profile', label: t('settings.tabs.profile'), icon: 'User' },
+      { key: 'accounts', label: t('settings.tabs.accounts'), icon: 'Users' },
+      { key: 'theme', label: t('settings.tabs.theme'), icon: 'Palette' },
     ]},
-    { label: '邮件服务', tabs: [
-      { key: 'mail', label: '邮件设置', icon: 'Mail' },
-      { key: 'signatures', label: '邮件签名', icon: 'PenLine' },
-      { key: 'compose-templates', label: '写信模板', icon: 'FilePen' },
-      { key: 'email-import', label: '邮件导入', icon: 'Upload' },
-      { key: 'automation', label: '自动化规则', icon: 'Zap' },
-      { key: 'api-keys', label: 'API 密钥', icon: 'Key' },
-      { key: 'my-workflows', label: '我的工作流', icon: 'Workflow' },
-      { key: 'notifications', label: '通知偏好', icon: 'Bell' },
-      { key: 'privacy', label: '隐私与安全', icon: 'Lock' },
-      { key: 'encryption', label: '加密设置', icon: 'KeyRound' },
+    { label: t('settings.groups.mail'), tabs: [
+      { key: 'mail', label: t('settings.tabs.mail'), icon: 'Mail' },
+      { key: 'signatures', label: t('settings.tabs.signatures'), icon: 'PenLine' },
+      { key: 'compose-templates', label: t('settings.tabs.composeTemplates'), icon: 'FilePen' },
+      { key: 'email-import', label: t('settings.tabs.emailImport'), icon: 'Upload' },
+      { key: 'automation', label: t('settings.tabs.automation'), icon: 'Zap' },
+      { key: 'api-keys', label: t('settings.tabs.apiKeys'), icon: 'Key' },
+      { key: 'my-workflows', label: t('settings.tabs.myWorkflows'), icon: 'Workflow' },
+      { key: 'notifications', label: t('settings.tabs.notifications'), icon: 'Bell' },
+      { key: 'privacy', label: t('settings.tabs.privacy'), icon: 'Lock' },
+      { key: 'encryption', label: t('settings.tabs.encryption'), icon: 'KeyRound' },
     ]},
-    { label: '数据', tabs: [
-      { key: 'security', label: '登录与安全', icon: 'Shield' },
-      { key: 'storage', label: '存储与配额', icon: 'HardDrive' },
+    { label: t('settings.groups.data'), tabs: [
+      { key: 'security', label: t('settings.tabs.security'), icon: 'Shield' },
+      { key: 'storage', label: t('settings.tabs.storage'), icon: 'HardDrive' },
     ]},
-    { label: '其他', tabs: [
-      { key: 'changelog', label: '更新日志', icon: 'ScrollText' },
-      { key: 'about', label: '关于', icon: 'Info' },
+    { label: t('settings.groups.other'), tabs: [
+      { key: 'changelog', label: t('settings.tabs.changelog'), icon: 'ScrollText' },
+      { key: 'about', label: t('settings.tabs.about'), icon: 'Info' },
     ]},
   ]
   if (isAdmin.value) {
-    groups.push({ label: '管理', tabs: [
-      { key: 'billing', label: '会员订阅管理', icon: 'CreditCard' },
-      { key: 'invites', label: '邀请码管理', icon: 'Ticket' },
-      { key: 'prefixes', label: '保留前缀管理', icon: 'AtSign' },
-      { key: 'email-templates', label: '邮件模板管理', icon: 'FileText' },
-      { key: 'system-workflows', label: '系统工作流', icon: 'Workflow' },
-      { key: 'temp-mail-policy', label: '临时邮箱策略', icon: 'Box' },
-      { key: 'user-mgmt', label: '用户权限管理', icon: 'UserCog' },
-      { key: 'operation-audit', label: '操作审计', icon: 'ShieldCheck' },
+    groups.push({ label: t('settings.groups.admin'), tabs: [
+      { key: 'billing', label: t('settings.tabs.billing'), icon: 'CreditCard' },
+      { key: 'invites', label: t('settings.tabs.invites'), icon: 'Ticket' },
+      { key: 'prefixes', label: t('settings.tabs.prefixes'), icon: 'AtSign' },
+      { key: 'email-templates', label: t('settings.tabs.emailTemplates'), icon: 'FileText' },
+      { key: 'system-workflows', label: t('settings.tabs.systemWorkflows'), icon: 'Workflow' },
+      { key: 'temp-mail-policy', label: t('settings.tabs.tempMailPolicy'), icon: 'Box' },
+      { key: 'user-mgmt', label: t('settings.tabs.userMgmt'), icon: 'UserCog' },
+      { key: 'operation-audit', label: t('settings.tabs.operationAudit'), icon: 'ShieldCheck' },
     ]})
   }
   return groups
@@ -81,11 +82,11 @@ const activeTabLabel = computed(() => {
     const found = group.tabs.find(t => t.key === activeTab.value)
     if (found) return found.label
   }
-  return '设置'
+  return t('settings.title')
 })
 
 const config = useConfig()
-useHead({ title: computed(() => `${activeTabLabel.value} - 设置 - ${config.appName}`) })
+useHead({ title: computed(() => `${activeTabLabel.value} - ${t('settings.title')} - ${config.appName}`) })
 
 const setTabMobile = (tab: string) => {
   setTab(tab)
@@ -119,12 +120,12 @@ const handleLogout = () => {
 
 // 统一的 loading / error 占位组件
 const AsyncLoadingPlaceholder = defineComponent({
-  render() { return h('div', { class: 'flex items-center justify-center py-20 text-gray-400' }, '加载中...') }
+  render() { return h('div', { class: 'flex items-center justify-center py-20 text-gray-400' }, t('settings.common.loading')) }
 })
 const AsyncErrorPlaceholder = defineComponent({
   render() { return h('div', { class: 'flex flex-col items-center justify-center py-20 text-red-400 gap-2' }, [
-    h('span', '组件加载失败'),
-    h('button', { class: 'text-sm text-primary hover:underline', onClick: () => location.reload() }, '点击刷新')
+    h('span', t('settings.loadFailed')),
+    h('button', { class: 'text-sm text-primary hover:underline', onClick: () => location.reload() }, t('settings.clickToRefresh'))
   ])}
 })
 
@@ -202,7 +203,7 @@ const activeComponent = computed(() => {
             </button>
           </div>
           <button @click="handleLogout" class="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 text-left">
-            <LogOut class="w-4 h-4" /> 退出登录
+            <LogOut class="w-4 h-4" /> {{ t('settings.logout') }}
           </button>
         </div>
       </Transition>
@@ -216,7 +217,7 @@ const activeComponent = computed(() => {
       <div class="h-14 flex items-center px-6 gap-2 border-b border-gray-100 dark:border-gray-800 shrink-0">
         <button @click="router.push('/')"
           class="flex items-center gap-2 text-gray-500 hover:text-gray-900 dark:hover:text-white font-bold transition-colors">
-          <ArrowLeft class="w-5 h-5" /> 设置
+          <ArrowLeft class="w-5 h-5" /> {{ t('settings.title') }}
         </button>
       </div>
 
@@ -225,102 +226,102 @@ const activeComponent = computed(() => {
 
         <!-- 分组：通用 -->
         <div class="space-y-1">
-          <div class="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">通用</div>
+          <div class="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">{{ t('settings.groups.general') }}</div>
           <button @click="setTab('profile')" :class="['tab-btn', activeTab === 'profile' ? 'active' : '']">
-            <User class="w-4 h-4" /> 账号信息
+            <User class="w-4 h-4" /> {{ t('settings.tabs.profile') }}
           </button>
           <button @click="setTab('accounts')" :class="['tab-btn', activeTab === 'accounts' ? 'active' : '']">
-            <Users class="w-4 h-4" /> 多账号管理
+            <Users class="w-4 h-4" /> {{ t('settings.tabs.accounts') }}
           </button>
           <button @click="setTab('theme')" :class="['tab-btn', activeTab === 'theme' ? 'active' : '']">
-            <Palette class="w-4 h-4" /> 外观主题
+            <Palette class="w-4 h-4" /> {{ t('settings.tabs.theme') }}
           </button>
         </div>
 
         <!-- 分组：邮件 -->
         <div class="space-y-1">
-          <div class="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">邮件服务</div>
+          <div class="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">{{ t('settings.groups.mail') }}</div>
           <button @click="setTab('mail')" :class="['tab-btn', activeTab === 'mail' ? 'active' : '']">
-            <Mail class="w-4 h-4" /> 邮件设置
+            <Mail class="w-4 h-4" /> {{ t('settings.tabs.mail') }}
           </button>
           <button @click="setTab('signatures')" :class="['tab-btn', activeTab === 'signatures' ? 'active' : '']">
-            <PenLine class="w-4 h-4" /> 邮件签名
+            <PenLine class="w-4 h-4" /> {{ t('settings.tabs.signatures') }}
           </button>
           <button @click="setTab('compose-templates')" :class="['tab-btn', activeTab === 'compose-templates' ? 'active' : '']">
-            <FilePen class="w-4 h-4" /> 写信模板
+            <FilePen class="w-4 h-4" /> {{ t('settings.tabs.composeTemplates') }}
           </button>
           <button @click="setTab('email-import')" :class="['tab-btn', activeTab === 'email-import' ? 'active' : '']">
-            <Upload class="w-4 h-4" /> 邮件导入
+            <Upload class="w-4 h-4" /> {{ t('settings.tabs.emailImport') }}
           </button>
           <button @click="setTab('automation')" :class="['tab-btn', activeTab === 'automation' ? 'active' : '']">
-            <Zap class="w-4 h-4" /> 自动化规则
+            <Zap class="w-4 h-4" /> {{ t('settings.tabs.automation') }}
           </button>
           <button @click="setTab('api-keys')" :class="['tab-btn', activeTab === 'api-keys' ? 'active' : '']">
-            <Key class="w-4 h-4" /> API 密钥
+            <Key class="w-4 h-4" /> {{ t('settings.tabs.apiKeys') }}
           </button>
           <button @click="setTab('my-workflows')" :class="['tab-btn', activeTab === 'my-workflows' ? 'active' : '']">
-            <Workflow class="w-4 h-4" /> 我的工作流
+            <Workflow class="w-4 h-4" /> {{ t('settings.tabs.myWorkflows') }}
           </button>
           <button @click="setTab('notifications')"
             :class="['tab-btn', activeTab === 'notifications' ? 'active' : '']">
-            <Bell class="w-4 h-4" /> 通知偏好
+            <Bell class="w-4 h-4" /> {{ t('settings.tabs.notifications') }}
           </button>
           <button @click="setTab('privacy')" :class="['tab-btn', activeTab === 'privacy' ? 'active' : '']">
-            <Lock class="w-4 h-4" /> 隐私与安全
+            <Lock class="w-4 h-4" /> {{ t('settings.tabs.privacy') }}
           </button>
           <button @click="setTab('encryption')" :class="['tab-btn', activeTab === 'encryption' ? 'active' : '']">
-            <KeyRound class="w-4 h-4" /> 加密设置
+            <KeyRound class="w-4 h-4" /> {{ t('settings.tabs.encryption') }}
           </button>
         </div>
 
         <!-- 分组：数据 -->
         <div class="space-y-1">
-          <div class="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">数据</div>
+          <div class="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">{{ t('settings.groups.data') }}</div>
           <button @click="setTab('security')" :class="['tab-btn', activeTab === 'security' ? 'active' : '']">
-            <Shield class="w-4 h-4" /> 登录与安全
+            <Shield class="w-4 h-4" /> {{ t('settings.tabs.security') }}
           </button>
           <button @click="setTab('storage')" :class="['tab-btn', activeTab === 'storage' ? 'active' : '']">
-            <HardDrive class="w-4 h-4" /> 存储与配额
+            <HardDrive class="w-4 h-4" /> {{ t('settings.tabs.storage') }}
           </button>
         </div>
 
         <!-- 分组：其他 -->
         <div class="space-y-1">
-          <div class="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">其他</div>
+          <div class="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">{{ t('settings.groups.other') }}</div>
           <button @click="setTab('changelog')" :class="['tab-btn', activeTab === 'changelog' ? 'active' : '']">
-            <ScrollText class="w-4 h-4" /> 更新日志
+            <ScrollText class="w-4 h-4" /> {{ t('settings.tabs.changelog') }}
           </button>
           <button @click="setTab('about')" :class="['tab-btn', activeTab === 'about' ? 'active' : '']">
-            <Info class="w-4 h-4" /> 关于
+            <Info class="w-4 h-4" /> {{ t('settings.tabs.about') }}
           </button>
         </div>
 
         <!-- 分组：管理（仅管理员可见） -->
         <div v-if="isAdmin" class="space-y-1">
-          <div class="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">管理</div>
+          <div class="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">{{ t('settings.groups.admin') }}</div>
           <button @click="setTab('billing')" :class="['tab-btn', activeTab === 'billing' ? 'active' : '']">
-            <CreditCard class="w-4 h-4" /> 会员订阅管理
+            <CreditCard class="w-4 h-4" /> {{ t('settings.tabs.billing') }}
           </button>
           <button @click="setTab('invites')" :class="['tab-btn', activeTab === 'invites' ? 'active' : '']">
-            <Ticket class="w-4 h-4" /> 邀请码管理
+            <Ticket class="w-4 h-4" /> {{ t('settings.tabs.invites') }}
           </button>
           <button @click="setTab('prefixes')" :class="['tab-btn', activeTab === 'prefixes' ? 'active' : '']">
-            <AtSign class="w-4 h-4" /> 保留前缀管理
+            <AtSign class="w-4 h-4" /> {{ t('settings.tabs.prefixes') }}
           </button>
           <button @click="setTab('email-templates')" :class="['tab-btn', activeTab === 'email-templates' ? 'active' : '']">
-            <FileText class="w-4 h-4" /> 邮件模板管理
+            <FileText class="w-4 h-4" /> {{ t('settings.tabs.emailTemplates') }}
           </button>
           <button @click="setTab('system-workflows')" :class="['tab-btn', activeTab === 'system-workflows' ? 'active' : '']">
-            <Workflow class="w-4 h-4" /> 系统工作流
+            <Workflow class="w-4 h-4" /> {{ t('settings.tabs.systemWorkflows') }}
           </button>
           <button @click="setTab('temp-mail-policy')" :class="['tab-btn', activeTab === 'temp-mail-policy' ? 'active' : '']">
-            <Box class="w-4 h-4" /> 临时邮箱策略
+            <Box class="w-4 h-4" /> {{ t('settings.tabs.tempMailPolicy') }}
           </button>
           <button @click="setTab('user-mgmt')" :class="['tab-btn', activeTab === 'user-mgmt' ? 'active' : '']">
-            <UserCog class="w-4 h-4" /> 用户权限管理
+            <UserCog class="w-4 h-4" /> {{ t('settings.tabs.userMgmt') }}
           </button>
           <button @click="setTab('operation-audit')" :class="['tab-btn', activeTab === 'operation-audit' ? 'active' : '']">
-            <ShieldCheck class="w-4 h-4" /> 操作审计
+            <ShieldCheck class="w-4 h-4" /> {{ t('settings.tabs.operationAudit') }}
           </button>
         </div>
 
@@ -330,7 +331,7 @@ const activeComponent = computed(() => {
       <div class="p-4 border-t border-gray-100 dark:border-gray-800">
         <button @click="handleLogout"
           class="tab-btn text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 hover:text-red-600 w-full justify-start">
-          <LogOut class="w-4 h-4" /> 退出登录
+          <LogOut class="w-4 h-4" /> {{ t('settings.logout') }}
         </button>
       </div>
     </div>

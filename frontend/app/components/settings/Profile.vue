@@ -3,6 +3,7 @@ import { Camera, ExternalLink, Link2, ShieldCheck, ShieldOff } from 'lucide-vue-
 
 const { getMe, updateMe, getMySsoStatus } = useApi()
 const toast = useToast()
+const { t } = useI18n()
 
 const user = ref<AppUser | null>(null)
 const loading = ref(true)
@@ -36,7 +37,7 @@ const loadUser = async () => {
         form.displayName = user.value.display_name || ''
     } catch (e: any) {
         console.error('加载用户信息失败', e)
-        toast.error(e.data?.detail || '加载用户信息失败')
+        toast.error(e.data?.detail || t('settings.common.loadUserFailed'))
     } finally {
         loading.value = false
     }
@@ -47,10 +48,10 @@ const handleSave = async () => {
     message.value = ''
     try {
         await updateMe({ display_name: form.displayName })
-        message.value = '保存成功'
+        message.value = t('settings.profile.saved')
         setTimeout(() => message.value = '', 3000)
     } catch (e: any) {
-        message.value = e.data?.detail || '保存失败'
+        message.value = e.data?.detail || t('settings.profile.saveFailed')
     } finally {
         saving.value = false
     }
@@ -70,9 +71,9 @@ onMounted(() => {
 
 <template>
     <div class="space-y-8">
-        <h2 class="section-title">账号信息</h2>
+        <h2 class="section-title">{{ t('settings.tabs.profile') }}</h2>
 
-        <div v-if="loading" class="text-gray-500">加载中...</div>
+        <div v-if="loading" class="text-gray-500">{{ t('settings.common.loading') }}</div>
 
         <template v-else-if="user">
             <!-- 头像区域 -->
@@ -89,32 +90,32 @@ onMounted(() => {
                 </div>
                 <div>
                     <h3 class="font-bold text-lg text-gray-900 dark:text-white">{{ user.display_name || user.email }}</h3>
-                    <p class="text-sm text-gray-500 mb-3">支持 JPG, PNG 格式，最大 5MB</p>
-                    <button class="btn-secondary">更换头像</button>
+                    <p class="text-sm text-gray-500 mb-3">{{ t('settings.profile.avatarHint') }}</p>
+                    <button class="btn-secondary">{{ t('settings.profile.changeAvatar') }}</button>
                 </div>
             </div>
 
             <!-- 表单区域 -->
             <div class="space-y-6 max-w-lg">
                 <div class="space-y-2">
-                    <label class="form-label">显示名称</label>
-                    <input v-model="form.displayName" type="text" class="input-field" placeholder="输入显示名称">
+                    <label class="form-label">{{ t('settings.profile.displayName') }}</label>
+                    <input v-model="form.displayName" type="text" class="input-field" :placeholder="t('settings.profile.displayNamePlaceholder')">
                 </div>
 
                 <div class="space-y-2">
-                    <label class="form-label">邮箱地址</label>
+                    <label class="form-label">{{ t('settings.profile.email') }}</label>
                     <div class="relative">
                         <input type="text" :value="user.email" disabled
                             class="input-field bg-gray-50 dark:bg-gray-800/50 text-gray-500 cursor-not-allowed pr-12">
                         <span
-                            class="absolute right-3 top-2.5 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">已验证</span>
+                            class="absolute right-3 top-2.5 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">{{ t('settings.profile.verified') }}</span>
                     </div>
-                    <p class="text-xs text-gray-400">邮箱地址无法直接修改，请联系管理员。</p>
+                    <p class="text-xs text-gray-400">{{ t('settings.profile.emailReadonly') }}</p>
                 </div>
 
                 <!-- 认证中心绑定状态 -->
                 <div class="space-y-2">
-                    <label class="form-label">认证中心绑定</label>
+                    <label class="form-label">{{ t('settings.profile.ssoBinding') }}</label>
                     <div
                         class="flex items-center justify-between gap-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-800/40 px-4 py-3">
                         <div class="flex items-start gap-3">
@@ -122,53 +123,53 @@ onMounted(() => {
                                 :class="ssoStatus?.sso_bound ? 'text-green-600' : 'text-gray-400'" />
                             <div>
                                 <p class="text-sm font-medium text-gray-900 dark:text-white">
-                                    {{ ssoStatus?.sso_bound ? '已绑定认证中心' : '未绑定认证中心' }}
+                                    {{ ssoStatus?.sso_bound ? t('settings.profile.ssoBound') : t('settings.profile.ssoUnbound') }}
                                 </p>
                                 <p v-if="ssoStatus?.sso_bound && ssoStatus.auth_center_username" class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                    认证中心账号：<span class="font-mono text-gray-700 dark:text-gray-300">{{ ssoStatus.auth_center_username }}</span>
+                                    {{ t('settings.profile.authCenterAccount') }}<span class="font-mono text-gray-700 dark:text-gray-300">{{ ssoStatus.auth_center_username }}</span>
                                 </p>
                                 <p v-if="ssoStatus?.sso_bound" class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                    两步验证 (TOTP)：
+                                    {{ t('settings.profile.totpLabel') }}
                                     <span :class="ssoStatus.mfa_enabled ? 'text-green-600 font-medium' : 'text-amber-600'"
                                         class="inline-flex items-center gap-1 align-middle">
                                         <ShieldCheck v-if="ssoStatus.mfa_enabled" class="w-3.5 h-3.5" />
                                         <ShieldOff v-else class="w-3.5 h-3.5" />
-                                        {{ ssoStatus.mfa_enabled ? '认证中心已开启' : '认证中心未开启' }}
+                                        {{ ssoStatus.mfa_enabled ? t('settings.profile.mfaOn') : t('settings.profile.mfaOff') }}
                                     </span>
                                 </p>
                                 <p v-else class="text-xs text-gray-400 mt-0.5">
-                                    使用 SSO 登录一次即可自动绑定本账号
+                                    {{ t('settings.profile.ssoHint') }}
                                 </p>
                             </div>
                         </div>
                         <a v-if="ssoStatus?.sso_bound && mfaManageUrl" :href="mfaManageUrl" target="_blank"
                             class="btn-secondary shrink-0 inline-flex items-center gap-1.5 text-sm">
-                            <ExternalLink class="w-4 h-4" /> 去认证中心管理
+                            <ExternalLink class="w-4 h-4" /> {{ t('settings.profile.manageInAuthCenter') }}
                         </a>
                     </div>
                     <p class="text-xs text-gray-400">
-                        TOTP 密钥仅保存认证中心，此处只显示状态；本地密码登录的两步验证在「安全」设置中单独管理。
+                        {{ t('settings.profile.totpNote') }}
                     </p>
                 </div>
 
                 <div class="space-y-2">
-                    <label class="form-label">个人签名</label>
+                    <label class="form-label">{{ t('settings.profile.signature') }}</label>
                     <textarea v-model="form.signature"
                         class="input-field h-32 resize-none custom-scrollbar leading-relaxed"
-                        placeholder="这个人很懒，什么都没写~"></textarea>
+                        :placeholder="t('settings.profile.signaturePlaceholder')"></textarea>
                     <p class="text-xs text-gray-400 text-right">{{ form.signature.length }} / 200</p>
                 </div>
             </div>
 
             <!-- 消息提示 -->
-            <div v-if="message" :class="['text-sm', message === '保存成功' ? 'text-green-600' : 'text-red-600']">
+            <div v-if="message" :class="['text-sm', message === t('settings.profile.saved') ? 'text-green-600' : 'text-red-600']">
                 {{ message }}
             </div>
 
             <!-- 底部保存 -->
             <div class="pt-4 border-t border-gray-100 dark:border-gray-800">
                 <button @click="handleSave" :disabled="saving" class="btn-primary">
-                    {{ saving ? '保存中...' : '保存更改' }}
+                    {{ saving ? t('settings.common.saving') : t('settings.profile.saveChanges') }}
                 </button>
             </div>
         </template>

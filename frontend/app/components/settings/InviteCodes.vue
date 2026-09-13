@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Plus, Trash2, Copy, Check, Users, AlertTriangle, RefreshCw } from 'lucide-vue-next'
 
+const { t } = useI18n()
 const { getInviteCodes, createInviteCode, deleteInviteCode, getInviteCodeUsages } = useApi()
 const toast = useToast()
 
@@ -49,7 +50,7 @@ const loadCodes = async () => {
         codes.value = await getInviteCodes()
     } catch (e: any) {
         console.error('加载邀请码失败', e)
-        toast.error(e.data?.detail || '加载邀请码失败')
+        toast.error(e.data?.detail || t('admin.invites.loadFailed'))
     } finally {
         loading.value = false
     }
@@ -61,7 +62,7 @@ const handleCreate = async () => {
         await createInviteCode(newCode.maxUses, newCode.expiresDays || undefined)
         await loadCodes()
     } catch (e: any) {
-        toast.error(e.data?.detail || '创建失败')
+        toast.error(e.data?.detail || t('admin.createFailed'))
     } finally {
         creating.value = false
     }
@@ -81,7 +82,7 @@ const handleDelete = async () => {
         showDeleteModal.value = false
         codeToDelete.value = null
     } catch (e: any) {
-        toast.error(e.data?.detail || '删除失败')
+        toast.error(e.data?.detail || t('admin.deleteFailed'))
     } finally {
         deleting.value = false
     }
@@ -94,7 +95,7 @@ const copyCode = async (code: InviteCode) => {
 }
 
 const formatExpireDate = (date: string | null) => {
-    if (!date) return '永不过期'
+    if (!date) return t('admin.invites.neverExpires')
     return new Date(date).toLocaleDateString('zh-CN')
 }
 
@@ -108,7 +109,7 @@ const showUsages = async (code: InviteCode) => {
         usages.value = await getInviteCodeUsages(code.id)
     } catch (e: any) {
         console.error('加载使用记录失败', e)
-        toast.error(e.data?.detail || '加载使用记录失败')
+        toast.error(e.data?.detail || t('admin.invites.loadUsagesFailed'))
         usages.value = []
     } finally {
         loadingUsages.value = false
@@ -117,10 +118,10 @@ const showUsages = async (code: InviteCode) => {
 
 // 判断邀请码状态
 const getCodeStatus = (code: InviteCode) => {
-    if (code.deleted_at) return { text: '已删除', class: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-500' }
-    if (code.expires_at && new Date(code.expires_at) < new Date()) return { text: '已过期', class: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' }
-    if (code.max_uses > 0 && code.used_count >= code.max_uses) return { text: '已用完', class: 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400' }
-    return { text: '可用', class: 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' }
+    if (code.deleted_at) return { text: t('admin.invites.statusDeleted'), class: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-500' }
+    if (code.expires_at && new Date(code.expires_at) < new Date()) return { text: t('admin.invites.statusExpired'), class: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' }
+    if (code.max_uses > 0 && code.used_count >= code.max_uses) return { text: t('admin.invites.statusUsedUp'), class: 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400' }
+    return { text: t('admin.invites.statusAvailable'), class: 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' }
 }
 
 onMounted(loadCodes)
@@ -128,43 +129,43 @@ onMounted(loadCodes)
 
 <template>
     <div class="space-y-8">
-        <h2 class="section-title">邀请码管理</h2>
+        <h2 class="section-title">{{ t('admin.invites.title') }}</h2>
 
         <!-- 创建新邀请码 -->
         <div class="card p-6">
-            <h3 class="font-bold text-gray-900 dark:text-white mb-4">创建邀请码</h3>
+            <h3 class="font-bold text-gray-900 dark:text-white mb-4">{{ t('admin.invites.createTitle') }}</h3>
             <div class="flex flex-wrap gap-4 items-end">
                 <div class="space-y-1">
-                    <label class="text-sm text-gray-500">最大使用次数</label>
+                    <label class="text-sm text-gray-500">{{ t('admin.invites.maxUses') }}</label>
                     <input v-model.number="newCode.maxUses" type="number" min="0" class="input-field w-32"
-                        placeholder="0=无限">
+                        :placeholder="t('admin.invites.maxUsesPlaceholder')">
                 </div>
                 <div class="space-y-1">
-                    <label class="text-sm text-gray-500">有效天数</label>
+                    <label class="text-sm text-gray-500">{{ t('admin.invites.validDays') }}</label>
                     <input v-model.number="newCode.expiresDays" type="number" min="0" class="input-field w-32"
-                        placeholder="0=永不">
+                        :placeholder="t('admin.invites.validDaysPlaceholder')">
                 </div>
                 <button @click="handleCreate" :disabled="creating" class="btn-primary flex items-center gap-2">
                     <Plus class="w-4 h-4" />
-                    {{ creating ? '创建中...' : '创建' }}
+                    {{ creating ? t('admin.creating') : t('admin.create') }}
                 </button>
             </div>
         </div>
 
         <!-- 邀请码列表 -->
         <div class="card overflow-hidden">
-            <div v-if="loading" class="p-8 text-center text-gray-500">加载中...</div>
-            <div v-else-if="codes.length === 0" class="p-8 text-center text-gray-500">暂无邀请码</div>
+            <div v-if="loading" class="p-8 text-center text-gray-500">{{ t('common.loading') }}</div>
+            <div v-else-if="codes.length === 0" class="p-8 text-center text-gray-500">{{ t('admin.invites.empty') }}</div>
             <table v-else class="w-full">
                 <thead class="bg-gray-50 dark:bg-gray-800/50">
                     <tr>
-                        <th class="th">邀请码</th>
-                        <th class="th">使用情况</th>
-                        <th class="th">过期时间</th>
+                        <th class="th">{{ t('admin.invites.code') }}</th>
+                        <th class="th">{{ t('admin.invites.usage') }}</th>
+                        <th class="th">{{ t('admin.invites.expiresAt') }}</th>
                         <th class="th">
                             <div class="flex items-center justify-between">
-                                <span>操作</span>
-                                <button @click="loadCodes" :disabled="loading" class="icon-btn" title="刷新列表">
+                                <span>{{ t('admin.actions') }}</span>
+                                <button @click="loadCodes" :disabled="loading" class="icon-btn" :title="t('admin.invites.refreshList')">
                                     <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': loading }" />
                                 </button>
                             </div>
@@ -190,7 +191,7 @@ onMounted(loadCodes)
                                 @click="showUsages(code)"
                                 class="inline-flex items-center gap-1 hover:text-primary transition-colors"
                                 :class="code.max_uses > 0 && code.used_count >= code.max_uses ? 'text-red-500' : ''"
-                                title="点击查看使用详情"
+                                :title="t('admin.invites.viewUsageTitle')"
                             >
                                 {{ code.used_count }} / {{ code.max_uses || '∞' }}
                                 <Users class="w-3.5 h-3.5" />
@@ -202,11 +203,11 @@ onMounted(loadCodes)
                         <td class="td text-gray-500">{{ formatExpireDate(code.expires_at) }}</td>
                         <td class="td">
                             <div class="flex gap-2">
-                                <button @click="copyCode(code)" class="icon-btn" title="复制">
+                                <button @click="copyCode(code)" class="icon-btn" :title="t('admin.invites.copy')">
                                     <Check v-if="copiedId === code.id" class="w-4 h-4 text-green-500" />
                                     <Copy v-else class="w-4 h-4" />
                                 </button>
-                                <button v-if="!code.deleted_at" @click="confirmDelete(code)" class="icon-btn text-red-500" title="删除">
+                                <button v-if="!code.deleted_at" @click="confirmDelete(code)" class="icon-btn text-red-500" :title="t('common.delete')">
                                     <Trash2 class="w-4 h-4" />
                                 </button>
                             </div>
@@ -217,9 +218,9 @@ onMounted(loadCodes)
         </div>
 
         <!-- 使用详情弹窗 -->
-        <CommonModal v-model="showUsageModal" :title="`邀请码使用记录 - ${selectedCode?.code}`">
-            <div v-if="loadingUsages" class="py-8 text-center text-gray-500">加载中...</div>
-            <div v-else-if="usages.length === 0" class="py-8 text-center text-gray-500">暂无使用记录</div>
+        <CommonModal v-model="showUsageModal" :title="t('admin.invites.usageModalTitle', { code: selectedCode?.code })">
+            <div v-if="loadingUsages" class="py-8 text-center text-gray-500">{{ t('common.loading') }}</div>
+            <div v-else-if="usages.length === 0" class="py-8 text-center text-gray-500">{{ t('admin.invites.noUsages') }}</div>
             <div v-else class="space-y-3 max-h-80 overflow-y-auto">
                 <div v-for="usage in usages" :key="usage.id"
                     class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
@@ -228,31 +229,31 @@ onMounted(loadCodes)
                 </div>
             </div>
             <template #footer>
-                <button @click="showUsageModal = false" class="btn-primary">关闭</button>
+                <button @click="showUsageModal = false" class="btn-primary">{{ t('common.close') }}</button>
             </template>
         </CommonModal>
 
         <!-- 删除确认弹窗 -->
-        <CommonModal v-model="showDeleteModal" title="确认删除">
+        <CommonModal v-model="showDeleteModal" :title="t('admin.confirmDelete')">
             <div class="flex items-start gap-4">
                 <div class="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
                     <AlertTriangle class="w-6 h-6 text-red-600 dark:text-red-400" />
                 </div>
                 <div>
-                    <p class="text-gray-900 dark:text-white font-medium mb-2">确定要删除此邀请码吗？</p>
+                    <p class="text-gray-900 dark:text-white font-medium mb-2">{{ t('admin.invites.deleteConfirmMessage') }}</p>
                     <p class="text-sm text-gray-500">
-                        邀请码 <code class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs font-mono">{{ codeToDelete?.code }}</code>
-                        将被标记为已删除，但历史使用记录会保留。
+                        {{ t('admin.invites.code') }} <code class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs font-mono">{{ codeToDelete?.code }}</code>
+                        {{ t('admin.invites.deleteWarning') }}
                     </p>
                     <p v-if="codeToDelete?.used_count" class="text-sm text-gray-500 mt-2">
-                        此邀请码已被使用 <span class="font-medium text-gray-700 dark:text-gray-300">{{ codeToDelete.used_count }}</span> 次。
+                        {{ t('admin.invites.usedTimes', { n: codeToDelete.used_count }) }}
                     </p>
                 </div>
             </div>
             <template #footer>
-                <button @click="showDeleteModal = false" class="btn-secondary" :disabled="deleting">取消</button>
+                <button @click="showDeleteModal = false" class="btn-secondary" :disabled="deleting">{{ t('common.cancel') }}</button>
                 <button @click="handleDelete" class="btn-danger" :disabled="deleting">
-                    {{ deleting ? '删除中...' : '确认删除' }}
+                    {{ deleting ? t('admin.deleting') : t('admin.confirmDelete') }}
                 </button>
             </template>
         </CommonModal>

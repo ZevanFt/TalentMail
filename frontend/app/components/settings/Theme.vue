@@ -16,7 +16,7 @@ const {
 } = useBackground()
 
 const { isDark, toggleTheme } = useTheme()
-const { locale, setLocale, availableLocales } = useI18n()
+const { locale, setLocale, availableLocales, t } = useI18n()
 const { accent, setAccent, ACCENT_PRESETS } = useAccent()
 
 // 预览图片状态
@@ -60,12 +60,12 @@ const handleImageUpload = async (file: File) => {
         const dataUrl = await uploadImage(file, true) // previewOnly = true
         previewImage.value = dataUrl
         if (canUseBackground.value) {
-            showMessage('info', '预览效果，点击"应用背景"按钮保存')
+            showMessage('info', t('settings.theme.previewHint'))
         } else {
-            showMessage('info', '预览模式：需要订阅会员才能保存')
+            showMessage('info', t('settings.theme.previewMemberOnly'))
         }
     } catch (error: any) {
-        showMessage('error', error.message || '上传失败')
+        showMessage('error', error.message || t('settings.theme.uploadFailed'))
     }
 }
 
@@ -145,7 +145,7 @@ const handleAreaToggle = (area: keyof typeof bgSettings.value.areas) => {
 
 const showApplyConfirm = () => {
     if (!canUseBackground.value) {
-        showMessage('error', '此功能需要订阅会员')
+        showMessage('error', t('settings.theme.membersOnly'))
         return
     }
     
@@ -163,10 +163,10 @@ const confirmApplyBackground = async () => {
             const file = await dataURLtoFile(previewImage.value, 'background.jpg')
             await uploadImage(file)
             previewImage.value = null
-            showMessage('success', '背景已应用')
+            showMessage('success', t('settings.theme.applied'))
         }
     } catch (error: any) {
-        showMessage('error', error.message || '应用失败')
+        showMessage('error', error.message || t('settings.theme.applyFailed'))
     } finally {
         isApplying.value = false
     }
@@ -230,13 +230,13 @@ const hasBackgroundImage = computed(() => {
         <div class="card bg-white dark:bg-bg-panelDark rounded-xl p-6 border border-gray-200 dark:border-border-dark">
             <div class="flex items-center justify-between">
                 <div>
-                    <h2 class="section-title mb-0">主题模式</h2>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">选择浅色或深色主题</p>
+                    <h2 class="section-title mb-0">{{ t('settings.theme.mode') }}</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ t('settings.theme.modeDesc') }}</p>
                 </div>
                 <button @click="toggleTheme"
                     class="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                     <Palette class="w-4 h-4" />
-                    <span class="text-sm font-medium">{{ isDark ? '深色模式' : '浅色模式' }}</span>
+                    <span class="text-sm font-medium">{{ isDark ? t('settings.theme.dark') : t('settings.theme.light') }}</span>
                 </button>
             </div>
         </div>
@@ -244,8 +244,8 @@ const hasBackgroundImage = computed(() => {
         <!-- 品牌色预设 -->
         <div class="card bg-white dark:bg-bg-panelDark rounded-xl p-6 border border-gray-200 dark:border-border-dark">
             <div>
-                <h2 class="section-title mb-0">品牌色</h2>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">切换界面强调色</p>
+                <h2 class="section-title mb-0">{{ t('settings.theme.accent') }}</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ t('settings.theme.accentDesc') }}</p>
             </div>
             <div class="flex flex-wrap items-center gap-3 mt-4">
                 <button
@@ -267,8 +267,8 @@ const hasBackgroundImage = computed(() => {
         <div class="card bg-white dark:bg-bg-panelDark rounded-xl p-6 border border-gray-200 dark:border-border-dark">
             <div class="flex items-center justify-between">
                 <div>
-                    <h2 class="section-title mb-0">界面语言 / Language</h2>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">切换界面显示语言（逐步覆盖中）</p>
+                    <h2 class="section-title mb-0">{{ t('settings.theme.language') }}</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ t('settings.theme.languageDesc') }}</p>
                 </div>
                 <div class="flex gap-2">
                     <button
@@ -288,11 +288,11 @@ const hasBackgroundImage = computed(() => {
         <div class="card bg-white dark:bg-bg-panelDark rounded-xl p-6 border border-gray-200 dark:border-border-dark">
             <div class="flex items-center justify-between mb-6">
                 <div>
-                    <h2 class="section-title mb-0">自定义背景</h2>
+                    <h2 class="section-title mb-0">{{ t('settings.theme.customBackground') }}</h2>
                     <span v-if="!canUseBackground && subscriptionChecked"
                         class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
                         <Crown class="w-3 h-3" />
-                        会员功能
+                        {{ t('settings.theme.memberFeature') }}
                     </span>
                 </div>
             </div>
@@ -304,7 +304,7 @@ const hasBackgroundImage = computed(() => {
                     <div v-if="hasBackgroundImage"
                         class="relative w-full h-64 rounded-xl overflow-hidden border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800"
                         data-bg-preview>
-                        <img :src="currentBackgroundImage" alt="背景预览"
+                        <img :src="currentBackgroundImage" :alt="t('settings.theme.backgroundPreview')"
                             class="w-full h-full object-contain bg-gray-100 dark:bg-gray-800"
                             data-bg-preview />
                         
@@ -313,20 +313,20 @@ const hasBackgroundImage = computed(() => {
                             class="absolute top-3 left-3 px-2 py-1 rounded bg-amber-500 text-white text-xs font-medium flex items-center gap-1 whitespace-nowrap"
                             data-bg-preview>
                             <Eye class="w-3 h-3" />
-                            预览模式
+                            {{ t('settings.theme.previewMode') }}
                         </div>
                         
                         <!-- 操作按钮 -->
                         <div class="absolute top-3 right-3 flex gap-2" data-bg-preview>
                             <button @click="triggerFileSelect"
                                 class="p-2 rounded-lg bg-white/90 dark:bg-gray-800/90 text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800 shadow-sm transition-colors"
-                                title="更换图片"
+                                :title="t('settings.theme.changeImage')"
                                 data-bg-preview>
                                 <Upload class="w-4 h-4" />
                             </button>
                             <button @click="handleClearBackground"
                                 class="p-2 rounded-lg bg-white/90 dark:bg-gray-800/90 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 shadow-sm transition-colors"
-                                title="清除背景"
+                                :title="t('settings.theme.clearBackground')"
                                 data-bg-preview>
                                 <X class="w-4 h-4" />
                             </button>
@@ -342,8 +342,8 @@ const hasBackgroundImage = computed(() => {
                         data-bg-preview>
                         <Upload class="w-8 h-8 text-gray-400" />
                         <div class="text-center">
-                            <p class="text-sm font-medium text-gray-700 dark:text-gray-300">点击上传或拖拽图片到此处</p>
-                            <p class="text-xs text-gray-500 mt-1">支持 JPG、PNG 格式，最大 10MB</p>
+                            <p class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('settings.theme.uploadHint') }}</p>
+                            <p class="text-xs text-gray-500 mt-1">{{ t('settings.theme.uploadFormats') }}</p>
                         </div>
                     </div>
                     
@@ -355,7 +355,7 @@ const hasBackgroundImage = computed(() => {
                     <!-- 透明度 -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            背景透明度: {{ bgSettings.opacity }}%
+                            {{ t('settings.theme.opacity', { v: bgSettings.opacity }) }}
                         </label>
                         <input type="range" min="10" max="100" :value="bgSettings.opacity"
                             @input="handleOpacityChange(Number(($event.target as HTMLInputElement).value))"
@@ -365,7 +365,7 @@ const hasBackgroundImage = computed(() => {
                     <!-- 模糊度 -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            模糊度: {{ bgSettings.blur }}px
+                            {{ t('settings.theme.blur', { v: bgSettings.blur }) }}
                         </label>
                         <input type="range" min="0" max="20" :value="bgSettings.blur"
                             @input="handleBlurChange(Number(($event.target as HTMLInputElement).value))"
@@ -375,9 +375,9 @@ const hasBackgroundImage = computed(() => {
                     <!-- 叠加层透明度 -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            叠加层透明度: {{ bgSettings.overlayOpacity }}%
+                            {{ t('settings.theme.overlayOpacity', { v: bgSettings.overlayOpacity }) }}
                         </label>
-                        <p class="text-xs text-gray-500 mb-2">用于增强文字可读性</p>
+                        <p class="text-xs text-gray-500 mb-2">{{ t('settings.theme.overlayDesc') }}</p>
                         <input type="range" min="0" max="100" :value="bgSettings.overlayOpacity"
                             @input="handleOverlayChange(Number(($event.target as HTMLInputElement).value))"
                             class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 slider" />
@@ -385,31 +385,31 @@ const hasBackgroundImage = computed(() => {
 
                     <!-- 显示区域 -->
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">显示区域</label>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">{{ t('settings.theme.displayAreas') }}</label>
                         <div class="grid grid-cols-2 gap-3">
                             <label class="flex items-center gap-2 cursor-pointer">
                                 <input type="checkbox" :checked="bgSettings.areas.header"
                                     @change="handleAreaToggle('header')"
                                     class="rounded border-gray-300 text-primary focus:ring-primary" />
-                                <span class="text-sm text-gray-700 dark:text-gray-300">顶部栏</span>
+                                <span class="text-sm text-gray-700 dark:text-gray-300">{{ t('settings.theme.areaHeader') }}</span>
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer">
                                 <input type="checkbox" :checked="bgSettings.areas.sidebar"
                                     @change="handleAreaToggle('sidebar')"
                                     class="rounded border-gray-300 text-primary focus:ring-primary" />
-                                <span class="text-sm text-gray-700 dark:text-gray-300">侧边栏</span>
+                                <span class="text-sm text-gray-700 dark:text-gray-300">{{ t('settings.theme.areaSidebar') }}</span>
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer">
                                 <input type="checkbox" :checked="bgSettings.areas.main"
                                     @change="handleAreaToggle('main')"
                                     class="rounded border-gray-300 text-primary focus:ring-primary" />
-                                <span class="text-sm text-gray-700 dark:text-gray-300">主内容区</span>
+                                <span class="text-sm text-gray-700 dark:text-gray-300">{{ t('settings.theme.areaMain') }}</span>
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer">
                                 <input type="checkbox" :checked="bgSettings.areas.panels"
                                     @change="handleAreaToggle('panels')"
                                     class="rounded border-gray-300 text-primary focus:ring-primary" />
-                                <span class="text-sm text-gray-700 dark:text-gray-300">面板/卡片</span>
+                                <span class="text-sm text-gray-700 dark:text-gray-300">{{ t('settings.theme.areaPanels') }}</span>
                             </label>
                         </div>
                     </div>
@@ -420,14 +420,14 @@ const hasBackgroundImage = computed(() => {
                     <button @click="handleResetBackground"
                         class="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
                         <RotateCcw class="w-4 h-4" />
-                        重置为默认
+                        {{ t('settings.theme.resetToDefault') }}
                     </button>
                     
                     <div class="flex items-center gap-3">
                         <!-- 已保存状态（没有预览图时显示） -->
                         <span v-if="canUseBackground && hasBackgroundImage && !previewImage" class="text-sm text-green-600 dark:text-green-400 flex items-center gap-1">
                             <Check class="w-4 h-4" />
-                            背景已保存
+                            {{ t('settings.theme.saved') }}
                         </span>
                         
                         <!-- 有权限用户的应用按钮（有预览图时显示） -->
@@ -437,7 +437,7 @@ const hasBackgroundImage = computed(() => {
                             :disabled="isApplying"
                             class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                             <Check class="w-4 h-4" />
-                            {{ isApplying ? '应用中...' : '应用背景' }}
+                            {{ isApplying ? t('settings.theme.applying') : t('settings.theme.applyBackground') }}
                         </button>
                         
                         <!-- 非会员预览模式下的升级按钮 -->
@@ -447,7 +447,7 @@ const hasBackgroundImage = computed(() => {
                             :disabled="isApplying"
                             class="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                             <Crown class="w-4 h-4" />
-                            {{ isApplying ? '应用中...' : '升级会员以保存' }}
+                            {{ isApplying ? t('settings.theme.applying') : t('settings.theme.upgradeToSave') }}
                         </button>
                     </div>
                 </div>
@@ -459,14 +459,14 @@ const hasBackgroundImage = computed(() => {
                 <div class="flex items-start gap-3">
                     <Crown class="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
                     <div>
-                        <h4 class="font-medium text-amber-800 dark:text-amber-400 mb-1">会员专享功能</h4>
+                        <h4 class="font-medium text-amber-800 dark:text-amber-400 mb-1">{{ t('settings.theme.memberExclusive') }}</h4>
                         <p class="text-sm text-amber-700 dark:text-amber-500 mb-3">
-                            自定义背景是会员专享功能。当前为预览模式，升级会员后可保存和使用自定义背景。
+                            {{ t('settings.theme.memberExclusiveDesc') }}
                         </p>
                         <NuxtLink to="/billing"
                             class="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors text-sm font-medium">
                             <Crown class="w-4 h-4" />
-                            升级会员
+                            {{ t('settings.theme.upgrade') }}
                         </NuxtLink>
                     </div>
                 </div>

@@ -3,8 +3,8 @@
     <!-- 标题和操作按钮 -->
     <div class="flex items-center justify-between">
       <div>
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">更新日志</h3>
-        <p class="text-sm text-gray-500 dark:text-gray-400">查看系统版本更新历史和功能变更</p>
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('settingsSecurity.changelog.title') }}</h3>
+        <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('settingsSecurity.changelog.desc') }}</p>
       </div>
       <div class="flex items-center gap-3">
         <a
@@ -22,7 +22,7 @@
           class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
         >
           <Plus class="w-4 h-4" />
-          发布新版本
+          {{ t('settingsSecurity.changelog.publishNew') }}
         </button>
       </div>
     </div>
@@ -34,31 +34,31 @@
           v-model="filterType"
           class="px-3 py-2 bg-gray-100 dark:bg-gray-700 border-0 rounded-lg text-sm"
         >
-          <option value="">全部类型</option>
-          <option value="release">正式版</option>
-          <option value="hotfix">热修复</option>
-          <option value="beta">测试版</option>
-          <option value="alpha">预览版</option>
+          <option value="">{{ t('settingsSecurity.changelog.allTypes') }}</option>
+          <option value="release">{{ t('settingsSecurity.changelog.typeRelease') }}</option>
+          <option value="hotfix">{{ t('settingsSecurity.changelog.typeHotfix') }}</option>
+          <option value="beta">{{ t('settingsSecurity.changelog.typeBeta') }}</option>
+          <option value="alpha">{{ t('settingsSecurity.changelog.typeAlpha') }}</option>
         </select>
         <select
           v-model="filterCategory"
           class="px-3 py-2 bg-gray-100 dark:bg-gray-700 border-0 rounded-lg text-sm"
         >
-          <option value="">全部分类</option>
-          <option value="feature">新功能</option>
-          <option value="bugfix">Bug修复</option>
-          <option value="improvement">优化改进</option>
-          <option value="security">安全更新</option>
+          <option value="">{{ t('settingsSecurity.changelog.allCategories') }}</option>
+          <option value="feature">{{ t('settingsSecurity.changelog.catFeature') }}</option>
+          <option value="bugfix">{{ t('settingsSecurity.changelog.catBugfix') }}</option>
+          <option value="improvement">{{ t('settingsSecurity.changelog.catImprovement') }}</option>
+          <option value="security">{{ t('settingsSecurity.changelog.catSecurity') }}</option>
         </select>
         
         <!-- 排序按钮 -->
         <button
           @click="toggleSortOrder"
           class="px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm flex items-center gap-2 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-          :title="sortOrder === 'desc' ? '当前：最新优先，点击切换为最早优先' : '当前：最早优先，点击切换为最新优先'"
+          :title="sortOrder === 'desc' ? t('settingsSecurity.changelog.sortNewestHint') : t('settingsSecurity.changelog.sortOldestHint')"
         >
           <ArrowDownUp class="w-4 h-4" />
-          <span>{{ sortOrder === 'desc' ? '最新优先' : '最早优先' }}</span>
+          <span>{{ sortOrder === 'desc' ? t('settingsSecurity.changelog.newestFirst') : t('settingsSecurity.changelog.oldestFirst') }}</span>
         </button>
         
         <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
@@ -67,7 +67,7 @@
             v-model="showMajorOnly"
             class="rounded border-gray-300"
           />
-          仅显示重大更新
+          {{ t('settingsSecurity.changelog.majorOnly') }}
         </label>
       </div>
       
@@ -76,17 +76,17 @@
         <button
           @click="expandAll"
           class="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-          title="展开全部"
+          :title="t('settingsSecurity.changelog.expandAll')"
         >
-          展开全部
+          {{ t('settingsSecurity.changelog.expandAll') }}
         </button>
         <span class="text-gray-300 dark:text-gray-600">|</span>
         <button
           @click="collapseAll"
           class="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-          title="收起全部"
+          :title="t('settingsSecurity.changelog.collapseAll')"
         >
-          收起全部
+          {{ t('settingsSecurity.changelog.collapseAll') }}
         </button>
       </div>
     </div>
@@ -99,7 +99,7 @@
     <!-- 空状态 -->
     <div v-else-if="changelogs.length === 0" class="text-center py-12">
       <ClipboardList class="w-12 h-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
-      <p class="text-gray-500 dark:text-gray-400">暂无更新日志</p>
+      <p class="text-gray-500 dark:text-gray-400">{{ t('settingsSecurity.changelog.empty') }}</p>
     </div>
 
     <!-- 更新日志列表 - 手风琴效果 -->
@@ -137,7 +137,7 @@
               v-if="log.is_major"
               class="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 flex-shrink-0 whitespace-nowrap"
             >
-              重大更新
+              {{ t('settingsSecurity.changelog.majorBadge') }}
             </span>
             
             <!-- 未发布标签 -->
@@ -145,7 +145,7 @@
               v-if="!log.is_published"
               class="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 flex-shrink-0 whitespace-nowrap"
             >
-              未发布
+              {{ t('settingsSecurity.changelog.unpublished') }}
             </span>
             
             <!-- 标题 - 收起时显示 -->
@@ -166,7 +166,7 @@
               <button
                 @click="editChangelog(log)"
                 class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                title="编辑"
+                :title="t('settingsSecurity.common.edit')"
               >
                 <Pencil class="w-4 h-4" />
               </button>
@@ -174,7 +174,7 @@
                 v-if="!log.is_published"
                 @click="publishLog(log)"
                 class="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
-                title="发布"
+                :title="t('settingsSecurity.changelog.publish')"
               >
                 <Rocket class="w-4 h-4" />
               </button>
@@ -182,14 +182,14 @@
                 v-else
                 @click="unpublishLog(log)"
                 class="p-1.5 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded-lg transition-colors"
-                title="取消发布"
+                :title="t('settingsSecurity.changelog.unpublish')"
               >
                 <Package class="w-4 h-4" />
               </button>
               <button
                 @click="confirmDelete(log)"
                 class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                title="删除"
+                :title="t('common.delete')"
               >
                 <Trash2 class="w-4 h-4" />
               </button>
@@ -228,7 +228,7 @@
               <div v-if="log.breaking_changes" class="mt-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
                 <h5 class="font-semibold text-red-800 dark:text-red-200 mb-2 flex items-center gap-2">
                   <AlertTriangle class="w-4 h-4" />
-                  破坏性变更
+                  {{ t('settingsSecurity.changelog.breakingChanges') }}
                 </h5>
                 <div
                   class="prose prose-sm dark:prose-invert max-w-none text-red-700 dark:text-red-300"
@@ -240,7 +240,7 @@
               <div v-if="log.migration_notes" class="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                 <h5 class="font-semibold text-blue-800 dark:text-blue-200 mb-2 flex items-center gap-2">
                   <FileText class="w-4 h-4" />
-                  迁移说明
+                  {{ t('settingsSecurity.changelog.migrationNotes') }}
                 </h5>
                 <div
                   class="prose prose-sm dark:prose-invert max-w-none text-blue-700 dark:text-blue-300"
@@ -259,7 +259,7 @@
           :disabled="loadingMore"
           class="px-6 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
         >
-          {{ loadingMore ? '加载中...' : '加载更多' }}
+          {{ loadingMore ? t('common.loading') : t('settingsSecurity.changelog.loadMore') }}
         </button>
       </div>
     </div>
@@ -272,7 +272,7 @@
     >
       <div class="bg-white dark:bg-gray-800 rounded-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
         <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-          <h3 class="text-lg font-semibold">{{ editingItem ? '编辑更新日志' : '发布新版本' }}</h3>
+          <h3 class="text-lg font-semibold">{{ editingItem ? t('settingsSecurity.changelog.editTitle') : t('settingsSecurity.changelog.publishNew') }}</h3>
           <button @click="showEditor = false" class="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
             <X class="w-5 h-5" />
           </button>
@@ -281,99 +281,99 @@
         <div class="flex-1 overflow-y-auto p-6 space-y-4">
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">版本号 *</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('settingsSecurity.changelog.versionLabel') }}</label>
               <input
                 v-model="form.version"
                 type="text"
-                placeholder="如 1.0.0"
+                :placeholder="t('settingsSecurity.changelog.versionPlaceholder')"
                 class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">类型</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('settingsSecurity.changelog.typeLabel') }}</label>
               <select
                 v-model="form.type"
                 class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
               >
-                <option value="release">正式版</option>
-                <option value="hotfix">热修复</option>
-                <option value="beta">测试版</option>
-                <option value="alpha">预览版</option>
+                <option value="release">{{ t('settingsSecurity.changelog.typeRelease') }}</option>
+                <option value="hotfix">{{ t('settingsSecurity.changelog.typeHotfix') }}</option>
+                <option value="beta">{{ t('settingsSecurity.changelog.typeBeta') }}</option>
+                <option value="alpha">{{ t('settingsSecurity.changelog.typeAlpha') }}</option>
               </select>
             </div>
           </div>
 
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">分类</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('settingsSecurity.changelog.categoryLabel') }}</label>
               <select
                 v-model="form.category"
                 class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
               >
-                <option value="">不分类</option>
-                <option value="feature">新功能</option>
-                <option value="bugfix">Bug修复</option>
-                <option value="improvement">优化改进</option>
-                <option value="security">安全更新</option>
+                <option value="">{{ t('settingsSecurity.changelog.noCategory') }}</option>
+                <option value="feature">{{ t('settingsSecurity.changelog.catFeature') }}</option>
+                <option value="bugfix">{{ t('settingsSecurity.changelog.catBugfix') }}</option>
+                <option value="improvement">{{ t('settingsSecurity.changelog.catImprovement') }}</option>
+                <option value="security">{{ t('settingsSecurity.changelog.catSecurity') }}</option>
               </select>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">作者</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('settingsSecurity.changelog.authorLabel') }}</label>
               <input
                 v-model="form.author"
                 type="text"
-                placeholder="留空使用当前用户"
+                :placeholder="t('settingsSecurity.changelog.authorPlaceholder')"
                 class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
               />
             </div>
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">标题 *</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('settingsSecurity.changelog.titleLabel') }}</label>
             <input
               v-model="form.title"
               type="text"
-              placeholder="更新标题"
+              :placeholder="t('settingsSecurity.changelog.titlePlaceholder')"
               class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
             />
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">标签</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('settingsSecurity.changelog.tagsLabel') }}</label>
             <input
               v-model="tagsInput"
               type="text"
-              placeholder="多个标签用逗号分隔，如：工作流,模板,API"
+              :placeholder="t('settingsSecurity.changelog.tagsPlaceholder')"
               class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
             />
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">更新内容 * (支持Markdown)</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('settingsSecurity.changelog.contentLabel') }}</label>
             <textarea
               v-model="form.content"
               rows="8"
-              placeholder="### 新功能&#10;- 功能1&#10;- 功能2&#10;&#10;### Bug修复&#10;- 修复了xxx问题"
+              :placeholder="t('settingsSecurity.changelog.contentPlaceholder')"
               class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 font-mono text-sm"
             ></textarea>
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">破坏性变更 (可选)</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('settingsSecurity.changelog.breakingChangesOptional') }}</label>
             <textarea
               v-model="form.breaking_changes"
               rows="3"
-              placeholder="如果有破坏性变更，请在这里说明"
+              :placeholder="t('settingsSecurity.changelog.breakingPlaceholder')"
               class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 font-mono text-sm"
             ></textarea>
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">迁移说明 (可选)</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('settingsSecurity.changelog.migrationNotesOptional') }}</label>
             <textarea
               v-model="form.migration_notes"
               rows="3"
-              placeholder="如果需要用户手动操作，请在这里说明迁移步骤"
+              :placeholder="t('settingsSecurity.changelog.migrationPlaceholder')"
               class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 font-mono text-sm"
             ></textarea>
           </div>
@@ -381,11 +381,11 @@
           <div class="flex items-center gap-6">
             <label class="flex items-center gap-2">
               <input type="checkbox" v-model="form.is_major" class="rounded border-gray-300" />
-              <span class="text-sm text-gray-700 dark:text-gray-300">标记为重大更新</span>
+              <span class="text-sm text-gray-700 dark:text-gray-300">{{ t('settingsSecurity.changelog.markMajor') }}</span>
             </label>
             <label class="flex items-center gap-2">
               <input type="checkbox" v-model="form.is_published" class="rounded border-gray-300" />
-              <span class="text-sm text-gray-700 dark:text-gray-300">立即发布</span>
+              <span class="text-sm text-gray-700 dark:text-gray-300">{{ t('settingsSecurity.changelog.publishNow') }}</span>
             </label>
           </div>
         </div>
@@ -395,14 +395,14 @@
             @click="showEditor = false"
             class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
-            取消
+            {{ t('common.cancel') }}
           </button>
           <button
             @click="saveChangelog"
             :disabled="saving || !form.version || !form.title || !form.content"
             class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {{ saving ? '保存中...' : (editingItem ? '保存修改' : '发布') }}
+            {{ saving ? t('settingsSecurity.common.saving') : (editingItem ? t('settingsSecurity.changelog.saveChanges') : t('settingsSecurity.changelog.publish')) }}
           </button>
         </div>
       </div>
@@ -415,23 +415,23 @@
       @click.self="showDeleteConfirm = false"
     >
       <div class="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full mx-4">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">确认删除</h3>
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">{{ t('settingsSecurity.changelog.confirmDelete') }}</h3>
         <p class="text-gray-600 dark:text-gray-400 mb-6">
-          确定要删除版本 <strong>{{ deletingItem?.version }}</strong> 的更新日志吗？此操作不可恢复。
+          {{ t('settingsSecurity.changelog.deleteConfirmPrefix') }}<strong>{{ deletingItem?.version }}</strong>{{ t('settingsSecurity.changelog.deleteConfirmSuffix') }}
         </p>
         <div class="flex justify-end gap-3">
           <button
             @click="showDeleteConfirm = false"
             class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
           >
-            取消
+            {{ t('common.cancel') }}
           </button>
           <button
             @click="deleteLog"
             :disabled="deleting"
             class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
           >
-            {{ deleting ? '删除中...' : '确认删除' }}
+            {{ deleting ? t('settingsSecurity.changelog.deleting') : t('settingsSecurity.changelog.confirmDelete') }}
           </button>
         </div>
       </div>
@@ -446,6 +446,7 @@ import { Plus, ClipboardList, ChevronRight, Pencil, Rocket, Package, Trash2, Ale
 const { getChangelogs, createChangelog, updateChangelog, deleteChangelog: apiDeleteChangelog, publishChangelog, unpublishChangelog, getMe } = useApi()
 const { sanitizeEmailHtml } = useSanitize()
 const toast = useToast()
+const { t } = useI18n()
 
 interface Changelog {
   id: number
@@ -551,7 +552,7 @@ const loadData = async (reset = true) => {
     hasMore.value = res.has_more
   } catch (e: any) {
     console.error('加载更新日志失败:', e)
-    toast.error(e.data?.detail || '加载更新日志失败')
+    toast.error(e.data?.detail || t('settingsSecurity.changelog.loadFailed'))
   } finally {
     loading.value = false
     loadingMore.value = false
@@ -614,7 +615,7 @@ const saveChangelog = async () => {
     resetForm()
   } catch (e: any) {
     console.error('保存失败:', e)
-    toast.error(e.data?.detail || '保存失败，请重试')
+    toast.error(e.data?.detail || t('settingsSecurity.changelog.saveFailed'))
   } finally {
     saving.value = false
   }
@@ -652,7 +653,7 @@ const deleteLog = async () => {
     loadData()
   } catch (e: any) {
     console.error('删除失败:', e)
-    toast.error(e.data?.detail || '删除失败，请重试')
+    toast.error(e.data?.detail || t('settingsSecurity.changelog.deleteFailed'))
   } finally {
     deleting.value = false
   }
@@ -664,7 +665,7 @@ const publishLog = async (log: Changelog) => {
     loadData()
   } catch (e: any) {
     console.error('发布失败:', e)
-    toast.error(e.data?.detail || '发布失败，请重试')
+    toast.error(e.data?.detail || t('settingsSecurity.changelog.publishFailed'))
   }
 }
 
@@ -674,7 +675,7 @@ const unpublishLog = async (log: Changelog) => {
     loadData()
   } catch (e: any) {
     console.error('取消发布失败:', e)
-    toast.error(e.data?.detail || '取消发布失败，请重试')
+    toast.error(e.data?.detail || t('settingsSecurity.changelog.unpublishFailed'))
   }
 }
 
@@ -690,10 +691,10 @@ const getTypeBadgeClass = (type: string) => {
 
 const getTypeLabel = (type: string) => {
   const labels: Record<string, string> = {
-    release: '正式版',
-    hotfix: '热修复',
-    beta: '测试版',
-    alpha: '预览版'
+    release: t('settingsSecurity.changelog.typeRelease'),
+    hotfix: t('settingsSecurity.changelog.typeHotfix'),
+    beta: t('settingsSecurity.changelog.typeBeta'),
+    alpha: t('settingsSecurity.changelog.typeAlpha')
   }
   return labels[type] || type
 }

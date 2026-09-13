@@ -8,6 +8,7 @@ const router = useRouter()
 const { getSystemWorkflows, getSystemWorkflowConfig, updateSystemWorkflowConfig, getWorkflowExecutions, getNodeTypes, updateSystemWorkflow } = useApi()
 const toast = useToast()
 const { confirm: confirmDialog } = useConfirmDialog()
+const { t } = useI18n()
 
 // 状态
 const loading = ref(true)
@@ -49,7 +50,7 @@ const loadWorkflows = async () => {
     workflows.value = await getSystemWorkflows()
   } catch (e: any) {
     console.error('加载工作流失败:', e)
-    toast.error(e.data?.detail || '加载工作流失败')
+    toast.error(e.data?.detail || t('adminTools.systemWorkflows.loadWorkflowsFailed'))
   } finally {
     loading.value = false
   }
@@ -64,7 +65,7 @@ const toggleWorkflowActive = async (workflow: any) => {
     workflow.is_active = newState
   } catch (e: any) {
     console.error('切换状态失败:', e)
-    toast.error('操作失败：' + (e.data?.detail || e.message || '未知错误'))
+    toast.error(t('adminTools.systemWorkflows.operationFailedPrefix') + (e.data?.detail || e.message || t('adminTools.common.unknownError')))
   } finally {
     togglingActive.value = null
   }
@@ -78,10 +79,10 @@ const canDelete = (workflow: any): boolean => {
 // 删除系统工作流
 const deleteSystemWorkflow = async (workflow: any) => {
   if (!canDelete(workflow)) {
-    toast.warning('该工作流为核心功能，无法删除')
+    toast.warning(t('adminTools.systemWorkflows.coreCannotDeleteToast'))
     return
   }
-  const ok = await confirmDialog({ message: `确定要删除系统工作流 "${workflow.name}" 吗？此操作不可恢复。`, type: 'danger' })
+  const ok = await confirmDialog({ message: t('adminTools.systemWorkflows.deleteConfirm', { name: workflow.name }), type: 'danger' })
   if (!ok) return
 
   deleting.value = workflow.id
@@ -90,7 +91,7 @@ const deleteSystemWorkflow = async (workflow: any) => {
     workflows.value = workflows.value.filter(w => w.id !== workflow.id)
   } catch (e: any) {
     console.error('删除失败:', e)
-    toast.error('删除失败：' + (e.data?.detail || e.message || '未知错误'))
+    toast.error(t('adminTools.systemWorkflows.deleteFailedPrefix') + (e.data?.detail || e.message || t('adminTools.common.unknownError')))
   } finally {
     deleting.value = null
   }
@@ -105,7 +106,7 @@ const openConfigModal = async (workflow: any) => {
     showConfigModal.value = true
   } catch (e: any) {
     console.error('加载配置失败:', e)
-    toast.error(e.data?.detail || '加载配置失败')
+    toast.error(e.data?.detail || t('adminTools.systemWorkflows.loadConfigFailed'))
   }
 }
 
@@ -118,7 +119,7 @@ const saveConfig = async () => {
     showConfigModal.value = false
   } catch (e: any) {
     console.error('保存配置失败:', e)
-    toast.error(e.data?.detail || '保存配置失败')
+    toast.error(e.data?.detail || t('adminTools.systemWorkflows.saveConfigFailed'))
   } finally {
     savingConfig.value = false
   }
@@ -133,7 +134,7 @@ const openExecutionModal = async (workflow: any) => {
     executions.value = await getWorkflowExecutions('system', workflow.id, undefined, 20)
   } catch (e: any) {
     console.error('加载执行记录失败:', e)
-    toast.error(e.data?.detail || '加载执行记录失败')
+    toast.error(e.data?.detail || t('adminTools.systemWorkflows.loadExecutionsFailed'))
   } finally {
     loadingExecutions.value = false
   }
@@ -198,10 +199,10 @@ const getNodeColor = (category: string): string => {
 // 获取分类标签
 const getCategoryLabel = (category: string) => {
   const labels: Record<string, string> = {
-    auth: '认证流程',
-    email: '邮件流程',
-    billing: '计费流程',
-    admin: '管理流程'
+    auth: t('adminTools.systemWorkflows.category.auth'),
+    email: t('adminTools.systemWorkflows.category.email'),
+    billing: t('adminTools.systemWorkflows.category.billing'),
+    admin: t('adminTools.systemWorkflows.category.admin')
   }
   return labels[category] || category
 }
@@ -277,7 +278,7 @@ const loadNodeTypes = async () => {
     nodeTypes.value = await getNodeTypes()
   } catch (e: any) {
     console.error('加载节点类型失败:', e)
-    toast.error(e.data?.detail || '加载节点类型失败')
+    toast.error(e.data?.detail || t('adminTools.systemWorkflows.loadNodeTypesFailed'))
   }
 }
 
@@ -297,19 +298,19 @@ onMounted(() => {
     <!-- 页面标题 -->
     <div class="flex items-center justify-between">
       <div>
-        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">系统工作流</h2>
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t('adminTools.systemWorkflows.title') }}</h2>
         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          管理系统核心业务流程，这些工作流会在特定事件时自动触发（如用户注册、密码重置等）
+          {{ t('adminTools.systemWorkflows.subtitle') }}
         </p>
       </div>
       <div class="flex items-center gap-2">
         <button
           @click="goToTutorial"
           class="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg whitespace-nowrap transition-colors"
-          title="查看教程"
+          :title="t('adminTools.systemWorkflows.tutorialTitle')"
         >
           <BookOpen class="w-4 h-4" />
-          <span class="hidden sm:inline">教程</span>
+          <span class="hidden sm:inline">{{ t('adminTools.systemWorkflows.tutorial') }}</span>
         </button>
         <button
           @click="loadWorkflows"
@@ -322,7 +323,7 @@ onMounted(() => {
           class="flex items-center gap-2 px-4 py-2 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg whitespace-nowrap transition-colors"
         >
           <Plus class="w-4 h-4" />
-          新建系统工作流
+          {{ t('adminTools.systemWorkflows.createNew') }}
         </button>
       </div>
     </div>
@@ -344,34 +345,34 @@ onMounted(() => {
           <button
             @click="openPreviewModal(workflow)"
             class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg whitespace-nowrap transition-colors"
-            title="预览流程图"
+            :title="t('adminTools.systemWorkflows.previewGraph')"
           >
             <Eye class="w-4 h-4" />
-            <span>预览</span>
+            <span>{{ t('adminTools.common.preview') }}</span>
           </button>
           <button
             @click="openExecutionModal(workflow)"
             class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg whitespace-nowrap transition-colors"
-            title="查看执行记录"
+            :title="t('adminTools.systemWorkflows.viewRecords')"
           >
             <Clock class="w-4 h-4" />
-            <span>记录</span>
+            <span>{{ t('adminTools.systemWorkflows.records') }}</span>
           </button>
           <button
             @click="openConfigModal(workflow)"
             class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg whitespace-nowrap transition-colors"
-            title="配置工作流"
+            :title="t('adminTools.systemWorkflows.configWorkflow')"
           >
             <Settings class="w-4 h-4" />
-            <span>配置</span>
+            <span>{{ t('adminTools.systemWorkflows.config') }}</span>
           </button>
           <button
             @click="editSystemWorkflow(workflow)"
             class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg whitespace-nowrap transition-colors"
-            title="编辑工作流"
+            :title="t('adminTools.systemWorkflows.editWorkflow')"
           >
             <Edit class="w-4 h-4" />
-            <span>编辑</span>
+            <span>{{ t('adminTools.common.edit') }}</span>
           </button>
           <!-- 启用/禁用开关 -->
           <div class="flex items-center gap-2 ml-2 pl-2 border-l border-gray-200 dark:border-gray-700">
@@ -382,7 +383,7 @@ onMounted(() => {
                 'relative w-11 h-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50',
                 workflow.is_active ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
               ]"
-              :title="workflow.is_active ? '点击禁用' : '点击启用'"
+              :title="workflow.is_active ? t('adminTools.systemWorkflows.clickToDisable') : t('adminTools.systemWorkflows.clickToEnable')"
             >
               <span
                 :class="[
@@ -405,10 +406,10 @@ onMounted(() => {
               ? 'hover:bg-red-50 dark:hover:bg-red-900/20'
               : 'opacity-50 cursor-not-allowed'
           ]"
-          :title="canDelete(workflow) ? '删除工作流' : '核心工作流无法删除'"
+          :title="canDelete(workflow) ? t('adminTools.systemWorkflows.deleteWorkflow') : t('adminTools.systemWorkflows.coreCannotDelete')"
         >
           <Trash2 class="w-4 h-4" />
-          <span>{{ deleting === workflow.id ? '删除中...' : '删除' }}</span>
+          <span>{{ deleting === workflow.id ? t('adminTools.common.deleting') : t('adminTools.common.delete') }}</span>
         </button>
 
         <!-- 左侧信息 -->
@@ -436,9 +437,9 @@ onMounted(() => {
 
           <!-- 节点数量统计 -->
           <div class="mt-4 flex items-center gap-6 text-sm text-gray-500 dark:text-gray-400">
-            <span>{{ workflow.nodes?.length || 0 }} 个节点</span>
-            <span>{{ workflow.edges?.length || 0 }} 条连接</span>
-            <span>版本 v{{ workflow.version }}</span>
+            <span>{{ t('adminTools.systemWorkflows.nodesCount', { n: workflow.nodes?.length || 0 }) }}</span>
+            <span>{{ t('adminTools.systemWorkflows.connectionsCount', { n: workflow.edges?.length || 0 }) }}</span>
+            <span>{{ t('adminTools.systemWorkflows.versionLabel', { n: workflow.version }) }}</span>
           </div>
         </div>
       </div>
@@ -449,17 +450,17 @@ onMounted(() => {
           <Workflow class="w-8 h-8 text-gray-400" />
         </div>
         <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">
-          暂无系统工作流
+          {{ t('adminTools.systemWorkflows.emptyTitle') }}
         </h3>
         <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
-          创建系统工作流来自动化核心业务流程
+          {{ t('adminTools.systemWorkflows.emptySubtitle') }}
         </p>
         <button
           @click="createSystemWorkflow"
           class="inline-flex items-center gap-2 px-5 py-2.5 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg whitespace-nowrap transition-colors"
         >
           <Plus class="w-5 h-5" />
-          创建系统工作流
+          {{ t('adminTools.systemWorkflows.createFromEmpty') }}
         </button>
       </div>
     </div>
@@ -469,16 +470,16 @@ onMounted(() => {
       <div class="flex items-start gap-3">
         <FileText class="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
         <div>
-          <h4 class="text-sm font-medium text-blue-800 dark:text-blue-300 mb-1">💡 系统工作流与邮件模板</h4>
+          <h4 class="text-sm font-medium text-blue-800 dark:text-blue-300 mb-1">{{ t('adminTools.systemWorkflows.relatedTipTitle') }}</h4>
           <p class="text-sm text-blue-700 dark:text-blue-400">
-            系统工作流中的"发送邮件"节点会使用系统邮件模板。您可以在「邮件模板管理」中预览和编辑模板内容。
+            {{ t('adminTools.systemWorkflows.relatedTipBody') }}
           </p>
         </div>
       </div>
     </div>
 
     <!-- 配置模态框 -->
-    <CommonModal v-model="showConfigModal" title="工作流配置" size="lg">
+    <CommonModal v-model="showConfigModal" :title="t('adminTools.systemWorkflows.configModalTitle')" size="lg">
       <div v-if="selectedWorkflow" class="space-y-6">
         <!-- 工作流信息 -->
         <div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
@@ -488,7 +489,7 @@ onMounted(() => {
 
         <!-- 配置表单 -->
         <div class="space-y-4">
-          <h5 class="font-medium text-gray-900 dark:text-white">配置选项</h5>
+          <h5 class="font-medium text-gray-900 dark:text-white">{{ t('adminTools.systemWorkflows.configOptions') }}</h5>
           
           <!-- 动态渲染配置项 -->
           <template v-if="selectedWorkflow.config_schema?.properties">
@@ -542,7 +543,7 @@ onMounted(() => {
           </template>
           
           <div v-else class="text-center py-4 text-gray-500 dark:text-gray-400">
-            该工作流暂无可配置项
+            {{ t('adminTools.systemWorkflows.noConfigOptions') }}
           </div>
         </div>
 
@@ -552,21 +553,21 @@ onMounted(() => {
             @click="showConfigModal = false"
             class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
           >
-            取消
+            {{ t('adminTools.common.cancel') }}
           </button>
           <button
             @click="saveConfig"
             :disabled="savingConfig"
             class="px-4 py-2 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
           >
-            {{ savingConfig ? '保存中...' : '保存配置' }}
+            {{ savingConfig ? t('adminTools.common.saving') : t('adminTools.systemWorkflows.saveConfig') }}
           </button>
         </div>
       </div>
     </CommonModal>
 
     <!-- 执行记录模态框 -->
-    <CommonModal v-model="showExecutionModal" title="执行记录" size="lg">
+    <CommonModal v-model="showExecutionModal" :title="t('adminTools.systemWorkflows.executionsTitle')" size="lg">
       <div v-if="selectedWorkflow" class="space-y-4">
         <!-- 工作流信息 -->
         <div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
@@ -592,7 +593,7 @@ onMounted(() => {
               />
               <div>
                 <p class="text-sm font-medium text-gray-900 dark:text-white">
-                  执行 #{{ exec.id }}
+                  {{ t('adminTools.systemWorkflows.executionNo', { n: exec.id }) }}
                 </p>
                 <p class="text-xs text-gray-500 dark:text-gray-400">
                   {{ formatTime(exec.started_at) }}
@@ -608,7 +609,7 @@ onMounted(() => {
                 exec.status === 'running' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
                 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'
               ]">
-                {{ exec.status === 'success' ? '成功' : exec.status === 'failed' ? '失败' : exec.status === 'running' ? '运行中' : '等待中' }}
+                {{ exec.status === 'success' ? t('adminTools.systemWorkflows.status.success') : exec.status === 'failed' ? t('adminTools.systemWorkflows.status.failed') : exec.status === 'running' ? t('adminTools.systemWorkflows.status.running') : t('adminTools.systemWorkflows.status.pending') }}
               </span>
               <p v-if="exec.error_message" class="text-xs text-red-500 mt-1 max-w-xs truncate">
                 {{ exec.error_message }}
@@ -618,7 +619,7 @@ onMounted(() => {
 
           <!-- 空状态 -->
           <div v-if="executions.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
-            暂无执行记录
+            {{ t('adminTools.systemWorkflows.noExecutions') }}
           </div>
         </div>
       </div>

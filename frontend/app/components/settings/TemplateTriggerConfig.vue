@@ -8,6 +8,7 @@ import { X, Zap, Clock, Hand, ChevronDown, ChevronRight, Info, Loader2 } from 'l
 
 const { getAvailableEvents, getTemplateTriggerRules, createTemplateTriggerRule, deleteTemplateTriggerRule } = useApi()
 const toast = useToast()
+const { t } = useI18n()
 
 const props = defineProps<{
   modelValue: boolean
@@ -89,28 +90,28 @@ const groupedEvents = computed(() => {
 })
 
 // 定时周期选项
-const scheduleOptions = [
-  { value: 'daily', label: '每天' },
-  { value: 'weekly', label: '每周' },
-  { value: 'monthly', label: '每月' },
-  { value: 'interval', label: '间隔' },
-]
+const scheduleOptions = computed(() => [
+  { value: 'daily', label: t('adminTools.templateTriggerConfig.schedule.daily') },
+  { value: 'weekly', label: t('adminTools.templateTriggerConfig.schedule.weekly') },
+  { value: 'monthly', label: t('adminTools.templateTriggerConfig.schedule.monthly') },
+  { value: 'interval', label: t('adminTools.templateTriggerConfig.schedule.interval') },
+])
 
 // 条件操作符
-const conditionOperators = [
-  { value: 'greater_than', label: '大于' },
-  { value: 'less_than', label: '小于' },
-  { value: 'equals', label: '等于' },
-  { value: 'not_equals', label: '不等于' },
-  { value: 'contains', label: '包含' },
-]
+const conditionOperators = computed(() => [
+  { value: 'greater_than', label: t('adminTools.templateTriggerConfig.operators.greaterThan') },
+  { value: 'less_than', label: t('adminTools.templateTriggerConfig.operators.lessThan') },
+  { value: 'equals', label: t('adminTools.templateTriggerConfig.operators.equals') },
+  { value: 'not_equals', label: t('adminTools.templateTriggerConfig.operators.notEquals') },
+  { value: 'contains', label: t('adminTools.templateTriggerConfig.operators.contains') },
+])
 
 // 可用字段（用于条件）
-const availableFields = [
-  { value: 'storage_used_percent', label: '存储使用百分比' },
-  { value: 'email_count', label: '邮件数量' },
-  { value: 'days_since_login', label: '距离上次登录天数' },
-]
+const availableFields = computed(() => [
+  { value: 'storage_used_percent', label: t('adminTools.templateTriggerConfig.fields.storageUsedPercent') },
+  { value: 'email_count', label: t('adminTools.templateTriggerConfig.fields.emailCount') },
+  { value: 'days_since_login', label: t('adminTools.templateTriggerConfig.fields.daysSinceLogin') },
+])
 
 // 高级设置展开状态
 const showAdvanced = ref(false)
@@ -132,12 +133,12 @@ const loadAvailableEvents = async () => {
     availableEvents.value = events
   } catch (e: any) {
     console.error('加载事件类型失败:', e)
-    toast.error(e.data?.detail || '加载事件类型失败')
+    toast.error(e.data?.detail || t('adminTools.templateTriggerConfig.loadEventsFailed'))
     // 使用默认事件列表作为后备
     availableEvents.value = [
-      { value: 'user.registered', label: '用户注册成功', category: 'user', category_label: '👤 用户事件', variables: ['user_name', 'user_email', 'register_time'] },
-      { value: 'user.login_new_device', label: '新设备登录', category: 'user', category_label: '👤 用户事件', variables: ['user_name', 'login_time', 'login_ip'] },
-      { value: 'user.password_changed', label: '密码修改成功', category: 'user', category_label: '👤 用户事件', variables: ['user_name', 'change_time'] },
+      { value: 'user.registered', label: t('adminTools.templateTriggerConfig.fallbackEvents.userRegistered'), category: 'user', category_label: t('adminTools.templateTriggerConfig.fallbackCategoryUser'), variables: ['user_name', 'user_email', 'register_time'] },
+      { value: 'user.login_new_device', label: t('adminTools.templateTriggerConfig.fallbackEvents.newDeviceLogin'), category: 'user', category_label: t('adminTools.templateTriggerConfig.fallbackCategoryUser'), variables: ['user_name', 'login_time', 'login_ip'] },
+      { value: 'user.password_changed', label: t('adminTools.templateTriggerConfig.fallbackEvents.passwordChanged'), category: 'user', category_label: t('adminTools.templateTriggerConfig.fallbackCategoryUser'), variables: ['user_name', 'change_time'] },
     ]
   }
 }
@@ -168,7 +169,7 @@ const loadExistingRules = async () => {
     }
   } catch (e: any) {
     console.error('加载触发规则失败:', e)
-    toast.error(e.data?.detail || '加载触发规则失败')
+    toast.error(e.data?.detail || t('adminTools.templateTriggerConfig.loadRulesFailed'))
   } finally {
     loading.value = false
   }
@@ -214,7 +215,7 @@ const save = async () => {
     emit('save', { ...config, template_code: props.template.code })
     close()
   } catch (e: any) {
-    error.value = e.data?.detail || '保存失败'
+    error.value = e.data?.detail || t('adminTools.common.saveFailed')
   } finally {
     saving.value = false
   }
@@ -268,11 +269,11 @@ watch(() => props.modelValue, async (isOpen) => {
               <Zap class="w-5 h-5 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">触发设置</h3>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('adminTools.templateTriggerConfig.title') }}</h3>
               <p class="text-sm text-gray-500 dark:text-gray-400">{{ template?.name }}</p>
             </div>
           </div>
-          <button @click="close" aria-label="关闭" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">
+          <button @click="close" :aria-label="t('adminTools.common.close')" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">
             <X class="w-5 h-5 text-gray-500" />
           </button>
         </div>
@@ -292,18 +293,18 @@ watch(() => props.modelValue, async (isOpen) => {
           <div v-if="existingRules.length > 0" class="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
             <div class="flex items-center gap-2 text-green-700 dark:text-green-400">
               <Zap class="w-4 h-4" />
-              <span class="font-medium">已配置触发规则</span>
+              <span class="font-medium">{{ t('adminTools.templateTriggerConfig.ruleConfigured') }}</span>
             </div>
             <p class="text-sm text-green-600 dark:text-green-500 mt-1">
-              此模板已配置自动触发，修改后将更新现有规则
+              {{ t('adminTools.templateTriggerConfig.ruleConfiguredHint') }}
             </p>
           </div>
           
           <!-- 启用状态 -->
           <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl">
             <div>
-              <span class="font-medium text-gray-900 dark:text-white">启用自动触发</span>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">开启后，当触发条件满足时将自动发送邮件</p>
+              <span class="font-medium text-gray-900 dark:text-white">{{ t('adminTools.templateTriggerConfig.enableAutoTrigger') }}</span>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ t('adminTools.templateTriggerConfig.enableAutoTriggerHint') }}</p>
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" v-model="config.is_enabled" class="sr-only peer">
@@ -313,7 +314,7 @@ watch(() => props.modelValue, async (isOpen) => {
           
           <!-- 触发方式选择 -->
           <div>
-            <h4 class="font-medium text-gray-900 dark:text-white mb-3">触发方式</h4>
+            <h4 class="font-medium text-gray-900 dark:text-white mb-3">{{ t('adminTools.templateTriggerConfig.triggerType') }}</h4>
             <div class="space-y-3">
               
               <!-- 系统事件触发 -->
@@ -335,13 +336,13 @@ watch(() => props.modelValue, async (isOpen) => {
                   <div class="flex-1">
                     <div class="flex items-center gap-2">
                       <Zap class="w-4 h-4 text-blue-500" />
-                      <span class="font-medium text-gray-900 dark:text-white">系统事件触发</span>
+                      <span class="font-medium text-gray-900 dark:text-white">{{ t('adminTools.templateTriggerConfig.typeUserEvent') }}</span>
                     </div>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">当系统发生特定事件时自动发送邮件</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ t('adminTools.templateTriggerConfig.typeUserEventHint') }}</p>
                     
                     <!-- 事件选择器 -->
                     <div v-if="config.trigger_type === 'user_event'" class="mt-4 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                      <label class="text-sm text-gray-500 dark:text-gray-400 mb-2 block">选择触发事件：</label>
+                      <label class="text-sm text-gray-500 dark:text-gray-400 mb-2 block">{{ t('adminTools.templateTriggerConfig.selectEvent') }}</label>
                       <div class="space-y-1 max-h-48 overflow-y-auto">
                         <template v-for="(category, key) in groupedEvents" :key="key">
                           <div class="text-xs text-gray-400 dark:text-gray-500 font-medium mt-2 mb-1">{{ category.label }}</div>
@@ -384,9 +385,9 @@ watch(() => props.modelValue, async (isOpen) => {
                   <div class="flex-1">
                     <div class="flex items-center gap-2">
                       <Clock class="w-4 h-4 text-amber-500" />
-                      <span class="font-medium text-gray-900 dark:text-white">定时触发</span>
+                      <span class="font-medium text-gray-900 dark:text-white">{{ t('adminTools.templateTriggerConfig.typeScheduled') }}</span>
                     </div>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">按照设定的时间周期自动检查并发送</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ t('adminTools.templateTriggerConfig.typeScheduledHint') }}</p>
                     
                     <!-- 定时配置 -->
                     <div v-if="config.trigger_type === 'scheduled'" class="mt-4 space-y-4">
@@ -411,7 +412,7 @@ watch(() => props.modelValue, async (isOpen) => {
                         </label>
                       </div>
                       <div class="flex items-center gap-3">
-                        <span class="text-sm text-gray-500">执行时间：</span>
+                        <span class="text-sm text-gray-500">{{ t('adminTools.templateTriggerConfig.executionTime') }}</span>
                         <input 
                           type="time" 
                           v-model="config.trigger_config!.time"
@@ -442,9 +443,9 @@ watch(() => props.modelValue, async (isOpen) => {
                   <div>
                     <div class="flex items-center gap-2">
                       <Hand class="w-4 h-4 text-green-500" />
-                      <span class="font-medium text-gray-900 dark:text-white">手动使用</span>
+                      <span class="font-medium text-gray-900 dark:text-white">{{ t('adminTools.templateTriggerConfig.typeManual') }}</span>
                     </div>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">用户在撰写邮件时选择此模板发送</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ t('adminTools.templateTriggerConfig.typeManualHint') }}</p>
                   </div>
                 </div>
               </label>
@@ -454,7 +455,7 @@ watch(() => props.modelValue, async (isOpen) => {
           
           <!-- 触发条件（定时触发时显示） -->
           <div v-if="config.trigger_type === 'scheduled'" class="hidden">
-            <h4 class="font-medium text-gray-900 dark:text-white mb-3">触发条件（满足条件才发送）</h4>
+            <h4 class="font-medium text-gray-900 dark:text-white mb-3">{{ t('adminTools.templateTriggerConfig.conditionsTitle') }}</h4>
             <div class="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl space-y-3">
               <div 
                 v-for="(condition, index) in config.conditions" 
@@ -465,7 +466,7 @@ watch(() => props.modelValue, async (isOpen) => {
                   v-model="condition.field"
                   class="flex-1 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-sm"
                 >
-                  <option value="">选择字段</option>
+                  <option value="">{{ t('adminTools.templateTriggerConfig.selectField') }}</option>
                   <option v-for="f in availableFields" :key="f.value" :value="f.value">{{ f.label }}</option>
                 </select>
                 <select 
@@ -478,7 +479,7 @@ watch(() => props.modelValue, async (isOpen) => {
                   v-model="condition.value"
                   type="text"
                   class="w-24 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-sm"
-                  placeholder="值"
+                  :placeholder="t('adminTools.templateTriggerConfig.valuePlaceholder')"
                 >
                 <button 
                   @click="removeCondition(index)"
@@ -491,26 +492,26 @@ watch(() => props.modelValue, async (isOpen) => {
                 @click="addCondition"
                 class="text-sm text-blue-500 hover:text-blue-600"
               >
-                + 添加条件
+                {{ t('adminTools.templateTriggerConfig.addCondition') }}
               </button>
             </div>
           </div>
           
           <!-- 发送给谁 -->
           <div v-if="config.trigger_type !== 'manual'">
-            <h4 class="font-medium text-gray-900 dark:text-white mb-3">发送给谁</h4>
+            <h4 class="font-medium text-gray-900 dark:text-white mb-3">{{ t('adminTools.templateTriggerConfig.sendTo') }}</h4>
             <div class="space-y-2">
               <label class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800">
                 <input type="radio" v-model="config.send_to_type" value="trigger_user">
                 <div>
-                  <span class="font-medium text-gray-700 dark:text-gray-300">触发事件的用户本人</span>
-                  <p class="text-xs text-gray-500 dark:text-gray-400">邮件将发送到触发此事件的用户邮箱</p>
+                  <span class="font-medium text-gray-700 dark:text-gray-300">{{ t('adminTools.templateTriggerConfig.sendToTriggerUser') }}</span>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('adminTools.templateTriggerConfig.sendToTriggerUserHint') }}</p>
                 </div>
               </label>
               <label class="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800">
                 <input type="radio" v-model="config.send_to_type" value="fixed_email" class="mt-1">
                 <div class="flex-1">
-                  <span class="font-medium text-gray-700 dark:text-gray-300">指定邮箱</span>
+                  <span class="font-medium text-gray-700 dark:text-gray-300">{{ t('adminTools.templateTriggerConfig.sendToFixedEmail') }}</span>
                   <input 
                     v-if="config.send_to_type === 'fixed_email'"
                     v-model="config.send_to_email"
@@ -522,7 +523,7 @@ watch(() => props.modelValue, async (isOpen) => {
               </label>
               <label class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800">
                 <input type="radio" v-model="config.send_to_type" value="admin">
-                <span class="font-medium text-gray-700 dark:text-gray-300">系统管理员</span>
+                <span class="font-medium text-gray-700 dark:text-gray-300">{{ t('adminTools.templateTriggerConfig.sendToAdmin') }}</span>
               </label>
             </div>
           </div>
@@ -534,21 +535,21 @@ watch(() => props.modelValue, async (isOpen) => {
               class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
             >
               <component :is="showAdvanced ? ChevronDown : ChevronRight" class="w-4 h-4" />
-              高级设置
+              {{ t('adminTools.templateTriggerConfig.advancedSettings') }}
             </button>
             <div v-if="showAdvanced" class="mt-3 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl space-y-4">
               <label class="flex items-start gap-3">
                 <input type="checkbox" :checked="config.cooldown_hours > 0" @change="config.cooldown_hours = ($event.target as HTMLInputElement).checked ? 24 : 0" class="mt-1">
                 <div>
-                  <span class="text-sm text-gray-700 dark:text-gray-300">设置冷却时间（避免重复发送）</span>
+                  <span class="text-sm text-gray-700 dark:text-gray-300">{{ t('adminTools.templateTriggerConfig.cooldownToggle') }}</span>
                   <div v-if="config.cooldown_hours > 0" class="flex items-center gap-2 mt-2">
-                    <span class="text-sm text-gray-500">冷却时间：</span>
+                    <span class="text-sm text-gray-500">{{ t('adminTools.templateTriggerConfig.cooldownLabel') }}</span>
                     <input 
                       v-model.number="config.cooldown_hours"
                       type="number" 
                       class="w-20 px-3 py-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-sm"
                     >
-                    <span class="text-sm text-gray-500">小时</span>
+                    <span class="text-sm text-gray-500">{{ t('adminTools.templateTriggerConfig.hours') }}</span>
                   </div>
                 </div>
               </label>
@@ -559,7 +560,7 @@ watch(() => props.modelValue, async (isOpen) => {
           <div v-if="config.trigger_type === 'user_event' && selectedEventVariables.length > 0" class="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/50 rounded-xl">
             <div class="flex items-center gap-2 mb-3">
               <Info class="w-4 h-4 text-green-600 dark:text-green-400" />
-              <span class="font-medium text-green-700 dark:text-green-400">此事件触发时可用的变量：</span>
+              <span class="font-medium text-green-700 dark:text-green-400">{{ t('adminTools.templateTriggerConfig.eventVariablesHint') }}</span>
             </div>
             <div class="flex flex-wrap gap-2">
               <code 
@@ -580,7 +581,7 @@ watch(() => props.modelValue, async (isOpen) => {
             @click="close"
             class="px-5 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition"
           >
-            取消
+            {{ t('adminTools.common.cancel') }}
           </button>
           <button
             @click="save"
@@ -588,7 +589,7 @@ watch(() => props.modelValue, async (isOpen) => {
             class="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium disabled:opacity-50"
           >
             <Loader2 v-if="saving" class="w-4 h-4 animate-spin" />
-            <span>{{ saving ? '保存中...' : '保存设置' }}</span>
+            <span>{{ saving ? t('adminTools.common.saving') : t('adminTools.templateTriggerConfig.saveSettings') }}</span>
           </button>
         </div>
         
