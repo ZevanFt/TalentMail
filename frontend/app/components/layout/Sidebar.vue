@@ -8,6 +8,7 @@ import {
 
 const toast = useToast()
 const { confirm: confirmDialog } = useConfirmDialog()
+const { t } = useI18n()
 const { isComposeOpen, requestCloseCompose, requestOpenCompose } = useGlobalModal()
 const { folders, currentFolderId, loadEmails, loadFolders, loadFilteredEmails, loadSnoozedEmails, loadAllEmails, currentFilter } = useEmails()
 const { token, getTags, createTag, updateTag, deleteTag, getExternalAccounts, createExternalAccount, createFolder, updateFolder, deleteFolder } = useApi()
@@ -333,12 +334,12 @@ onMounted(async () => {
   }
 })
 
-const tools = [
+const tools = computed(() => [
   { name: '附件中心', icon: Paperclip, to: '/attachments' },
-  { name: '通讯录', icon: Users, to: '/contacts' },
-  { name: '文件中转站', icon: Cloud, to: '/drive' },
-  { name: '日历', icon: CalendarDays, to: '/calendar' },
-]
+  { name: t('nav.contacts'), icon: Users, to: '/contacts' },
+  { name: t('drive.title'), icon: Cloud, to: '/drive' },
+  { name: t('nav.calendar'), icon: CalendarDays, to: '/calendar' },
+])
 
 const isActive = (path: string) => route.path === path
 </script>
@@ -354,7 +355,7 @@ const isActive = (path: string) => route.path === path
       <button @click="openComposePanel"
         class="w-full bg-primary hover:bg-primary-hover active:scale-95 text-white py-2.5 rounded-lg flex items-center justify-center gap-2 font-bold shadow-md shadow-purple-500/20 transition-all duration-200 text-sm">
         <Plus class="w-4 h-4" stroke-width="2.5" />
-        写邮件
+        {{ t('nav.compose') }}
       </button>
     </div>
 
@@ -459,7 +460,7 @@ const isActive = (path: string) => route.path === path
       <div class="mt-1">
         <button @click="toggle('tags')" class="nav-item group w-full text-left">
           <component :is="isOpen.tags ? ChevronDown : ChevronRight" class="w-4 h-4 shrink-0 text-inherit" />
-          <span class="flex-1 truncate">邮件标签</span>
+          <span class="flex-1 truncate">{{ t('nav.mailTags') }}</span>
         </button>
 
         <Transition name="slide">
@@ -545,7 +546,7 @@ const isActive = (path: string) => route.path === path
         <div class="p-1 bg-primary/10 rounded-md shrink-0">
           <Box class="w-4 h-4 text-primary group-hover:scale-105 transition-transform" />
         </div>
-        <span class="font-bold text-sm truncate">账号池</span>
+        <span class="font-bold text-sm truncate">{{ t('nav.pool') }}</span>
       </a>
     </div>
   </aside>

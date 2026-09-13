@@ -12,7 +12,8 @@ const router = useRouter()
 
 definePageMeta({ layout: 'pool' })
 const config = useConfig()
-useHead({ title: `临时邮箱 - ${config.appName}` })
+const { t } = useI18n()
+useHead({ title: computed(() => `${t('pool.title')} - ${config.appName}`) })
 
 // 权限检查
 const hasAccess = ref(false)
@@ -338,7 +339,7 @@ watch(isGenerateOpen, (val) => {
                     </button>
                     <div class="font-bold text-gray-900 dark:text-white flex items-center gap-2">
                         <Box class="w-5 h-5 text-primary" />
-                        账号池
+                        {{ t('pool.title') }}
                     </div>
                 </div>
 
@@ -431,13 +432,13 @@ watch(isGenerateOpen, (val) => {
                             v-if="selectedMailbox?.status === 'active'"
                             @click="handleExtendSelected"
                             class="btn-tool !px-2.5 !py-1 text-xs">
-                            续期
+                            {{ t('pool.extend') }}
                         </button>
                         <button
                             v-if="selectedMailbox?.status === 'expired_recoverable'"
                             @click="handleRestoreSelected"
                             class="btn-tool !px-2.5 !py-1 text-xs">
-                            恢复
+                            {{ t('pool.restore') }}
                         </button>
                         <button @click="loadEmails" class="text-gray-400 hover:text-primary transition-colors">
                             <RefreshCw class="w-4 h-4" />
@@ -489,7 +490,7 @@ watch(isGenerateOpen, (val) => {
                         <button @click="isGenerateOpen = true"
                             class="flex items-center gap-2 px-4 py-1.5 bg-primary text-white rounded-lg hover:bg-primary-hover shadow-md shadow-primary/20 transition-all font-medium text-sm ml-2 whitespace-nowrap"
                             :class="{ '!px-2 !py-1 !text-xs !ml-1': isMobile }">
-                            <Plus class="w-4 h-4" /> <span :class="{ 'hidden': isMobile }">生成临时邮箱</span>
+                            <Plus class="w-4 h-4" /> <span :class="{ 'hidden': isMobile }">{{ t('pool.create') }}</span>
                         </button>
                     </div>
                 </div>

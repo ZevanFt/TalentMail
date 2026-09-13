@@ -441,7 +441,20 @@ async def create_workflow(
     db.add(workflow)
     db.commit()
     db.refresh(workflow)
-    
+
+    try:
+        from core.audit import record_operation
+        record_operation(
+            db,
+            action="workflow.create",
+            user_id=current_user.id,
+            resource_type="workflow",
+            resource_id=workflow.id,
+            detail={"name": data.name, "category": data.category},
+        )
+    except Exception:
+        pass
+
     return workflow
 
 

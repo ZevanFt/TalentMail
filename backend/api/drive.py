@@ -169,6 +169,18 @@ async def upload_file(
     db.add(drive_file)
     db.commit()
     db.refresh(drive_file)
+    try:
+        from core.audit import record_operation
+        record_operation(
+            db,
+            action="drive.upload",
+            user_id=user.id,
+            resource_type="drive_file",
+            resource_id=drive_file.id,
+            detail={"filename": file.filename, "size": total_size},
+        )
+    except Exception:
+        pass
     return drive_file
 
 

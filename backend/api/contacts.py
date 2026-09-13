@@ -173,6 +173,18 @@ def create_contact(data: ContactCreate, db: Session = Depends(get_db), user: Use
     db.add(contact)
     db.commit()
     db.refresh(contact)
+    try:
+        from core.audit import record_operation
+        record_operation(
+            db,
+            action="contact.create",
+            user_id=user.id,
+            resource_type="contact",
+            resource_id=contact.id,
+            detail={"email": data.email},
+        )
+    except Exception:
+        pass
     return contact
 
 
@@ -199,8 +211,22 @@ def delete_contact(contact_id: int, db: Session = Depends(get_db), user: User = 
     contact = db.query(Contact).filter(Contact.id == contact_id, Contact.owner_id == user.id).first()
     if not contact:
         raise HTTPException(404, "联系人不存在")
+    deleted_id = contact.id
+    deleted_email = contact.email
     db.delete(contact)
     db.commit()
+    try:
+        from core.audit import record_operation
+        record_operation(
+            db,
+            action="contact.delete",
+            user_id=user.id,
+            resource_type="contact",
+            resource_id=deleted_id,
+            detail={"email": deleted_email},
+        )
+    except Exception:
+        pass
     return {"status": "success", "message": "删除成功"}
 
 

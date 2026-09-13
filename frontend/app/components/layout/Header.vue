@@ -2,6 +2,7 @@
 import { Search, Moon, Sun, Settings, Mail, X, LogOut, Crown, HardDrive, Copy, Check, Keyboard, Menu as MenuIcon, SlidersHorizontal, Paperclip, Star, Eye } from 'lucide-vue-next'
 const router = useRouter()
 const { isDark, toggleTheme } = useTheme()
+const { t } = useI18n()
 const { search, clearSearch, searchQuery, searchFilters, isSearching, folders } = useEmails()
 const { getMe, getStorageStats, getSubscriptionStatus, logout } = useApi()
 const { showShortcutsHelp } = useKeyboardShortcuts()
@@ -154,7 +155,7 @@ onUnmounted(() => {
               <div class="relative group">
                 <Search
                     class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors" />
-                <input v-model="localQuery" @input="handleInput" @keyup.enter="handleEnter" type="text" placeholder="搜索邮件..."
+                <input v-model="localQuery" @input="handleInput" @keyup.enter="handleEnter" type="text" :placeholder="t('nav.searchMail')"
                     data-search-input
                     class="w-full bg-gray-100 dark:bg-gray-800 border-transparent focus:bg-white dark:focus:bg-gray-900 border border-transparent focus:border-primary/20 rounded-lg py-1.5 pl-9 pr-20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all text-gray-900 dark:text-white placeholder-gray-400">
                 <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
@@ -248,7 +249,7 @@ onUnmounted(() => {
             </button>
             <button @click="router.push('/settings')"
                 class="hidden lg:block p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
-                title="设置">
+                :title="t('nav.settings')">
                 <Settings class="w-4 h-4" />
             </button>
             
@@ -327,11 +328,11 @@ onUnmounted(() => {
                     <div class="p-2">
                         <button @click="router.push('/settings')" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
                             <Settings class="w-4 h-4" />
-                            设置
+                            {{ t('nav.settings') }}
                         </button>
                         <button @click="handleLogout" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
                             <LogOut class="w-4 h-4" />
-                            退出登录
+                            {{ t('auth.logout') }}
                         </button>
                     </div>
                 </div>
