@@ -203,6 +203,26 @@ async def send_email_endpoint(
             background_tasks.add_task(send_email_task)
             logger.info(f"邮件发送任务已成功加入后台队列。")
 
+        # 操作审计：发信请求入队
+        try:
+            from core.audit import record_operation
+            record_operation(
+                db,
+                action="email.send",
+                user_id=current_user.id,
+                actor_type="user",
+                resource_type="email",
+                resource_id=db_email.id,
+                detail={
+                    "to_count": len(email_in.to or []),
+                    "subject": (email_in.subject or "")[:120],
+                    "scheduled": bool(email_in.scheduled_send_at),
+                    "tracked": bool(email_in.is_tracked),
+                },
+            )
+        except Exception as audit_err:
+            logger.error(f"发信审计写入失败: {audit_err}")
+
         # 3. Return the initial DB record immediately
         logger.info(f"立即向客户端返回已创建的邮件记录 (ID: {db_email.id})。")
         return db_email

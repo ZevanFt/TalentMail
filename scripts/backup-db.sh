@@ -1,22 +1,29 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────
-# TalentMail — PostgreSQL 数据库备份脚本
+# TalentMail — PostgreSQL + uploads 备份脚本
 #
 # 用法:
-#   ./scripts/backup-db.sh              # 交互式执行
-#   systemctl start talentmail-backup   # systemd timer 触发
+#   ./scripts/backup-db.sh
+#   systemctl start talentmail-backup
 #
-# 备份位置: /var/backups/talentmail/
-# 保留策略: 最近 7 份（可通过 TALENTMAIL_BACKUP_KEEP 覆盖）
+# 环境变量:
+#   TALENTMAIL_BACKUP_DIR       备份目录，默认 /var/backups/talentmail
+#   TALENTMAIL_BACKUP_KEEP      保留份数，默认 7
+#   TALENTMAIL_BACKUP_ENCRYPT   设为 1 启用 openssl AES-256-GCM 加密
+#   TALENTMAIL_BACKUP_PASSPHRASE 加密口令（启用加密时必填）
+#   TALENTMAIL_BACKUP_UPLOADS   设为 1 同时打包 uploads 附件目录
+#   TALENTMAIL_UPLOADS_DIR      uploads 路径，默认 backend/uploads
 # ─────────────────────────────────────────────────────
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BACKUP_DIR="${TALENTMAIL_BACKUP_DIR:-/var/backups/talentmail}"
 KEEP_COUNT="${TALENTMAIL_BACKUP_KEEP:-7}"
+ENCRYPT="${TALENTMAIL_BACKUP_ENCRYPT:-0}"
+PASSPHRASE="${TALENTMAIL_BACKUP_PASSPHRASE:-}"
+BACKUP_UPLOADS="${TALENTMAIL_BACKUP_UPLOADS:-0}"
+UPLOADS_DIR="${TALENTMAIL_UPLOADS_DIR:-$ROOT/backend/uploads}"
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
-BACKUP_FILE="talentmail-${TIMESTAMP}.sql.gz"
-TMP_FILE="${BACKUP_DIR}/.${BACKUP_FILE}.tmp"
 
 # ── 颜色 ──
 RED='\033[0;31m'
@@ -34,7 +41,6 @@ if [ ! -f "$ROOT/.env" ]; then
     exit 1
 fi
 
-# 从 .env 读取数据库配置
 set -a
 # shellcheck disable=SC1091
 source "$ROOT/.env"
@@ -43,7 +49,11 @@ set +a
 PG_USER="${POSTGRES_USER:?POSTGRES_USER 未设置}"
 PG_DB="${POSTGRES_DB:?POSTGRES_DB 未设置}"
 
-# 检查 docker compose 可用
+if [ "$ENCRYPT" = "1" ] && [ -z "$PASSPHRASE" ]; then
+    err "已启用加密但未设置 TALENTMAIL_BACKUP_PASSPHRASE"
+    exit 1
+fi
+
 DB_STATE=$(docker compose -f "$ROOT/docker-compose.yml" ps db --format json 2>/dev/null \
     | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('State',''))" 2>/dev/null || true)
 if [ "$DB_STATE" != "running" ]; then
@@ -51,27 +61,64 @@ if [ "$DB_STATE" != "running" ]; then
     exit 1
 fi
 
-# ── 创建备份目录 ──
 mkdir -p "$BACKUP_DIR"
+chmod 700 "$BACKUP_DIR" 2>/dev/null || true
 
-# ── 执行备份 ──
+# ── 数据库备份 ──
+DB_BASE="talentmail-${TIMESTAMP}.sql.gz"
+DB_OUT="${BACKUP_DIR}/${DB_BASE}"
+TMP_FILE="${BACKUP_DIR}/.${DB_BASE}.tmp"
+
 log "开始备份 TalentMail 数据库 (${PG_DB})..."
-
 docker compose -f "$ROOT/docker-compose.yml" exec -T db \
     pg_dump -U "$PG_USER" -d "$PG_DB" --no-owner --no-acl \
     | gzip > "$TMP_FILE"
 
-# ── 校验 ──
 if [ ! -s "$TMP_FILE" ]; then
     err "备份文件为空，备份失败！"
     rm -f "$TMP_FILE"
     exit 1
 fi
 
-# 原子重命名
-mv "$TMP_FILE" "${BACKUP_DIR}/${BACKUP_FILE}"
-BACKUP_SIZE=$(du -h "${BACKUP_DIR}/${BACKUP_FILE}" | cut -f1)
-log "备份完成: ${BACKUP_DIR}/${BACKUP_FILE} (${BACKUP_SIZE})"
+if [ "$ENCRYPT" = "1" ]; then
+    log "使用 openssl AES-256-GCM 加密..."
+    ENC_TMP="${TMP_FILE}.enc"
+    # -pbkdf2 提高抗暴力破解能力；salt 每次随机
+    openssl enc -aes-256-gcm -pbkdf2 -iter 200000 -salt \
+        -pass pass:"$PASSPHRASE" -in "$TMP_FILE" -out "$ENC_TMP"
+    mv "$ENC_TMP" "$DB_OUT.enc"
+    rm -f "$TMP_FILE"
+    DB_OUT="${DB_OUT}.enc"
+    DB_BASE="${DB_BASE}.enc"
+else
+    mv "$TMP_FILE" "$DB_OUT"
+fi
+
+chmod 600 "$DB_OUT" 2>/dev/null || true
+BACKUP_SIZE=$(du -h "$DB_OUT" | cut -f1)
+log "数据库备份完成: ${DB_OUT} (${BACKUP_SIZE})"
+
+# ── uploads 备份（可选） ──
+if [ "$BACKUP_UPLOADS" = "1" ]; then
+    if [ -d "$UPLOADS_DIR" ]; then
+        UP_BASE="talentmail-uploads-${TIMESTAMP}.tar.gz"
+        UP_OUT="${BACKUP_DIR}/${UP_BASE}"
+        log "打包 uploads: ${UPLOADS_DIR} ..."
+        tar -czf "$UP_OUT.tmp" -C "$(dirname "$UPLOADS_DIR")" "$(basename "$UPLOADS_DIR")"
+        if [ "$ENCRYPT" = "1" ]; then
+            openssl enc -aes-256-gcm -pbkdf2 -iter 200000 -salt \
+                -pass pass:"$PASSPHRASE" -in "$UP_OUT.tmp" -out "$UP_OUT.enc"
+            rm -f "$UP_OUT.tmp"
+            UP_OUT="${UP_OUT}.enc"
+        else
+            mv "$UP_OUT.tmp" "$UP_OUT"
+        fi
+        chmod 600 "$UP_OUT" 2>/dev/null || true
+        log "uploads 备份完成: ${UP_OUT} ($(du -h "$UP_OUT" | cut -f1))"
+    else
+        warn "uploads 目录不存在，跳过: ${UPLOADS_DIR}"
+    fi
+fi
 
 # ── 轮转旧备份 ──
 if ! [[ "$KEEP_COUNT" =~ ^[1-9][0-9]*$ ]]; then
@@ -79,15 +126,22 @@ if ! [[ "$KEEP_COUNT" =~ ^[1-9][0-9]*$ ]]; then
     exit 0
 fi
 
-# 按时间排序，删除超出保留数量的旧文件
-BACKUP_COUNT=0
-while IFS= read -r old_backup; do
-    BACKUP_COUNT=$((BACKUP_COUNT + 1))
-    if [ "$BACKUP_COUNT" -gt "$KEEP_COUNT" ]; then
-        rm -f "$old_backup"
-        log "已删除旧备份: $(basename "$old_backup")"
-    fi
-done < <(ls -1t "${BACKUP_DIR}"/talentmail-*.sql.gz 2>/dev/null)
+rotate() {
+    local pattern="$1"
+    local count=0
+    while IFS= read -r old_backup; do
+        count=$((count + 1))
+        if [ "$count" -gt "$KEEP_COUNT" ]; then
+            rm -f "$old_backup"
+            log "已删除旧备份: $(basename "$old_backup")"
+        fi
+    done < <(ls -1t ${BACKUP_DIR}/${pattern} 2>/dev/null || true)
+}
 
-REMAINING=$(ls -1 "${BACKUP_DIR}"/talentmail-*.sql.gz 2>/dev/null | wc -l)
-log "当前备份数: ${REMAINING}/${KEEP_COUNT}"
+rotate "talentmail-*.sql.gz"
+rotate "talentmail-*.sql.gz.enc"
+rotate "talentmail-uploads-*.tar.gz"
+rotate "talentmail-uploads-*.tar.gz.enc"
+
+REMAINING=$(ls -1 "${BACKUP_DIR}"/talentmail-* 2>/dev/null | wc -l)
+log "当前备份文件数: ${REMAINING}"

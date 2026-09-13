@@ -17,6 +17,7 @@ export default {
     weekView: '周',
     newEvent: '新建事件',
     importIcs: '导入 .ics',
+    exportIcs: '导出 .ics',
     importing: '导入中...',
     loadFailed: '加载日历失败',
     noEvents: '暂无事件',

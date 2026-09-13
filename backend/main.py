@@ -244,6 +244,38 @@ async def periodic_audit_log_cleanup(interval: int = 86400):
             logger.error(f"审计日志清理失败: {e}")
 
 
+async def periodic_health_monitor(interval: int = 300):
+    """定期检查后台任务与邮件队列，异常时发 Webhook 告警。"""
+    from core.alerting import get_mail_queue_depth, send_webhook_alert
+
+    while True:
+        await asyncio.sleep(interval)
+        try:
+            tasks = get_task_status()
+            dead = [n for n, s in tasks.items() if not s["running"]]
+            if dead:
+                send_webhook_alert(
+                    title="TalentMail 后台任务异常",
+                    message=f"以下任务未运行: {', '.join(dead)}",
+                    level="error",
+                    extra={"dead_tasks": dead},
+                    alert_key="dead_tasks:" + ",".join(sorted(dead)),
+                )
+
+            depth = get_mail_queue_depth()
+            threshold = getattr(settings, "MAIL_QUEUE_WARN_THRESHOLD", 50)
+            if depth is not None and depth >= threshold:
+                send_webhook_alert(
+                    title="TalentMail 邮件队列积压",
+                    message=f"当前队列深度 {depth}，阈值 {threshold}",
+                    level="warning",
+                    extra={"mail_queue_depth": depth, "threshold": threshold},
+                    alert_key="mail_queue",
+                )
+        except Exception as e:
+            logger.error(f"[HealthMonitor] 检查失败: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Initialize the database and create the initial admin user
@@ -278,6 +310,7 @@ async def lifespan(app: FastAPI):
     _register_task("orphan_attachment_cleanup", periodic_orphan_attachment_cleanup, interval=3600)
     _register_task("snooze_check", periodic_snooze_check, interval=60)
     _register_task("audit_log_cleanup", periodic_audit_log_cleanup, interval=86400)
+    _register_task("health_monitor", periodic_health_monitor, interval=300)
     logger.info("已注册 %d 个后台任务（崩溃自动恢复已启用）", len(_background_tasks))
 
     # 启动时先执行一次会话清理

@@ -16,6 +16,7 @@ export default {
     weekView: 'Week',
     newEvent: 'New Event',
     importIcs: 'Import .ics',
+    exportIcs: 'Export .ics',
     importing: 'Importing...',
     loadFailed: 'Failed to load calendar',
     noEvents: 'No events',

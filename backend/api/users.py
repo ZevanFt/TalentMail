@@ -520,9 +520,23 @@ def admin_delete_user(
             pass
     if cleaned > 0:
         logger.info(f"用户 {email} 删除：清理了 {cleaned} 个磁盘文件")
-    
+
     logger.info(f"管理员 {current_user.email} 删除了用户 {email}")
-    
+
+    try:
+        from core.audit import record_operation
+        record_operation(
+            db,
+            action="admin.user.delete",
+            user_id=current_user.id,
+            actor_type="admin",
+            resource_type="user",
+            resource_id=user_id,
+            detail={"deleted_email": email, "disk_files_cleaned": cleaned},
+        )
+    except Exception as audit_err:
+        logger.error(f"用户删除审计写入失败: {audit_err}")
+
     return {"status": "success", "message": f"用户 {email} 已删除"}
 
 

@@ -59,6 +59,11 @@ class Settings(BaseSettings):
     # 审计日志保留天数（超过此天数的日志将被自动清理）
     AUDIT_LOG_RETENTION_DAYS: int = 30
 
+    # 监控告警
+    ALERT_WEBHOOK_URL: str = ""  # 空则不发送告警
+    ALERT_COOLDOWN_SECONDS: int = 1800  # 同类告警冷却
+    MAIL_QUEUE_WARN_THRESHOLD: int = 50
+
     # --- Dynamically generated attributes ---
     DOMAIN: str = ""
     API_BASE_URL: str = ""

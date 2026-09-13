@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Plus, Upload, Loader2 } from 'lucide-vue-nex
 const config = useConfig()
 useHead({ title: `日历 - ${config.appName}` })
 const toast = useToast()
-const { getCalendarEvents, importIcs } = useApi()
+const { getCalendarEvents, importIcs, exportCalendarIcs } = useApi()
 const { t, locale } = useI18n()
 
 // ---- 视图模式：月 / 周 ----
@@ -254,8 +254,9 @@ const selectDate = (day: CalendarDay) => {
   selectedDate.value = day.date
 }
 
-// ---- .ics 导入 ----
+// ---- .ics 导入/导出 ----
 const importingIcs = ref(false)
+const exportingIcs = ref(false)
 const handleIcsImport = async (e: Event) => {
   const input = e.target as HTMLInputElement
   if (!input.files?.length) return
@@ -273,6 +274,18 @@ const handleIcsImport = async (e: Event) => {
   } finally {
     importingIcs.value = false
     input.value = ''
+  }
+}
+
+const handleIcsExport = async () => {
+  exportingIcs.value = true
+  try {
+    await exportCalendarIcs()
+    toast.success('已导出 .ics')
+  } catch (e: any) {
+    toast.error(e?.data?.detail || '导出失败')
+  } finally {
+    exportingIcs.value = false
   }
 }
 
@@ -320,6 +333,13 @@ onMounted(loadEvents)
             {{ importingIcs ? t('calendar.importing') : t('calendar.importIcs') }}
             <input type="file" accept=".ics" class="hidden" @change="handleIcsImport" :disabled="importingIcs" />
           </label>
+          <button
+            @click="handleIcsExport"
+            :disabled="exportingIcs"
+            class="px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
+          >
+            {{ exportingIcs ? '...' : t('calendar.exportIcs') }}
+          </button>
           <button @click="openNewEvent()" class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary-hover transition-colors">
             <Plus class="w-4 h-4" /> {{ t('calendar.newEvent') }}
           </button>

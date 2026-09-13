@@ -122,7 +122,20 @@ def list_backups(
     keep = int(os.getenv("TALENTMAIL_BACKUP_KEEP", "7"))
     items: List[BackupFileItem] = []
     if BACKUP_DIR.exists():
-        for path in sorted(BACKUP_DIR.glob("talentmail-*.sql.gz"), key=lambda p: p.stat().st_mtime, reverse=True):
+        patterns = (
+            "talentmail-*.sql.gz",
+            "talentmail-*.sql.gz.enc",
+            "talentmail-uploads-*.tar.gz",
+            "talentmail-uploads-*.tar.gz.enc",
+        )
+        seen = set()
+        paths = []
+        for pattern in patterns:
+            for path in BACKUP_DIR.glob(pattern):
+                if path.name not in seen:
+                    seen.add(path.name)
+                    paths.append(path)
+        for path in sorted(paths, key=lambda p: p.stat().st_mtime, reverse=True):
             st = path.stat()
             items.append(
                 BackupFileItem(

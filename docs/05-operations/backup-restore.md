@@ -12,6 +12,30 @@ TalentMail 支持 PostgreSQL 数据库备份，可由脚本、systemd timer 或�
 默认输出：`/var/backups/talentmail/talentmail-YYYYMMDD-HHMMSS.sql.gz`  
 保留份数：最近 7 份（环境变量 `TALENTMAIL_BACKUP_KEEP` 可覆盖）
 
+### 加密与附件打包
+
+```bash
+# 启用 openssl AES-256-GCM 加密
+export TALENTMAIL_BACKUP_ENCRYPT=1
+export TALENTMAIL_BACKUP_PASSPHRASE='请换成强口令'
+
+# 同时打包 backend/uploads
+export TALENTMAIL_BACKUP_UPLOADS=1
+export TALENTMAIL_UPLOADS_DIR=/opt/talentmail/backend/uploads
+
+./scripts/backup-db.sh
+```
+
+加密文件后缀为 `.enc`。解密示例：
+
+```bash
+openssl enc -d -aes-256-gcm -pbkdf2 -iter 200000 \
+  -pass pass:"$TALENTMAIL_BACKUP_PASSPHRASE" \
+  -in talentmail-xxx.sql.gz.enc -out talentmail-xxx.sql.gz
+```
+
+**口令务必单独保管，丢了备份就废了。**
+
 ## 2. 定时备份（systemd）
 
 ```bash
@@ -78,5 +102,7 @@ curl -H "Authorization: Bearer $ADMIN_TOKEN" \
 ## 6. 注意事项
 
 - 备份脚本依赖运行中的 `db` 容器
-- 生产建议同时备份 `backend/uploads` 附件目录（可用 rsync/tar）
-- 备份文件含敏感数据，磁盘权限建议 `700`，不要放入公开目录
+- 生产建议开启 `TALENTMAIL_BACKUP_UPLOADS=1` 备份附件
+- 建议开启 `TALENTMAIL_BACKUP_ENCRYPT=1`，口令放密码管理器
+- 备份目录权限 `700`，文件 `600`（脚本已自动设置）
+- 恢复加密备份前先解密，再 `restore-db.sh`

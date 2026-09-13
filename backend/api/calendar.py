@@ -9,9 +9,11 @@ from pydantic import BaseModel, field_validator
 
 from db.database import get_db
 from api.deps import get_current_user
+from core.config import settings
 from db.models.user import User
 from db.models.calendar import CalendarEvent
 from core.calendar_recurrence import expand_event_occurrences
+from core.calendar_ics import build_rrule
 from utils.rate_limit import SlidingWindowLimiter
 
 logger = logging.getLogger(__name__)
@@ -258,6 +260,66 @@ def delete_event(
     db.commit()
     logger.info(f"用户 {user.id} 删除日历事件: id={event_id}, title={event_title}")
     return {"status": "success", "message": "事件已删除"}
+
+
+@router.get("/export.ics")
+def export_ics(
+    start: Optional[datetime] = Query(None),
+    end: Optional[datetime] = Query(None),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """导出用户日历为标准 .ics 文件"""
+    if not _ics_limiter.allow(f"ics_export:{user.id}"):
+        raise HTTPException(429, "导出过于频繁，请稍后再试")
+
+    query = db.query(CalendarEvent).filter(CalendarEvent.user_id == user.id)
+    if start:
+        query = query.filter(CalendarEvent.end_time >= start)
+    if end:
+        query = query.filter(CalendarEvent.start_time <= end)
+    events = query.order_by(CalendarEvent.start_time.asc()).limit(MAX_EVENTS_PER_USER).all()
+
+    try:
+        from icalendar import Calendar, Event as ICalEvent
+    except ImportError:
+        raise HTTPException(500, "服务端缺少 icalendar 依赖")
+
+    from datetime import timezone as _tz
+    cal = Calendar()
+    cal.add("prodid", "-//TalentMail//Calendar Export//EN")
+    cal.add("version", "2.0")
+    cal.add("calscale", "GREGORIAN")
+
+    now = datetime.now(_tz.utc)
+    for ev in events:
+        item = ICalEvent()
+        item.add("uid", f"talentmail-{ev.id}@{settings.BASE_DOMAIN}")
+        item.add("summary", ev.title or "(no title)")
+        item.add("dtstart", ev.start_time)
+        item.add("dtend", ev.end_time)
+        item.add("dtstamp", now)
+        if ev.description:
+            item.add("description", ev.description)
+        if ev.location:
+            item.add("location", ev.location)
+        if ev.all_day:
+            item.add("transp", "TRANSPARENT")
+        # 简化 RRULE 映射
+        rrule = build_rrule(ev.recurrence, ev.recurrence_until)
+        if rrule:
+            item.add("rrule", rrule)
+        cal.add_component(item)
+
+    body = cal.to_ical()
+    from fastapi.responses import Response
+    return Response(
+        content=body,
+        media_type="text/calendar; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="talentmail-calendar-{now.strftime("%Y%m%d")}.ics"',
+        },
+    )
 
 
 @router.post("/import-ics", response_model=IcsImportResult)

@@ -76,6 +76,19 @@ async def health_check(db: Session = Depends(get_db)):
         disk_info["error"] = str(e)
     checks["disk"] = disk_info
 
+    # 邮件队列（可选，探测失败不影响健康判定）
+    try:
+        from core.alerting import get_mail_queue_depth
+        queue_depth = get_mail_queue_depth()
+        checks["mail_queue"] = {"depth": queue_depth}
+        if queue_depth is not None:
+            from core.config import settings as _s
+            threshold = getattr(_s, "MAIL_QUEUE_WARN_THRESHOLD", 50)
+            if queue_depth >= threshold:
+                checks["mail_queue"]["warning"] = f"队列积压 {queue_depth}（阈值 {threshold}）"
+    except Exception as e:
+        checks["mail_queue"] = {"depth": None, "error": str(e)}
+
     # 运行时长
     uptime = round(time.time() - _PROCESS_START, 1)
     checks["uptime_seconds"] = uptime
@@ -84,7 +97,8 @@ async def health_check(db: Session = Depends(get_db)):
     if not db_ok:
         return JSONResponse(status_code=503, content={"status": "unhealthy", "service": "talentmail-backend", **checks})
 
-    overall = "healthy" if not checks.get("dead_tasks") else "degraded"
+    degraded = bool(checks.get("dead_tasks")) or bool(checks.get("mail_queue", {}).get("warning"))
+    overall = "degraded" if degraded else "healthy"
     return {"status": overall, "service": "talentmail-backend", **checks}
 
 
