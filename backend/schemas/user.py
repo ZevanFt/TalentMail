@@ -28,6 +28,7 @@ class UserRead(BaseModel):
     storage_used_bytes: int
     role: str  # 用户角色
     pool_enabled: bool = False
+    sso_bound: bool = False  # 是否绑定认证中心（SSO）
     recovery_email: Optional[str] = None  # 安全辅助邮箱
     # 通知设置
     enable_desktop_notifications: bool = True

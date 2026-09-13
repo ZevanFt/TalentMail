@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from api import deps
 from core import security
 from core.config import settings
 from db.database import get_db
@@ -201,6 +202,52 @@ def sso_status():
     }
 
 
+class MySsoStatusResponse(BaseModel):
+    sso_bound: bool
+    auth_center_url: Optional[str] = None
+    mfa_enabled: bool = False
+    auth_center_session_active: bool = False
+    display_name: Optional[str] = None
+
+
+@router.get("/my-status", response_model=MySsoStatusResponse)
+async def my_sso_status(
+    current_user = Depends(deps.get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """当前用户的认证中心绑定状态与认证中心侧 MFA(TOTP) 是否开启。
+
+    TOTP 密钥只存在认证中心，这里仅回显状态；管理入口在认证中心个人页。
+    """
+    if not settings.SSO_ENABLED or not current_user.sso_user_id:
+        return MySsoStatusResponse(sso_bound=False)
+
+    status = MySsoStatusResponse(
+        sso_bound=True,
+        auth_center_url=settings.SSO_AUTH_CENTER_URL,
+    )
+    # 用本地邮箱到认证中心 introspect（与单点登出校验同一通道）
+    username = current_user.email.strip()
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            resp = await client.post(
+                f"{settings.SSO_AUTH_CENTER_URL}/api/sso/introspect",
+                json={
+                    "client_id": settings.SSO_CLIENT_ID,
+                    "client_secret": settings.SSO_CLIENT_SECRET or "",
+                    "username": username,
+                },
+            )
+        if resp.status_code == 200:
+            data = resp.json() or {}
+            status.mfa_enabled = bool(data.get("mfa_enabled", False))
+            status.auth_center_session_active = bool(data.get("active", False))
+            status.display_name = data.get("display_name")
+    except httpx.RequestError as e:
+        logger.warning(f"SSO my-status: introspect 请求失败（不影响绑定展示）: {e}")
+    return status
+
+
 class SSOIntrospectRequest(BaseModel):
     username: Optional[str] = None
     email: Optional[str] = None
@@ -218,6 +265,7 @@ class SSOIntrospectResponse(BaseModel):
 async def sso_introspect(
     body: SSOIntrospectRequest,
     db: Session = Depends(get_db),
+    current_user = Depends(deps.get_current_active_user),
 ):
     """
     查询用户在认证中心是否仍有有效会话。

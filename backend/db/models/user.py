@@ -48,6 +48,11 @@ class User(Base):
     pgp_key_created_at = Column(DateTime(timezone=True), nullable=True, comment="PGP公钥上传时间")
     sso_user_id = Column(String(64), unique=True, nullable=True, index=True, comment="auth-center SSO 用户 ID (user_xxxx)")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="用户账户创建时间")
+
+    @property
+    def sso_bound(self) -> bool:
+        """是否已绑定认证中心账号（经 SSO 登录自动关联）。"""
+        return bool(self.sso_user_id)
     
     # 关系
     automation_rules = relationship("AutomationRule", back_populates="owner", cascade="all, delete-orphan")

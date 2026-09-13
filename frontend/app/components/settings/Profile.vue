@@ -1,13 +1,29 @@
 <script setup lang="ts">
-import { Camera } from 'lucide-vue-next'
+import { Camera, ExternalLink, Link2, ShieldCheck, ShieldOff } from 'lucide-vue-next'
 
-const { getMe, updateMe } = useApi()
+const { getMe, updateMe, getMySsoStatus } = useApi()
 const toast = useToast()
 
 const user = ref<AppUser | null>(null)
 const loading = ref(true)
 const saving = ref(false)
 const message = ref('')
+
+// 认证中心绑定状态（TOTP 密钥在认证中心，这里仅展示状态）
+const ssoStatus = ref<{ sso_bound: boolean; auth_center_url: string | null; mfa_enabled: boolean; auth_center_session_active: boolean } | null>(null)
+
+const loadSsoStatus = async () => {
+    try {
+        ssoStatus.value = await getMySsoStatus()
+    } catch {
+        ssoStatus.value = null
+    }
+}
+
+const mfaManageUrl = computed(() => {
+    if (!ssoStatus.value?.sso_bound || !ssoStatus.value.auth_center_url) return ''
+    return `${ssoStatus.value.auth_center_url}/profile`
+})
 
 const form = reactive({
     displayName: '',
@@ -46,7 +62,10 @@ const getInitial = () => {
     return 'U'
 }
 
-onMounted(loadUser)
+onMounted(() => {
+    loadUser()
+    loadSsoStatus()
+})
 </script>
 
 <template>
@@ -91,6 +110,42 @@ onMounted(loadUser)
                             class="absolute right-3 top-2.5 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">已验证</span>
                     </div>
                     <p class="text-xs text-gray-400">邮箱地址无法直接修改，请联系管理员。</p>
+                </div>
+
+                <!-- 认证中心绑定状态 -->
+                <div class="space-y-2">
+                    <label class="form-label">认证中心绑定</label>
+                    <div
+                        class="flex items-center justify-between gap-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-800/40 px-4 py-3">
+                        <div class="flex items-start gap-3">
+                            <Link2 class="w-5 h-5 mt-0.5"
+                                :class="ssoStatus?.sso_bound ? 'text-green-600' : 'text-gray-400'" />
+                            <div>
+                                <p class="text-sm font-medium text-gray-900 dark:text-white">
+                                    {{ ssoStatus?.sso_bound ? '已绑定认证中心' : '未绑定认证中心' }}
+                                </p>
+                                <p v-if="ssoStatus?.sso_bound" class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                    两步验证 (TOTP)：
+                                    <span :class="ssoStatus.mfa_enabled ? 'text-green-600 font-medium' : 'text-amber-600'"
+                                        class="inline-flex items-center gap-1 align-middle">
+                                        <ShieldCheck v-if="ssoStatus.mfa_enabled" class="w-3.5 h-3.5" />
+                                        <ShieldOff v-else class="w-3.5 h-3.5" />
+                                        {{ ssoStatus.mfa_enabled ? '认证中心已开启' : '认证中心未开启' }}
+                                    </span>
+                                </p>
+                                <p v-else class="text-xs text-gray-400 mt-0.5">
+                                    使用 SSO 登录一次即可自动绑定本账号
+                                </p>
+                            </div>
+                        </div>
+                        <a v-if="ssoStatus?.sso_bound && mfaManageUrl" :href="mfaManageUrl" target="_blank"
+                            class="btn-secondary shrink-0 inline-flex items-center gap-1.5 text-sm">
+                            <ExternalLink class="w-4 h-4" /> 去认证中心管理
+                        </a>
+                    </div>
+                    <p class="text-xs text-gray-400">
+                        TOTP 密钥仅保存认证中心，此处只显示状态；本地密码登录的两步验证在「安全」设置中单独管理。
+                    </p>
                 </div>
 
                 <div class="space-y-2">
