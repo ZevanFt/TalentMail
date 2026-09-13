@@ -3,6 +3,7 @@ import { Mail, Eye, EyeOff, Moon, Sun, Loader2, Shield, LogIn } from 'lucide-vue
 const { isDark, toggleTheme } = useTheme()
 const { login, login2FA, getSSOStatus, getSSOLoginUrl } = useApi()
 const { appName, emailDomain, baseDomain } = useConfig()
+const { t, locale, setLocale, availableLocales } = useI18n()
 
 // SSO 状态
 const ssoEnabled = ref(false)
@@ -12,7 +13,7 @@ definePageMeta({
     layout: false
 })
 
-useHead({ title: `登录 - ${appName}` })
+useHead({ title: computed(() => `${t('auth.login')} - ${appName}`) })
 
 const showPassword = ref(false)
 const loading = ref(false)
@@ -72,7 +73,7 @@ const handleLogin = async () => {
 
         await navigateTo(redirectTarget.value, { replace: true })
     } catch (e: any) {
-        error.value = e.data?.detail || '登录失败，请检查用户名和密码'
+        error.value = e.data?.detail || t('auth.loginFailed')
     } finally {
         loading.value = false
     }
@@ -147,7 +148,7 @@ onMounted(async () => {
                     <Mail class="w-6 h-6" />
                 </div>
                 <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ appName }}</h1>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">登录你的邮箱</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ t('auth.login') }}</p>
             </div>
 
             <!-- 普通登录表单 -->
@@ -157,7 +158,7 @@ onMounted(async () => {
                     <!-- 邮箱（支持完整邮箱或用户名 + 可编辑域名） -->
                     <div class="space-y-1.5">
                         <div class="flex items-stretch rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all">
-                            <input v-model="form.username" type="text" placeholder="用户名" aria-label="用户名"
+                            <input v-model="form.username" type="text" :placeholder="t('auth.username')" :aria-label="t('auth.username')"
                                 class="flex-[5] min-w-0 px-4 py-3 bg-gray-50 dark:bg-gray-900 text-sm outline-none text-gray-900 dark:text-white placeholder-gray-400 border-none" required>
                             <span class="px-2 py-3 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 flex items-center justify-center border-l border-r border-gray-200 dark:border-gray-700">
                                 @
@@ -165,19 +166,19 @@ onMounted(async () => {
                             <input
                                 v-model="form.domain"
                                 type="text"
-                                placeholder="域名"
+                                placeholder="domain"
                                 :disabled="form.username.includes('@')"
                                 class="flex-[5] min-w-0 px-3 py-3 bg-gray-100 dark:bg-gray-800 text-sm outline-none text-gray-700 dark:text-gray-200 placeholder-gray-400 border-none domain-suffix disabled:opacity-60"
                             >
                         </div>
                         <p class="text-xs text-gray-500 dark:text-gray-400">
-                            默认域名 {{ emailDomain }}，也可直接输入完整邮箱（如 admin@talenting.vip）
+                            {{ t('auth.domainHint', { domain: emailDomain }) }}
                         </p>
                     </div>
 
                     <!-- 密码 -->
                     <div class="relative">
-                        <input v-model="form.password" :type="showPassword ? 'text' : 'password'" placeholder="密码" aria-label="密码"
+                        <input v-model="form.password" :type="showPassword ? 'text' : 'password'" :placeholder="t('auth.password')" :aria-label="t('auth.password')"
                             class="input-field pr-12" required>
                         <!-- 眼睛图标 -->
                         <button type="button" @click="showPassword = !showPassword"
@@ -194,7 +195,7 @@ onMounted(async () => {
                     <button type="submit" :disabled="loading"
                         class="w-full bg-primary hover:bg-primary-hover disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-lg shadow-primary/25 transition-all active:scale-[0.98] mt-2 flex items-center justify-center gap-2">
                         <Loader2 v-if="loading" class="w-5 h-5 animate-spin" />
-                        {{ loading ? '登录中...' : '登录' }}
+                        {{ loading ? t('auth.loggingIn') : t('auth.login') }}
                     </button>
 
                 </form>
@@ -203,21 +204,21 @@ onMounted(async () => {
                 <template v-if="ssoEnabled">
                     <div class="my-5 flex items-center gap-3">
                         <div class="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
-                        <span class="text-xs text-gray-400">或</span>
+                        <span class="text-xs text-gray-400">/</span>
                         <div class="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
                     </div>
                     <button @click="handleSSOLogin" :disabled="ssoLoading"
                         class="w-full border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 text-gray-700 dark:text-gray-300 font-medium py-3 rounded-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2">
                         <Loader2 v-if="ssoLoading" class="w-5 h-5 animate-spin" />
                         <LogIn v-else class="w-5 h-5" />
-                        {{ ssoLoading ? '跳转中...' : '使用统一认证登录' }}
+                        {{ t('auth.ssoLogin') }}
                     </button>
                 </template>
 
                 <!-- 忘记密码链接 -->
                 <div class="mt-4 text-center">
                     <NuxtLink to="/forgot-password" class="text-sm text-gray-500 hover:text-primary transition-colors">
-                        忘记密码？
+                        {{ t('auth.forgotPassword') }}
                     </NuxtLink>
                 </div>
             </template>
@@ -231,9 +232,9 @@ onMounted(async () => {
                             <Shield class="w-8 h-8 text-green-600 dark:text-green-400" />
                         </div>
                         <div>
-                            <h2 class="text-lg font-bold text-gray-900 dark:text-white">两步验证</h2>
+                            <h2 class="text-lg font-bold text-gray-900 dark:text-white">{{ t('auth.twoFaTitle') }}</h2>
                             <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                请输入 Authenticator App 中的验证码
+                                {{ t('auth.twoFaHint') }}
                             </p>
                         </div>
                     </div>
@@ -254,30 +255,38 @@ onMounted(async () => {
                     <button @click="handle2FAVerify" :disabled="loading || twoFACode.length !== 6"
                         class="w-full bg-primary hover:bg-primary-hover disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-lg shadow-primary/25 transition-all active:scale-[0.98] flex items-center justify-center gap-2">
                         <Loader2 v-if="loading" class="w-5 h-5 animate-spin" />
-                        {{ loading ? '验证中...' : '验证' }}
+                        {{ t('auth.verify') }}
                     </button>
 
                     <!-- 返回按钮 -->
                     <button @click="backToLogin"
                         class="w-full text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-sm py-2 transition-colors">
-                        ← 返回登录
+                        ← {{ t('auth.login') }}
                     </button>
                 </div>
             </template>
 
             <!-- 底部链接 -->
             <div class="mt-6 flex items-center justify-between">
-                <!-- 暗黑模式开关 -->
-                <button @click="toggleTheme" aria-label="切换主题"
-                    class="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
-                    <Sun v-if="isDark" class="w-5 h-5" />
-                    <Moon v-else class="w-5 h-5" />
-                </button>
+                <!-- 暗黑模式 + 语言 -->
+                <div class="flex items-center gap-1">
+                    <button @click="toggleTheme" :aria-label="t('common.theme')"
+                        class="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+                        <Sun v-if="isDark" class="w-5 h-5" />
+                        <Moon v-else class="w-5 h-5" />
+                    </button>
+                    <button
+                        v-for="item in availableLocales" :key="item.code"
+                        @click="setLocale(item.code)"
+                        class="px-2 py-1 text-xs rounded-md transition-colors"
+                        :class="locale === item.code ? 'text-primary font-semibold' : 'text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'"
+                    >{{ item.code === 'zh-CN' ? '中' : 'EN' }}</button>
+                </div>
 
                 <div class="text-sm text-gray-500">
-                    没有账号？
+                    {{ t('auth.noAccount') }}
                     <NuxtLink to="/register" class="text-primary hover:text-primary-hover font-bold hover:underline">
-                        注册
+                        {{ t('auth.register') }}
                     </NuxtLink>
                 </div>
             </div>

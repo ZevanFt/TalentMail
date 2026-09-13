@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Search, Plus, Pencil, Trash2, User, Loader2, AlertCircle, Download, Upload, ChevronDown } from 'lucide-vue-next'
 const config = useConfig()
-useHead({ title: `通讯录 - ${config.appName}` })
+const { t } = useI18n()
+useHead({ title: computed(() => `${t('contacts.title')} - ${config.appName}`) })
 const toast = useToast()
 const { confirm: confirmDialog } = useConfirmDialog()
 const { getContacts, createContact, updateContact, deleteContact, exportContactsUrl, importContacts } = useApi()
@@ -198,11 +199,11 @@ onMounted(loadContacts)
 <template>
   <div class="h-full flex flex-col bg-gray-50 dark:bg-bg-dark">
     <header class="flex items-center justify-between px-4 lg:px-6 py-4 border-b border-gray-200 dark:border-border-dark bg-white dark:bg-bg-panelDark">
-      <h1 class="text-xl font-bold text-gray-900 dark:text-white">通讯录</h1>
+      <h1 class="text-xl font-bold text-gray-900 dark:text-white">{{ t('contacts.title') }}</h1>
       <div class="flex items-center gap-3">
         <div class="relative hidden sm:block">
           <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input v-model="searchQuery" placeholder="搜索联系人..."
+          <input v-model="searchQuery" :placeholder="t('contacts.searchPlaceholder')"
             class="pl-9 pr-4 py-2 w-64 border border-gray-200 dark:border-border-dark rounded-lg bg-white dark:bg-bg-panelDark text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
         </div>
         <!-- 导入按钮 -->
@@ -210,7 +211,7 @@ onMounted(loadContacts)
           class="hidden sm:flex items-center gap-1.5 px-3 py-2 border border-gray-200 dark:border-border-dark rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm text-gray-600 dark:text-gray-300 disabled:opacity-50">
           <Loader2 v-if="importing" class="w-4 h-4 animate-spin" />
           <Upload v-else class="w-4 h-4" />
-          导入
+          {{ t('contacts.import') }}
         </button>
         <input ref="fileInputRef" type="file" accept=".csv,.vcf,.vcard" class="hidden" @change="handleImportFile" />
 
@@ -219,20 +220,20 @@ onMounted(loadContacts)
           <button @click="showExportMenu = !showExportMenu"
             class="flex items-center gap-1.5 px-3 py-2 border border-gray-200 dark:border-border-dark rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm text-gray-600 dark:text-gray-300">
             <Download class="w-4 h-4" />
-            导出
+            {{ t('contacts.export') }}
             <ChevronDown class="w-3 h-3" />
           </button>
           <Transition enter-active-class="transition duration-100 ease-out" enter-from-class="transform scale-95 opacity-0" enter-to-class="transform scale-100 opacity-100"
             leave-active-class="transition duration-75 ease-in" leave-from-class="transform scale-100 opacity-100" leave-to-class="transform scale-95 opacity-0">
             <div v-if="showExportMenu" class="absolute right-0 mt-1 w-36 bg-white dark:bg-bg-panelDark border border-gray-200 dark:border-border-dark rounded-lg shadow-lg z-50 py-1">
-              <button @click="handleExport('csv')" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300">导出为 CSV</button>
-              <button @click="handleExport('vcf')" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300">导出为 vCard</button>
+              <button @click="handleExport('csv')" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300">CSV</button>
+              <button @click="handleExport('vcf')" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300">vCard</button>
             </div>
           </Transition>
         </div>
 
         <button @click="openModal()" class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors text-sm font-medium">
-          <Plus class="w-4 h-4" /> 添加联系人
+          <Plus class="w-4 h-4" /> {{ t('contacts.new') }}
         </button>
       </div>
     </header>
@@ -241,7 +242,7 @@ onMounted(loadContacts)
     <div class="sm:hidden px-4 py-3 bg-white dark:bg-bg-panelDark border-b border-gray-200 dark:border-border-dark">
       <div class="relative">
         <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <input v-model="searchQuery" placeholder="搜索联系人..."
+        <input v-model="searchQuery" :placeholder="t('contacts.searchPlaceholder')"
           class="w-full pl-9 pr-4 py-2 border border-gray-200 dark:border-border-dark rounded-lg bg-gray-50 dark:bg-bg-dark text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
       </div>
     </div>

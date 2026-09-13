@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Upload, Trash2, Share2, Link, Copy, Check, Download, X, Lock, Unlock, Eye, FolderPlus, Folder, ChevronRight, Home, Pencil, ArrowRight, Loader2 } from 'lucide-vue-next'
 const config = useConfig()
-useHead({ title: `文件中转站 - ${config.appName}` })
+const { t } = useI18n()
+useHead({ title: computed(() => `${t('drive.title')} - ${config.appName}`) })
 const toast = useToast()
 const { confirm: confirmDialog } = useConfirmDialog()
 const { getDriveFiles, uploadDriveFile, deleteDriveFile, createDriveFolder, moveDriveItem, renameDriveItem, createDriveShare, removeDriveShare, downloadDriveFileUrl, previewDriveFileUrl, token } = useApi()
@@ -287,17 +288,17 @@ onMounted(loadFiles)
       <!-- 标题栏 -->
       <div class="flex items-center justify-between mb-6">
         <div>
-          <h1 class="text-2xl font-bold text-gray-900 dark:text-white">文件中转站</h1>
-          <p class="text-sm text-gray-500 mt-1">上传文件并生成分享链接</p>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t('drive.title') }}</h1>
+          <p class="text-sm text-gray-500 mt-1">{{ t('drive.dropHint') }}</p>
         </div>
         <div class="flex items-center gap-2">
           <button @click="showFolderModal = true; newFolderName = ''"
             class="flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-            <FolderPlus class="w-4 h-4" /> 新建文件夹
+            <FolderPlus class="w-4 h-4" /> {{ t('drive.newFolder') }}
           </button>
           <label class="bg-primary text-white px-4 py-2 rounded-lg text-sm hover:bg-primary-hover cursor-pointer flex items-center gap-2">
             <Upload class="w-4 h-4" />
-            {{ uploading ? `上传中${uploadProgress}...` : '上传文件' }}
+            {{ uploading ? `${t('common.loading')}${uploadProgress}` : t('drive.upload') }}
             <input type="file" multiple class="hidden" @change="handleUpload" :disabled="uploading" />
           </label>
         </div>

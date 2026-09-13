@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { User, Shield, Palette, LogOut, ArrowLeft, Mail, Bell, Lock, HardDrive, Users, Ticket, UserCog, CreditCard, AtSign, FileText, FilePen, Info, Zap, Workflow, ScrollText, Box, ChevronDown, Upload, KeyRound, PenLine, Key } from 'lucide-vue-next'
+import { User, Shield, Palette, LogOut, ArrowLeft, Mail, Bell, Lock, HardDrive, Users, Ticket, UserCog, CreditCard, AtSign, FileText, FilePen, Info, Zap, Workflow, ScrollText, Box, ChevronDown, Upload, KeyRound, PenLine, Key, ShieldCheck } from 'lucide-vue-next'
 const router = useRouter()
 const route = useRoute()
 const { logout, getMe } = useApi()
@@ -70,6 +70,7 @@ const tabGroups = computed(() => {
       { key: 'system-workflows', label: '系统工作流', icon: 'Workflow' },
       { key: 'temp-mail-policy', label: '临时邮箱策略', icon: 'Box' },
       { key: 'user-mgmt', label: '用户权限管理', icon: 'UserCog' },
+      { key: 'operation-audit', label: '操作审计', icon: 'ShieldCheck' },
     ]})
   }
   return groups
@@ -160,6 +161,7 @@ const settingsTabMap: Record<string, Component> = {
   'changelog': _lazy(() => import('~/components/settings/Changelog.vue')),
   'about': _lazy(() => import('~/components/settings/About.vue')),
   'user-mgmt': _lazy(() => import('~/components/settings/UserManagement.vue')),
+  'operation-audit': _lazy(() => import('~/components/settings/OperationAudit.vue')),
 }
 
 // user-mgmt 使用全高度布局（overflow-hidden），其他 tab 使用滚动布局
@@ -316,6 +318,9 @@ const activeComponent = computed(() => {
           </button>
           <button @click="setTab('user-mgmt')" :class="['tab-btn', activeTab === 'user-mgmt' ? 'active' : '']">
             <UserCog class="w-4 h-4" /> 用户权限管理
+          </button>
+          <button @click="setTab('operation-audit')" :class="['tab-btn', activeTab === 'operation-audit' ? 'active' : '']">
+            <ShieldCheck class="w-4 h-4" /> 操作审计
           </button>
         </div>
 

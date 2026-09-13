@@ -25,21 +25,25 @@ function resolve(obj: any, path: string): string {
 }
 
 export function useI18n() {
-  const locale = useState<LocaleCode>('i18n_locale', () => 'zh-CN')
-
-  // 客户端挂载后读取偏好
-  if (import.meta.client) {
-    if (locale.value === 'zh-CN' && !localStorage.getItem(STORAGE_KEY)) {
-      locale.value = detectLocale()
+  const locale = useState<LocaleCode>('i18n_locale', () => {
+    if (import.meta.client) {
+      const saved = localStorage.getItem(STORAGE_KEY) as LocaleCode | null
+      if (saved && dictionaries[saved]) return saved
+      return detectLocale()
     }
-  }
+    return 'zh-CN'
+  })
 
-  const t = (key: string): string => {
+  const t = (key: string, vars?: Record<string, string | number>): string => {
     const dict = dictionaries[locale.value] || dictionaries['zh-CN']
-    const hit = resolve(dict, key)
-    if (hit !== key) return hit
-    // 回退中文
-    return resolve(dictionaries['zh-CN'], key)
+    let hit = resolve(dict, key)
+    if (hit === key) hit = resolve(dictionaries['zh-CN'], key)
+    if (vars) {
+      for (const [k, v] of Object.entries(vars)) {
+        hit = hit.split(`{{${k}}}`).join(String(v))
+      }
+    }
+    return hit
   }
 
   const setLocale = (code: LocaleCode) => {
