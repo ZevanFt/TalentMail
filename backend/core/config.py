@@ -65,6 +65,10 @@ class Settings(BaseSettings):
     ALERT_COOLDOWN_SECONDS: int = 1800  # 同类告警冷却
     MAIL_QUEUE_WARN_THRESHOLD: int = 50
 
+    # 注册策略
+    REGISTRATION_REQUIRE_INVITE: bool = True
+    REGISTRATION_REQUIRE_VERIFICATION: bool = True
+
     # --- Dynamically generated attributes ---
     DOMAIN: str = ""
     API_BASE_URL: str = ""

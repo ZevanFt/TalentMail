@@ -3,12 +3,23 @@ import { Mail, ArrowLeft, ArrowRight, Check, Loader2, Eye, EyeOff } from 'lucide
 
 definePageMeta({ layout: false })
 
-const { login, sendVerificationCode, verifyCode, registerWithVerification } = useApi()
+const { login, sendVerificationCode, verifyCode, registerWithVerification, getRegistrationPolicy } = useApi()
 const router = useRouter()
 const config = useConfig()
 const { t, locale, setLocale, availableLocales } = useI18n()
 
 useHead({ title: computed(() => `${t('auth.register')} - ${config.appName}`) })
+
+// 注册策略：是否强制邀请码
+const requireInvite = ref(true)
+onMounted(async () => {
+  try {
+    const policy = await getRegistrationPolicy()
+    requireInvite.value = policy.require_invite_code
+  } catch {
+    requireInvite.value = true
+  }
+})
 
 // 步骤：1=邮箱验证, 2=填写信息
 const step = ref(1)
@@ -289,10 +300,12 @@ onUnmounted(() => {
                     <span class="text-sm text-green-600 dark:text-green-400">已验证: {{ form.verificationEmail }}</span>
                 </div>
 
-                <!-- 邀请码 -->
+                <!-- 邀请码（策略可选） -->
                 <div class="space-y-2">
-                    <label for="invite-code" class="text-sm font-medium text-gray-700 dark:text-gray-300">邀请码</label>
-                    <input id="invite-code" v-model="form.inviteCode" type="text" placeholder="请输入邀请码" class="input-field" required>
+                    <label for="invite-code" class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        邀请码{{ requireInvite ? '' : '（可选）' }}
+                    </label>
+                    <input id="invite-code" v-model="form.inviteCode" type="text" placeholder="请输入邀请码" class="input-field" :required="requireInvite">
                 </div>
 
                 <!-- 用户名 -->

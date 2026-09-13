@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from user_agents import parse as parse_user_agent
 from pydantic import BaseModel, EmailStr, field_validator
-from typing import Literal
+from typing import Literal, Optional
 
 from core import security
 from schemas.common import validate_password_strength
@@ -195,7 +195,7 @@ class UserCreateWithVerification(BaseModel):
     """带验证码的用户注册请求"""
     email: str  # 要注册的 TalentMail 邮箱
     password: str
-    invite_code: str
+    invite_code: Optional[str] = None  # REGISTRATION_REQUIRE_INVITE=false 时可省略
     verification_email: str  # 用于验证的外部邮箱
     verification_code: str  # 验证码
 
@@ -388,12 +388,23 @@ def verify_verification_code(
 
 # ============ 注册 API ============
 
+@router.get("/registration-policy")
+def registration_policy():
+    """注册策略（前端据此显示/隐藏邀请码字段）"""
+    from core.config import settings as app_settings
+    return {
+        "require_invite_code": bool(app_settings.REGISTRATION_REQUIRE_INVITE),
+        "require_verification": bool(app_settings.REGISTRATION_REQUIRE_VERIFICATION),
+    }
+
+
 @router.post("/register")
 def register_user(user: UserCreate, request: Request, db: Session = Depends(get_db)):
     """
     Handles user registration with invite code validation.
     (旧版注册接口，不需要邮箱验证)
     """
+    from core.config import settings as app_settings
     # 注册频率限制：每 IP 10 分钟内最多 5 次
     client_ip = get_client_ip(request)
     if not register_limiter.allow(f"register:{client_ip}"):
@@ -402,13 +413,23 @@ def register_user(user: UserCreate, request: Request, db: Session = Depends(get_
             detail="注册尝试过于频繁，请 10 分钟后再试",
         )
 
-    # 验证邀请码
-    invite = crud_user.validate_invite_code(db, user.invite_code)
-    if not invite:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="邀请码无效或已过期",
-        )
+    # 验证邀请码（可配置是否强制）
+    invite = None
+    if app_settings.REGISTRATION_REQUIRE_INVITE:
+        invite = crud_user.validate_invite_code(db, user.invite_code)
+        if not invite:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="邀请码无效或已过期",
+            )
+    elif user.invite_code:
+        invite = crud_user.validate_invite_code(db, user.invite_code)
+        # 提供了无效邀请码仍报错；未提供则允许
+        if not invite:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="邀请码无效或已过期",
+            )
     
     # 提取邮箱前缀（@ 前面的部分）
     email_prefix = user.email.split('@')[0].lower().strip()
@@ -489,13 +510,16 @@ def register_user_with_verification(
             detail="注册尝试过于频繁，请 10 分钟后再试",
         )
 
-    # 验证邀请码
-    invite = crud_user.validate_invite_code(db, user.invite_code)
-    if not invite:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="邀请码无效或已过期",
-        )
+    # 验证邀请码（可配置是否强制）
+    from core.config import settings as app_settings
+    invite = None
+    if app_settings.REGISTRATION_REQUIRE_INVITE or user.invite_code:
+        invite = crud_user.validate_invite_code(db, user.invite_code)
+        if not invite:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="邀请码无效或已过期",
+            )
     
     # 验证验证码
     if not verify_code(db, user.verification_email, user.verification_code, "register"):
@@ -541,9 +565,10 @@ def register_user_with_verification(
     
     # 保存验证邮箱作为辅助邮箱（recovery_email）
     new_user.recovery_email = user.verification_email
-    
+
     # 使用邀请码（记录使用者）
-    crud_user.use_invite_code(db, invite, user_id=new_user.id)
+    if invite:
+        crud_user.use_invite_code(db, invite, user_id=new_user.id)
     db.commit()
 
     # 触发用户注册工作流事件（与 legacy register 保持一致）
