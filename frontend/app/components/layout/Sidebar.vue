@@ -460,7 +460,7 @@ const isActive = (path: string) => route.path === path
 
       <!-- 新建文件夹入口（当没有自定义文件夹时也显示） -->
       <div v-if="customFolders.length === 0 && !showCreateFolder" class="mt-1 px-3">
-        <button @click="showCreateFolder = true" class="text-xs text-gray-400 dark:text-gray-500 hover:text-primary transition-colors flex items-center gap-1">
+        <button @click="showCreateFolder = true" class="w-full text-left text-xs text-gray-400 dark:text-gray-500 hover:text-primary transition-colors flex items-center gap-1 py-1">
           <PlusCircle class="w-3.5 h-3.5" />
           <span>{{ t('nav.newFolder') }}</span>
         </button>
@@ -489,7 +489,7 @@ const isActive = (path: string) => route.path === path
                 <Pencil class="w-3 h-3 text-gray-500" />
               </div>
             </button>
-            <button @click="openTagModal()" class="sub-item text-gray-500 hover:text-primary">
+            <button @click="openTagModal()" class="sub-item text-gray-500 hover:text-primary w-full text-left">
               <PlusCircle class="w-4 h-4 shrink-0" />
               <span class="truncate">{{ t('nav.tags.add') }}</span>
             </button>
@@ -520,7 +520,7 @@ const isActive = (path: string) => route.path === path
               </div>
             </div>
 
-            <button @click="showAddAccountModal = true" class="sub-item text-gray-500 hover:text-primary">
+            <button @click="showAddAccountModal = true" class="sub-item text-gray-500 hover:text-primary w-full text-left">
               <PlusCircle class="w-4 h-4 shrink-0" />
               <span class="truncate">{{ t('nav.addExternalEmail') }}</span>
             </button>
