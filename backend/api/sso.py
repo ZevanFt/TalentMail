@@ -31,6 +31,7 @@ class SSOLoginResponse(BaseModel):
 class SSOCallbackRequest(BaseModel):
     code: str
     state: Optional[str] = None
+    mode: Optional[str] = None  # login | bind
 
 
 class SSOCallbackResponse(BaseModel):
@@ -38,6 +39,13 @@ class SSOCallbackResponse(BaseModel):
     refresh_token: str
     token_type: str = "bearer"
     user: dict
+
+
+class SSOBindResponse(BaseModel):
+    bound: bool = True
+    sso_user_id: str
+    sso_username: str
+    email: str
 
 
 def _require_sso_enabled():
@@ -48,38 +56,12 @@ def _require_sso_enabled():
         raise HTTPException(500, "SSO 配置不完整")
 
 
-@router.get("/login")
-def sso_login(request: Request):
-    """发起 SSO 登录 — 重定向到 auth-center"""
-    _require_sso_enabled()
-
-    # 生成 state 参数防 CSRF
-    state = secrets.token_urlsafe(32)
-
-    # 构建 auth-center 登录 URL
-    auth_url = (
-        f"{settings.SSO_AUTH_CENTER_URL}/login"
-        f"?client_id={settings.SSO_CLIENT_ID}"
-        f"&redirect_uri={settings.SSO_REDIRECT_URI}"
-        f"&state={state}"
-    )
-
-    return SSOLoginResponse(redirect_url=auth_url)
+def _state_is_bind(state: Optional[str]) -> bool:
+    return bool(state) and state.startswith("bind_")
 
 
-@router.post("/callback")
-async def sso_callback(
-    body: SSOCallbackRequest,
-    request: Request,
-    db: Session = Depends(get_db),
-):
-    """
-    SSO 回调 — 用授权码换取用户信息并创建本地会话。
-    前端收到 auth-center 回调的 code 后，POST 到此端点。
-    """
-    _require_sso_enabled()
-
-    # Step 1: 用授权码换取 auth-center 用户信息
+async def _exchange_code_for_sso_user(code: str) -> dict:
+    """用授权码换取 auth-center 用户信息。"""
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.post(
@@ -88,7 +70,7 @@ async def sso_callback(
                     "client_id": settings.SSO_CLIENT_ID,
                     "client_secret": settings.SSO_CLIENT_SECRET,
                     "redirect_uri": settings.SSO_REDIRECT_URI,
-                    "code": body.code,
+                    "code": code,
                 },
             )
     except httpx.RequestError as e:
@@ -104,11 +86,119 @@ async def sso_callback(
     sso_data = resp.json()
     sso_user = sso_data.get("user", {})
     sso_user_id = sso_user.get("id")
-    sso_username = sso_user.get("username", "")
-    sso_display_name = sso_user.get("display_name", "")
-
     if not sso_user_id:
         raise HTTPException(502, "认证中心返回的用户信息不完整")
+    return {
+        "sso_user_id": str(sso_user_id),
+        "sso_username": sso_user.get("username", ""),
+        "sso_display_name": sso_user.get("display_name", ""),
+    }
+
+
+@router.get("/login")
+def sso_login(request: Request, mode: str = "login"):
+    """发起 SSO 登录 — 重定向到 auth-center。
+
+    mode=bind：已登录用户关联认证中心（state 前缀 bind_，回调不换会话）。
+    """
+    _require_sso_enabled()
+
+    nonce = secrets.token_urlsafe(32)
+    state = f"bind_{nonce}" if mode == "bind" else nonce
+
+    auth_url = (
+        f"{settings.SSO_AUTH_CENTER_URL}/login"
+        f"?client_id={settings.SSO_CLIENT_ID}"
+        f"&redirect_uri={settings.SSO_REDIRECT_URI}"
+        f"&state={state}"
+    )
+
+    return SSOLoginResponse(redirect_url=auth_url)
+
+
+@router.post("/bind")
+async def sso_bind(
+    body: SSOCallbackRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+):
+    """已登录态关联认证中心：校验 SSO 身份与当前邮箱一致后写入 sso_user_id。"""
+    _require_sso_enabled()
+
+    info = await _exchange_code_for_sso_user(body.code)
+    sso_user_id = info["sso_user_id"]
+    sso_username = info["sso_username"]
+
+    # 必须与当前登录邮箱一致（兼容纯用户名 / 完整邮箱）
+    candidates = set(email_match_candidates(sso_username, settings.BASE_DOMAIN))
+    if current_user.email.lower() not in {c.lower() for c in candidates}:
+        raise HTTPException(
+            409,
+            f"认证中心账号（{sso_username or sso_user_id}）与当前邮箱 {current_user.email} 不一致，无法关联",
+        )
+
+    # 该 SSO 身份若已绑到别的本地账号，拒绝
+    other = (
+        db.query(User)
+        .filter(User.sso_user_id == sso_user_id, User.id != current_user.id)
+        .first()
+    )
+    if other:
+        raise HTTPException(409, f"该认证中心账号已绑定其他邮箱 {other.email}")
+
+    already = current_user.sso_user_id == sso_user_id
+    if not already:
+        current_user.sso_user_id = sso_user_id
+        if info["sso_display_name"] and not current_user.display_name:
+            current_user.display_name = info["sso_display_name"]
+        db.commit()
+        db.refresh(current_user)
+
+    try:
+        from core.audit import record_operation
+        from api.auth import get_client_ip
+        record_operation(
+            db,
+            action="auth.sso_bind",
+            user_id=current_user.id,
+            actor_type="user",
+            resource_type="sso_binding",
+            resource_id=sso_user_id,
+            ip_address=get_client_ip(request),
+            user_agent=request.headers.get("User-Agent"),
+            detail={"email": current_user.email, "sso_username": sso_username, "already": already},
+        )
+    except Exception as e:
+        logger.error(f"SSO 关联审计写入失败: {e}")
+
+    logger.info(f"SSO bind: {current_user.email} ← {sso_user_id} ({sso_username})")
+    return SSOBindResponse(
+        sso_user_id=sso_user_id,
+        sso_username=sso_username,
+        email=current_user.email,
+    )
+
+
+@router.post("/callback")
+async def sso_callback(
+    body: SSOCallbackRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """
+    SSO 回调 — 用授权码换取用户信息并创建本地会话。
+    前端收到 auth-center 回调的 code 后，POST 到此端点。
+    bind 流程请走 POST /bind（需带当前会话 Authorization）。
+    """
+    _require_sso_enabled()
+    if _state_is_bind(body.state) or (body.mode or "").lower() == "bind":
+        raise HTTPException(400, "bind 流程请调用 POST /api/auth/sso/bind")
+
+    info = await _exchange_code_for_sso_user(body.code)
+    sso_user_id = info["sso_user_id"]
+    sso_username = info["sso_username"]
+    sso_display_name = info["sso_display_name"]
 
     # Step 2: 查找或创建本地用户
     user = db.query(User).filter(User.sso_user_id == sso_user_id).first()

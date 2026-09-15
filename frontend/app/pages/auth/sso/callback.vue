@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Loader2, AlertCircle, Mail } from 'lucide-vue-next'
 
-const { ssoCallback } = useApi()
+const { ssoCallback, ssoBind } = useApi()
 const { appName } = useConfig()
 const { t } = useI18n()
 
@@ -10,6 +10,7 @@ useHead({ title: computed(() => `${t('auth.ssoCallback.loggingIn')} - ${appName}
 
 const error = ref('')
 const loading = ref(true)
+const bindMode = ref(false)
 
 onMounted(async () => {
   const route = useRoute()
@@ -22,9 +23,17 @@ onMounted(async () => {
     return
   }
 
+  bindMode.value = !!state && state.startsWith('bind_')
+
   try {
+    if (bindMode.value) {
+      await ssoBind(code, state)
+      const back = sessionStorage.getItem('sso_bind_return') || '/settings'
+      sessionStorage.removeItem('sso_bind_return')
+      await navigateTo(back, { replace: true })
+      return
+    }
     await ssoCallback(code, state)
-    // 登录成功，跳转首页
     await navigateTo('/', { replace: true })
   } catch (e: any) {
     const detail = e?.data?.detail || e?.message || ''

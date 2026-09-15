@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { Camera, ExternalLink, Link2, ShieldCheck, ShieldOff } from 'lucide-vue-next'
+import { Camera, ExternalLink, Link2, Loader2, ShieldCheck, ShieldOff } from 'lucide-vue-next'
 
-const { getMe, updateMe, getMySsoStatus } = useApi()
+const { getMe, updateMe, getMySsoStatus, getSSOLoginUrl } = useApi()
 const toast = useToast()
 const { t } = useI18n()
+const route = useRoute()
 
 const user = ref<AppUser | null>(null)
 const loading = ref(true)
 const saving = ref(false)
 const message = ref('')
+const bindingSso = ref(false)
 
 // 认证中心绑定状态（TOTP 密钥在认证中心，这里仅展示状态）
 const ssoStatus = ref<{ sso_bound: boolean; auth_center_url: string | null; auth_center_username: string | null; mfa_enabled: boolean; auth_center_session_active: boolean } | null>(null)
@@ -18,6 +20,18 @@ const loadSsoStatus = async () => {
         ssoStatus.value = await getMySsoStatus()
     } catch {
         ssoStatus.value = null
+    }
+}
+
+const handleBindSso = async () => {
+    bindingSso.value = true
+    try {
+        sessionStorage.setItem('sso_bind_return', route.fullPath || '/settings')
+        const { redirect_url } = await getSSOLoginUrl('bind')
+        window.location.href = redirect_url
+    } catch (e: any) {
+        bindingSso.value = false
+        toast.error(e?.data?.detail || t('settings.profile.bindSsoFailed'))
     }
 }
 
@@ -142,10 +156,18 @@ onMounted(() => {
                                 </p>
                             </div>
                         </div>
-                        <a v-if="ssoStatus?.sso_bound && mfaManageUrl" :href="mfaManageUrl" target="_blank"
-                            class="btn-secondary shrink-0 inline-flex items-center gap-1.5 text-sm">
-                            <ExternalLink class="w-4 h-4" /> {{ t('settings.profile.manageInAuthCenter') }}
-                        </a>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <button v-if="!ssoStatus?.sso_bound" type="button" class="btn-primary text-sm inline-flex items-center gap-1.5"
+                                :disabled="bindingSso" @click="handleBindSso">
+                                <Loader2 v-if="bindingSso" class="w-4 h-4 animate-spin" />
+                                <Link2 v-else class="w-4 h-4" />
+                                {{ bindingSso ? t('settings.profile.bindingSso') : t('settings.profile.bindSso') }}
+                            </button>
+                            <a v-if="ssoStatus?.sso_bound && mfaManageUrl" :href="mfaManageUrl" target="_blank"
+                                class="btn-secondary shrink-0 inline-flex items-center gap-1.5 text-sm">
+                                <ExternalLink class="w-4 h-4" /> {{ t('settings.profile.manageInAuthCenter') }}
+                            </a>
+                        </div>
                     </div>
                     <p class="text-xs text-gray-400">
                         {{ t('settings.profile.totpNote') }}
