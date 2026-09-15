@@ -54,10 +54,25 @@ if [ "$ENCRYPT" = "1" ] && [ -z "$PASSPHRASE" ]; then
     exit 1
 fi
 
-DB_STATE=$(docker compose -f "$ROOT/docker-compose.yml" ps db --format json 2>/dev/null \
-    | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('State',''))" 2>/dev/null || true)
-if [ "$DB_STATE" != "running" ]; then
-    err "PostgreSQL 容器未运行 (state=$DB_STATE)，请先启动: docker compose up -d db"
+# 兼容 docker compose / docker-compose
+if docker compose version >/dev/null 2>&1; then
+    COMPOSE=(docker compose)
+elif command -v docker-compose >/dev/null 2>&1; then
+    COMPOSE=(docker-compose)
+else
+    err "未找到 docker compose 或 docker-compose"
+    exit 1
+fi
+
+DB_STATE=$("${COMPOSE[@]}" -f "$ROOT/docker-compose.yml" ps db 2>/dev/null | grep -i running || true)
+# 容器名直接探测（兼容旧 compose / Windows）
+if [ -z "$DB_STATE" ]; then
+    if docker ps --format '{{.Names}}' 2>/dev/null | grep -qE 'talentmail-db|[-_]db[-_]1?$'; then
+        DB_STATE="running"
+    fi
+fi
+if [ -z "$DB_STATE" ]; then
+    err "PostgreSQL 容器未运行，请先启动: docker compose up -d db"
     exit 1
 fi
 
@@ -70,9 +85,15 @@ DB_OUT="${BACKUP_DIR}/${DB_BASE}"
 TMP_FILE="${BACKUP_DIR}/.${DB_BASE}.tmp"
 
 log "开始备份 TalentMail 数据库 (${PG_DB})..."
-docker compose -f "$ROOT/docker-compose.yml" exec -T db \
-    pg_dump -U "$PG_USER" -d "$PG_DB" --no-owner --no-acl \
-    | gzip > "$TMP_FILE"
+# 优先用已知容器名，避免 compose 项目名差异
+if docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^talentmail-db'; then
+    docker exec talentmail-db-1 pg_dump -U "$PG_USER" -d "$PG_DB" --no-owner --no-acl \
+        | gzip > "$TMP_FILE"
+else
+    "${COMPOSE[@]}" -f "$ROOT/docker-compose.yml" exec -T db \
+        pg_dump -U "$PG_USER" -d "$PG_DB" --no-owner --no-acl \
+        | gzip > "$TMP_FILE"
+fi
 
 if [ ! -s "$TMP_FILE" ]; then
     err "备份文件为空，备份失败！"

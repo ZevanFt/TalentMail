@@ -96,11 +96,11 @@
   - 待完成：OAuth、公共开发者门户
 
 ### 2. 系统功能
-- [x] **备份恢复机制** - 2026-03-08
-  - `backup-db.sh` / `restore-db.sh`
+- [x] **备份恢复机制** - 2026-03-08 / 2026-09-16 演练脚本
+  - `backup-db.sh` / `restore-db.sh`（兼容 docker compose v1/v2 与容器名探测）
+  - `backup-drill.sh`：备份 → gzip 校验 → 关键表检查 → 用户数对比（只验证不覆盖生产）
   - systemd timer（每日 03:17）
   - 管理端 `GET/POST /api/admin/backups`
-  - 待增强：备份加密、上传目录打包
 
 - [x] **操作日志审计（骨架）** - 2026-03-08 / 2026-09-16 收尾
   - `operation_audit_logs` 表 + 写入辅助
