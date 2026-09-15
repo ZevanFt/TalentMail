@@ -129,7 +129,7 @@
   - 6 套品牌色预设（CSS 变量 + 设置页切换）
   - 自定义主题编辑器仍属后续
 
-- [ ] **国际化完善**
+- [x] **国际化完善** - 2026-09-16 完成
   - [x] 管理后台全量翻译 - 2026-09-13（用户权限/邀请码/保留前缀/操作审计/邮件模板/系统工作流/API 密钥/临时邮箱策略/订阅管理/更新日志）
   - [x] 设置页壳 + 账号信息/主题/存储/多账号/邮件设置/隐私/加密/登录与安全迁入 i18n - 2026-09-13
   - [x] 邮件列表/写信/详情 + 工作流编辑器/教程迁入 i18n - 2026-09-16
@@ -143,6 +143,10 @@
   - [x] 写回（PUT/DELETE）- 2026-03-08
   - [x] sync-token 增量同步（RFC 6578 + calendar-query/multiget）- 2026-09-16
   - 应用专用密码
+- [x] **SSO 单点登出闭环** - 2026-09-16
+  - TalentMail `POST /api/auth/sso/backchannel-logout`（共享密钥校验，吊销该 SSO 用户全部会话）
+  - Auth-Center 登出后 fire-and-forget 通知 `AUTH_CENTER_BACKCHANNEL_LOGOUT_URLS`
+  - 密钥：`SSO_BACKCHANNEL_SECRET` / `AUTH_CENTER_BACKCHANNEL_SECRET`
 
 ---
 
