@@ -20,11 +20,11 @@
 | 安全性功能 | 100% | 已完成 | 密码加密、配置加密、会话识别 |
 | 批量操作 | 100% | 已完成 | 批量读/星标/移动/删除/归档 |
 | 垃圾邮件 | 100% | 已完成 | 白名单、标记、`sa-learn` 训练链路 |
-| 备份恢复 | 90% | 基本完成 | 脚本 + systemd timer + 管理端 API + openssl 加密 + uploads 打包 |
+| 备份恢复 | 100% | 已完成 | 脚本 + systemd timer + 管理端 API + openssl 加密 + uploads 打包 |
 | 操作审计 | 100% | 已完成 | 登录/SSO登录/备份/发信/删用户/云盘/联系人/工作流/模板触发(规则+工作流+手动)/API Key 创建吊销；API 调用审计在 api_key_audit_logs；管理端可查 |
 | 性能监控 | 100% | 已完成 | health 含 DB/任务/磁盘/uptime/邮件队列 + API P95/P99、mail_sync 耗时、慢查询；Webhook 告警覆盖死任务/队列积压/API 延迟/同步失败与过慢/慢查询 |
 | 国际化 | 100% | 已完成 | 批次3 完成：布局侧栏/Header、账号池、云盘/通讯录/附件/分享、注册/找回密码/SSO回调、日历弹窗、编辑器工具栏、common 组件、error 页、settings 余量全部迁入 zh/en；覆盖检查 t() 零缺失，前端 build 通过 |
-| 日历增强 | 100% | 已完成 | 周视图 + 循环 + .ics 进出 + CalDAV 读写 + sync-token/calendar-query/multiget 增量同步 |
+| 日历增强 | 100% | 已完成 | 周视图 + 循环 + .ics 进出 + CalDAV 读写 + sync-token/calendar-query/multiget + 应用专用密码 |
 
 ## 已完成的高优先级任务
 
@@ -136,10 +136,10 @@
   - [x] 布局侧栏/Header、账号池、云盘/通讯录/附件/分享、注册/找回密码/SSO回调、日历弹窗、编辑器工具栏、common、error、settings 余量迁入 i18n - 2026-09-16
 
 ### 2. 集成功能
-- [ ] **第三方日历集成**
+- [ ] **第三方日历集成**（可选）
   - Google Calendar
   - Outlook Calendar
-- [ ] **CalDAV 增强**
+- [x] **CalDAV 增强** - 2026-09-16 完成
   - [x] 写回（PUT/DELETE）- 2026-03-08
   - [x] sync-token 增量同步（RFC 6578 + calendar-query/multiget）- 2026-09-16
   - [x] 应用专用密码（设置→登录与安全；SSO 用户也可用）- 2026-09-16
