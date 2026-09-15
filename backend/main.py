@@ -17,7 +17,9 @@ from core.temp_mailbox_lifecycle import run_temp_mailbox_maintenance
 from core.scheduled_sender import check_scheduled_emails
 from core.config import settings
 from core import websocket as ws_manager
+from core import metrics as perf_metrics
 import logging
+import time
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -245,8 +247,9 @@ async def periodic_audit_log_cleanup(interval: int = 86400):
 
 
 async def periodic_health_monitor(interval: int = 300):
-    """定期检查后台任务与邮件队列，异常时发 Webhook 告警。"""
+    """定期检查后台任务、邮件队列与性能指标，异常时发 Webhook 告警。"""
     from core.alerting import get_mail_queue_depth, send_webhook_alert
+    from core import metrics
 
     while True:
         await asyncio.sleep(interval)
@@ -271,6 +274,54 @@ async def periodic_health_monitor(interval: int = 300):
                     level="warning",
                     extra={"mail_queue_depth": depth, "threshold": threshold},
                     alert_key="mail_queue",
+                )
+
+            snap = metrics.get_metrics_snapshot()
+
+            # API P95 延迟
+            p95 = snap["api"].get("p95_ms")
+            p95_warn = getattr(settings, "API_LATENCY_P95_WARN_MS", 2000.0)
+            if p95 is not None and p95 >= p95_warn:
+                send_webhook_alert(
+                    title="TalentMail API 延迟偏高",
+                    message=f"API P95 {p95:.0f}ms（阈值 {p95_warn:.0f}ms），样本 {snap['api'].get('samples')}",
+                    level="warning",
+                    extra={"p95_ms": p95, "threshold_ms": p95_warn, "api": snap["api"]},
+                    alert_key="api_p95",
+                )
+
+            # mail_sync 耗时 / 错误
+            ms = snap["mail_sync"]
+            sync_warn = getattr(settings, "MAIL_SYNC_WARN_SECONDS", 90.0)
+            if ms.get("last_error"):
+                send_webhook_alert(
+                    title="TalentMail 邮件同步失败",
+                    message=f"最近一次 mail_sync 出错: {ms['last_error'][:200]}",
+                    level="error",
+                    extra=ms,
+                    alert_key="mail_sync_error",
+                )
+            elif ms.get("last_duration_sec") is not None and ms["last_duration_sec"] >= sync_warn:
+                send_webhook_alert(
+                    title="TalentMail 邮件同步耗时过长",
+                    message=f"mail_sync 耗时 {ms['last_duration_sec']:.1f}s（阈值 {sync_warn:.0f}s）",
+                    level="warning",
+                    extra=ms,
+                    alert_key="mail_sync_slow",
+                )
+
+            # 慢查询累计
+            slow = snap["slow_queries"]
+            slow_warn = getattr(settings, "SLOW_QUERY_WARN_COUNT", 30)
+            if slow.get("count", 0) >= slow_warn:
+                recent = slow.get("recent") or []
+                last_stmt = recent[-1].get("statement", "") if recent else ""
+                send_webhook_alert(
+                    title="TalentMail 慢查询偏多",
+                    message=f"累计慢查询 {slow['count']} 条（阈值 {slow_warn}），最近: {last_stmt[:120]}",
+                    level="warning",
+                    extra={"slow_queries": slow},
+                    alert_key="slow_queries",
                 )
         except Exception as e:
             logger.error(f"[HealthMonitor] 检查失败: {e}")
@@ -312,6 +363,14 @@ async def lifespan(app: FastAPI):
     _register_task("audit_log_cleanup", periodic_audit_log_cleanup, interval=86400)
     _register_task("health_monitor", periodic_health_monitor, interval=300)
     logger.info("已注册 %d 个后台任务（崩溃自动恢复已启用）", len(_background_tasks))
+
+    # 性能指标：慢查询阈值 + SQLAlchemy 钩子
+    try:
+        perf_metrics.set_slow_query_threshold(getattr(settings, "SLOW_QUERY_THRESHOLD_MS", 500.0))
+        perf_metrics.install_sql_slow_query_hook(engine)
+        logger.info("性能指标钩子已安装（slow_query > %.0fms）", getattr(settings, "SLOW_QUERY_THRESHOLD_MS", 500.0))
+    except Exception as e:
+        logger.error(f"安装性能指标钩子失败: {e}")
 
     # 启动时先执行一次会话清理
     try:
@@ -375,6 +434,41 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept", "X-Requested-With"],
 )
+
+
+class ApiMetricsMiddleware:
+    """记录 API 延迟与状态码（跳过健康检查与 WebSocket）。"""
+
+    _SKIP_PREFIXES = ("/api/health", "/api/readiness", "/api/liveness", "/ws", "/docs", "/openapi")
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") != "http":
+            await self.app(scope, receive, send)
+            return
+        path = scope.get("path", "")
+        if any(path.startswith(p) for p in self._SKIP_PREFIXES):
+            await self.app(scope, receive, send)
+            return
+
+        from core import metrics
+        started = time.perf_counter()
+        status_holder = {"status": 500}
+
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                status_holder["status"] = message.get("status", 500)
+            await send(message)
+
+        try:
+            await self.app(scope, receive, send_wrapper)
+        finally:
+            metrics.record_api_latency(time.perf_counter() - started, status_holder["status"])
+
+
+app.add_middleware(ApiMetricsMiddleware)
 
 app.include_router(health.router, prefix="/api", tags=["Health"])
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])

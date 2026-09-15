@@ -10,6 +10,7 @@ import hashlib
 import asyncio
 import threading
 import logging
+import time
 from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy.orm import Session
@@ -316,12 +317,21 @@ def sync_all_mailboxes() -> dict:
 
 async def periodic_sync(interval: int = 30):
     """定期同步任务（默认30秒）"""
+    from core import metrics
     while True:
         await asyncio.sleep(interval)
+        started = time.perf_counter()
         try:
             results = await asyncio.to_thread(sync_all_mailboxes)
+            duration = time.perf_counter() - started
+            metrics.record_mail_sync(duration, total_new=results.get("total", 0))
+            try:
+                from main import update_task_heartbeat
+                update_task_heartbeat("mail_sync")
+            except Exception:
+                pass
             if results["total"] > 0:
-                logger.info(f"邮件同步完成，共 {results['total']} 封新邮件")
+                logger.info(f"邮件同步完成，共 {results['total']} 封新邮件，耗时 {duration:.2f}s")
 
             # 触发收集到的邮件到达事件（限制每批最多 10 个防过载）
             with _events_lock:
@@ -341,4 +351,6 @@ async def periodic_sync(interval: int = 30):
                 except Exception as e:
                     logger.error(f"批量触发 email.received 事件失败: {e}")
         except Exception as e:
+            duration = time.perf_counter() - started
+            metrics.record_mail_sync(duration, total_new=0, error=str(e))
             logger.error(f"定期同步失败: {e}")

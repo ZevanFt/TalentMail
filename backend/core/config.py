@@ -64,6 +64,11 @@ class Settings(BaseSettings):
     ALERT_WEBHOOK_URL: str = ""  # 空则不发送告警
     ALERT_COOLDOWN_SECONDS: int = 1800  # 同类告警冷却
     MAIL_QUEUE_WARN_THRESHOLD: int = 50
+    # 性能阈值（health + Webhook）
+    API_LATENCY_P95_WARN_MS: float = 2000.0
+    MAIL_SYNC_WARN_SECONDS: float = 90.0
+    SLOW_QUERY_THRESHOLD_MS: float = 500.0
+    SLOW_QUERY_WARN_COUNT: int = 30  # 累计慢查询超过则告警
 
     # 注册策略
     REGISTRATION_REQUIRE_INVITE: bool = True

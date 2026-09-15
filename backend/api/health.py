@@ -89,6 +89,38 @@ async def health_check(db: Session = Depends(get_db)):
     except Exception as e:
         checks["mail_queue"] = {"depth": None, "error": str(e)}
 
+    # 性能指标：API 延迟 / mail_sync / 慢查询
+    try:
+        from core import metrics as perf_metrics
+        from core.config import settings as _settings
+        perf = perf_metrics.get_metrics_snapshot()
+        checks["performance"] = perf
+        p95_warn = getattr(_settings, "API_LATENCY_P95_WARN_MS", 2000.0)
+        p95 = perf.get("api", {}).get("p95_ms")
+        if p95 is not None and p95 >= p95_warn:
+            checks.setdefault("performance", {}).setdefault("api", {})["warning"] = (
+                f"P95 {p95:.0f}ms 超过阈值 {p95_warn:.0f}ms"
+            )
+        ms_dur = perf.get("mail_sync", {}).get("last_duration_sec")
+        ms_warn = getattr(_settings, "MAIL_SYNC_WARN_SECONDS", 90.0)
+        if ms_dur is not None and ms_dur >= ms_warn:
+            checks["performance"]["mail_sync"]["warning"] = (
+                f"最近同步耗时 {ms_dur:.1f}s 超过阈值 {ms_warn:.0f}s"
+            )
+        if perf.get("mail_sync", {}).get("last_error"):
+            checks["performance"]["mail_sync"]["warning"] = (
+                f"最近同步失败: {perf['mail_sync']['last_error'][:120]}"
+            )
+        slow_count = perf.get("slow_queries", {}).get("count", 0)
+        slow_warn_n = getattr(_settings, "SLOW_QUERY_WARN_COUNT", 30)
+        if slow_count >= slow_warn_n:
+            checks["performance"]["slow_queries"]["warning"] = (
+                f"累计慢查询 {slow_count} 条（阈值 {slow_warn_n}）"
+            )
+    except Exception as e:
+        logger.error(f"[Health] 获取性能指标失败: {e}")
+        checks["performance"] = {"error": str(e)}
+
     # 运行时长
     uptime = round(time.time() - _PROCESS_START, 1)
     checks["uptime_seconds"] = uptime
@@ -97,7 +129,18 @@ async def health_check(db: Session = Depends(get_db)):
     if not db_ok:
         return JSONResponse(status_code=503, content={"status": "unhealthy", "service": "talentmail-backend", **checks})
 
-    degraded = bool(checks.get("dead_tasks")) or bool(checks.get("mail_queue", {}).get("warning"))
+    perf_warn = False
+    perf_block = checks.get("performance") or {}
+    if isinstance(perf_block, dict):
+        perf_warn = any(
+            isinstance(v, dict) and v.get("warning")
+            for v in (perf_block.get("api"), perf_block.get("mail_sync"), perf_block.get("slow_queries"))
+        )
+    degraded = (
+        bool(checks.get("dead_tasks"))
+        or bool(checks.get("mail_queue", {}).get("warning"))
+        or perf_warn
+    )
     overall = "degraded" if degraded else "healthy"
     return {"status": overall, "service": "talentmail-backend", **checks}
 
