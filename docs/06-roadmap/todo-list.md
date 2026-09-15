@@ -24,7 +24,7 @@
 | 操作审计 | 100% | 已完成 | 登录/SSO登录/备份/发信/删用户/云盘/联系人/工作流/模板触发(规则+工作流+手动)/API Key 创建吊销；API 调用审计在 api_key_audit_logs；管理端可查 |
 | 性能监控 | 100% | 已完成 | health 含 DB/任务/磁盘/uptime/邮件队列 + API P95/P99、mail_sync 耗时、慢查询；Webhook 告警覆盖死任务/队列积压/API 延迟/同步失败与过慢/慢查询 |
 | 国际化 | 100% | 已完成 | 批次3 完成：布局侧栏/Header、账号池、云盘/通讯录/附件/分享、注册/找回密码/SSO回调、日历弹窗、编辑器工具栏、common 组件、error 页、settings 余量全部迁入 zh/en；覆盖检查 t() 零缺失，前端 build 通过 |
-| 日历增强 | 90% | 基本完成 | 周视图 + 循环 + .ics 进出 + CalDAV 读写；sync-token 待补 |
+| 日历增强 | 100% | 已完成 | 周视图 + 循环 + .ics 进出 + CalDAV 读写 + sync-token/calendar-query/multiget 增量同步 |
 
 ## 已完成的高优先级任务
 
@@ -141,7 +141,7 @@
   - Outlook Calendar
 - [ ] **CalDAV 增强**
   - [x] 写回（PUT/DELETE）- 2026-03-08
-  - sync-token 增量同步
+  - [x] sync-token 增量同步（RFC 6578 + calendar-query/multiget）- 2026-09-16
   - 应用专用密码
 
 ---

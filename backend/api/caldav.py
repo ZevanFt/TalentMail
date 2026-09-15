@@ -1,7 +1,7 @@
-"""CalDAV 只读子集 — 支持 PROPFIND / OPTIONS / GET / 简化 REPORT。
+"""CalDAV 子集 — PROPFIND / OPTIONS / GET / PUT / DELETE / REPORT。
 
-客户端可用账号密码（HTTP Basic）拉取日历，适用于 Thunderbird / Apple Calendar 只读订阅。
-完整读写 CalDAV（PUT/DELETE/sync-token）后续再扩。
+REPORT 支持 calendar-query、calendar-multiget、sync-collection（RFC 6578），
+供 Thunderbird / Apple Calendar 增量同步。
 """
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ from typing import Optional, Tuple
 from urllib.parse import unquote
 
 from fastapi import APIRouter, Depends, Request, Response
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from core.config import settings
@@ -27,6 +28,8 @@ router = APIRouter(tags=["CalDAV"])
 
 NS_DAV = "DAV:"
 NS_CALENDAR = "urn:ietf:params:xml:ns:caldav"
+# RFC 6578 初始 sync-token（客户端全量同步起点）
+INITIAL_SYNC_TOKEN = "http://calconnect.org/ns/caldav"
 
 
 def _parse_basic_auth(request: Request) -> Optional[Tuple[str, str]]:
@@ -148,7 +151,7 @@ async def caldav_entry(
         return Response(
             status_code=200,
             headers={
-                "DAV": "1, calendar-access, calendar-schedule",
+                "DAV": "1, calendar-access, calendar-schedule, sync-collection",
                 "Allow": "OPTIONS, GET, HEAD, PUT, DELETE, PROPFIND, REPORT",
             },
         )
@@ -205,8 +208,13 @@ async def caldav_entry(
                 media_type="text/calendar; charset=utf-8",
                 headers={"Content-Disposition": 'attachment; filename="talentmail.ics"'},
             )
-        # PROPFIND / REPORT calendar-collection
+        # REPORT on collection: calendar-query / multiget / sync-collection
+        if method == "REPORT":
+            return await _handle_report(request, db, user, calendar)
+
+        # PROPFIND calendar-collection
         etag = f'"{user.id}-{int(datetime.now(timezone.utc).timestamp())}"'
+        sync_token = _current_sync_token(db, user)
         inner = f'''<D:response>
   <D:href>{calendar}</D:href>
   <D:propstat>
@@ -214,6 +222,7 @@ async def caldav_entry(
       <D:displayname>TalentMail Calendar</D:displayname>
       <D:resourcetype><D:collection/><C:calendar/></D:resourcetype>
       <D:getetag>{etag}</D:getetag>
+      <D:sync-token>{sync_token}</D:sync-token>
       <C:supported-calendar-component-set>
         <C:comp name="VEVENT"/>
       </C:supported-calendar-component-set>
@@ -331,3 +340,216 @@ def _event_vevent_wrapper(event: CalendarEvent) -> str:
         f"{_event_to_ics(event)}\r\n"
         "END:VCALENDAR\r\n"
     )
+
+
+def _event_uid(event: CalendarEvent) -> str:
+    return getattr(event, "caldav_uid", None) or f"talentmail-{event.id}@{settings.BASE_DOMAIN}"
+
+
+def _current_sync_token(db: Session, user: User) -> str:
+    """集合当前 sync-token：user_id + max(updated_at) + 事件数。
+
+    数量下降表示发生过删除，旧 token 会失效（客户端需全量重同步，RFC 6578 409）。
+    """
+    row = (
+        db.query(
+            func.max(CalendarEvent.updated_at),
+            func.count(CalendarEvent.id),
+        )
+        .filter(CalendarEvent.user_id == user.id)
+        .one()
+    )
+    max_updated, count = row[0], int(row[1] or 0)
+    ts = int(max_updated.timestamp() * 1000) if max_updated else 0
+    return f"data:,u{user.id}-{ts}-{count}"
+
+
+def _parse_sync_token_value(raw: Optional[str]) -> Optional[str]:
+    if raw is None:
+        return None
+    val = raw.strip()
+    if not val or val == INITIAL_SYNC_TOKEN:
+        return None
+    # 允许带 XML 文本节点空白
+    return val
+
+
+def _token_meta(token: str) -> Optional[Tuple[int, int, int]]:
+    """解析 data:,u{uid}-{ts_ms}-{count} → (uid, ts_ms, count)"""
+    m = re.fullmatch(r"data:,u(\d+)-(\d+)-(\d+)", token.strip())
+    if not m:
+        return None
+    return int(m.group(1)), int(m.group(2)), int(m.group(3))
+
+
+def _event_resource_xml(event: CalendarEvent, calendar_base: str, include_data: bool = True) -> str:
+    uid = _event_uid(event)
+    href = f"{calendar_base}{uid}.ics"
+    etag = _event_etag(event)
+    data_xml = ""
+    if include_data:
+        cal = _event_vevent_wrapper(event)
+        cal_esc = cal.replace("&", "&amp;").replace("<", "&lt;")
+        data_xml = f"<C:calendar-data>{cal_esc}</C:calendar-data>"
+    return f'''<D:response>
+  <D:href>{href}</D:href>
+  <D:propstat>
+    <D:prop>
+      <D:getetag>{etag}</D:getetag>
+      <D:getcontenttype>text/calendar; charset=utf-8</D:getcontenttype>
+      {data_xml}
+    </D:prop>
+    <D:status>HTTP/1.1 200 OK</D:status>
+  </D:propstat>
+</D:response>'''
+
+
+def _collect_local_names(elem) -> set:
+    names = set()
+    for el in elem.iter():
+        tag = el.tag
+        if isinstance(tag, str) and "}" in tag:
+            names.add(tag.rsplit("}", 1)[-1])
+        elif isinstance(tag, str):
+            names.add(tag)
+    return names
+
+
+async def _handle_report(
+    request: Request,
+    db: Session,
+    user: User,
+    calendar_base: str,
+) -> Response:
+    """处理 calendar 集合上的 REPORT。"""
+    body = await request.body()
+    current_token = _current_sync_token(db, user)
+    calendar = calendar_base  # ends with /
+
+    root = None
+    local_names: set = set()
+    if body:
+        try:
+            try:
+                from defusedxml import ElementTree as SafeET  # type: ignore
+            except Exception:
+                import xml.etree.ElementTree as SafeET  # type: ignore
+            root = SafeET.fromstring(body)
+            local_names = _collect_local_names(root)
+        except Exception as e:
+            logger.warning(f"[CalDAV] REPORT XML 解析失败: {e}")
+            return Response(status_code=400, content="Invalid REPORT body")
+
+    # ── sync-collection（RFC 6578）──
+    if "sync-collection" in local_names:
+        client_token_el = None
+        for el in root.iter():
+            tag = el.tag
+            local = tag.rsplit("}", 1)[-1] if isinstance(tag, str) and "}" in tag else tag
+            if local == "sync-token":
+                client_token_el = el
+                break
+        client_token = _parse_sync_token_value(client_token_el.text if client_token_el is not None else None)
+
+        # 初始/空 token → 全量
+        if client_token is None:
+            events = (
+                db.query(CalendarEvent)
+                .filter(CalendarEvent.user_id == user.id)
+                .order_by(CalendarEvent.updated_at.asc())
+                .limit(1000)
+                .all()
+            )
+            inner_responses = "\n".join(_event_resource_xml(ev, calendar) for ev in events)
+            inner = f'''{inner_responses}
+<D:sync-token>{current_token}</D:sync-token>'''
+            return _multistatus(inner)
+
+        meta = _token_meta(client_token)
+        if meta is None or meta[0] != user.id:
+            # 非法 token → 409，客户端应空 token 重来
+            return Response(
+                status_code=409,
+                media_type="application/xml; charset=utf-8",
+                content=f'''<?xml version="1.0" encoding="utf-8"?>
+<D:error xmlns:D="{NS_DAV}"><D:valid-sync-token/></D:error>''',
+            )
+
+        token_uid, token_ts, token_count = meta
+        cur_meta = _token_meta(current_token)
+        cur_ts = cur_meta[1] if cur_meta else 0
+        cur_count = cur_meta[2] if cur_meta else 0
+
+        # 发生过删除（数量下降）→ 旧 token 失效
+        if cur_count < token_count:
+            return Response(
+                status_code=409,
+                media_type="application/xml; charset=utf-8",
+                content=f'''<?xml version="1.0" encoding="utf-8"?>
+<D:error xmlns:D="{NS_DAV}"><D:valid-sync-token/></D:error>''',
+            )
+
+        # 无变化
+        if cur_ts == token_ts and cur_count == token_count:
+            return _multistatus(f"<D:sync-token>{current_token}</D:sync-token>")
+
+        # 增量：updated_at 毫秒 > token_ts（创建/更新；删除走上面的 409）
+        changed = (
+            db.query(CalendarEvent)
+            .filter(
+                CalendarEvent.user_id == user.id,
+                CalendarEvent.updated_at > datetime.fromtimestamp(token_ts / 1000.0, tz=timezone.utc),
+            )
+            .order_by(CalendarEvent.updated_at.asc())
+            .limit(1000)
+            .all()
+        )
+        inner_responses = "\n".join(_event_resource_xml(ev, calendar) for ev in changed)
+        inner = f'''{inner_responses}
+<D:sync-token>{current_token}</D:sync-token>'''
+        return _multistatus(inner)
+
+    # ── calendar-multiget ──
+    if "calendar-multiget" in local_names:
+        hrefs = []
+        for el in root.iter():
+            tag = el.tag
+            local = tag.rsplit("}", 1)[-1] if isinstance(tag, str) and "}" in tag else tag
+            if local == "href" and el.text:
+                hrefs.append(el.text.strip())
+        uids = []
+        for href in hrefs:
+            name = href.rstrip("/").rsplit("/", 1)[-1]
+            if name.endswith(".ics"):
+                name = name[:-4]
+            if name:
+                uids.append(name)
+        events = []
+        if uids:
+            events = (
+                db.query(CalendarEvent)
+                .filter(CalendarEvent.user_id == user.id, CalendarEvent.caldav_uid.in_(uids))
+                .all()
+            )
+        found = {_event_uid(ev) for ev in events}
+        parts = [_event_resource_xml(ev, calendar) for ev in events]
+        # 未找到的 href 返回 404
+        for uid in uids:
+            if uid not in found:
+                parts.append(f'''<D:response>
+  <D:href>{calendar}{uid}.ics</D:href>
+  <D:status>HTTP/1.1 404 Not Found</D:status>
+</D:response>''')
+        return _multistatus("\n".join(parts) if parts else "")
+
+    # ── calendar-query（全量事件列表，可带 time-range 时仍返回全量，客户端自行过滤）──
+    events = (
+        db.query(CalendarEvent)
+        .filter(CalendarEvent.user_id == user.id)
+        .order_by(CalendarEvent.start_time.asc())
+        .limit(1000)
+        .all()
+    )
+    parts = [_event_resource_xml(ev, calendar) for ev in events]
+    parts.append(f"<D:sync-token>{current_token}</D:sync-token>")
+    return _multistatus("\n".join(parts))
