@@ -65,7 +65,7 @@ const loadMailboxes = async () => {
             hasAccess.value = false
         }
         console.error('加载邮箱失败', e)
-        toast.error(e.data?.detail || '加载邮箱失败')
+        toast.error(e.data?.detail || t('pool.loadMailboxFailed'))
     } finally {
         loading.value = false
     }
@@ -87,7 +87,7 @@ const loadEmails = async () => {
         }
     } catch (e: any) {
         console.error('加载邮件失败', e)
-        toast.error(e.data?.detail || '加载邮件失败')
+        toast.error(e.data?.detail || t('pool.loadEmailFailed'))
     }
 }
 
@@ -97,7 +97,7 @@ const loadStats = async () => {
         stats.value = await getPoolStats()
     } catch (e: any) {
         console.error('加载统计失败', e)
-        toast.error(e.data?.detail || '加载统计失败')
+        toast.error(e.data?.detail || t('pool.loadStatsFailed'))
     }
 }
 
@@ -112,7 +112,7 @@ const selectMailbox = (mailbox: Mailbox) => {
 const formatCountdown = (dateStr: string | null) => {
     if (!dateStr) return '-'
     const diff = new Date(dateStr).getTime() - Date.now()
-    if (diff <= 0) return '已过期'
+    if (diff <= 0) return t('pool.expired')
     const h = Math.floor(diff / 3600000)
     const m = Math.floor((diff % 3600000) / 60000)
     if (h > 0) return `${h}h${m}m`
@@ -120,9 +120,9 @@ const formatCountdown = (dateStr: string | null) => {
 }
 
 const mailboxStatusText = (mailbox: Mailbox) => {
-    if (mailbox.status === 'active') return `剩余 ${formatCountdown(mailbox.expires_at)}`
-    if (mailbox.status === 'expired_recoverable') return `已过期，可恢复至 ${formatTime(mailbox.recovery_until)}`
-    return '已清理'
+    if (mailbox.status === 'active') return t('pool.remaining', { time: formatCountdown(mailbox.expires_at) })
+    if (mailbox.status === 'expired_recoverable') return t('pool.recoverableUntil', { time: formatTime(mailbox.recovery_until) })
+    return t('pool.status.purged')
 }
 
 const handleExtendSelected = async () => {
@@ -131,7 +131,7 @@ const handleExtendSelected = async () => {
         await extendPoolMailbox(selectedMailbox.value.id)
         await Promise.all([loadMailboxes(), loadStats()])
     } catch (e: any) {
-        toast.error(e.data?.detail || '续期失败')
+        toast.error(e.data?.detail || t('pool.extendFailed'))
     }
 }
 
@@ -141,7 +141,7 @@ const handleRestoreSelected = async () => {
         await restorePoolMailbox(selectedMailbox.value.id)
         await Promise.all([loadMailboxes(), loadStats()])
     } catch (e: any) {
-        toast.error(e.data?.detail || '恢复失败')
+        toast.error(e.data?.detail || t('pool.restoreFailed'))
     }
 }
 
@@ -165,7 +165,7 @@ const selectEmail = async (email: PoolEmail) => {
             }
         } catch (e: any) {
             console.error('标记已读失败', e)
-            toast.error('标记已读失败')
+            toast.error(t('pool.markReadFailed'))
         }
     }
 }
@@ -179,29 +179,29 @@ const handlePoolStar = async () => {
         selectedEmail.value.is_starred = isStarred
     } catch (e: any) {
         console.error('标记星标失败:', e)
-        toast.error('标记星标失败')
+        toast.error(t('pool.starFailed'))
     }
 }
 
 // Pool 邮件删除
 const handlePoolEmailDelete = async () => {
     if (!selectedEmail.value) return
-    const ok = await confirmDialog({ message: '确定删除此邮件？', type: 'danger' })
+    const ok = await confirmDialog({ message: t('pool.confirmDeleteEmail'), type: 'danger' })
     if (!ok) return
     try {
         await deleteEmail(selectedEmail.value.id)
         emails.value = emails.value.filter(e => e.id !== selectedEmail.value?.id)
         selectedEmail.value = null
-        toast.success('已删除')
+        toast.success(t('pool.deleted'))
     } catch (e: any) {
         console.error('删除邮件失败:', e)
-        toast.error('删除失败')
+        toast.error(t('pool.deleteFailed'))
     }
 }
 
 // 删除邮箱
 const handleDelete = async (mailbox: Mailbox) => {
-    const ok = await confirmDialog({ message: `确定删除 ${mailbox.email} 吗？`, type: 'danger' })
+    const ok = await confirmDialog({ message: t('pool.confirmDeleteMailbox', { email: mailbox.email }), type: 'danger' })
     if (!ok) return
     try {
         await deletePoolMailbox(mailbox.id)
@@ -212,7 +212,7 @@ const handleDelete = async (mailbox: Mailbox) => {
         }
         loadStats()
     } catch (e: any) {
-        toast.error(e.data?.detail || '删除失败')
+        toast.error(e.data?.detail || t('pool.deleteFailed'))
     }
 }
 
@@ -222,7 +222,7 @@ const copyCode = async (code: string) => {
         await copyToClipboard(code)
         copiedCode.value = code
         setTimeout(() => copiedCode.value = null, 2000)
-    } catch { toast.error('复制失败') }
+    } catch { toast.error(t('pool.copyFailed')) }
 }
 
 // 复制邮箱地址
@@ -232,7 +232,7 @@ const copyEmail = async (email: string) => {
         await copyToClipboard(email)
         copiedEmail.value = email
         setTimeout(() => copiedEmail.value = null, 2000)
-    } catch { toast.error('复制失败') }
+    } catch { toast.error(t('pool.copyFailed')) }
 }
 
 // 格式化时间
@@ -241,17 +241,17 @@ const formatTime = (dateStr: string | null) => {
     const date = new Date(dateStr)
     const now = new Date()
     const diff = now.getTime() - date.getTime()
-    if (diff < 60000) return '刚刚'
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`
-    return date.toLocaleDateString('zh-CN')
+    if (diff < 60000) return t('pool.justNow')
+    if (diff < 3600000) return t('pool.minutesAgo', { n: Math.floor(diff / 60000) })
+    if (diff < 86400000) return t('pool.hoursAgo', { n: Math.floor(diff / 3600000) })
+    return date.toLocaleDateString()
 }
 
 // 获取邮箱首字母
 const getInitial = (email: string) => email?.[0]?.toUpperCase() || '?'
 
 // 获取发件人名称
-const getSenderName = (sender: string) => sender?.split('<')[0]?.trim() || sender || '未知'
+const getSenderName = (sender: string) => sender?.split('<')[0]?.trim() || sender || t('pool.unknown')
 
 // ========== 自动刷新轮询 ==========
 let pollTimer: ReturnType<typeof setInterval> | null = null
@@ -324,9 +324,9 @@ watch(isGenerateOpen, (val) => {
         <!-- 无权限提示 -->
         <div v-if="!loading && !hasAccess" class="flex-1 flex flex-col items-center justify-center text-gray-500">
             <Box class="w-20 h-20 opacity-20 mb-6" />
-            <p class="text-xl font-medium mb-2">您没有账号池功能权限</p>
-            <p class="text-sm">请联系管理员开通</p>
-            <button @click="router.push('/')" class="mt-6 px-6 py-2 bg-primary text-white rounded-lg">返回首页</button>
+            <p class="text-xl font-medium mb-2">{{ t('pool.noAccess') }}</p>
+            <p class="text-sm">{{ t('pool.contactAdmin') }}</p>
+            <button @click="router.push('/')" class="mt-6 px-6 py-2 bg-primary text-white rounded-lg">{{ t('pool.backHome') }}</button>
         </div>
 
         <template v-else>
@@ -347,7 +347,7 @@ watch(isGenerateOpen, (val) => {
                 <div class="p-3 pb-2">
                     <div class="relative">
                         <Search class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input v-model="searchQuery" type="text" placeholder="搜索邮箱或用途..."
+                        <input v-model="searchQuery" type="text" :placeholder="t('pool.searchPlaceholder')"
                             class="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg py-1.5 pl-9 pr-4 text-xs focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all">
                     </div>
                 </div>
@@ -368,7 +368,7 @@ watch(isGenerateOpen, (val) => {
                 <!-- 列表 -->
                 <div v-else class="flex-1 overflow-y-auto px-2 space-y-1 py-2 custom-scrollbar">
                     <div v-if="mailboxes.length === 0" class="p-4 text-center text-gray-400 text-sm">
-                        暂无临时邮箱<br>点击右上角生成
+                        {{ t('pool.empty') }}<br>{{ t('pool.emptyHint') }}
                     </div>
                     <div v-for="mailbox in mailboxes.filter(m => { if (!searchQuery) return true; const q = searchQuery.toLowerCase(); return m.email.toLowerCase().includes(q) || (m.purpose && m.purpose.toLowerCase().includes(q)) })" :key="mailbox.id"
                         @click="selectMailbox(mailbox)"
@@ -387,7 +387,7 @@ watch(isGenerateOpen, (val) => {
                                         :class="mailbox.status === 'active'
                                             ? 'text-green-600 border-green-200 bg-green-50'
                                             : 'text-amber-600 border-amber-200 bg-amber-50'">
-                                        {{ mailbox.status === 'active' ? '活跃' : '可恢复' }}
+                                        {{ mailbox.status === 'active' ? t('pool.status.active') : t('pool.status.recoverable') }}
                                     </span>
                                 </div>
                                 <div class="flex items-center justify-between mt-0.5">
@@ -403,8 +403,8 @@ watch(isGenerateOpen, (val) => {
 
                 <!-- 底部统计 -->
                 <div class="p-3 border-t border-gray-200 dark:border-border-dark flex justify-between text-[10px] text-gray-400 bg-gray-100/50 dark:bg-bg-dark/50">
-                    <span>{{ stats.active_mailboxes }} 个活跃账号</span>
-                    <span>{{ stats.recoverable_mailboxes }} 个可恢复</span>
+                    <span>{{ t('pool.activeCount', { n: stats.active_mailboxes }) }}</span>
+                    <span>{{ t('pool.recoverableCount', { n: stats.recoverable_mailboxes }) }}</span>
                 </div>
             </div>
 
@@ -448,7 +448,7 @@ watch(isGenerateOpen, (val) => {
 
                 <div class="flex-1 overflow-y-auto">
                     <div v-if="emails.length === 0" class="p-8 text-center text-gray-400 text-sm">
-                        暂无邮件
+                        {{ t('mail.empty') }}
                     </div>
                     <div v-for="email in emails" :key="email.id" @click="selectEmail(email)"
                         @keydown.enter="selectEmail(email)" @keydown.space.prevent="selectEmail(email)"
@@ -482,10 +482,10 @@ watch(isGenerateOpen, (val) => {
                     </button>
                     <div class="flex items-center gap-3">
                         <button @click="isHistoryOpen = true" class="btn-tool" :class="{ '!px-2 !py-1 !text-xs': isMobile }">
-                            <History class="w-4 h-4" /> <span :class="{ 'hidden': isMobile }">历史</span>
+                            <History class="w-4 h-4" /> <span :class="{ 'hidden': isMobile }">{{ t('pool.history') }}</span>
                         </button>
                         <button @click="isStatsOpen = true" class="btn-tool" :class="{ '!px-2 !py-1 !text-xs': isMobile }">
-                            <BarChart class="w-4 h-4" /> <span :class="{ 'hidden': isMobile }">统计</span>
+                            <BarChart class="w-4 h-4" /> <span :class="{ 'hidden': isMobile }">{{ t('pool.stats') }}</span>
                         </button>
                         <button @click="isGenerateOpen = true"
                             class="flex items-center gap-2 px-4 py-1.5 bg-primary text-white rounded-lg hover:bg-primary-hover shadow-md shadow-primary/20 transition-all font-medium text-sm ml-2 whitespace-nowrap"
@@ -508,8 +508,8 @@ watch(isGenerateOpen, (val) => {
                                 </div>
                             </div>
                             <div class="flex gap-2">
-                                <button @click="handlePoolStar" class="icon-btn" aria-label="收藏"><Star class="w-5 h-5" /></button>
-                                <button @click="handlePoolEmailDelete" class="icon-btn" aria-label="删除"><Trash2 class="w-5 h-5" /></button>
+                                <button @click="handlePoolStar" class="icon-btn" :aria-label="t('pool.star')"><Star class="w-5 h-5" /></button>
+                                <button @click="handlePoolEmailDelete" class="icon-btn" :aria-label="t('common.delete')"><Trash2 class="w-5 h-5" /></button>
                             </div>
                         </div>
                         <div class="font-bold text-gray-900 dark:text-white mb-4">{{ selectedEmail.subject }}</div>
@@ -517,23 +517,23 @@ watch(isGenerateOpen, (val) => {
                         <!-- 验证码展示 -->
                         <div v-if="selectedEmail.verification_code"
                             class="bg-purple-50/50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-900/30 rounded-2xl flex flex-col items-center justify-center relative overflow-hidden group border-dashed" :class="isMobile ? 'p-6' : 'p-12'">
-                            <div class="text-sm text-gray-500 mb-4">验证码 (已自动识别)</div>
+                            <div class="text-sm text-gray-500 mb-4">{{ t('pool.codeDetected') }}</div>
                             <div class="font-mono font-bold text-primary tracking-widest drop-shadow-sm" :class="isMobile ? 'text-4xl mb-4' : 'text-7xl mb-8'">{{ selectedEmail.verification_code }}</div>
                             <button @click="copyCode(selectedEmail.verification_code!)"
                                 class="flex items-center gap-2 px-8 py-3 bg-primary text-white rounded-xl hover:bg-primary-hover shadow-xl shadow-primary/30 transition-all active:scale-95 text-lg font-medium">
                                 <Check v-if="copiedCode === selectedEmail.verification_code" class="w-5 h-5" />
                                 <Copy v-else class="w-5 h-5" />
-                                {{ copiedCode === selectedEmail.verification_code ? '已复制' : '复制' }}
+                                {{ copiedCode === selectedEmail.verification_code ? t('pool.copied') : t('pool.copy') }}
                             </button>
                         </div>
                         <div v-else class="bg-gray-50 dark:bg-gray-800/50 rounded-2xl p-8 text-center text-gray-500">
-                            未检测到验证码
+                            {{ t('pool.noCode') }}
                         </div>
                     </template>
                     <template v-else>
                         <div class="flex-1 flex flex-col items-center justify-center text-gray-400">
                             <Mail class="w-20 h-20 opacity-10 mb-6" />
-                            <p class="text-lg">选择一封邮件查看验证码</p>
+                            <p class="text-lg">{{ t('pool.selectEmailHint') }}</p>
                         </div>
                     </template>
                 </div>

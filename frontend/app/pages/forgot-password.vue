@@ -59,7 +59,7 @@ const handleSendCode = async () => {
     if (loading.value || !username || countdown.value > 0) return
 
     if (!username.includes('@') && !normalizedDomain.value) {
-        error.value = '请输入域名或直接输入完整邮箱'
+        error.value = t('auth.needDomainOrEmail')
         return
     }
 
@@ -68,11 +68,11 @@ const handleSendCode = async () => {
     
     try {
         await forgotPassword(fullEmail.value)
-        success.value = '验证码已发送到您的邮箱'
+        success.value = t('auth.codeSent')
         step.value = 2
         startCountdown()
     } catch (e: any) {
-        error.value = e.data?.detail || '发送验证码失败'
+        error.value = e.data?.detail || t('auth.sendCodeFailed')
     } finally {
         loading.value = false
     }
@@ -87,10 +87,10 @@ const handleResendCode = async () => {
     
     try {
         await forgotPassword(fullEmail.value)
-        success.value = '验证码已重新发送'
+        success.value = t('auth.codeResent')
         startCountdown()
     } catch (e: any) {
-        error.value = e.data?.detail || '发送验证码失败'
+        error.value = e.data?.detail || t('auth.sendCodeFailed')
     } finally {
         loading.value = false
     }
@@ -102,27 +102,27 @@ const handleResetPassword = async () => {
     
     // 验证
     if (!form.code) {
-        error.value = '请输入验证码'
+        error.value = t('auth.pleaseEnterCode')
         return
     }
     if (form.code.length !== 6) {
-        error.value = '验证码为6位数字'
+        error.value = t('auth.codeMustBe6Digits')
         return
     }
     if (!form.newPassword) {
-        error.value = '请输入新密码'
+        error.value = t('auth.pleaseEnterNewPassword')
         return
     }
     if (form.newPassword.length < 8) {
-        error.value = '密码至少 8 位'
+        error.value = t('auth.passwordMinLength')
         return
     }
     if (!/[a-z]/.test(form.newPassword) || !/[A-Z]/.test(form.newPassword) || !/\d/.test(form.newPassword)) {
-        error.value = '密码必须包含大写字母、小写字母和数字'
+        error.value = t('auth.passwordRules')
         return
     }
     if (form.newPassword !== form.confirmPassword) {
-        error.value = '两次输入的密码不一致'
+        error.value = t('auth.passwordMismatch')
         return
     }
     
@@ -133,7 +133,7 @@ const handleResetPassword = async () => {
         await resetPassword(fullEmail.value, form.code, form.newPassword)
         step.value = 3
     } catch (e: any) {
-        error.value = e.data?.detail || '重置密码失败'
+        error.value = e.data?.detail || t('auth.resetPasswordFailed')
     } finally {
         loading.value = false
     }
@@ -181,9 +181,9 @@ onUnmounted(() => {
             <!-- 步骤 1: 输入邮箱 -->
             <form v-if="step === 1" @submit.prevent="handleSendCode" class="space-y-5">
                 <div class="space-y-1.5">
-                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ appName }} 邮箱</label>
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('auth.appEmailLabel', { app: appName }) }}</label>
                     <div class="flex items-stretch rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all">
-                        <input v-model="form.username" type="text" placeholder="用户名"
+                        <input v-model="form.username" type="text" :placeholder="t('auth.username')"
                             class="flex-[5] min-w-0 px-4 py-3 bg-gray-50 dark:bg-gray-900 text-sm outline-none text-gray-900 dark:text-white placeholder-gray-400 border-none" required>
                         <span class="px-2 py-3 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 flex items-center justify-center border-l border-r border-gray-200 dark:border-gray-700">
                             @
@@ -191,12 +191,12 @@ onUnmounted(() => {
                         <input
                             v-model="form.domain"
                             type="text"
-                            placeholder="域名"
+                            :placeholder="t('auth.domain')"
                             :disabled="form.username.includes('@')"
                             class="flex-[5] min-w-0 px-3 py-3 bg-gray-100 dark:bg-gray-800 text-sm outline-none text-gray-700 dark:text-gray-200 placeholder-gray-400 border-none domain-suffix disabled:opacity-60"
                         >
                     </div>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">验证码将发送到此邮箱</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('auth.codeWillSendToEmail') }}</p>
                 </div>
 
                 <!-- 错误提示 -->
@@ -206,7 +206,7 @@ onUnmounted(() => {
                 <button type="submit" :disabled="loading || !form.username"
                     class="w-full bg-primary hover:bg-primary-hover disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-lg shadow-primary/25 transition-all active:scale-[0.98] flex items-center justify-center gap-2">
                     <Loader2 v-if="loading" class="w-5 h-5 animate-spin" />
-                    {{ loading ? '发送中...' : '发送验证码' }}
+                    {{ loading ? t('auth.sending') : t('auth.sendCode') }}
                 </button>
             </form>
 
@@ -216,31 +216,31 @@ onUnmounted(() => {
                 <button type="button" @click="goBack"
                     class="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
                     <ArrowLeft class="w-4 h-4" />
-                    返回
+                    {{ t('auth.back') }}
                 </button>
 
                 <!-- 显示邮箱 -->
                 <div class="text-center text-sm text-gray-600 dark:text-gray-400">
-                    验证码已发送至 <span class="font-medium text-gray-900 dark:text-white">{{ fullEmail }}</span>
+                    {{ t('auth.codeSentToPrefix') }} <span class="font-medium text-gray-900 dark:text-white">{{ fullEmail }}</span>
                 </div>
 
                 <!-- 验证码 -->
                 <div class="space-y-1.5">
-                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">验证码</label>
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('auth.twoFaCode') }}</label>
                     <div class="flex gap-2">
-                        <input v-model="form.code" type="text" maxlength="6" placeholder="6位验证码"
+                        <input v-model="form.code" type="text" maxlength="6" :placeholder="t('auth.codePlaceholder')"
                             class="input-field flex-1 text-center tracking-widest" required>
                         <button type="button" @click="handleResendCode" :disabled="countdown > 0 || loading"
                             class="px-4 py-3 text-sm font-medium text-primary hover:text-primary-hover disabled:text-gray-400 disabled:cursor-not-allowed transition-colors whitespace-nowrap">
-                            {{ countdown > 0 ? `${countdown}s` : '重新发送' }}
+                            {{ countdown > 0 ? `${countdown}s` : t('auth.resend') }}
                         </button>
                     </div>
                 </div>
 
                 <!-- 新密码 -->
                 <div class="space-y-1.5 relative">
-                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">新密码</label>
-                    <input v-model="form.newPassword" :type="showPassword ? 'text' : 'password'" placeholder="至少8位，含大小写和数字"
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('auth.newPassword') }}</label>
+                    <input v-model="form.newPassword" :type="showPassword ? 'text' : 'password'" :placeholder="t('auth.passwordPlaceholder')"
                         class="input-field pr-10" required>
                     <button type="button" @click="showPassword = !showPassword"
                         class="absolute right-3 top-9 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
@@ -252,8 +252,8 @@ onUnmounted(() => {
 
                 <!-- 确认密码 -->
                 <div class="space-y-1.5 relative">
-                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">确认密码</label>
-                    <input v-model="form.confirmPassword" :type="showConfirmPassword ? 'text' : 'password'" placeholder="再次输入新密码"
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('auth.confirmPassword') }}</label>
+                    <input v-model="form.confirmPassword" :type="showConfirmPassword ? 'text' : 'password'" :placeholder="t('auth.confirmPasswordPlaceholder')"
                         class="input-field pr-10" required>
                     <button type="button" @click="showConfirmPassword = !showConfirmPassword"
                         class="absolute right-3 top-9 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
@@ -272,7 +272,7 @@ onUnmounted(() => {
                 <button type="submit" :disabled="loading"
                     class="w-full bg-primary hover:bg-primary-hover disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-lg shadow-primary/25 transition-all active:scale-[0.98] flex items-center justify-center gap-2">
                     <Loader2 v-if="loading" class="w-5 h-5 animate-spin" />
-                    {{ loading ? '重置中...' : '重置密码' }}
+                    {{ loading ? t('auth.resetting') : t('auth.resetPassword') }}
                 </button>
             </form>
 
@@ -284,28 +284,28 @@ onUnmounted(() => {
                     </div>
                 </div>
                 <div>
-                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">密码重置成功</h3>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">您现在可以使用新密码登录了</p>
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">{{ t('auth.resetSuccess') }}</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('auth.resetSuccessHint') }}</p>
                 </div>
                 <NuxtLink to="/login"
                     class="block w-full bg-primary hover:bg-primary-hover text-white font-bold py-3 rounded-xl shadow-lg shadow-primary/25 transition-all active:scale-[0.98] text-center">
-                    返回登录
+                    {{ t('auth.backToLogin') }}
                 </NuxtLink>
             </div>
 
             <!-- 底部链接 -->
             <div class="mt-8 flex items-center justify-between">
                 <!-- 暗黑模式开关 -->
-                <button @click="toggleTheme" aria-label="切换主题"
+                <button @click="toggleTheme" :aria-label="t('common.theme')"
                     class="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
                     <Sun v-if="isDark" class="w-5 h-5" />
                     <Moon v-else class="w-5 h-5" />
                 </button>
 
                 <div class="text-sm text-gray-500">
-                    想起密码了？
+                    {{ t('auth.rememberPassword') }}
                     <NuxtLink to="/login" class="text-primary hover:text-primary-hover font-bold hover:underline">
-                        返回登录
+                        {{ t('auth.backToLogin') }}
                     </NuxtLink>
                 </div>
             </div>

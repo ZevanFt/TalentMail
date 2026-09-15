@@ -10,6 +10,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits(['update:modelValue'])
+const { t } = useI18n()
 
 const previewType = computed(() => getPreviewType(props.contentType))
 const loading = ref(true)
@@ -46,11 +47,11 @@ const loadPreview = async () => {
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const text = await res.text()
       // 限制显示长度，防止巨型文本卡死浏览器
-      textContent.value = text.length > 500_000 ? text.slice(0, 500_000) + '\n\n… 内容过长，已截断' : text
+      textContent.value = text.length > 500_000 ? text.slice(0, 500_000) + '\n\n… ' + t('common.filePreview.contentTruncated') : text
     }
   } catch (e: any) {
     console.error('预览加载失败', e)
-    error.value = e.message?.includes('415') ? '此文件类型不支持预览' : '预览加载失败'
+    error.value = e.message?.includes('415') ? t('common.filePreview.unsupported') : t('common.filePreview.loadFailed')
   } finally {
     loading.value = false
   }
@@ -80,7 +81,7 @@ onUnmounted(() => {
       <!-- Loading -->
       <div v-if="loading" class="text-center py-12">
         <Loader2 class="w-8 h-8 mx-auto animate-spin text-primary" />
-        <p class="mt-2 text-sm text-gray-500">加载预览中...</p>
+        <p class="mt-2 text-sm text-gray-500">{{ t('common.filePreview.loading') }}</p>
       </div>
 
       <!-- Error -->
@@ -111,7 +112,7 @@ onUnmounted(() => {
       <!-- Unsupported -->
       <div v-else class="text-center py-12 text-gray-500">
         <AlertCircle class="w-10 h-10 mx-auto mb-2 opacity-50" />
-        <p>此文件类型不支持预览</p>
+        <p>{{ t('common.filePreview.unsupported') }}</p>
       </div>
     </div>
   </CommonModal>

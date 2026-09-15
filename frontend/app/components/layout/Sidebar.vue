@@ -63,7 +63,7 @@ const handleAddAccount = async () => {
     showAddAccountModal.value = false
     newAccount.value = { email: '', password: '', provider: 'gmail', imap_host: '', imap_port: 993, smtp_host: '', smtp_port: 587 }
   } catch (e: any) {
-    accountError.value = e.data?.detail || '添加失败'
+    accountError.value = e.data?.detail || t('nav.account.addFailed')
   } finally {
     addingAccount.value = false
   }
@@ -88,42 +88,52 @@ const saveTag = async () => {
     await loadTags()
   } catch (e: any) {
     console.error('保存标签失败', e)
-    toast.error(e.data?.detail || '保存标签失败')
+    toast.error(e.data?.detail || t('nav.tags.saveFailed'))
   }
 }
 
 const removeTag = async (id: number) => {
-  const ok = await confirmDialog({ message: '确定删除此标签？', type: 'danger' })
+  const ok = await confirmDialog({ message: t('nav.tags.deleteConfirm'), type: 'danger' })
   if (!ok) return
   try {
     await deleteTag(id)
     await loadTags()
   } catch (e: any) {
     console.error('删除标签失败', e)
-    toast.error(e.data?.detail || '删除标签失败')
+    toast.error(e.data?.detail || t('nav.tags.deleteFailed'))
   }
 }
 
-// 文件夹角色 -> 中文名称 & 图标映射
-const folderConfig: Record<string, { name: string; icon: any; iconClass?: string }> = {
-  inbox: { name: '收件箱', icon: Mail },
-  sent: { name: '已发送', icon: Send },
-  drafts: { name: '草稿箱', icon: File },
-  trash: { name: '已删除', icon: Trash2 },
-  spam: { name: '垃圾邮件', icon: AlertOctagon },
-  archive: { name: '归档', icon: Archive },
-}
-
-// 虚拟文件夹（前端特有视图，不对应后端文件夹）
-const virtualFolders = {
-  starred: { id: 'starred', name: '红旗邮件', icon: Star, iconClass: 'text-red-500', filter: { is_starred: true } },
-  unread: { id: 'unread', name: '未读邮件', icon: CircleDot, iconClass: 'text-blue-500', filter: { is_read: false } },
-  snoozed: { id: 'snoozed', name: '待办邮件', icon: Clock, filter: { snoozed: true } },
+// 文件夹角色 -> 图标映射（名称走 i18n）
+const folderConfig: Record<string, { icon: any; iconClass?: string }> = {
+  inbox: { icon: Mail },
+  sent: { icon: Send },
+  drafts: { icon: File },
+  trash: { icon: Trash2 },
+  spam: { icon: AlertOctagon },
+  archive: { icon: Archive },
 }
 
 // 获取文件夹显示名称
-const getFolderName = (role: string, originalName: string) => folderConfig[role]?.name || originalName
+const getFolderName = (role: string, originalName: string) => {
+  const map: Record<string, string> = {
+    inbox: t('nav.inbox'),
+    sent: t('nav.sent'),
+    drafts: t('nav.drafts'),
+    trash: t('nav.trash'),
+    spam: t('nav.spam'),
+    archive: t('nav.archive'),
+  }
+  return map[role] || originalName
+}
 const getFolderIcon = (role: string) => folderConfig[role]?.icon || FolderOpen
+
+// 虚拟文件夹（前端特有视图，不对应后端文件夹）
+const virtualFolders = computed(() => ({
+  starred: { id: 'starred', name: t('nav.starred'), icon: Star, iconClass: 'text-red-500', filter: { is_starred: true } },
+  unread: { id: 'unread', name: t('nav.unread'), icon: CircleDot, iconClass: 'text-blue-500', filter: { is_read: false } },
+  snoozed: { id: 'snoozed', name: t('nav.snoozed'), icon: Clock, filter: { snoozed: true } },
+}))
 
 // 主要文件夹（收件箱、未读、红旗、待办、草稿、已发送）
 const mainFolders = computed(() => {
@@ -132,11 +142,11 @@ const mainFolders = computed(() => {
   const inbox = folders.value.find(f => f.role === 'inbox')
   if (inbox) result.push({ ...inbox, name: getFolderName(inbox.role, inbox.name), icon: getFolderIcon(inbox.role) })
   // 未读邮件（虚拟）
-  result.push(virtualFolders.unread)
+  result.push(virtualFolders.value.unread)
   // 红旗邮件（虚拟）
-  result.push(virtualFolders.starred)
+  result.push(virtualFolders.value.starred)
   // 待办邮件（虚拟）
-  result.push(virtualFolders.snoozed)
+  result.push(virtualFolders.value.snoozed)
   // 草稿箱
   const drafts = folders.value.find(f => f.role === 'drafts')
   if (drafts) result.push({ ...drafts, name: getFolderName(drafts.role, drafts.name), icon: getFolderIcon(drafts.role) })
@@ -154,7 +164,7 @@ const moreFolders = computed(() => [
     name: getFolderName(f.role, f.name),
     icon: getFolderIcon(f.role)
   })),
-  { id: 'all', name: '所有邮件', icon: FolderOpen, virtual: true, unread_count: 0 }
+  { id: 'all', name: t('nav.allMail'), icon: FolderOpen, virtual: true, unread_count: 0 }
 ])
 
 // 用户自定义文件夹
@@ -179,9 +189,9 @@ const handleCreateFolder = async () => {
     newFolderName.value = ''
     showCreateFolder.value = false
     await loadFolders()
-    toast.success('文件夹创建成功')
+    toast.success(t('nav.folders.created'))
   } catch (e: any) {
-    toast.error(e?.data?.detail || '创建失败')
+    toast.error(e?.data?.detail || t('nav.folders.createFailed'))
   }
 }
 
@@ -197,26 +207,26 @@ const handleRenameFolder = async () => {
     editingFolderId.value = null
     editingFolderName.value = ''
     await loadFolders()
-    toast.success('文件夹重命名成功')
+    toast.success(t('nav.folders.renamed'))
   } catch (e: any) {
-    toast.error(e?.data?.detail || '重命名失败')
+    toast.error(e?.data?.detail || t('nav.folders.renameFailed'))
   }
 }
 
 const handleDeleteFolder = async (folder: any) => {
   const ok = await confirmDialog({
-    title: '删除文件夹',
-    message: `确定删除「${folder.name}」？文件夹内的邮件将移回收件箱。`,
-    confirmText: '删除',
-    cancelText: '取消'
+    title: t('nav.folders.deleteTitle'),
+    message: t('nav.folders.deleteConfirm', { name: folder.name }),
+    confirmText: t('common.delete'),
+    cancelText: t('common.cancel')
   })
   if (!ok) return
   try {
     await deleteFolder(folder.id)
     await loadFolders()
-    toast.success('文件夹已删除')
+    toast.success(t('nav.folders.deleted'))
   } catch (e: any) {
-    toast.error(e?.data?.detail || '删除失败')
+    toast.error(e?.data?.detail || t('nav.folders.deleteFailed'))
   }
 }
 
@@ -335,7 +345,7 @@ onMounted(async () => {
 })
 
 const tools = computed(() => [
-  { name: '附件中心', icon: Paperclip, to: '/attachments' },
+  { name: t('nav.attachmentsCenter'), icon: Paperclip, to: '/attachments' },
   { name: t('nav.contacts'), icon: Users, to: '/contacts' },
   { name: t('drive.title'), icon: Cloud, to: '/drive' },
   { name: t('nav.calendar'), icon: CalendarDays, to: '/calendar' },
@@ -347,7 +357,7 @@ const isActive = (path: string) => route.path === path
 <template>
   <aside
     role="navigation"
-    aria-label="邮箱导航"
+    :aria-label="t('nav.mailNavAria')"
     class="sidebar-glass w-64 h-full border-r border-gray-200/50 dark:border-border-dark/50 flex flex-col shrink-0 transition-colors duration-200 pt-4 font-sans select-none">
 
     <!-- 写邮件 -->
@@ -379,7 +389,7 @@ const isActive = (path: string) => route.path === path
       <div class="mt-1">
         <button @click="toggle('more')" class="nav-item group w-full text-left">
           <component :is="isOpen.more ? ChevronDown : ChevronRight" class="w-4 h-4 shrink-0 text-inherit" />
-          <span class="flex-1 truncate">更多</span>
+          <span class="flex-1 truncate">{{ t('nav.more') }}</span>
         </button>
 
         <Transition name="slide">
@@ -398,8 +408,8 @@ const isActive = (path: string) => route.path === path
       <!-- 2.5 自定义文件夹 -->
       <div v-if="customFolders.length > 0 || showCreateFolder" class="mt-1">
         <div class="flex items-center px-3 py-1">
-          <span class="flex-1 text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">自定义文件夹</span>
-          <button @click="showCreateFolder = !showCreateFolder" class="text-gray-400 hover:text-primary transition-colors" title="新建文件夹">
+          <span class="flex-1 text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">{{ t('nav.customFolders') }}</span>
+          <button @click="showCreateFolder = !showCreateFolder" class="text-gray-400 hover:text-primary transition-colors" :title="t('nav.newFolder')">
             <Plus class="w-3.5 h-3.5" />
           </button>
         </div>
@@ -410,7 +420,7 @@ const isActive = (path: string) => route.path === path
             v-model="newFolderName"
             @keydown.enter="handleCreateFolder"
             @keydown.escape="showCreateFolder = false"
-            placeholder="文件夹名称"
+            :placeholder="t('nav.folderNamePlaceholder')"
             class="flex-1 text-sm bg-transparent border border-gray-300 dark:border-border-dark rounded px-2 py-1 focus:outline-none focus:border-primary"
             autofocus
           />
@@ -440,8 +450,8 @@ const isActive = (path: string) => route.path === path
               <span v-if="folder.unread_count" class="text-xs text-gray-400">{{ folder.unread_count }}</span>
               <!-- 操作按钮 -->
               <span class="hidden group-hover:flex items-center gap-0.5 shrink-0">
-                <button @click.stop="startRenameFolder(folder)" class="text-gray-400 hover:text-primary" title="重命名"><Pencil class="w-3 h-3" /></button>
-                <button @click.stop="handleDeleteFolder(folder)" class="text-gray-400 hover:text-red-500" title="删除"><Trash2 class="w-3 h-3" /></button>
+                <button @click.stop="startRenameFolder(folder)" class="text-gray-400 hover:text-primary" :title="t('nav.rename')"><Pencil class="w-3 h-3" /></button>
+                <button @click.stop="handleDeleteFolder(folder)" class="text-gray-400 hover:text-red-500" :title="t('common.delete')"><Trash2 class="w-3 h-3" /></button>
               </span>
             </button>
           </div>
@@ -452,7 +462,7 @@ const isActive = (path: string) => route.path === path
       <div v-if="customFolders.length === 0 && !showCreateFolder" class="mt-1 px-3">
         <button @click="showCreateFolder = true" class="text-xs text-gray-400 dark:text-gray-500 hover:text-primary transition-colors flex items-center gap-1">
           <PlusCircle class="w-3.5 h-3.5" />
-          <span>新建文件夹</span>
+          <span>{{ t('nav.newFolder') }}</span>
         </button>
       </div>
 
@@ -481,7 +491,7 @@ const isActive = (path: string) => route.path === path
             </button>
             <button @click="openTagModal()" class="sub-item text-gray-500 hover:text-primary">
               <PlusCircle class="w-4 h-4 shrink-0" />
-              <span class="truncate">添加标签</span>
+              <span class="truncate">{{ t('nav.tags.add') }}</span>
             </button>
           </div>
         </Transition>
@@ -491,7 +501,7 @@ const isActive = (path: string) => route.path === path
       <div class="mt-1">
         <button @click="toggle('center')" class="nav-item group w-full text-left">
           <component :is="isOpen.center ? ChevronDown : ChevronRight" class="w-4 h-4 shrink-0 text-inherit" />
-          <span class="flex-1 truncate">邮箱中心</span>
+          <span class="flex-1 truncate">{{ t('nav.mailCenter') }}</span>
         </button>
 
         <Transition name="slide">
@@ -499,7 +509,7 @@ const isActive = (path: string) => route.path === path
             <div v-for="account in externalAccounts" :key="account.id"
               class="ml-9 mr-2 bg-blue-50/60 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800 rounded-lg p-2.5 mb-1 group cursor-pointer hover:border-blue-300 dark:hover:border-blue-700 transition-colors min-w-0">
               <div class="flex items-center justify-between mb-1">
-                <span class="text-[10px] text-gray-500 font-medium">{{ account.is_active ? '代收中' : '已停用' }}</span>
+                <span class="text-[10px] text-gray-500 font-medium">{{ account.is_active ? t('nav.accountSyncing') : t('nav.accountDisabled') }}</span>
                 <RotateCw v-if="account.is_active" class="w-3 h-3 text-blue-500 animate-spin-slow shrink-0" />
               </div>
               <div class="flex items-center gap-2">
@@ -512,7 +522,7 @@ const isActive = (path: string) => route.path === path
 
             <button @click="showAddAccountModal = true" class="sub-item text-gray-500 hover:text-primary">
               <PlusCircle class="w-4 h-4 shrink-0" />
-              <span class="truncate">添加其他邮箱</span>
+              <span class="truncate">{{ t('nav.addExternalEmail') }}</span>
             </button>
           </div>
         </Transition>
@@ -522,7 +532,7 @@ const isActive = (path: string) => route.path === path
       <div class="mt-1">
         <button @click="toggle('tools')" class="nav-item group w-full text-left">
           <component :is="isOpen.tools ? ChevronDown : ChevronRight" class="w-4 h-4 shrink-0 text-inherit" />
-          <span class="flex-1 truncate">其他工具</span>
+          <span class="flex-1 truncate">{{ t('nav.otherTools') }}</span>
         </button>
 
         <Transition name="slide">
@@ -552,65 +562,65 @@ const isActive = (path: string) => route.path === path
   </aside>
 
   <!-- 标签编辑弹窗 -->
-  <CommonModal v-model="showTagModal" :title="editingTag ? '编辑标签' : '新建标签'" width-class="max-w-sm">
-    <input v-model="tagForm.name" placeholder="标签名称" class="w-full px-3 py-2 border rounded-lg mb-3 dark:bg-gray-700 dark:border-gray-600" />
+  <CommonModal v-model="showTagModal" :title="editingTag ? t('nav.tags.edit') : t('nav.tags.create')" width-class="max-w-sm">
+    <input v-model="tagForm.name" :placeholder="t('nav.tags.namePlaceholder')" class="w-full px-3 py-2 border rounded-lg mb-3 dark:bg-gray-700 dark:border-gray-600" />
     <div class="flex gap-2 mb-2">
       <button v-for="c in tagColors" :key="c" @click="tagForm.color = c" class="w-6 h-6 rounded-full" :style="{ backgroundColor: c }" :class="tagForm.color === c ? 'ring-2 ring-offset-2 ring-primary' : ''"></button>
     </div>
     <template #footer>
-      <button v-if="editingTag" @click="removeTag(editingTag.id)" class="px-3 py-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-sm">删除</button>
+      <button v-if="editingTag" @click="removeTag(editingTag.id)" class="px-3 py-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-sm">{{ t('common.delete') }}</button>
       <div class="flex-1"></div>
-      <button @click="showTagModal = false" class="px-3 py-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-sm">取消</button>
-      <button @click="saveTag" class="px-3 py-1.5 bg-primary text-white rounded-lg text-sm">保存</button>
+      <button @click="showTagModal = false" class="px-3 py-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-sm">{{ t('common.cancel') }}</button>
+      <button @click="saveTag" class="px-3 py-1.5 bg-primary text-white rounded-lg text-sm">{{ t('common.save') }}</button>
     </template>
   </CommonModal>
 
   <!-- 添加外部账号弹窗 -->
-  <CommonModal v-model="showAddAccountModal" title="添加外部邮箱">
+  <CommonModal v-model="showAddAccountModal" :title="t('nav.account.title')">
     <div class="space-y-3 max-h-80 overflow-y-auto">
       <div>
-        <label class="block text-xs text-gray-500 mb-1">邮箱服务商</label>
+        <label class="block text-xs text-gray-500 mb-1">{{ t('nav.account.provider') }}</label>
         <select v-model="newAccount.provider" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm">
-          <optgroup label="国际邮箱">
+          <optgroup :label="t('nav.account.international')">
             <option value="gmail">Gmail</option>
             <option value="outlook">Outlook / Hotmail</option>
             <option value="icloud">iCloud</option>
             <option value="yahoo">Yahoo Mail</option>
             <option value="zoho">Zoho Mail</option>
           </optgroup>
-          <optgroup label="国内邮箱">
-            <option value="qq">QQ 邮箱</option>
-            <option value="163">网易 163 邮箱</option>
-            <option value="126">网易 126 邮箱</option>
-            <option value="yeah">Yeah.net 邮箱</option>
-            <option value="sina">新浪邮箱</option>
-            <option value="aliyun">阿里云邮箱</option>
+          <optgroup :label="t('nav.account.domestic')">
+            <option value="qq">{{ t('nav.account.qq') }}</option>
+            <option value="163">{{ t('nav.account.n163') }}</option>
+            <option value="126">{{ t('nav.account.n126') }}</option>
+            <option value="yeah">{{ t('nav.account.yeah') }}</option>
+            <option value="sina">{{ t('nav.account.sina') }}</option>
+            <option value="aliyun">{{ t('nav.account.aliyun') }}</option>
           </optgroup>
-          <optgroup label="其他">
-            <option value="custom">自定义 IMAP/SMTP</option>
+          <optgroup :label="t('nav.account.other')">
+            <option value="custom">{{ t('nav.account.custom') }}</option>
           </optgroup>
         </select>
       </div>
       <div>
-        <label class="block text-xs text-gray-500 mb-1">邮箱地址</label>
+        <label class="block text-xs text-gray-500 mb-1">{{ t('nav.account.emailLabel') }}</label>
         <input v-model="newAccount.email" type="email" placeholder="your@email.com" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm" />
       </div>
       <div>
-        <label class="block text-xs text-gray-500 mb-1">密码/应用专用密码</label>
-        <input v-model="newAccount.password" type="password" placeholder="请输入密码" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm" />
-        <p class="text-[10px] text-gray-400 mt-1">Gmail/Outlook/iCloud 需使用应用专用密码</p>
+        <label class="block text-xs text-gray-500 mb-1">{{ t('nav.account.passwordLabel') }}</label>
+        <input v-model="newAccount.password" type="password" :placeholder="t('nav.account.passwordPlaceholder')" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm" />
+        <p class="text-[10px] text-gray-400 mt-1">{{ t('nav.account.passwordHint') }}</p>
       </div>
       <!-- 自定义服务器配置 -->
       <template v-if="isCustomProvider">
         <div class="border-t pt-3 mt-2">
-          <p class="text-xs text-gray-500 mb-2 font-medium">IMAP 收件服务器</p>
+          <p class="text-xs text-gray-500 mb-2 font-medium">{{ t('nav.account.imapLabel') }}</p>
           <div class="flex gap-2">
             <input v-model="newAccount.imap_host" type="text" placeholder="imap.example.com" class="flex-1 px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm" />
             <input v-model.number="newAccount.imap_port" type="number" placeholder="993" class="w-20 px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm" />
           </div>
         </div>
         <div>
-          <p class="text-xs text-gray-500 mb-2 font-medium">SMTP 发件服务器</p>
+          <p class="text-xs text-gray-500 mb-2 font-medium">{{ t('nav.account.smtpLabel') }}</p>
           <div class="flex gap-2">
             <input v-model="newAccount.smtp_host" type="text" placeholder="smtp.example.com" class="flex-1 px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm" />
             <input v-model.number="newAccount.smtp_port" type="number" placeholder="587" class="w-20 px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm" />
@@ -621,9 +631,9 @@ const isActive = (path: string) => route.path === path
     </div>
     <template #footer>
       <div class="flex-1"></div>
-      <button @click="showAddAccountModal = false" class="px-3 py-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-sm">取消</button>
+      <button @click="showAddAccountModal = false" class="px-3 py-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-sm">{{ t('common.cancel') }}</button>
       <button @click="handleAddAccount" :disabled="addingAccount || !newAccount.email || !newAccount.password || (isCustomProvider && (!newAccount.imap_host || !newAccount.smtp_host))" class="px-3 py-1.5 bg-primary text-white rounded-lg text-sm disabled:opacity-50">
-        {{ addingAccount ? '添加中...' : '添加' }}
+        {{ addingAccount ? t('nav.account.adding') : t('nav.account.add') }}
       </button>
     </template>
   </CommonModal>

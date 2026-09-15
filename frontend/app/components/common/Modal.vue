@@ -9,6 +9,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits(['update:modelValue'])
+const { t } = useI18n()
 
 // 处理关闭逻辑
 const handleClose = () => {
@@ -53,7 +54,7 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
             <h3 id="modal-title" class="text-lg font-bold text-gray-900 dark:text-white">{{ title }}</h3>
             <div class="flex items-center gap-2">
               <slot name="header-actions" />
-              <button @click="handleClose" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors" aria-label="关闭">
+              <button @click="handleClose" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors" :aria-label="t('common.close')">
                 <X class="w-5 h-5" />
               </button>
             </div>

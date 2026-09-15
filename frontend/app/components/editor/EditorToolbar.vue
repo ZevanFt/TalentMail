@@ -16,6 +16,8 @@ const props = defineProps<{
   variables?: Array<{ key: string; label?: string }>
 }>()
 
+const { t } = useI18n()
+
 const emit = defineEmits<{
   (e: 'insert-variable', name: string): void
   (e: 'insert-image'): void
@@ -29,7 +31,7 @@ const showInputPopover = ref(false)
 const inputPopoverType = ref<'link' | 'image'>('link')
 const inputPopoverValue = ref('')
 const inputPopoverRef = ref<HTMLInputElement | null>(null)
-const inputPopoverLabel = computed(() => inputPopoverType.value === 'link' ? '链接 URL' : '图片 URL')
+const inputPopoverLabel = computed(() => inputPopoverType.value === 'link' ? t('editor.linkUrl') : t('editor.imageUrl'))
 const inputPopoverPlaceholder = computed(() => inputPopoverType.value === 'link' ? 'https://example.com' : 'https://example.com/image.png')
 
 const openInputPopover = (type: 'link' | 'image', defaultValue = '') => {
@@ -97,10 +99,10 @@ const formatBtns = computed<ToolBtn[]>(() => {
   const e = props.editor
   if (!e) return []
   return [
-    { icon: Bold, title: '加粗', action: () => e.chain().focus().toggleBold().run(), isActive: () => e.isActive('bold') },
-    { icon: Italic, title: '斜体', action: () => e.chain().focus().toggleItalic().run(), isActive: () => e.isActive('italic') },
-    { icon: Underline, title: '下划线', action: () => e.chain().focus().toggleUnderline().run(), isActive: () => e.isActive('underline') },
-    { icon: Strikethrough, title: '删除线', action: () => e.chain().focus().toggleStrike().run(), isActive: () => e.isActive('strike') },
+    { icon: Bold, title: t('editor.bold'), action: () => e.chain().focus().toggleBold().run(), isActive: () => e.isActive('bold') },
+    { icon: Italic, title: t('editor.italic'), action: () => e.chain().focus().toggleItalic().run(), isActive: () => e.isActive('italic') },
+    { icon: Underline, title: t('editor.underline'), action: () => e.chain().focus().toggleUnderline().run(), isActive: () => e.isActive('underline') },
+    { icon: Strikethrough, title: t('editor.strike'), action: () => e.chain().focus().toggleStrike().run(), isActive: () => e.isActive('strike') },
   ]
 })
 
@@ -118,10 +120,10 @@ const blockBtns = computed<ToolBtn[]>(() => {
   const e = props.editor
   if (!e) return []
   return [
-    { icon: List, title: '无序列表', action: () => e.chain().focus().toggleBulletList().run(), isActive: () => e.isActive('bulletList') },
-    { icon: ListOrdered, title: '有序列表', action: () => e.chain().focus().toggleOrderedList().run(), isActive: () => e.isActive('orderedList') },
-    { icon: Quote, title: '引用', action: () => e.chain().focus().toggleBlockquote().run(), isActive: () => e.isActive('blockquote') },
-    { icon: Code2, title: '代码块', action: () => e.chain().focus().toggleCodeBlock().run(), isActive: () => e.isActive('codeBlock') },
+    { icon: List, title: t('editor.bulletList'), action: () => e.chain().focus().toggleBulletList().run(), isActive: () => e.isActive('bulletList') },
+    { icon: ListOrdered, title: t('editor.orderedList'), action: () => e.chain().focus().toggleOrderedList().run(), isActive: () => e.isActive('orderedList') },
+    { icon: Quote, title: t('editor.blockquote'), action: () => e.chain().focus().toggleBlockquote().run(), isActive: () => e.isActive('blockquote') },
+    { icon: Code2, title: t('editor.codeBlock'), action: () => e.chain().focus().toggleCodeBlock().run(), isActive: () => e.isActive('codeBlock') },
   ]
 })
 
@@ -129,9 +131,9 @@ const alignBtns = computed<ToolBtn[]>(() => {
   const e = props.editor
   if (!e) return []
   return [
-    { icon: AlignLeft, title: '左对齐', action: () => e.chain().focus().setTextAlign('left').run(), isActive: () => e.isActive({ textAlign: 'left' }) },
-    { icon: AlignCenter, title: '居中', action: () => e.chain().focus().setTextAlign('center').run(), isActive: () => e.isActive({ textAlign: 'center' }) },
-    { icon: AlignRight, title: '右对齐', action: () => e.chain().focus().setTextAlign('right').run(), isActive: () => e.isActive({ textAlign: 'right' }) },
+    { icon: AlignLeft, title: t('editor.alignLeft'), action: () => e.chain().focus().setTextAlign('left').run(), isActive: () => e.isActive({ textAlign: 'left' }) },
+    { icon: AlignCenter, title: t('editor.alignCenter'), action: () => e.chain().focus().setTextAlign('center').run(), isActive: () => e.isActive({ textAlign: 'center' }) },
+    { icon: AlignRight, title: t('editor.alignRight'), action: () => e.chain().focus().setTextAlign('right').run(), isActive: () => e.isActive({ textAlign: 'right' }) },
   ]
 })
 
@@ -139,10 +141,10 @@ const insertBtns = computed<ToolBtn[]>(() => {
   const e = props.editor
   if (!e) return []
   return [
-    { icon: ImagePlus, title: '插入图片', action: handleImage },
-    { icon: Table, title: '插入表格', action: handleTable },
-    { icon: Link2, title: '链接', action: handleLink, isActive: () => e.isActive('link') },
-    { icon: Minus, title: '分割线', action: () => e.chain().focus().setHorizontalRule().run() },
+    { icon: ImagePlus, title: t('editor.insertImage'), action: handleImage },
+    { icon: Table, title: t('editor.insertTable'), action: handleTable },
+    { icon: Link2, title: t('editor.link'), action: handleLink, isActive: () => e.isActive('link') },
+    { icon: Minus, title: t('editor.horizontalRule'), action: () => e.chain().focus().setHorizontalRule().run() },
   ]
 })
 </script>
@@ -211,13 +213,13 @@ const insertBtns = computed<ToolBtn[]>(() => {
 
     <!-- 颜色 -->
     <div class="relative">
-      <button type="button" title="文字颜色" class="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors" @click="colorInput?.click()">
+      <button type="button" :title="t('editor.textColor')" class="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors" @click="colorInput?.click()">
         <Paintbrush class="w-4 h-4" />
       </button>
       <input ref="colorInput" type="color" class="absolute w-0 h-0 opacity-0" @input="setColor" />
     </div>
     <div class="relative">
-      <button type="button" title="高亮" class="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors" @click="highlightInput?.click()">
+      <button type="button" :title="t('editor.highlight')" class="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors" @click="highlightInput?.click()">
         <Highlighter class="w-4 h-4" />
       </button>
       <input ref="highlightInput" type="color" value="#fef08a" class="absolute w-0 h-0 opacity-0" @input="setHighlight" />
@@ -243,7 +245,7 @@ const insertBtns = computed<ToolBtn[]>(() => {
     <!-- 清除格式 -->
     <button
       type="button"
-      title="清除格式"
+      :title="t('editor.clearFormat')"
       class="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
       @click="editor.chain().focus().clearNodes().unsetAllMarks().run()"
     >
@@ -269,12 +271,12 @@ const insertBtns = computed<ToolBtn[]>(() => {
               type="button"
               class="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               @click="cancelInputPopover"
-            >取消</button>
+            >{{ t('common.cancel') }}</button>
             <button
               type="button"
               class="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors"
               @click="confirmInputPopover"
-            >确认</button>
+            >{{ t('common.confirm') }}</button>
           </div>
         </div>
       </div>
@@ -285,7 +287,7 @@ const insertBtns = computed<ToolBtn[]>(() => {
       <div class="w-px h-5 bg-gray-300 dark:bg-gray-600 mx-1" />
       <div class="flex items-center gap-1 flex-wrap">
         <span class="text-xs text-gray-500 dark:text-gray-400 mr-0.5">
-          <Variable class="w-3.5 h-3.5 inline" /> 变量:
+          <Variable class="w-3.5 h-3.5 inline" /> {{ t('editor.variables') }}
         </span>
         <button
           v-for="v in variables"

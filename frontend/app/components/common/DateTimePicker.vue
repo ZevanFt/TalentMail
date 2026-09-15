@@ -6,13 +6,15 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits(['update:modelValue'])
+const { t } = useI18n()
 
 // 当前显示的月份
 const currentMonth = ref(new Date())
 const selectedHour = ref(9)
 
 // 星期标题
-const weekDays = ['日', '一', '二', '三', '四', '五', '六']
+const weekDayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const
+const weekDays = computed(() => weekDayKeys.map(k => t(`common.dateTimePicker.weekdays.${k}`)))
 
 // 时间选项
 const hours = [8, 9, 10, 12, 14, 16, 18, 20]
@@ -62,7 +64,10 @@ const calendarDays = computed(() => {
 
 // 月份标题
 const monthTitle = computed(() => {
-  return `${currentMonth.value.getFullYear()}年${currentMonth.value.getMonth() + 1}月`
+  return t('common.dateTimePicker.monthYear', {
+    year: currentMonth.value.getFullYear(),
+    month: currentMonth.value.getMonth() + 1,
+  })
 })
 
 // 上一月
@@ -146,7 +151,7 @@ watch(selectedHour, emitValue)
 
     <!-- 时间选择 -->
     <div class="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
-      <div class="text-xs text-gray-500 mb-2">选择时间</div>
+      <div class="text-xs text-gray-500 mb-2">{{ t('common.dateTimePicker.selectTime') }}</div>
       <div class="flex flex-wrap gap-2">
         <button
           v-for="hour in hours"

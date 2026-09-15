@@ -17,6 +17,14 @@ import mailZh from './fragments/mail.zh'
 import mailEn from './fragments/mail.en'
 import workflowsZh from './fragments/workflows.zh'
 import workflowsEn from './fragments/workflows.en'
+import layoutZh from './fragments/layout.zh'
+import layoutEn from './fragments/layout.en'
+import drivePagesZh from './fragments/drivePages.zh'
+import drivePagesEn from './fragments/drivePages.en'
+import authPagesZh from './fragments/authPages.zh'
+import authPagesEn from './fragments/authPages.en'
+import miscZh from './fragments/misc.zh'
+import miscEn from './fragments/misc.en'
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -35,22 +43,34 @@ function deepMerge<T extends Record<string, unknown>>(base: T, patch: Record<str
   return out as T
 }
 
-export const zhCNFull = deepMerge(zhCN, {
-  settings: settingsZh,
-  admin: adminZh,
-  adminTools: adminToolsZh,
-  settingsSecurity: settingsSecurityZh,
-  mail: mailZh,
-  workflows: workflowsZh,
-})
+export const zhCNFull = deepMerge(
+  deepMerge(
+    deepMerge(zhCN, {
+      settings: settingsZh,
+      admin: adminZh,
+      adminTools: adminToolsZh,
+      settingsSecurity: settingsSecurityZh,
+      mail: mailZh,
+      workflows: workflowsZh,
+    }),
+    layoutZh
+  ),
+  deepMerge(drivePagesZh, deepMerge(authPagesZh, miscZh))
+)
 
-export const enUSFull = deepMerge(enUS, {
-  settings: settingsEn,
-  admin: adminEn,
-  adminTools: adminToolsEn,
-  settingsSecurity: settingsSecurityEn,
-  mail: mailEn,
-  workflows: workflowsEn,
-})
+export const enUSFull = deepMerge(
+  deepMerge(
+    deepMerge(enUS, {
+      settings: settingsEn,
+      admin: adminEn,
+      adminTools: adminToolsEn,
+      settingsSecurity: settingsSecurityEn,
+      mail: mailEn,
+      workflows: workflowsEn,
+    }),
+    layoutEn
+  ),
+  deepMerge(drivePagesEn, deepMerge(authPagesEn, miscEn))
+)
 
 export default { zhCNFull, enUSFull }

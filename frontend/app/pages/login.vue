@@ -54,7 +54,7 @@ const handleLogin = async () => {
     if (loading.value || !username) return
 
     if (!username.includes('@') && !normalizedDomain.value) {
-        error.value = '请输入域名或直接输入完整邮箱'
+        error.value = t('auth.needDomainOrEmail')
         return
     }
 
@@ -84,7 +84,7 @@ const handle2FAVerify = async () => {
     if (loading.value || !twoFACode.value) return
     
     if (twoFACode.value.length !== 6) {
-        error.value = '请输入6位验证码'
+        error.value = t('auth.codeMustBe6Digits')
         return
     }
     
@@ -95,7 +95,7 @@ const handle2FAVerify = async () => {
         await login2FA(tempToken.value, twoFACode.value)
         await navigateTo(redirectTarget.value, { replace: true })
     } catch (e: any) {
-        error.value = e.data?.detail || '验证码错误，请重试'
+        error.value = e.data?.detail || t('auth.codeInvalid')
     } finally {
         loading.value = false
     }
@@ -117,7 +117,7 @@ const handleSSOLogin = async () => {
         const { redirect_url } = await getSSOLoginUrl()
         window.location.href = redirect_url
     } catch (e: any) {
-        error.value = 'SSO 登录请求失败'
+        error.value = t('auth.ssoLoginFailed')
         ssoLoading.value = false
     }
 }

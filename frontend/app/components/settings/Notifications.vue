@@ -3,6 +3,7 @@ import { BellRing, Volume2, Smartphone, Loader2 } from 'lucide-vue-next'
 
 const { getMe, updateMe } = useApi()
 const toast = useToast()
+const { t } = useI18n()
 
 const loading = ref(true)
 const saving = ref(false)
@@ -20,7 +21,7 @@ const loadSettings = async () => {
         settings.enable_pool_notifications = user.enable_pool_notifications
     } catch (e: any) {
         console.error('加载设置失败', e)
-        toast.error(e.data?.detail || '加载通知设置失败')
+        toast.error(e.data?.detail || t('settings.notifications.loadFailed'))
     } finally {
         loading.value = false
     }
@@ -32,7 +33,7 @@ const updateSetting = async (key: 'enable_desktop_notifications' | 'enable_sound
         await updateMe({ [key]: value } as any)
     } catch (e: any) {
         console.error('保存设置失败', e)
-        toast.error(e.data?.detail || '保存通知设置失败')
+        toast.error(e.data?.detail || t('settings.notifications.saveFailed'))
         // 回滚
         settings[key] = !value
     } finally {
@@ -45,9 +46,9 @@ onMounted(loadSettings)
 
 <template>
     <div class="space-y-8">
-        <h2 class="section-title">通知偏好</h2>
+        <h2 class="section-title">{{ t('settings.tabs.notifications') }}</h2>
 
-        <div v-if="loading" class="text-gray-500">加载中...</div>
+        <div v-if="loading" class="text-gray-500">{{ t('settings.common.loading') }}</div>
 
         <div v-else
             class="bg-white dark:bg-bg-panelDark rounded-xl border border-gray-200 dark:border-border-dark divide-y divide-gray-100 dark:divide-gray-800">
@@ -59,8 +60,8 @@ onMounted(loadSettings)
                         <BellRing class="w-5 h-5" />
                     </div>
                     <div>
-                        <div class="font-bold text-gray-900 dark:text-white">桌面通知</div>
-                        <div class="text-sm text-gray-500">收到新邮件时在浏览器显示弹窗</div>
+                        <div class="font-bold text-gray-900 dark:text-white">{{ t('settings.notifications.desktop') }}</div>
+                        <div class="text-sm text-gray-500">{{ t('settings.notifications.desktopDesc') }}</div>
                     </div>
                 </div>
                 <CommonToggle v-model="settings.enable_desktop_notifications"
@@ -74,8 +75,8 @@ onMounted(loadSettings)
                         <Volume2 class="w-5 h-5" />
                     </div>
                     <div>
-                        <div class="font-bold text-gray-900 dark:text-white">提示音效</div>
-                        <div class="text-sm text-gray-500">播放 "Ding" 提示音</div>
+                        <div class="font-bold text-gray-900 dark:text-white">{{ t('settings.notifications.sound') }}</div>
+                        <div class="text-sm text-gray-500">{{ t('settings.notifications.soundDesc') }}</div>
                     </div>
                 </div>
                 <CommonToggle v-model="settings.enable_sound_notifications"
@@ -89,8 +90,8 @@ onMounted(loadSettings)
                         <Smartphone class="w-5 h-5" />
                     </div>
                     <div>
-                        <div class="font-bold text-gray-900 dark:text-white">账号池验证码推送</div>
-                        <div class="text-sm text-gray-500">当临时账号收到验证码时，发送系统级通知</div>
+                        <div class="font-bold text-gray-900 dark:text-white">{{ t('settings.notifications.pool') }}</div>
+                        <div class="text-sm text-gray-500">{{ t('settings.notifications.poolDesc') }}</div>
                     </div>
                 </div>
                 <CommonToggle v-model="settings.enable_pool_notifications"

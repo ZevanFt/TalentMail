@@ -7,6 +7,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits(['save', 'cancel'])
+const { t } = useI18n()
 
 // 本地编辑状态
 const localRule = ref<any>({ ...props.rule })
@@ -117,17 +118,17 @@ const isValid = computed(() => {
   <div class="space-y-6">
     <!-- 基本信息 -->
     <div class="space-y-4">
-      <h3 class="text-lg font-medium text-gray-900 dark:text-white">基本信息</h3>
+      <h3 class="text-lg font-medium text-gray-900 dark:text-white">{{ t('settings.automation.basicInfo') }}</h3>
       
       <div class="grid grid-cols-2 gap-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">规则名称 *</label>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('settings.automation.ruleName') }} *</label>
           <input v-model="localRule.name" type="text" 
             class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-            placeholder="输入规则名称">
+            :placeholder="t('settings.automation.ruleNamePlaceholder')">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">优先级</label>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('settings.automation.priority') }}</label>
           <input v-model.number="localRule.priority" type="number" 
             class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
             placeholder="0">
@@ -135,25 +136,25 @@ const isValid = computed(() => {
       </div>
       
       <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">描述</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('settings.automation.description') }}</label>
         <textarea v-model="localRule.description" rows="2"
           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-          placeholder="规则描述（可选）"></textarea>
+          :placeholder="t('settings.automation.descriptionPlaceholder')"></textarea>
       </div>
       
       <div class="flex items-center gap-2">
         <input v-model="localRule.is_active" type="checkbox" id="is_active"
           class="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary">
-        <label for="is_active" class="text-sm text-gray-700 dark:text-gray-300">启用规则</label>
+        <label for="is_active" class="text-sm text-gray-700 dark:text-gray-300">{{ t('settings.automation.enableRule') }}</label>
       </div>
     </div>
 
     <!-- 触发器 -->
     <div class="space-y-4">
-      <h3 class="text-lg font-medium text-gray-900 dark:text-white">触发器 *</h3>
+      <h3 class="text-lg font-medium text-gray-900 dark:text-white">{{ t('settings.automation.trigger') }} *</h3>
       
       <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">触发类型</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('settings.automation.triggerType') }}</label>
         <select v-model="localRule.trigger_type"
           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent">
           <option v-for="trigger in metadata.trigger_types" :key="trigger.type" :value="trigger.type">
@@ -166,17 +167,17 @@ const isValid = computed(() => {
     <!-- 条件 -->
     <div class="space-y-4">
       <div class="flex items-center justify-between">
-        <h3 class="text-lg font-medium text-gray-900 dark:text-white">条件（可选）</h3>
+        <h3 class="text-lg font-medium text-gray-900 dark:text-white">{{ t('settings.automation.conditionsOptional') }}</h3>
         <button @click="addCondition" 
           class="px-3 py-1 text-sm text-primary hover:bg-primary/10 rounded-lg flex items-center gap-1">
-          <Plus class="w-4 h-4" /> 添加条件
+          <Plus class="w-4 h-4" /> {{ t('settings.automation.addCondition') }}
         </button>
       </div>
       
-      <p class="text-sm text-gray-500 dark:text-gray-400">所有条件必须同时满足（AND 关系）</p>
+      <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('settings.automation.conditionsHint') }}</p>
       
       <div v-if="conditions.length === 0" class="text-center py-4 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 rounded-lg">
-        无条件限制，触发时总是执行
+        {{ t('settings.automation.noConditions') }}
       </div>
       
       <div v-else class="space-y-2">
@@ -202,7 +203,7 @@ const isValid = computed(() => {
           <div v-if="expandedConditions.has(index)" class="p-4 space-y-3 bg-white dark:bg-gray-800">
             <div class="grid grid-cols-3 gap-3">
               <div>
-                <label class="block text-xs font-medium text-gray-500 mb-1">字段</label>
+                <label class="block text-xs font-medium text-gray-500 mb-1">{{ t('settings.automation.field') }}</label>
                 <select v-model="condition.field"
                   class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800">
                   <option v-for="field in metadata.available_fields" :key="field.field" :value="field.field">
@@ -211,7 +212,7 @@ const isValid = computed(() => {
                 </select>
               </div>
               <div>
-                <label class="block text-xs font-medium text-gray-500 mb-1">操作符</label>
+                <label class="block text-xs font-medium text-gray-500 mb-1">{{ t('settings.automation.operator') }}</label>
                 <select v-model="condition.operator"
                   class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800">
                   <option v-for="op in metadata.condition_operators" :key="op.operator" :value="op.operator">
@@ -220,10 +221,10 @@ const isValid = computed(() => {
                 </select>
               </div>
               <div v-if="operatorRequiresValue(condition.operator)">
-                <label class="block text-xs font-medium text-gray-500 mb-1">值</label>
+                <label class="block text-xs font-medium text-gray-500 mb-1">{{ t('settings.automation.value') }}</label>
                 <input v-model="condition.value" type="text"
                   class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800"
-                  placeholder="输入值">
+                  :placeholder="t('settings.automation.valuePlaceholder')">
               </div>
             </div>
           </div>
@@ -234,17 +235,17 @@ const isValid = computed(() => {
     <!-- 动作 -->
     <div class="space-y-4">
       <div class="flex items-center justify-between">
-        <h3 class="text-lg font-medium text-gray-900 dark:text-white">动作 *</h3>
+        <h3 class="text-lg font-medium text-gray-900 dark:text-white">{{ t('settings.automation.actions') }} *</h3>
         <button @click="addAction" 
           class="px-3 py-1 text-sm text-primary hover:bg-primary/10 rounded-lg flex items-center gap-1">
-          <Plus class="w-4 h-4" /> 添加动作
+          <Plus class="w-4 h-4" /> {{ t('settings.automation.addAction') }}
         </button>
       </div>
       
-      <p class="text-sm text-gray-500 dark:text-gray-400">按顺序执行所有动作</p>
+      <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('settings.automation.actionsHint') }}</p>
       
       <div v-if="actions.length === 0" class="text-center py-4 text-red-500 bg-red-50 dark:bg-red-900/20 rounded-lg">
-        请至少添加一个动作
+        {{ t('settings.automation.needAction') }}
       </div>
       
       <div v-else class="space-y-2">
@@ -270,7 +271,7 @@ const isValid = computed(() => {
           
           <div v-if="expandedActions.has(index)" class="p-4 space-y-3 bg-white dark:bg-gray-800">
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1">动作类型</label>
+              <label class="block text-xs font-medium text-gray-500 mb-1">{{ t('settings.automation.actionType') }}</label>
               <select v-model="action.type" @change="action.config = {}"
                 class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800">
                 <option v-for="at in metadata.action_types" :key="at.type" :value="at.type">
@@ -302,11 +303,11 @@ const isValid = computed(() => {
     <div class="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
       <button @click="emit('cancel')"
         class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
-        取消
+        {{ t('common.cancel') }}
       </button>
       <button @click="handleSave" :disabled="!isValid"
         class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed">
-        保存规则
+        {{ t('settings.automation.saveRule') }}
       </button>
     </div>
   </div>

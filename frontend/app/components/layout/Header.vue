@@ -83,7 +83,7 @@ const storagePercent = computed(() => {
 })
 
 // 格式化存储大小（复用 utils/format.ts 的 formatFileSize，处理 -1 = 无限）
-const formatStorage = (bytes: number) => bytes === -1 ? '无限' : formatFileSize(bytes)
+const formatStorage = (bytes: number) => bytes === -1 ? t('nav.unlimited') : formatFileSize(bytes)
 
 // 退出登录
 const handleLogout = () => {
@@ -121,7 +121,7 @@ const copyEmail = async () => {
     setTimeout(() => { copied.value = false }, 2000)
   } catch (e: any) {
     console.error('复制失败:', e)
-    toast.error('复制失败')
+    toast.error(t('nav.copyFailed'))
   }
 }
 
@@ -139,7 +139,7 @@ onUnmounted(() => {
             <!-- 汉堡按钮：仅移动端 + 有侧边栏的布局 -->
             <button v-if="isMobile && hasSidebar" @click="toggleSidebar"
                 class="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
-                title="菜单">
+                :title="t('nav.menu')">
                 <MenuIcon class="w-5 h-5" />
             </button>
             <NuxtLink to="/" class="flex items-center gap-2 hover:opacity-80 transition-opacity">
@@ -166,7 +166,7 @@ onUnmounted(() => {
                   <button @click="showAdvancedSearch = !showAdvancedSearch"
                       class="p-1 rounded transition-colors"
                       :class="hasActiveFilters ? 'text-primary bg-primary/10' : 'text-gray-400 hover:text-gray-600'"
-                      title="高级搜索">
+                      :title="t('nav.advancedSearch')">
                       <SlidersHorizontal class="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -178,22 +178,22 @@ onUnmounted(() => {
                   class="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-50 p-4 space-y-3">
                   <div class="grid grid-cols-2 gap-3">
                     <div>
-                      <label class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">发件人</label>
-                      <input v-model="advSender" type="text" placeholder="例: john@example.com"
+                      <label class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">{{ t('nav.search.sender') }}</label>
+                      <input v-model="advSender" type="text" :placeholder="t('nav.search.senderPlaceholder')"
                         class="w-full px-3 py-1.5 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg outline-none focus:ring-1 focus:ring-primary/30" />
                     </div>
                     <div>
-                      <label class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">收件人</label>
-                      <input v-model="advRecipient" type="text" placeholder="例: me@example.com"
+                      <label class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">{{ t('nav.search.recipient') }}</label>
+                      <input v-model="advRecipient" type="text" :placeholder="t('nav.search.recipientPlaceholder')"
                         class="w-full px-3 py-1.5 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg outline-none focus:ring-1 focus:ring-primary/30" />
                     </div>
                     <div>
-                      <label class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">起始日期</label>
+                      <label class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">{{ t('nav.search.dateFrom') }}</label>
                       <input v-model="advDateFrom" type="date"
                         class="w-full px-3 py-1.5 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg outline-none focus:ring-1 focus:ring-primary/30" />
                     </div>
                     <div>
-                      <label class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">截止日期</label>
+                      <label class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">{{ t('nav.search.dateTo') }}</label>
                       <input v-model="advDateTo" type="date"
                         class="w-full px-3 py-1.5 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg outline-none focus:ring-1 focus:ring-primary/30" />
                     </div>
@@ -202,24 +202,24 @@ onUnmounted(() => {
                     <button @click="advHasAttachment = advHasAttachment === true ? undefined : true"
                       :class="['px-3 py-1.5 text-xs rounded-lg border transition-colors flex items-center gap-1.5',
                         advHasAttachment === true ? 'border-primary bg-primary/10 text-primary' : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-gray-300']">
-                      <Paperclip class="w-3 h-3" /> 有附件
+                      <Paperclip class="w-3 h-3" /> {{ t('nav.search.hasAttachment') }}
                     </button>
                     <button @click="advIsStarred = advIsStarred === true ? undefined : true"
                       :class="['px-3 py-1.5 text-xs rounded-lg border transition-colors flex items-center gap-1.5',
                         advIsStarred === true ? 'border-yellow-400 bg-yellow-50 text-yellow-600' : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-gray-300']">
-                      <Star class="w-3 h-3" /> 已加星
+                      <Star class="w-3 h-3" /> {{ t('nav.search.isStarred') }}
                     </button>
                     <select v-model="advFolderId"
                       class="px-3 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 outline-none">
-                      <option :value="undefined">所有文件夹</option>
+                      <option :value="undefined">{{ t('nav.search.allFolders') }}</option>
                       <option v-for="f in folders" :key="f.id" :value="f.id">{{ f.name }}</option>
                     </select>
                   </div>
                   <div class="flex justify-between pt-2 border-t border-gray-100 dark:border-gray-700">
-                    <button @click="clearAdvancedFilters" class="text-xs text-gray-400 hover:text-gray-600">清除条件</button>
+                    <button @click="clearAdvancedFilters" class="text-xs text-gray-400 hover:text-gray-600">{{ t('nav.search.clearFilters') }}</button>
                     <button @click="handleAdvancedSearch"
                       class="px-4 py-1.5 text-xs font-medium bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors">
-                      搜索
+                      {{ t('common.search') }}
                     </button>
                   </div>
                 </div>
@@ -233,18 +233,18 @@ onUnmounted(() => {
             <!-- 移动端：搜索按钮 -->
             <button v-if="isMobile && !mobileSearchOpen" @click="mobileSearchOpen = true"
                 class="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
-                title="搜索">
+                :title="t('common.search')">
                 <Search class="w-4 h-4" />
             </button>
             <button @click="toggleTheme"
                 class="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
-                title="切换主题">
+                :title="t('nav.toggleTheme')">
                 <Sun v-if="isDark" class="w-4 h-4" />
                 <Moon v-else class="w-4 h-4" />
             </button>
             <button @click="showShortcutsHelp = true"
                 class="hidden lg:block p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
-                title="快捷键 (按 ? 查看)">
+                :title="t('nav.shortcutsTitle')">
                 <Keyboard class="w-4 h-4" />
             </button>
             <button @click="router.push('/settings')"
@@ -277,7 +277,7 @@ onUnmounted(() => {
                                     <button
                                         @click.stop="copyEmail"
                                         class="p-0.5 rounded opacity-0 group-hover/email:opacity-100 transition-opacity hover:bg-gray-100 dark:hover:bg-gray-700"
-                                        :title="copied ? '已复制!' : '复制邮箱'"
+                                        :title="copied ? t('nav.copied') : t('pool.copyEmail')"
                                     >
                                         <Check v-if="copied" class="w-3 h-3 text-green-500" />
                                         <Copy v-else class="w-3 h-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
@@ -292,35 +292,35 @@ onUnmounted(() => {
                         <div class="flex items-center gap-2 mb-2">
                             <Crown class="w-4 h-4 text-yellow-500" />
                             <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                {{ subscription?.status === 'admin' ? '管理员无限版' : (subscription?.plan_name || '免费版') }}
+                                {{ subscription?.status === 'admin' ? t('nav.adminUnlimited') : (subscription?.plan_name || t('nav.freePlan')) }}
                             </span>
-                            <span v-if="subscription?.status === 'admin'" class="text-[10px] px-1.5 py-0.5 bg-purple-100 text-purple-600 rounded">永久</span>
-                            <span v-else-if="subscription?.is_active" class="text-[10px] px-1.5 py-0.5 bg-green-100 text-green-600 rounded">有效</span>
+                            <span v-if="subscription?.status === 'admin'" class="text-[10px] px-1.5 py-0.5 bg-purple-100 text-purple-600 rounded">{{ t('nav.forever') }}</span>
+                            <span v-else-if="subscription?.is_active" class="text-[10px] px-1.5 py-0.5 bg-green-100 text-green-600 rounded">{{ t('nav.valid') }}</span>
                         </div>
                         <div v-if="subscription?.expires_at" class="text-xs text-gray-500">
-                            到期时间: {{ new Date(subscription.expires_at).toLocaleDateString('zh-CN') }}
+                            {{ t('nav.expiresAtLabel', { date: new Date(subscription.expires_at).toLocaleDateString() }) }}
                         </div>
                         <div v-else-if="subscription?.status === 'admin'" class="text-xs text-gray-500">
-                            尊贵的管理员，您拥有无限资源
+                            {{ t('nav.adminHint') }}
                         </div>
                     </div>
-                    
+
                     <!-- 存储空间 -->
                     <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
                         <div class="flex items-center justify-between mb-2">
                             <div class="flex items-center gap-2">
                                 <HardDrive class="w-4 h-4 text-gray-400" />
-                                <span class="text-sm text-gray-600 dark:text-gray-400">存储空间</span>
+                                <span class="text-sm text-gray-600 dark:text-gray-400">{{ t('drive.storage') }}</span>
                             </div>
                             <span class="text-xs text-gray-500">
-                                {{ subscription?.status === 'admin' ? '无限' : storagePercent + '%' }}
+                                {{ subscription?.status === 'admin' ? t('nav.unlimited') : storagePercent + '%' }}
                             </span>
                         </div>
                         <div v-if="subscription?.status !== 'admin'" class="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                             <div class="h-full bg-primary rounded-full transition-all" :style="{ width: storagePercent + '%' }"></div>
                         </div>
                         <div class="text-xs text-gray-500 mt-1">
-                            {{ formatStorage(storage?.storage_used_bytes || 0) }} / {{ subscription?.status === 'admin' ? '无限' : formatStorage(storage?.storage_limit_bytes || 0) }}
+                            {{ formatStorage(storage?.storage_used_bytes || 0) }} / {{ subscription?.status === 'admin' ? t('nav.unlimited') : formatStorage(storage?.storage_limit_bytes || 0) }}
                         </div>
                     </div>
                     

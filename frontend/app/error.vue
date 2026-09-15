@@ -9,16 +9,25 @@ const props = defineProps<{
   }
 }>()
 
-useHead({ title: '出错了 - TalentMail' })
+const { t } = useI18n()
+
+useHead({ title: `${t('error.headTitle')} - ${t('common.appName')}` })
 
 const errorInfo = computed(() => {
   const code = props.error?.statusCode || 500
-  const map: Record<number, { title: string; desc: string }> = {
-    404: { title: '页面不存在', desc: '您访问的页面可能已被移动或删除' },
-    403: { title: '无权访问', desc: '您没有权限查看此页面' },
-    500: { title: '服务器错误', desc: '服务器遇到了意外问题，请稍后重试' },
+  const map: Record<number, { titleKey: string; descKey: string }> = {
+    404: { titleKey: 'error.notFound.title', descKey: 'error.notFound.desc' },
+    403: { titleKey: 'error.forbidden.title', descKey: 'error.forbidden.desc' },
+    500: { titleKey: 'error.serverError.title', descKey: 'error.serverError.desc' },
   }
-  return map[code] || { title: '出了点问题', desc: props.error?.message || '发生了未知错误' }
+  const entry = map[code]
+  if (entry) {
+    return { title: t(entry.titleKey), desc: t(entry.descKey) }
+  }
+  return {
+    title: t('error.unknown.title'),
+    desc: props.error?.message || t('error.unknown.desc'),
+  }
 })
 
 const handleClearError = () => clearError({ redirect: '/' })
@@ -51,12 +60,12 @@ const handleRetry = () => clearError({ redirect: window.location.pathname })
         <button @click="handleRetry"
           class="flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sm font-medium">
           <RotateCcw class="w-4 h-4" />
-          重试
+          {{ t('common.retry') }}
         </button>
         <button @click="handleClearError"
           class="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl hover:bg-primary-hover transition-colors text-sm font-medium shadow-lg shadow-primary/25">
           <Home class="w-4 h-4" />
-          返回首页
+          {{ t('error.goHome') }}
         </button>
       </div>
     </div>

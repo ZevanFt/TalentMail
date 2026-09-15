@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const props = defineProps<{ password: string }>()
+const { t } = useI18n()
 
 const strength = computed(() => {
   const pwd = props.password || ''
@@ -24,13 +25,13 @@ const strength = computed(() => {
   else level = 4
 
   const map = {
-    1: { label: '弱', color: 'bg-red-500', width: '25%' },
-    2: { label: '一般', color: 'bg-orange-400', width: '50%' },
-    3: { label: '强', color: 'bg-blue-500', width: '75%' },
-    4: { label: '很强', color: 'bg-green-500', width: '100%' },
-  } as Record<number, { label: string; color: string; width: string }>
+    1: { labelKey: 'common.password.weak', color: 'bg-red-500', width: '25%' },
+    2: { labelKey: 'common.password.fair', color: 'bg-orange-400', width: '50%' },
+    3: { labelKey: 'common.password.strong', color: 'bg-blue-500', width: '75%' },
+    4: { labelKey: 'common.password.veryStrong', color: 'bg-green-500', width: '100%' },
+  } as Record<number, { labelKey: string; color: string; width: string }>
 
-  return { score: level, ...map[level] }
+  return { score: level, label: t(map[level].labelKey), color: map[level].color, width: map[level].width }
 })
 </script>
 
@@ -52,7 +53,7 @@ const strength = computed(() => {
       }">{{ strength.label }}</span>
     </div>
     <p v-if="strength.score <= 2" class="text-xs text-gray-400">
-      建议使用大小写字母、数字和特殊字符的组合，至少 10 位
+      {{ t('common.password.hint') }}
     </p>
   </div>
 </template>

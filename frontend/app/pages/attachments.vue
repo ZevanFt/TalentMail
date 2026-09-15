@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Paperclip, Download, Trash2, FileText, Image, File, Upload, Link, Check, Loader2 } from 'lucide-vue-next'
 const config = useConfig()
-useHead({ title: `附件管理 - ${config.appName}` })
+const { t } = useI18n()
+useHead({ title: computed(() => `${t('attachments.title')} - ${config.appName}`) })
 const toast = useToast()
 const { confirm: confirmDialog } = useConfirmDialog()
 const { getAttachments, uploadAttachment, downloadAttachmentUrl, deleteAttachment } = useApi()
@@ -27,7 +28,7 @@ const loadAttachments = async () => {
     total.value = res.total
   } catch (e: any) {
     console.error('加载附件失败', e)
-    loadError.value = e.data?.detail || '加载附件失败'
+    loadError.value = e.data?.detail || t('attachments.loadFailed')
     toast.error(loadError.value)
   } finally { loading.value = false }
 }
@@ -49,11 +50,11 @@ const handleUpload = async (event: Event) => {
   uploading.value = true
   try {
     await uploadAttachment(file)
-    toast.success('上传成功')
+    toast.success(t('attachments.uploadSuccess'))
     await loadAttachments()
   } catch (e: any) {
     console.error('上传失败', e)
-    toast.error(e.data?.detail || '上传失败')
+    toast.error(e.data?.detail || t('attachments.uploadFailed'))
   } finally {
     uploading.value = false
     if (fileInput.value) fileInput.value.value = ''
@@ -74,7 +75,7 @@ const copyLink = async (id: number) => {
     setTimeout(() => copiedId.value = null, 2000)
   } catch (e: any) {
     console.error('复制失败', e)
-    toast.error('复制失败')
+    toast.error(t('attachments.copyFailed'))
   }
 }
 
@@ -95,14 +96,14 @@ const download = (id: number) => {
 }
 
 const remove = async (id: number) => {
-  const ok = await confirmDialog({ message: '确定删除此附件？', type: 'danger' })
+  const ok = await confirmDialog({ message: t('attachments.confirmDelete'), type: 'danger' })
   if (!ok) return
   try {
     await deleteAttachment(id)
     await loadAttachments()
   } catch (e: any) {
     console.error('删除附件失败', e)
-    toast.error(e.data?.detail || '删除附件失败')
+    toast.error(e.data?.detail || t('attachments.deleteFailed'))
   }
 }
 
@@ -112,13 +113,13 @@ onMounted(loadAttachments)
 <template>
   <div class="h-full flex flex-col bg-gray-50 dark:bg-bg-dark">
     <header class="flex items-center justify-between px-6 py-4 border-b dark:border-border-dark bg-white dark:bg-bg-panelDark">
-      <h1 class="text-xl font-bold">附件中心</h1>
+      <h1 class="text-xl font-bold">{{ t('attachments.headerTitle') }}</h1>
       <div class="flex items-center gap-2">
         <input type="file" ref="fileInput" class="hidden" @change="handleUpload">
         <button @click="triggerUpload" :disabled="uploading" class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50">
           <Upload v-if="!uploading" class="w-4 h-4" />
           <Loader2 v-else class="w-4 h-4 animate-spin" />
-          {{ uploading ? '上传中...' : '上传文件' }}
+          {{ uploading ? t('attachments.uploading') : t('attachments.uploadFile') }}
         </button>
       </div>
     </header>
@@ -137,19 +138,19 @@ onMounted(loadAttachments)
       </div>
       <div v-else-if="loadError" class="text-center py-12">
         <p class="text-red-500 mb-3">{{ loadError }}</p>
-        <button @click="loadAttachments" class="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary-hover transition-colors">重试</button>
+        <button @click="loadAttachments" class="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary-hover transition-colors">{{ t('attachments.retry') }}</button>
       </div>
       <div v-else-if="attachments.length === 0" class="text-center py-12 text-gray-500">
         <Paperclip class="w-12 h-12 mx-auto mb-3 opacity-30" />
-        <p class="text-lg font-medium mb-1">暂无附件</p>
-        <p class="text-sm text-gray-400">发送或接收带附件的邮件后会在这里显示</p>
+        <p class="text-lg font-medium mb-1">{{ t('attachments.empty') }}</p>
+        <p class="text-sm text-gray-400">{{ t('attachments.emptyHint') }}</p>
       </div>
       <div v-else class="space-y-8">
         <!-- 中转站文件 -->
         <div v-if="transferFiles.length > 0">
           <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
             <Upload class="w-5 h-5 text-primary" />
-            文件中转站
+            {{ t('attachments.transferTitle') }}
           </h2>
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div v-for="a in transferFiles" :key="a.id" class="bg-white dark:bg-bg-panelDark rounded-lg p-4 shadow-sm border dark:border-border-dark flex flex-col">
@@ -161,14 +162,14 @@ onMounted(loadAttachments)
                 </div>
               </div>
               <div class="mt-auto flex items-center justify-end gap-2 pt-3 border-t dark:border-border-dark">
-                <button @click="copyLink(a.id)" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400" :title="copiedId === a.id ? '已复制' : '复制链接'">
+                <button @click="copyLink(a.id)" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400" :title="copiedId === a.id ? t('attachments.copied') : t('attachments.copyLink')">
                   <Check v-if="copiedId === a.id" class="w-4 h-4 text-green-500" />
                   <Link v-else class="w-4 h-4" />
                 </button>
-                <button @click="download(a.id)" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400" title="下载">
+                <button @click="download(a.id)" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400" :title="t('attachments.download')">
                   <Download class="w-4 h-4" />
                 </button>
-                <button @click="remove(a.id)" class="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded text-red-500" title="删除">
+                <button @click="remove(a.id)" class="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded text-red-500" :title="t('common.delete')">
                   <Trash2 class="w-4 h-4" />
                 </button>
               </div>
@@ -180,7 +181,7 @@ onMounted(loadAttachments)
         <div v-if="emailAttachments.length > 0">
           <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
             <Paperclip class="w-5 h-5 text-gray-500" />
-            邮件附件
+            {{ t('attachments.emailTitle') }}
           </h2>
           <div class="space-y-2">
             <div v-for="a in emailAttachments" :key="a.id" class="flex items-center gap-4 bg-white dark:bg-bg-panelDark rounded-lg p-4 shadow-sm border dark:border-border-dark">
@@ -190,7 +191,7 @@ onMounted(loadAttachments)
                 <div class="text-sm text-gray-500">{{ formatSize(a.size) }}</div>
               </div>
               <div class="flex gap-2 shrink-0">
-                <button @click="download(a.id)" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded" title="下载">
+                <button @click="download(a.id)" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded" :title="t('attachments.download')">
                   <Download class="w-4 h-4" />
                 </button>
                 <!-- 邮件附件通常不允许直接删除，除非删除邮件 -->
@@ -200,16 +201,16 @@ onMounted(loadAttachments)
         </div>
         <!-- 分页 -->
         <div v-if="totalPages > 1" class="flex items-center justify-between px-4 py-3 bg-white dark:bg-bg-panelDark rounded-xl border dark:border-border-dark">
-          <span class="text-sm text-gray-500">共 {{ total }} 个附件</span>
+          <span class="text-sm text-gray-500">{{ t('attachments.totalItems', { n: total }) }}</span>
           <div class="flex items-center gap-1">
             <button @click="goPage(page - 1)" :disabled="page <= 1"
               class="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-              上一页
+              {{ t('attachments.prevPage') }}
             </button>
             <span class="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400">{{ page }} / {{ totalPages }}</span>
             <button @click="goPage(page + 1)" :disabled="page >= totalPages"
               class="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-              下一页
+              {{ t('attachments.nextPage') }}
             </button>
           </div>
         </div>

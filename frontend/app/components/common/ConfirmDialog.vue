@@ -2,6 +2,7 @@
 import { AlertTriangle, Info, Trash2 } from 'lucide-vue-next'
 
 const { visible, options, handleConfirm, handleCancel } = useConfirmDialog()
+const { t } = useI18n()
 
 const iconComponent = computed(() => {
   switch (options.value?.type) {
@@ -43,7 +44,7 @@ const confirmBtnClass = computed(() => {
 <template>
   <CommonModal
     :model-value="visible"
-    :title="options?.title || '确认'"
+    :title="options?.title || t('common.confirm')"
     width-class="w-full max-w-sm"
     :before-close="() => { handleCancel(); return false }"
     @update:model-value="(v: boolean) => { if (!v) handleCancel() }"
@@ -65,14 +66,14 @@ const confirmBtnClass = computed(() => {
         class="px-5 py-2.5 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200
                hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-all duration-200 font-medium"
       >
-        {{ options?.cancelText || '取消' }}
+        {{ options?.cancelText || t('common.cancel') }}
       </button>
       <button
         @click="handleConfirm"
         class="px-5 py-2.5 rounded-xl transition-all duration-200 font-semibold"
         :class="confirmBtnClass"
       >
-        {{ options?.confirmText || '确定' }}
+        {{ options?.confirmText || t('common.confirm') }}
       </button>
     </template>
   </CommonModal>

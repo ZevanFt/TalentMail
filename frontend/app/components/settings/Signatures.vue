@@ -6,6 +6,7 @@ import { PenLine, Plus, Trash2, Star, Edit3 } from 'lucide-vue-next'
 
 const { getSignatures, createSignature, updateSignature, deleteSignature } = useApi()
 const toast = useToast()
+const { t } = useI18n()
 
 interface Signature {
   id: number
@@ -35,7 +36,7 @@ const loadSignatures = async () => {
     signatures.value = res.items || res
     total.value = res.total ?? signatures.value.length
   } catch (e: any) {
-    toast.error(e.data?.detail || '加载签名失败')
+    toast.error(e.data?.detail || t('settings.signatures.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -59,7 +60,7 @@ const openEdit = (sig: Signature) => {
 
 const handleSave = async () => {
   if (!form.name.trim()) {
-    toast.error('请输入签名名称')
+    toast.error(t('settings.signatures.nameRequired'))
     return
   }
   saving.value = true
@@ -70,42 +71,42 @@ const handleSave = async () => {
         content_html: form.content_html,
         is_default: form.is_default,
       })
-      toast.success('签名已更新')
+      toast.success(t('settings.signatures.updated'))
     } else {
       await createSignature({
         name: form.name.trim(),
         content_html: form.content_html,
         is_default: form.is_default,
       })
-      toast.success('签名已创建')
+      toast.success(t('settings.signatures.created'))
     }
     showModal.value = false
     await loadSignatures()
   } catch (e: any) {
-    toast.error(e.data?.detail || '保存失败')
+    toast.error(e.data?.detail || t('settings.signatures.saveFailed'))
   } finally {
     saving.value = false
   }
 }
 
 const handleDelete = async (sig: Signature) => {
-  if (!confirm(`确定要删除签名「${sig.name}」吗？`)) return
+  if (!confirm(t('settings.signatures.confirmDelete', { name: sig.name }))) return
   try {
     await deleteSignature(sig.id)
-    toast.success('签名已删除')
+    toast.success(t('settings.signatures.deleted'))
     await loadSignatures()
   } catch (e: any) {
-    toast.error(e.data?.detail || '删除失败')
+    toast.error(e.data?.detail || t('settings.signatures.deleteFailed'))
   }
 }
 
 const handleSetDefault = async (sig: Signature) => {
   try {
     await updateSignature(sig.id, { is_default: true })
-    toast.success(`已将「${sig.name}」设为默认签名`)
+    toast.success(t('settings.signatures.setDefaultSuccess', { name: sig.name }))
     await loadSignatures()
   } catch (e: any) {
-    toast.error(e.data?.detail || '设置失败')
+    toast.error(e.data?.detail || t('settings.signatures.setDefaultFailed'))
   }
 }
 
@@ -117,14 +118,14 @@ onMounted(loadSignatures)
     <!-- 标题 -->
     <div class="flex items-center justify-between">
       <div>
-        <h2 class="text-xl font-bold text-gray-900 dark:text-white">邮件签名</h2>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">管理您的邮件签名，发送邮件时自动附加默认签名</p>
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white">{{ t('settings.tabs.signatures') }}</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ t('settings.signatures.subtitle') }}</p>
       </div>
       <button
         @click="openCreate"
         class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary-hover transition-colors whitespace-nowrap"
       >
-        <Plus class="w-4 h-4" /> 新建签名
+        <Plus class="w-4 h-4" /> {{ t('settings.signatures.create') }}
       </button>
     </div>
 
@@ -142,10 +143,10 @@ onMounted(loadSignatures)
     <!-- 空状态 -->
     <div v-else-if="signatures.length === 0" class="flex flex-col items-center justify-center py-16 text-center">
       <PenLine class="w-12 h-12 text-gray-300 dark:text-gray-600 mb-4" />
-      <p class="text-gray-500 dark:text-gray-400 mb-2">还没有创建邮件签名</p>
-      <p class="text-sm text-gray-400 dark:text-gray-500 mb-6">创建签名后，发送邮件时会自动附加默认签名</p>
+      <p class="text-gray-500 dark:text-gray-400 mb-2">{{ t('settings.signatures.emptyTitle') }}</p>
+      <p class="text-sm text-gray-400 dark:text-gray-500 mb-6">{{ t('settings.signatures.emptyDesc') }}</p>
       <button @click="openCreate" class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary-hover transition-colors">
-        <Plus class="w-4 h-4" /> 创建第一个签名
+        <Plus class="w-4 h-4" /> {{ t('settings.signatures.createFirst') }}
       </button>
     </div>
 
@@ -162,28 +163,28 @@ onMounted(loadSignatures)
             <span
               v-if="sig.is_default"
               class="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs rounded-full whitespace-nowrap"
-            >默认</span>
+            >{{ t('settings.signatures.defaultBadge') }}</span>
           </div>
           <div class="flex items-center gap-1">
             <button
               v-if="!sig.is_default"
               @click="handleSetDefault(sig)"
               class="p-1.5 text-gray-400 hover:text-yellow-500 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              title="设为默认"
+              :title="t('settings.signatures.setDefault')"
             >
               <Star class="w-4 h-4" />
             </button>
             <button
               @click="openEdit(sig)"
               class="p-1.5 text-gray-400 hover:text-primary rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              title="编辑"
+              :title="t('settings.automation.edit')"
             >
               <Edit3 class="w-4 h-4" />
             </button>
             <button
               @click="handleDelete(sig)"
               class="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              title="删除"
+              :title="t('common.delete')"
             >
               <Trash2 class="w-4 h-4" />
             </button>
@@ -196,34 +197,34 @@ onMounted(loadSignatures)
           v-html="sig.content_html"
         ></div>
         <div v-else class="text-sm text-gray-400 italic border-t border-gray-100 dark:border-gray-800 pt-2 mt-2">
-          (空签名)
+          {{ t('settings.signatures.emptySignature') }}
         </div>
       </div>
 
-      <p class="text-xs text-gray-400 text-center">最多创建 20 个签名</p>
+      <p class="text-xs text-gray-400 text-center">{{ t('settings.signatures.maxHint') }}</p>
     </div>
 
     <!-- 创建/编辑弹窗 -->
-    <CommonModal v-model="showModal" :title="editingId ? '编辑签名' : '新建签名'" max-width="2xl">
+    <CommonModal v-model="showModal" :title="editingId ? t('settings.signatures.editTitle') : t('settings.signatures.create')" max-width="2xl">
       <div class="space-y-4">
         <!-- 签名名称 -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">签名名称</label>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('settings.signatures.name') }}</label>
           <input
             v-model="form.name"
             type="text"
             maxlength="100"
-            placeholder="例如：工作签名、个人签名"
+            :placeholder="t('settings.signatures.namePlaceholder')"
             class="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
 
         <!-- 签名内容（富文本编辑器） -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">签名内容</label>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('settings.signatures.content') }}</label>
           <EditorRichEditor
             v-model="form.content_html"
-            placeholder="在这里编辑您的邮件签名..."
+            :placeholder="t('settings.signatures.contentPlaceholder')"
             :min-height="150"
           />
         </div>
@@ -231,7 +232,7 @@ onMounted(loadSignatures)
         <!-- 设为默认 -->
         <label class="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" v-model="form.is_default" class="rounded border-gray-300 text-primary focus:ring-primary" />
-          <span class="text-sm text-gray-700 dark:text-gray-300">设为默认签名</span>
+          <span class="text-sm text-gray-700 dark:text-gray-300">{{ t('settings.signatures.setAsDefault') }}</span>
         </label>
 
         <!-- 操作按钮 -->
@@ -239,12 +240,12 @@ onMounted(loadSignatures)
           <button
             @click="showModal = false"
             class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-          >取消</button>
+          >{{ t('common.cancel') }}</button>
           <button
             @click="handleSave"
             :disabled="saving"
             class="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50 whitespace-nowrap"
-          >{{ saving ? '保存中...' : '保存' }}</button>
+          >{{ saving ? t('settings.common.saving') : t('common.save') }}</button>
         </div>
       </div>
     </CommonModal>

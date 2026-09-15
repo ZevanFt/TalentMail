@@ -58,7 +58,7 @@ const loadFiles = async () => {
     breadcrumbs.value = res.breadcrumbs || []
   } catch (e: any) {
     console.error('加载失败', e)
-    loadError.value = e.data?.detail || '加载文件失败'
+    loadError.value = e.data?.detail || t('drive.loadFailed')
     toast.error(loadError.value)
   } finally {
     loading.value = false
@@ -93,9 +93,9 @@ const handleUpload = async (e: Event) => {
       files.value.unshift(result)
       successCount++
     }
-    toast.success(`成功上传 ${successCount} 个文件`)
+    toast.success(t('drive.uploadSuccess', { n: successCount }))
   } catch (e: any) {
-    toast.error('上传失败: ' + (e.data?.detail || '未知错误'))
+    toast.error(t('drive.uploadFailed', { detail: e.data?.detail || t('drive.unknownError') }))
   } finally {
     uploading.value = false
     uploadProgress.value = ''
@@ -105,16 +105,16 @@ const handleUpload = async (e: Event) => {
 
 const handleDelete = async (id: number) => {
   const item = files.value.find(f => f.id === id)
-  const msg = item?.is_folder ? '确定删除此文件夹及其所有内容？' : '确定删除此文件？'
+  const msg = item?.is_folder ? t('drive.confirmDeleteFolder') : t('drive.confirmDeleteFile')
   const ok = await confirmDialog({ message: msg, type: 'danger' })
   if (!ok) return
   try {
     await deleteDriveFile(id)
     files.value = files.value.filter(f => f.id !== id)
-    toast.success('删除成功')
+    toast.success(t('drive.deleteSuccess'))
   } catch (e: any) {
     console.error('删除失败', e)
-    toast.error(e.data?.detail || '删除失败')
+    toast.error(e.data?.detail || t('drive.deleteFailed'))
   }
 }
 
@@ -128,9 +128,9 @@ const handleCreateFolder = async () => {
     files.value.unshift(folder)
     showFolderModal.value = false
     newFolderName.value = ''
-    toast.success('文件夹已创建')
+    toast.success(t('drive.folderCreated'))
   } catch (e: any) {
-    toast.error(e.data?.detail || '创建文件夹失败')
+    toast.error(e.data?.detail || t('drive.createFolderFailed'))
   } finally {
     creatingFolder.value = false
   }
@@ -150,9 +150,9 @@ const handleRename = async () => {
     const idx = files.value.findIndex(f => f.id === updated.id)
     if (idx >= 0) files.value[idx] = updated
     showRenameModal.value = false
-    toast.success('重命名成功')
+    toast.success(t('drive.renameSuccess'))
   } catch (e: any) {
-    toast.error(e.data?.detail || '重命名失败')
+    toast.error(e.data?.detail || t('drive.renameFailed'))
   } finally {
     renaming.value = false
   }
@@ -174,7 +174,7 @@ const loadMoveFolders = async (parentId: number | null) => {
     moveBreadcrumbs.value = res.breadcrumbs || []
     moveTargetParentId.value = parentId
   } catch (e: any) {
-    toast.error('加载文件夹失败')
+    toast.error(t('drive.loadFoldersFailed'))
   } finally {
     loadingMoveFolders.value = false
   }
@@ -183,7 +183,7 @@ const handleMove = async () => {
   if (!moveTarget.value) return
   // 不能移动到自身所在的相同位置
   if (moveTargetParentId.value === moveTarget.value.parent_id) {
-    toast.error('文件已在此位置')
+    toast.error(t('drive.alreadyHere'))
     return
   }
   moving.value = true
@@ -192,9 +192,9 @@ const handleMove = async () => {
     // 从当前列表中移除
     files.value = files.value.filter(f => f.id !== updated.id)
     showMoveModal.value = false
-    toast.success('移动成功')
+    toast.success(t('drive.moveSuccess'))
   } catch (e: any) {
-    toast.error(e.data?.detail || '移动失败')
+    toast.error(e.data?.detail || t('drive.moveFailed'))
   } finally {
     moving.value = false
   }
@@ -220,7 +220,7 @@ const handleShare = async () => {
     if (idx >= 0) files.value[idx] = result
     shareFile.value = result
   } catch (e: any) {
-    toast.error('分享失败: ' + (e.data?.detail || '未知错误'))
+    toast.error(t('drive.shareFailed', { detail: e.data?.detail || t('drive.unknownError') }))
   } finally {
     sharing.value = false
   }
@@ -238,7 +238,7 @@ const handleRemoveShare = async () => {
     showShareModal.value = false
   } catch (e: any) {
     console.error('取消分享失败', e)
-    toast.error(e.data?.detail || '取消分享失败')
+    toast.error(e.data?.detail || t('drive.removeShareFailed'))
   }
 }
 
@@ -254,7 +254,7 @@ const copyShareUrl = async () => {
     setTimeout(() => copied.value = false, 2000)
   } catch (e: any) {
     console.error('复制失败', e)
-    toast.error('复制失败')
+    toast.error(t('drive.copyFailed'))
   }
 }
 
@@ -307,7 +307,7 @@ onMounted(loadFiles)
       <!-- 面包屑导航 -->
       <div v-if="currentFolderId !== null" class="flex items-center gap-1 mb-4 text-sm flex-wrap">
         <button @click="navigateToFolder(null)" class="flex items-center gap-1 text-primary hover:underline">
-          <Home class="w-4 h-4" /> 根目录
+          <Home class="w-4 h-4" /> {{ t('drive.rootDir') }}
         </button>
         <template v-for="(crumb, idx) in breadcrumbs" :key="crumb.id">
           <ChevronRight class="w-4 h-4 text-gray-400 shrink-0" />
@@ -335,12 +335,12 @@ onMounted(loadFiles)
         </div>
         <div v-else-if="loadError" class="p-8 text-center">
           <p class="text-red-500 mb-3">{{ loadError }}</p>
-          <button @click="loadFiles" class="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary-hover transition-colors">重试</button>
+          <button @click="loadFiles" class="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary-hover transition-colors">{{ t('drive.retry') }}</button>
         </div>
         <div v-else-if="files.length === 0" class="p-12 text-center text-gray-500">
           <Upload class="w-12 h-12 mx-auto mb-3 opacity-30" />
-          <p class="text-lg font-medium mb-1">{{ currentFolderId !== null ? '此文件夹为空' : '暂无文件' }}</p>
-          <p class="text-sm text-gray-400">{{ currentFolderId !== null ? '上传文件或创建子文件夹' : '点击上方按钮上传文件，支持最大 50MB' }}</p>
+          <p class="text-lg font-medium mb-1">{{ currentFolderId !== null ? t('drive.emptyFolder') : t('drive.empty') }}</p>
+          <p class="text-sm text-gray-400">{{ currentFolderId !== null ? t('drive.emptyFolderHint') : t('drive.emptyHint') }}</p>
         </div>
         <div v-else class="divide-y divide-gray-100 dark:divide-gray-800">
           <div v-for="file in files" :key="file.id" class="flex items-center gap-4 p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
@@ -359,33 +359,33 @@ onMounted(loadFiles)
               <div class="font-medium text-gray-900 dark:text-white truncate">{{ file.original_filename }}</div>
               <div class="text-xs text-gray-500 flex items-center gap-3">
                 <span v-if="!file.is_folder">{{ formatSize(file.size) }}</span>
-                <span v-else class="text-amber-500">文件夹</span>
+                <span v-else class="text-amber-500">{{ t('drive.folder') }}</span>
                 <span>{{ formatDateShort(file.created_at) }}</span>
                 <span v-if="file.share_code" class="flex items-center gap-1 text-primary">
-                  <Link class="w-3 h-3" /> 已分享
-                  <span v-if="file.download_count">({{ file.download_count }}次下载)</span>
+                  <Link class="w-3 h-3" /> {{ t('drive.shared') }}
+                  <span v-if="file.download_count">{{ t('drive.downloadCount', { n: file.download_count }) }}</span>
                 </span>
               </div>
             </div>
 
             <!-- 操作按钮 -->
             <div class="flex items-center gap-1">
-              <button v-if="!file.is_folder && isPreviewable(file.content_type)" @click="openPreview(file)" class="p-2 text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors" title="预览" aria-label="预览">
+              <button v-if="!file.is_folder && isPreviewable(file.content_type)" @click="openPreview(file)" class="p-2 text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors" :title="t('drive.preview')" :aria-label="t('drive.preview')">
                 <Eye class="w-4 h-4" />
               </button>
-              <button v-if="!file.is_folder" @click="downloadFile(file.id)" class="p-2 text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors" title="下载" aria-label="下载">
+              <button v-if="!file.is_folder" @click="downloadFile(file.id)" class="p-2 text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors" :title="t('drive.download')" :aria-label="t('drive.download')">
                 <Download class="w-4 h-4" />
               </button>
-              <button @click="openRenameModal(file)" class="p-2 text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors" title="重命名" aria-label="重命名">
+              <button @click="openRenameModal(file)" class="p-2 text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors" :title="t('drive.rename')" :aria-label="t('drive.rename')">
                 <Pencil class="w-4 h-4" />
               </button>
-              <button @click="openMoveModal(file)" class="p-2 text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors" title="移动" aria-label="移动">
+              <button @click="openMoveModal(file)" class="p-2 text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors" :title="t('drive.move')" :aria-label="t('drive.move')">
                 <ArrowRight class="w-4 h-4" />
               </button>
-              <button v-if="!file.is_folder" @click="openShareModal(file)" class="p-2 text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors" title="分享" aria-label="分享">
+              <button v-if="!file.is_folder" @click="openShareModal(file)" class="p-2 text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors" :title="t('drive.share')" :aria-label="t('drive.share')">
                 <Share2 class="w-4 h-4" />
               </button>
-              <button @click="handleDelete(file.id)" class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="删除" aria-label="删除">
+              <button @click="handleDelete(file.id)" class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" :title="t('common.delete')" :aria-label="t('common.delete')">
                 <Trash2 class="w-4 h-4" />
               </button>
             </div>
@@ -395,23 +395,23 @@ onMounted(loadFiles)
 
       <!-- 分页 -->
       <div v-if="!loading && totalPages > 1" class="flex items-center justify-between mt-4 px-4 py-3 bg-white dark:bg-bg-panelDark rounded-xl border border-gray-200 dark:border-border-dark">
-        <span class="text-sm text-gray-500">共 {{ total }} 项</span>
+        <span class="text-sm text-gray-500">{{ t('drive.totalItems', { n: total }) }}</span>
         <div class="flex items-center gap-1">
           <button @click="goPage(page - 1)" :disabled="page <= 1"
             class="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-            上一页
+            {{ t('drive.prevPage') }}
           </button>
           <span class="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400">{{ page }} / {{ totalPages }}</span>
           <button @click="goPage(page + 1)" :disabled="page >= totalPages"
             class="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-            下一页
+            {{ t('drive.nextPage') }}
           </button>
         </div>
       </div>
     </div>
 
     <!-- 分享弹窗 -->
-    <CommonModal v-model="showShareModal" title="分享文件" width-class="w-full max-w-md">
+    <CommonModal v-model="showShareModal" :title="t('drive.shareModalTitle')" width-class="w-full max-w-md">
       <div v-if="shareFile" class="space-y-4">
         <div class="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
           <div class="font-medium text-gray-900 dark:text-white truncate">{{ shareFile.original_filename }}</div>
@@ -431,78 +431,78 @@ onMounted(loadFiles)
             <span class="flex items-center gap-1">
               <Lock v-if="shareFile.share_password" class="w-3 h-3" />
               <Unlock v-else class="w-3 h-3" />
-              {{ shareFile.share_password ? '有密码保护' : '无密码' }}
+              {{ shareFile.share_password ? t('drive.hasPassword') : t('drive.noPassword') }}
             </span>
-            <span>{{ shareFile.download_count }} 次下载</span>
+            <span>{{ t('drive.downloadTimes', { n: shareFile.download_count }) }}</span>
           </div>
           <button @click="handleRemoveShare" class="w-full py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-sm">
-            取消分享
+            {{ t('drive.removeShare') }}
           </button>
         </div>
 
         <!-- 创建分享 -->
         <div v-else class="space-y-3">
           <div>
-            <label for="share-password" class="block text-sm text-gray-600 dark:text-gray-400 mb-1">访问密码（可选）</label>
-            <input id="share-password" v-model="shareSettings.password" type="text" placeholder="留空则无需密码" class="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-sm" />
+            <label for="share-password" class="block text-sm text-gray-600 dark:text-gray-400 mb-1">{{ t('drive.passwordLabel') }}</label>
+            <input id="share-password" v-model="shareSettings.password" type="text" :placeholder="t('drive.passwordPlaceholder')" class="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-sm" />
           </div>
           <div>
-            <label for="share-expires" class="block text-sm text-gray-600 dark:text-gray-400 mb-1">有效期</label>
+            <label for="share-expires" class="block text-sm text-gray-600 dark:text-gray-400 mb-1">{{ t('drive.expiresLabel') }}</label>
             <select id="share-expires" v-model="shareSettings.expires_days" class="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-sm">
-              <option :value="1">1 天</option>
-              <option :value="7">7 天</option>
-              <option :value="30">30 天</option>
-              <option :value="null">永久有效</option>
+              <option :value="1">{{ t('drive.day1') }}</option>
+              <option :value="7">{{ t('drive.day7') }}</option>
+              <option :value="30">{{ t('drive.day30') }}</option>
+              <option :value="null">{{ t('drive.neverExpires') }}</option>
             </select>
           </div>
           <button @click="handleShare" :disabled="sharing" class="w-full py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary-hover disabled:opacity-50">
-            {{ sharing ? '创建中...' : '创建分享链接' }}
+            {{ sharing ? t('drive.creating') : t('drive.createShareLink') }}
           </button>
         </div>
       </div>
     </CommonModal>
 
     <!-- 新建文件夹弹窗 -->
-    <CommonModal v-model="showFolderModal" title="新建文件夹" width-class="w-full max-w-sm">
+    <CommonModal v-model="showFolderModal" :title="t('drive.newFolder')" width-class="w-full max-w-sm">
       <div class="space-y-4">
-        <input v-model="newFolderName" placeholder="文件夹名称" maxlength="255"
+        <input v-model="newFolderName" :placeholder="t('drive.folderName')" maxlength="255"
           class="w-full px-3 py-2 border border-gray-200 dark:border-border-dark rounded-lg bg-white dark:bg-bg-panelDark text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
           @keyup.enter="handleCreateFolder" />
       </div>
       <template #footer>
-        <button @click="showFolderModal = false" class="px-4 py-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm">取消</button>
+        <button @click="showFolderModal = false" class="px-4 py-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm">{{ t('common.cancel') }}</button>
         <button @click="handleCreateFolder" :disabled="creatingFolder || !newFolderName.trim()"
           class="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary-hover disabled:opacity-50 flex items-center gap-2">
           <Loader2 v-if="creatingFolder" class="w-4 h-4 animate-spin" />
-          创建
+          {{ t('drive.create') }}
         </button>
       </template>
     </CommonModal>
 
     <!-- 重命名弹窗 -->
-    <CommonModal v-model="showRenameModal" title="重命名" width-class="w-full max-w-sm">
+    <CommonModal v-model="showRenameModal" :title="t('drive.rename')" width-class="w-full max-w-sm">
       <div class="space-y-4">
-        <input v-model="renameName" placeholder="新名称" maxlength="255"
+        <input v-model="renameName" :placeholder="t('drive.newName')" maxlength="255"
           class="w-full px-3 py-2 border border-gray-200 dark:border-border-dark rounded-lg bg-white dark:bg-bg-panelDark text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
           @keyup.enter="handleRename" />
       </div>
       <template #footer>
-        <button @click="showRenameModal = false" class="px-4 py-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm">取消</button>
+        <button @click="showRenameModal = false" class="px-4 py-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm">{{ t('common.cancel') }}</button>
         <button @click="handleRename" :disabled="renaming || !renameName.trim()"
           class="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary-hover disabled:opacity-50 flex items-center gap-2">
           <Loader2 v-if="renaming" class="w-4 h-4 animate-spin" />
-          确定
+          {{ t('drive.ok') }}
         </button>
       </template>
     </CommonModal>
 
     <!-- 移动弹窗 -->
-    <CommonModal v-model="showMoveModal" :title="`移动「${moveTarget?.original_filename || ''}」`" width-class="w-full max-w-md">
+    <CommonModal v-model="showMoveModal" :title="t('drive.moveTitle', { name: moveTarget?.original_filename || '' })" width-class="w-full max-w-md">
       <div class="space-y-3">
         <!-- 移动目标面包屑 -->
         <div class="flex items-center gap-1 text-sm flex-wrap">
           <button @click="loadMoveFolders(null)" class="flex items-center gap-1 text-primary hover:underline">
-            <Home class="w-3.5 h-3.5" /> 根目录
+            <Home class="w-3.5 h-3.5" /> {{ t('drive.rootDir') }}
           </button>
           <template v-for="(crumb, idx) in moveBreadcrumbs" :key="crumb.id">
             <ChevronRight class="w-3.5 h-3.5 text-gray-400 shrink-0" />
@@ -521,7 +521,7 @@ onMounted(loadFiles)
             <Loader2 class="w-5 h-5 mx-auto animate-spin" />
           </div>
           <div v-else-if="moveFolders.length === 0" class="p-6 text-center text-gray-400 text-sm">
-            此目录下没有文件夹
+            {{ t('drive.noFoldersHere') }}
           </div>
           <div v-else class="divide-y divide-gray-100 dark:divide-gray-800">
             <button v-for="folder in moveFolders" :key="folder.id"
@@ -535,11 +535,11 @@ onMounted(loadFiles)
         </div>
       </div>
       <template #footer>
-        <button @click="showMoveModal = false" class="px-4 py-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm">取消</button>
+        <button @click="showMoveModal = false" class="px-4 py-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm">{{ t('common.cancel') }}</button>
         <button @click="handleMove" :disabled="moving"
           class="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary-hover disabled:opacity-50 flex items-center gap-2">
           <Loader2 v-if="moving" class="w-4 h-4 animate-spin" />
-          移动到此处
+          {{ t('drive.moveHere') }}
         </button>
       </template>
     </CommonModal>

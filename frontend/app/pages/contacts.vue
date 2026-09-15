@@ -27,14 +27,14 @@ const validateForm = (): boolean => {
   formErrors.email = ''
   let valid = true
   if (!form.name.trim()) {
-    formErrors.name = '姓名不能为空'
+    formErrors.name = t('contacts.nameRequired')
     valid = false
   }
   if (!form.email.trim()) {
-    formErrors.email = '邮箱不能为空'
+    formErrors.email = t('contacts.emailRequired')
     valid = false
   } else if (!emailRegex.test(form.email.trim())) {
-    formErrors.email = '请输入有效的邮箱地址'
+    formErrors.email = t('contacts.emailInvalid')
     valid = false
   }
   return valid
@@ -53,7 +53,7 @@ const loadContacts = async () => {
     contacts.value = res.items || res as any
   } catch (e: any) {
     console.error('加载联系人失败', e)
-    loadError.value = e.data?.detail || '加载联系人失败'
+    loadError.value = e.data?.detail || t('contacts.loadFailed')
     toast.error(loadError.value)
   } finally { loading.value = false }
 }
@@ -78,25 +78,25 @@ const save = async () => {
       await createContact(form)
     }
     showModal.value = false
-    toast.success(editingContact.value ? '联系人已更新' : '联系人已添加')
+    toast.success(editingContact.value ? t('contacts.updated') : t('contacts.added'))
     await loadContacts()
   } catch (e: any) {
     console.error('保存联系人失败', e)
-    toast.error(e.data?.detail || '保存失败')
+    toast.error(e.data?.detail || t('contacts.saveFailed'))
   } finally { saving.value = false }
 }
 
 const remove = async (id: number) => {
-  const ok = await confirmDialog({ message: '确定删除此联系人？', type: 'danger' })
+  const ok = await confirmDialog({ message: t('contacts.confirmDelete'), type: 'danger' })
   if (!ok) return
   deletingId.value = id
   try {
     await deleteContact(id)
     contacts.value = contacts.value.filter(c => c.id !== id)
-    toast.success('联系人已删除')
+    toast.success(t('contacts.deleted'))
   } catch (e: any) {
     console.error('删除联系人失败', e)
-    toast.error(e.data?.detail || '删除失败')
+    toast.error(e.data?.detail || t('contacts.deleteFailed'))
   } finally { deletingId.value = null }
 }
 
@@ -123,7 +123,7 @@ const handleExport = (format: 'csv' | 'vcf') => {
   fetch(url, {
     headers: { Authorization: `Bearer ${token.value}` }
   }).then(res => {
-    if (!res.ok) throw new Error('导出失败')
+    if (!res.ok) throw new Error(t('contacts.exportFailed'))
     return res.blob()
   }).then(blob => {
     const blobUrl = URL.createObjectURL(blob)
@@ -132,10 +132,10 @@ const handleExport = (format: 'csv' | 'vcf') => {
     a.download = format === 'csv' ? 'contacts.csv' : 'contacts.vcf'
     a.click()
     URL.revokeObjectURL(blobUrl)
-    toast.success('导出成功')
+    toast.success(t('contacts.exportSuccess'))
   }).catch((e: any) => {
     console.error('导出失败', e)
-    toast.error('导出失败')
+    toast.error(t('contacts.exportFailed'))
   })
 }
 
@@ -151,12 +151,12 @@ const handleImportFile = async (event: Event) => {
   const validTypes = ['.csv', '.vcf', '.vcard']
   const ext = '.' + file.name.split('.').pop()?.toLowerCase()
   if (!validTypes.includes(ext)) {
-    toast.error('仅支持 CSV 和 VCF 文件')
+    toast.error(t('contacts.importTypeHint'))
     target.value = ''
     return
   }
   if (file.size > 1048576) {
-    toast.error('文件过大，最大 1MB')
+    toast.error(t('contacts.importTooLarge'))
     target.value = ''
     return
   }
@@ -164,14 +164,14 @@ const handleImportFile = async (event: Event) => {
   try {
     const res = await importContacts(file)
     const msgs: string[] = []
-    if (res.imported > 0) msgs.push(`成功导入 ${res.imported} 个联系人`)
-    if (res.skipped > 0) msgs.push(`跳过 ${res.skipped} 个重复`)
-    if (res.errors?.length > 0) msgs.push(`${res.errors.length} 个错误`)
-    toast.success(msgs.join('，') || '导入完成')
+    if (res.imported > 0) msgs.push(t('contacts.imported', { n: res.imported }))
+    if (res.skipped > 0) msgs.push(t('contacts.skipped', { n: res.skipped }))
+    if (res.errors?.length > 0) msgs.push(t('contacts.errorCount', { n: res.errors.length }))
+    toast.success(msgs.join(t('contacts.listSeparator')) || t('contacts.importDone'))
     await loadContacts()
   } catch (e: any) {
     console.error('导入失败', e)
-    toast.error(e.data?.detail || '导入失败')
+    toast.error(e.data?.detail || t('contacts.importFailed'))
   } finally {
     importing.value = false
     target.value = ''
@@ -266,14 +266,14 @@ onMounted(loadContacts)
       <div v-else-if="loadError" class="text-center py-12">
         <AlertCircle class="w-12 h-12 mx-auto mb-3 text-red-400 opacity-60" />
         <p class="text-red-500 mb-3">{{ loadError }}</p>
-        <button @click="loadContacts" class="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary-hover transition-colors">重试</button>
+        <button @click="loadContacts" class="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary-hover transition-colors">{{ t('contacts.retry') }}</button>
       </div>
 
       <!-- 空态 -->
       <div v-else-if="contacts.length === 0" class="text-center py-12 text-gray-500">
         <User class="w-12 h-12 mx-auto mb-3 opacity-30" />
-        <p class="text-lg font-medium mb-1">{{ searchQuery ? '未找到匹配的联系人' : '暂无联系人' }}</p>
-        <p class="text-sm text-gray-400">{{ searchQuery ? '试试其他关键词' : '点击上方按钮添加' }}</p>
+        <p class="text-lg font-medium mb-1">{{ searchQuery ? t('contacts.noMatch') : t('contacts.empty') }}</p>
+        <p class="text-sm text-gray-400">{{ searchQuery ? t('contacts.noMatchHint') : t('contacts.emptyHint') }}</p>
       </div>
 
       <!-- 联系人列表 -->
@@ -291,11 +291,11 @@ onMounted(loadContacts)
               </div>
             </div>
             <div class="flex gap-1 shrink-0">
-              <button @click="openModal(c)" class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors" title="编辑">
+              <button @click="openModal(c)" class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors" :title="t('contacts.edit')">
                 <Pencil class="w-4 h-4" />
               </button>
               <button @click="remove(c.id)" :disabled="deletingId === c.id"
-                class="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-red-400 hover:text-red-500 transition-colors disabled:opacity-50" title="删除">
+                class="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-red-400 hover:text-red-500 transition-colors disabled:opacity-50" :title="t('common.delete')">
                 <Loader2 v-if="deletingId === c.id" class="w-4 h-4 animate-spin" />
                 <Trash2 v-else class="w-4 h-4" />
               </button>
@@ -308,39 +308,39 @@ onMounted(loadContacts)
     </div>
 
     <!-- 添加/编辑 Modal -->
-    <CommonModal v-model="showModal" :title="editingContact ? '编辑联系人' : '添加联系人'">
+    <CommonModal v-model="showModal" :title="editingContact ? t('contacts.edit') : t('contacts.new')">
       <div class="space-y-4">
         <div>
-          <label for="contact-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">姓名 <span class="text-red-500">*</span></label>
-          <input id="contact-name" v-model="form.name" placeholder="输入姓名"
+          <label for="contact-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('contacts.name') }} <span class="text-red-500">*</span></label>
+          <input id="contact-name" v-model="form.name" :placeholder="t('contacts.namePlaceholder')"
             :class="['w-full px-3 py-2 border rounded-lg bg-white dark:bg-bg-panelDark text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all', formErrors.name ? 'border-red-400 dark:border-red-500' : 'border-gray-200 dark:border-border-dark']"
             @input="formErrors.name = ''" />
           <span v-if="formErrors.name" class="text-red-500 text-xs mt-1 block">{{ formErrors.name }}</span>
         </div>
         <div>
-          <label for="contact-email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">邮箱 <span class="text-red-500">*</span></label>
-          <input id="contact-email" v-model="form.email" type="email" placeholder="输入邮箱"
+          <label for="contact-email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('contacts.email') }} <span class="text-red-500">*</span></label>
+          <input id="contact-email" v-model="form.email" type="email" :placeholder="t('contacts.emailPlaceholder')"
             :class="['w-full px-3 py-2 border rounded-lg bg-white dark:bg-bg-panelDark text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all', formErrors.email ? 'border-red-400 dark:border-red-500' : 'border-gray-200 dark:border-border-dark']"
             @input="formErrors.email = ''" />
           <span v-if="formErrors.email" class="text-red-500 text-xs mt-1 block">{{ formErrors.email }}</span>
         </div>
         <div>
-          <label for="contact-phone" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">电话</label>
-          <input id="contact-phone" v-model="form.phone" placeholder="输入电话（可选）"
+          <label for="contact-phone" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('contacts.phone') }}</label>
+          <input id="contact-phone" v-model="form.phone" :placeholder="t('contacts.phonePlaceholder')"
             class="w-full px-3 py-2 border border-gray-200 dark:border-border-dark rounded-lg bg-white dark:bg-bg-panelDark text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
         </div>
         <div>
-          <label for="contact-notes" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">备注</label>
-          <textarea id="contact-notes" v-model="form.notes" placeholder="输入备注（可选）" rows="2"
+          <label for="contact-notes" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('contacts.notes') }}</label>
+          <textarea id="contact-notes" v-model="form.notes" :placeholder="t('contacts.notesPlaceholder')" rows="2"
             class="w-full px-3 py-2 border border-gray-200 dark:border-border-dark rounded-lg bg-white dark:bg-bg-panelDark text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none"></textarea>
         </div>
       </div>
       <template #footer>
-        <button @click="showModal = false" class="px-4 py-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors text-sm">取消</button>
+        <button @click="showModal = false" class="px-4 py-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors text-sm">{{ t('common.cancel') }}</button>
         <button @click="save" :disabled="saving"
           class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors text-sm font-medium disabled:opacity-50 flex items-center gap-2">
           <Loader2 v-if="saving" class="w-4 h-4 animate-spin" />
-          {{ saving ? '保存中...' : '保存' }}
+          {{ saving ? t('contacts.saving') : t('common.save') }}
         </button>
       </template>
     </CommonModal>

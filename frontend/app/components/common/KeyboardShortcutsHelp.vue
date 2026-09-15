@@ -3,6 +3,7 @@ import { X, Keyboard } from 'lucide-vue-next'
 import { getShortcutsByCategory } from '~/composables/useKeyboardShortcuts'
 
 const { showShortcutsHelp } = useKeyboardShortcuts()
+const { t } = useI18n()
 
 const shortcutsByCategory = getShortcutsByCategory()
 const categories = Object.keys(shortcutsByCategory)
@@ -29,8 +30,8 @@ const categories = Object.keys(shortcutsByCategory)
                 <Keyboard class="w-5 h-5 text-primary" />
               </div>
               <div>
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">键盘快捷键</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400">使用快捷键提高效率</p>
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('common.shortcuts.title') }}</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('common.shortcuts.subtitle') }}</p>
               </div>
             </div>
             <button @click="showShortcutsHelp = false" 
@@ -62,7 +63,7 @@ const categories = Object.keys(shortcutsByCategory)
           <!-- 底部提示 -->
           <div class="px-6 py-3 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-200 dark:border-gray-700">
             <p class="text-xs text-gray-500 dark:text-gray-400 text-center">
-              按 <kbd class="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-600 rounded text-[10px] font-mono mx-1 text-gray-700 dark:text-white">?</kbd> 显示或隐藏此帮助
+              {{ t('common.shortcuts.footerPrefix') }} <kbd class="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-600 rounded text-[10px] font-mono mx-1 text-gray-700 dark:text-white">?</kbd> {{ t('common.shortcuts.footerSuffix') }}
             </p>
           </div>
         </div>

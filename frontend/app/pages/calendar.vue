@@ -2,10 +2,10 @@
 import { ChevronLeft, ChevronRight, Plus, Upload, Loader2 } from 'lucide-vue-next'
 
 const config = useConfig()
-useHead({ title: `日历 - ${config.appName}` })
+const { t, locale } = useI18n()
+useHead({ title: `${t('calendar.title')} - ${config.appName}` })
 const toast = useToast()
 const { getCalendarEvents, importIcs, exportCalendarIcs } = useApi()
-const { t, locale } = useI18n()
 
 // ---- 视图模式：月 / 周 ----
 const viewMode = ref<'month' | 'week'>('month')
@@ -24,8 +24,11 @@ const monthLabel = computed(() => {
     const fmt = (d: Date) => `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}`
     return `${fmt(first)} – ${fmt(last)}`
   }
-  const months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
-  return `${currentYear.value}年${months[currentMonth.value]}`
+  const monthKey = `m${currentMonth.value + 1}` as const
+  return t('calendar.monthYear', {
+    year: currentYear.value,
+    month: t(`calendar.months.${monthKey}`),
+  })
 })
 
 const prevMonth = () => {
@@ -80,7 +83,8 @@ interface CalendarDay {
   events: any[]
 }
 
-const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
+const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const
+const weekdays = computed(() => WEEKDAY_KEYS.map(k => t(`calendar.weekdays.${k}`)))
 
 const calendarDays = computed((): CalendarDay[] => {
   const year = currentYear.value
@@ -247,7 +251,7 @@ const selectedDateEvents = computed(() => {
 })
 const selectedDateLabel = computed(() => {
   if (!selectedDate.value) return ''
-  return selectedDate.value.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })
+  return selectedDate.value.toLocaleDateString(locale.value, { month: 'long', day: 'numeric', weekday: 'long' })
 })
 
 const selectDate = (day: CalendarDay) => {
@@ -264,13 +268,13 @@ const handleIcsImport = async (e: Event) => {
   try {
     const result = await importIcs(input.files[0])
     if (result.imported > 0) {
-      toast.success(`成功导入 ${result.imported} 个事件`)
+      toast.success(t('calendar.importedCount', { n: result.imported }))
       await loadEvents()
     } else {
-      toast.info('没有新事件被导入')
+      toast.info(t('calendar.noNewEvents'))
     }
   } catch (e: any) {
-    toast.error(e.data?.detail || '导入失败')
+    toast.error(e.data?.detail || t('calendar.importFailed'))
   } finally {
     importingIcs.value = false
     input.value = ''
@@ -281,9 +285,9 @@ const handleIcsExport = async () => {
   exportingIcs.value = true
   try {
     await exportCalendarIcs()
-    toast.success('已导出 .ics')
+    toast.success(t('calendar.exported'))
   } catch (e: any) {
-    toast.error(e?.data?.detail || '导出失败')
+    toast.error(e?.data?.detail || t('calendar.exportFailed'))
   } finally {
     exportingIcs.value = false
   }
@@ -360,7 +364,7 @@ onMounted(loadEvents)
         <div class="flex-1 bg-white dark:bg-bg-panelDark rounded-xl border border-gray-200 dark:border-border-dark overflow-hidden">
           <!-- 星期标题 -->
           <div class="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700">
-            <div v-for="wd in WEEKDAYS" :key="wd" class="py-2 text-center text-xs font-medium text-gray-500 uppercase">
+            <div v-for="wd in weekdays" :key="wd" class="py-2 text-center text-xs font-medium text-gray-500 uppercase">
               {{ wd }}
             </div>
           </div>
@@ -414,7 +418,7 @@ onMounted(loadEvents)
                   :style="{ backgroundColor: ev.color || '#3B82F6' }"
                 >{{ ev.title }}</div>
                 <div v-if="day.events.length > 3" class="text-[10px] text-gray-400 text-center">
-                  +{{ day.events.length - 3 }} 更多
+                  {{ t('calendar.moreCount', { n: day.events.length - 3 }) }}
                 </div>
               </div>
             </div>
@@ -432,12 +436,12 @@ onMounted(loadEvents)
             <div v-if="selectedDate">
               <div class="flex items-center justify-between mb-4">
                 <h3 class="text-sm font-bold text-gray-900 dark:text-white">{{ selectedDateLabel }}</h3>
-                <button @click="openNewEvent(selectedDate)" class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors" title="在此日新建事件">
+                <button @click="openNewEvent(selectedDate)" class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors" :title="t('calendar.createOnThisDay')">
                   <Plus class="w-4 h-4 text-primary" />
                 </button>
               </div>
               <div v-if="selectedDateEvents.length === 0" class="text-sm text-gray-400 py-4 text-center">
-                暂无事件
+                {{ t('calendar.noEvents') }}
               </div>
               <div v-else class="space-y-2">
                 <div
@@ -460,7 +464,7 @@ onMounted(loadEvents)
               </div>
             </div>
             <div v-else class="text-sm text-gray-400 py-8 text-center">
-              点击日期查看详情
+              {{ t('calendar.clickDateHint') }}
             </div>
           </div>
         </div>

@@ -3,9 +3,10 @@ import { Loader2, AlertCircle, Mail } from 'lucide-vue-next'
 
 const { ssoCallback } = useApi()
 const { appName } = useConfig()
+const { t } = useI18n()
 
 definePageMeta({ layout: false })
-useHead({ title: `SSO 登录中 - ${appName}` })
+useHead({ title: computed(() => `${t('auth.ssoCallback.loggingIn')} - ${appName}`) })
 
 const error = ref('')
 const loading = ref(true)
@@ -16,7 +17,7 @@ onMounted(async () => {
   const state = route.query.state as string | undefined
 
   if (!code) {
-    error.value = '缺少授权码参数，请重新发起 SSO 登录'
+    error.value = t('auth.ssoCallback.missingCode')
     loading.value = false
     return
   }
@@ -27,7 +28,7 @@ onMounted(async () => {
     await navigateTo('/', { replace: true })
   } catch (e: any) {
     const detail = e?.data?.detail || e?.message || ''
-    error.value = detail || 'SSO 登录失败，请稍后重试'
+    error.value = detail || t('auth.ssoCallback.loginFailed')
     loading.value = false
   }
 })
@@ -48,7 +49,7 @@ onMounted(async () => {
       <!-- Loading 状态 -->
       <div v-if="loading" class="flex flex-col items-center gap-4 py-8">
         <Loader2 class="w-10 h-10 text-primary animate-spin" />
-        <p class="text-gray-500 dark:text-gray-400 text-sm">正在完成 SSO 登录，请稍候...</p>
+        <p class="text-gray-500 dark:text-gray-400 text-sm">{{ t('auth.ssoCallback.completing') }}</p>
       </div>
 
       <!-- 错误状态 -->
@@ -57,12 +58,12 @@ onMounted(async () => {
           <AlertCircle class="w-8 h-8 text-red-500 dark:text-red-400" />
         </div>
         <div class="text-center space-y-2">
-          <h2 class="text-lg font-bold text-gray-900 dark:text-white">登录失败</h2>
+          <h2 class="text-lg font-bold text-gray-900 dark:text-white">{{ t('auth.ssoCallback.failedTitle') }}</h2>
           <p class="text-sm text-red-500 dark:text-red-400">{{ error }}</p>
         </div>
         <NuxtLink to="/login"
           class="mt-4 px-6 py-2.5 bg-primary hover:bg-primary-hover text-white font-medium rounded-xl transition-all text-sm">
-          返回登录页
+          {{ t('auth.backToLogin') }}
         </NuxtLink>
       </div>
 

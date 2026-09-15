@@ -23,6 +23,7 @@ const emit = defineEmits(['update:modelValue', 'saved', 'deleted'])
 const { createCalendarEvent, updateCalendarEvent, deleteCalendarEvent } = useApi()
 const toast = useToast()
 const { confirm: confirmDialog } = useConfirmDialog()
+const { t } = useI18n()
 
 const PRESET_COLORS = [
   '#3B82F6', '#EF4444', '#10B981', '#F59E0B',
@@ -90,11 +91,11 @@ const toLocalInput = (isoStr: string): string => {
 
 const handleSave = async () => {
   if (!form.title.trim()) {
-    toast.error('请输入事件标题')
+    toast.error(t('calendar.eventModal.titleRequired'))
     return
   }
   if (!form.start_time || !form.end_time) {
-    toast.error('请选择开始和结束时间')
+    toast.error(t('calendar.eventModal.timeRequired'))
     return
   }
 
@@ -117,15 +118,15 @@ const handleSave = async () => {
 
     if (isEditing.value && props.event) {
       await updateCalendarEvent(props.event.id, payload)
-      toast.success('事件已更新')
+      toast.success(t('calendar.eventModal.updated'))
     } else {
       await createCalendarEvent(payload)
-      toast.success('事件已创建')
+      toast.success(t('calendar.eventModal.created'))
     }
     emit('saved')
     emit('update:modelValue', false)
   } catch (e: any) {
-    toast.error(e.data?.detail || '保存失败')
+    toast.error(e.data?.detail || t('calendar.eventModal.saveFailed'))
   } finally {
     saving.value = false
   }
@@ -133,16 +134,16 @@ const handleSave = async () => {
 
 const handleDelete = async () => {
   if (!props.event?.id) return
-  const ok = await confirmDialog({ message: '确定删除此事件？', type: 'danger' })
+  const ok = await confirmDialog({ message: t('calendar.eventModal.confirmDelete'), type: 'danger' })
   if (!ok) return
   deleting.value = true
   try {
     await deleteCalendarEvent(props.event.id)
-    toast.success('事件已删除')
+    toast.success(t('calendar.eventModal.deleted'))
     emit('deleted')
     emit('update:modelValue', false)
   } catch (e: any) {
-    toast.error(e.data?.detail || '删除失败')
+    toast.error(e.data?.detail || t('calendar.eventModal.deleteFailed'))
   } finally {
     deleting.value = false
   }
@@ -151,32 +152,32 @@ const handleDelete = async () => {
 
 <template>
   <CommonModal :model-value="modelValue" @update:model-value="emit('update:modelValue', $event)"
-    :title="isEditing ? '编辑事件' : '新建事件'" width-class="w-full max-w-lg">
+    :title="isEditing ? t('calendar.eventModal.editEvent') : t('calendar.newEvent')" width-class="w-full max-w-lg">
     <div class="space-y-4">
       <!-- 标题 -->
       <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          标题 <span class="text-red-500">*</span>
+          {{ t('calendar.eventModal.title') }} <span class="text-red-500">*</span>
         </label>
-        <input v-model="form.title" placeholder="事件标题" maxlength="255"
+        <input v-model="form.title" :placeholder="t('calendar.eventModal.titlePlaceholder')" maxlength="255"
           class="w-full px-3 py-2 border border-gray-200 dark:border-border-dark rounded-lg bg-white dark:bg-bg-panelDark text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
       </div>
 
       <!-- 全天 -->
       <div class="flex items-center gap-2">
         <input id="all-day" v-model="form.all_day" type="checkbox" class="rounded" />
-        <label for="all-day" class="text-sm text-gray-700 dark:text-gray-300">全天事件</label>
+        <label for="all-day" class="text-sm text-gray-700 dark:text-gray-300">{{ t('calendar.eventModal.allDayEvent') }}</label>
       </div>
 
       <!-- 时间 -->
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">开始时间</label>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('calendar.eventModal.startTime') }}</label>
           <input v-model="form.start_time" :type="form.all_day ? 'date' : 'datetime-local'"
             class="w-full px-3 py-2 border border-gray-200 dark:border-border-dark rounded-lg bg-white dark:bg-bg-panelDark text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">结束时间</label>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('calendar.eventModal.endTime') }}</label>
           <input v-model="form.end_time" :type="form.all_day ? 'date' : 'datetime-local'"
             class="w-full px-3 py-2 border border-gray-200 dark:border-border-dark rounded-lg bg-white dark:bg-bg-panelDark text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
         </div>
@@ -184,21 +185,21 @@ const handleDelete = async () => {
 
       <!-- 地点 -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">地点</label>
-        <input v-model="form.location" placeholder="（可选）" maxlength="500"
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('calendar.location') }}</label>
+        <input v-model="form.location" :placeholder="t('calendar.eventModal.optional')" maxlength="500"
           class="w-full px-3 py-2 border border-gray-200 dark:border-border-dark rounded-lg bg-white dark:bg-bg-panelDark text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
       </div>
 
       <!-- 描述 -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">描述</label>
-        <textarea v-model="form.description" placeholder="（可选）" rows="3"
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('calendar.eventModal.description') }}</label>
+        <textarea v-model="form.description" :placeholder="t('calendar.eventModal.optional')" rows="3"
           class="w-full px-3 py-2 border border-gray-200 dark:border-border-dark rounded-lg bg-white dark:bg-bg-panelDark text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-y"></textarea>
       </div>
 
       <!-- 颜色 -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">颜色</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('calendar.eventModal.color') }}</label>
         <div class="flex items-center gap-2">
           <button v-for="c in PRESET_COLORS" :key="c" @click="form.color = c"
             class="w-7 h-7 rounded-full border-2 transition-all"
@@ -210,17 +211,17 @@ const handleDelete = async () => {
       <!-- 重复 -->
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">重复</label>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('calendar.recurrence.label') }}</label>
           <select v-model="form.recurrence"
             class="w-full px-3 py-2 border border-gray-200 dark:border-border-dark rounded-lg bg-white dark:bg-bg-panelDark text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
-            <option value="none">不重复</option>
-            <option value="daily">每天</option>
-            <option value="weekly">每周</option>
-            <option value="monthly">每月</option>
+            <option value="none">{{ t('calendar.recurrence.none') }}</option>
+            <option value="daily">{{ t('calendar.recurrence.daily') }}</option>
+            <option value="weekly">{{ t('calendar.recurrence.weekly') }}</option>
+            <option value="monthly">{{ t('calendar.recurrence.monthly') }}</option>
           </select>
         </div>
         <div v-if="form.recurrence !== 'none'">
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">重复至</label>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('calendar.recurrence.until') }}</label>
           <input v-model="form.recurrence_until" type="date"
             class="w-full px-3 py-2 border border-gray-200 dark:border-border-dark rounded-lg bg-white dark:bg-bg-panelDark text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
         </div>
@@ -230,14 +231,14 @@ const handleDelete = async () => {
     <template #footer>
       <button v-if="isEditing" @click="handleDelete" :disabled="deleting"
         class="mr-auto px-4 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-sm disabled:opacity-50">
-        {{ deleting ? '删除中...' : '删除' }}
+        {{ deleting ? t('calendar.eventModal.deleting') : t('common.delete') }}
       </button>
       <button @click="emit('update:modelValue', false)"
-        class="px-4 py-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm">取消</button>
+        class="px-4 py-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm">{{ t('common.cancel') }}</button>
       <button @click="handleSave" :disabled="saving"
         class="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary-hover disabled:opacity-50 flex items-center gap-2">
         <Loader2 v-if="saving" class="w-4 h-4 animate-spin" />
-        {{ saving ? '保存中...' : '保存' }}
+        {{ saving ? t('calendar.eventModal.saving') : t('common.save') }}
       </button>
     </template>
   </CommonModal>

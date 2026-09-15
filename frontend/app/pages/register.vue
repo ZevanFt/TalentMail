@@ -63,7 +63,7 @@ const startCountdown = () => {
 // 发送验证码
 const handleSendCode = async () => {
     if (!form.verificationEmail) {
-        error.value = '请输入邮箱地址'
+        error.value = t('auth.pleaseEnterEmail')
         return
     }
     
@@ -73,10 +73,10 @@ const handleSendCode = async () => {
     
     try {
         await sendVerificationCode(form.verificationEmail, 'register')
-        success.value = '验证码已发送到您的邮箱'
+        success.value = t('auth.codeSent')
         startCountdown()
     } catch (e: any) {
-        error.value = e.data?.detail || '发送验证码失败，请重试'
+        error.value = e.data?.detail || t('auth.sendCodeFailed')
     } finally {
         sendingCode.value = false
     }
@@ -85,7 +85,7 @@ const handleSendCode = async () => {
 // 验证验证码
 const handleVerifyCode = async () => {
     if (!form.verificationCode) {
-        error.value = '请输入验证码'
+        error.value = t('auth.pleaseEnterCode')
         return
     }
     
@@ -95,14 +95,14 @@ const handleVerifyCode = async () => {
     try {
         await verifyCode(form.verificationEmail, form.verificationCode, 'register')
         codeVerified.value = true
-        success.value = '验证成功！'
+        success.value = t('auth.verifySuccess')
         // 自动进入下一步
         setTimeout(() => {
             step.value = 2
             success.value = ''
         }, 1000)
     } catch (e: any) {
-        error.value = e.data?.detail || '验证码错误'
+        error.value = e.data?.detail || t('auth.codeInvalid')
     } finally {
         verifyingCode.value = false
     }
@@ -114,15 +114,15 @@ const handleRegister = async () => {
 
     // 前端密码校验（与后端一致: 8+, 大小写+数字）
     if (form.password.length < 8) {
-        error.value = '密码至少 8 位'
+        error.value = t('auth.passwordMinLength')
         return
     }
     if (!/[a-z]/.test(form.password) || !/[A-Z]/.test(form.password) || !/\d/.test(form.password)) {
-        error.value = '密码必须包含大写字母、小写字母和数字'
+        error.value = t('auth.passwordRules')
         return
     }
     if (form.password !== form.confirmPassword) {
-        error.value = '两次输入的密码不一致'
+        error.value = t('auth.passwordMismatch')
         return
     }
 
@@ -142,7 +142,7 @@ const handleRegister = async () => {
         await login(email, form.password)
         router.push('/')
     } catch (e: any) {
-        error.value = e.data?.detail || '注册失败，请重试'
+        error.value = e.data?.detail || t('auth.registerFailed')
     } finally {
         loading.value = false
     }
@@ -214,32 +214,32 @@ onUnmounted(() => {
             <div v-if="step === 1" class="space-y-5">
                 <div class="text-center mb-4">
                     <p class="text-sm text-gray-600 dark:text-gray-400">
-                        请先验证您的外部邮箱地址
+                        {{ t('auth.verifyEmailHint') }}
                     </p>
                 </div>
 
                 <!-- 外部邮箱 -->
                 <div class="space-y-2">
-                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">验证邮箱</label>
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('auth.verifyEmail') }}</label>
                     <input 
                         v-model="form.verificationEmail" 
                         type="email" 
-                        placeholder="请输入您的邮箱地址" 
+                        :placeholder="t('auth.emailPlaceholder')" 
                         class="input-field"
                         :disabled="codeVerified"
                         required
                     >
-                    <p class="text-xs text-gray-400">我们将发送验证码到此邮箱</p>
+                    <p class="text-xs text-gray-400">{{ t('auth.codeWillSendToEmail') }}</p>
                 </div>
 
                 <!-- 验证码输入 -->
                 <div class="space-y-2">
-                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">验证码</label>
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('auth.twoFaCode') }}</label>
                     <div class="flex gap-2">
                         <input 
                             v-model="form.verificationCode" 
                             type="text" 
-                            placeholder="6位验证码" 
+                            :placeholder="t('auth.codePlaceholder')" 
                             class="input-field flex-1"
                             maxlength="6"
                             :disabled="codeVerified"
@@ -252,7 +252,7 @@ onUnmounted(() => {
                         >
                             <Loader2 v-if="sendingCode" class="w-4 h-4 animate-spin" />
                             <span v-else-if="countdown > 0">{{ countdown }}s</span>
-                            <span v-else>发送验证码</span>
+                            <span v-else>{{ t('auth.sendCode') }}</span>
                         </button>
                     </div>
                 </div>
@@ -266,7 +266,7 @@ onUnmounted(() => {
                     class="w-full bg-gradient-to-r from-primary to-purple-600 hover:from-primary-hover hover:to-purple-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-primary/25 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                     <Loader2 v-if="verifyingCode" class="w-4 h-4 animate-spin" />
-                    <span>{{ verifyingCode ? '验证中...' : '验证' }}</span>
+                    <span>{{ verifyingCode ? t('auth.verifying') : t('auth.verify') }}</span>
                 </button>
 
                 <!-- 已验证，进入下一步 -->
@@ -277,7 +277,7 @@ onUnmounted(() => {
                     class="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-green-500/25 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                 >
                     <Check class="w-4 h-4" />
-                    <span>验证成功，下一步</span>
+                    <span>{{ t('auth.verifiedNext') }}</span>
                     <ArrowRight class="w-4 h-4" />
                 </button>
             </div>
@@ -291,48 +291,48 @@ onUnmounted(() => {
                     class="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
                 >
                     <ArrowLeft class="w-4 h-4" />
-                    <span>返回上一步</span>
+                    <span>{{ t('auth.backToPrevious') }}</span>
                 </button>
 
                 <!-- 已验证的邮箱 -->
                 <div class="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg flex items-center gap-2">
                     <Check class="w-4 h-4 text-green-600 dark:text-green-400" />
-                    <span class="text-sm text-green-600 dark:text-green-400">已验证: {{ form.verificationEmail }}</span>
+                    <span class="text-sm text-green-600 dark:text-green-400">{{ t('auth.verifiedEmail', { email: form.verificationEmail }) }}</span>
                 </div>
 
                 <!-- 邀请码（策略可选） -->
                 <div class="space-y-2">
                     <label for="invite-code" class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        邀请码{{ requireInvite ? '' : '（可选）' }}
+                        {{ requireInvite ? t('auth.inviteCodeLabel') : t('auth.inviteCode') }}
                     </label>
-                    <input id="invite-code" v-model="form.inviteCode" type="text" placeholder="请输入邀请码" class="input-field" :required="requireInvite">
+                    <input id="invite-code" v-model="form.inviteCode" type="text" :placeholder="t('auth.inviteCodePlaceholder')" class="input-field" :required="requireInvite">
                 </div>
 
                 <!-- 用户名 -->
                 <div class="space-y-2">
-                    <label for="display-name" class="text-sm font-medium text-gray-700 dark:text-gray-300">显示名称</label>
-                    <input id="display-name" v-model="form.displayName" type="text" placeholder="显示名称（可选）" class="input-field">
+                    <label for="display-name" class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('auth.displayName') }}</label>
+                    <input id="display-name" v-model="form.displayName" type="text" :placeholder="t('auth.displayNamePlaceholder')" class="input-field">
                 </div>
 
                 <!-- 邮箱 (组合输入框) -->
                 <div class="space-y-2">
-                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ config.appName }} 邮箱地址</label>
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('auth.appEmailLabel', { app: config.appName }) }}</label>
                     <div class="flex">
-                        <input v-model="form.emailPrefix" type="text" placeholder="输入邮箱前缀"
+                        <input v-model="form.emailPrefix" type="text" :placeholder="t('auth.emailPrefixPlaceholder')"
                             class="flex-1 min-w-0 px-4 py-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 border-r-0 rounded-l-xl text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-gray-900 dark:text-white placeholder-gray-400" required>
                         <div
                             class="px-3 py-3 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-r-xl text-gray-500 text-xs sm:text-sm flex items-center font-medium shrink-0">
                             {{ config.emailDomain }}
                         </div>
                     </div>
-                    <p class="text-xs text-gray-400">您的完整邮箱地址: {{ form.emailPrefix || 'example' }}{{ config.emailDomain }}</p>
+                    <p class="text-xs text-gray-400">{{ t('auth.fullEmailPreview', { email: (form.emailPrefix || 'example') + config.emailDomain }) }}</p>
                 </div>
 
                 <!-- 密码 -->
                 <div class="space-y-2">
-                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">密码</label>
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('auth.password') }}</label>
                     <div class="relative">
-                        <input v-model="form.password" :type="showPassword ? 'text' : 'password'" placeholder="至少8位，含大小写和数字" class="input-field pr-10" required minlength="8">
+                        <input v-model="form.password" :type="showPassword ? 'text' : 'password'" :placeholder="t('auth.passwordPlaceholder')" class="input-field pr-10" required minlength="8">
                         <button type="button" @click="showPassword = !showPassword"
                             class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
                             <EyeOff v-if="showPassword" class="w-5 h-5" />
@@ -344,16 +344,16 @@ onUnmounted(() => {
 
                 <!-- 确认密码 -->
                 <div class="space-y-2">
-                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">确认密码</label>
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('auth.confirmPassword') }}</label>
                     <div class="relative">
-                        <input v-model="form.confirmPassword" :type="showConfirmPassword ? 'text' : 'password'" placeholder="再次输入密码" class="input-field pr-10" required>
+                        <input v-model="form.confirmPassword" :type="showConfirmPassword ? 'text' : 'password'" :placeholder="t('auth.confirmPasswordPlaceholder')" class="input-field pr-10" required>
                         <button type="button" @click="showConfirmPassword = !showConfirmPassword"
                             class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
                             <EyeOff v-if="showConfirmPassword" class="w-5 h-5" />
                             <Eye v-else class="w-5 h-5" />
                         </button>
                     </div>
-                    <p v-if="form.confirmPassword && form.password !== form.confirmPassword" class="text-xs text-red-500">两次输入的密码不一致</p>
+                    <p v-if="form.confirmPassword && form.password !== form.confirmPassword" class="text-xs text-red-500">{{ t('auth.passwordMismatch') }}</p>
                 </div>
 
                 <!-- 注册按钮 -->

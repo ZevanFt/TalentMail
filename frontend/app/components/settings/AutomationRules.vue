@@ -4,6 +4,7 @@ import { Plus, Play, Pause, Trash2, Edit, Clock, Zap, Mail, User, ChevronRight, 
 const { api } = useApi()
 const toast = useToast()
 const { confirm: confirmDialog } = useConfirmDialog()
+const { t, locale } = useI18n()
 
 // 状态
 const rules = ref<any[]>([])
@@ -30,7 +31,7 @@ const loadMetadata = async () => {
     metadata.value = res
   } catch (e: any) {
     console.error('加载元数据失败:', e)
-    toast.error(e.data?.detail || '加载元数据失败')
+    toast.error(e.data?.detail || t('settings.automation.loadMetadataFailed'))
   }
 }
 
@@ -43,7 +44,7 @@ const loadRules = async () => {
     total.value = res.total
   } catch (e: any) {
     console.error('加载规则失败:', e)
-    toast.error(e.data?.detail || '加载规则失败')
+    toast.error(e.data?.detail || t('settings.automation.loadRulesFailed'))
   } finally {
     loading.value = false
   }
@@ -60,7 +61,7 @@ const loadLogs = async (ruleId?: number) => {
     logsTotal.value = res.total
   } catch (e: any) {
     console.error('加载日志失败:', e)
-    toast.error(e.data?.detail || '加载日志失败')
+    toast.error(e.data?.detail || t('settings.automation.loadLogsFailed'))
   } finally {
     logsLoading.value = false
   }
@@ -73,20 +74,20 @@ const toggleRule = async (rule: any) => {
     rule.is_active = res.is_active
   } catch (e: any) {
     console.error('切换状态失败:', e)
-    toast.error(e.data?.detail || '切换状态失败')
+    toast.error(e.data?.detail || t('settings.automation.toggleFailed'))
   }
 }
 
 // 删除规则
 const deleteRule = async (rule: any) => {
-  const ok = await confirmDialog({ message: `确定要删除规则 "${rule.name}" 吗？`, type: 'danger' })
+  const ok = await confirmDialog({ message: t('settings.automation.confirmDelete', { name: rule.name }), type: 'danger' })
   if (!ok) return
   try {
     await api(`/automation/rules/${rule.id}`, 'DELETE')
     await loadRules()
   } catch (e: any) {
     console.error('删除失败:', e)
-    toast.error(e.data?.detail || '删除失败')
+    toast.error(e.data?.detail || t('settings.automation.deleteFailed'))
   }
 }
 
@@ -95,13 +96,13 @@ const triggerRule = async (rule: any) => {
   try {
     const res = await api<any>(`/automation/rules/${rule.id}/trigger`, 'POST', { context: {} })
     if (res.success) {
-      toast.success('触发成功！')
+      toast.success(t('settings.automation.triggerSuccess'))
     } else {
-      toast.error(`触发失败: ${res.error_message}`)
+      toast.error(t('settings.automation.triggerFailed', { msg: res.error_message }))
     }
     await loadLogs(rule.id)
   } catch (e: any) {
-    toast.error('触发失败: ' + (e.data?.detail || e.message))
+    toast.error(t('settings.automation.triggerFailed', { msg: e.data?.detail || e.message }))
   }
 }
 
@@ -137,7 +138,7 @@ const saveRule = async (ruleData: any) => {
     showEditor.value = false
     await loadRules()
   } catch (e: any) {
-    toast.error('保存失败: ' + (e.data?.detail || e.message))
+    toast.error(t('settings.automation.saveFailed', { msg: e.data?.detail || e.message }))
   }
 }
 
@@ -181,7 +182,7 @@ const getStatusColor = (status: string) => {
 const formatTime = (dateStr: string) => {
   if (!dateStr) return '-'
   const date = new Date(dateStr)
-  return date.toLocaleString('zh-CN')
+  return date.toLocaleString(locale.value)
 }
 
 onMounted(() => {
@@ -195,19 +196,19 @@ onMounted(() => {
     <!-- 标题和操作 -->
     <div class="flex items-center justify-between">
       <div>
-        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">自动化规则</h2>
-        <p class="text-gray-500 dark:text-gray-400 mt-1">创建规则自动处理邮件和事件</p>
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t('settings.tabs.automation') }}</h2>
+        <p class="text-gray-500 dark:text-gray-400 mt-1">{{ t('settings.automation.subtitle') }}</p>
       </div>
       <div class="flex gap-2">
         <button @click="showLogs = true; loadLogs()" 
           class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2">
           <Clock class="w-4 h-4" />
-          执行日志
+          {{ t('settings.automation.executionLogs') }}
         </button>
         <button @click="createRule" 
           class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 flex items-center gap-2">
           <Plus class="w-4 h-4" />
-          新建规则
+          {{ t('settings.automation.newRule') }}
         </button>
       </div>
     </div>
@@ -219,10 +220,10 @@ onMounted(() => {
 
     <div v-else-if="rules.length === 0" class="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
       <Zap class="w-12 h-12 mx-auto text-gray-400 mb-4" />
-      <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">暂无自动化规则</h3>
-      <p class="text-gray-500 dark:text-gray-400 mb-4">创建规则来自动处理邮件</p>
+      <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">{{ t('settings.automation.emptyTitle') }}</h3>
+      <p class="text-gray-500 dark:text-gray-400 mb-4">{{ t('settings.automation.emptyDesc') }}</p>
       <button @click="createRule" class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90">
-        创建第一个规则
+        {{ t('settings.automation.createFirst') }}
       </button>
     </div>
 
@@ -235,7 +236,7 @@ onMounted(() => {
               <div :class="['w-2 h-2 rounded-full', rule.is_active ? 'bg-green-500' : 'bg-gray-400']"></div>
               <h3 class="font-medium text-gray-900 dark:text-white">{{ rule.name }}</h3>
               <span v-if="rule.is_system" class="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded whitespace-nowrap">
-                系统规则
+                {{ t('settings.automation.systemRule') }}
               </span>
             </div>
             <p v-if="rule.description" class="text-sm text-gray-500 dark:text-gray-400 mt-1 ml-5">
@@ -248,7 +249,7 @@ onMounted(() => {
               </span>
               <span class="flex items-center gap-1">
                 <Play class="w-3 h-3" />
-                执行 {{ rule.execution_count || 0 }} 次
+                {{ t('settings.automation.executionCount', { n: rule.execution_count || 0 }) }}
               </span>
               <span v-if="rule.last_executed_at" class="flex items-center gap-1">
                 <Clock class="w-3 h-3" />
@@ -259,24 +260,24 @@ onMounted(() => {
           
           <div class="flex items-center gap-2">
             <button @click="viewRuleLogs(rule)" 
-              class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="查看日志">
+              class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" :title="t('settings.automation.viewLogs')">
               <Clock class="w-4 h-4" />
             </button>
             <button @click="triggerRule(rule)" 
-              class="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400" title="手动触发">
+              class="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400" :title="t('settings.automation.manualTrigger')">
               <Play class="w-4 h-4" />
             </button>
             <button v-if="!rule.is_system" @click="editRule(rule)" 
-              class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="编辑">
+              class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" :title="t('settings.automation.edit')">
               <Edit class="w-4 h-4" />
             </button>
             <button @click="toggleRule(rule)" 
               :class="['p-2', rule.is_active ? 'text-green-500 hover:text-green-600' : 'text-gray-400 hover:text-gray-600']"
-              :title="rule.is_active ? '禁用' : '启用'">
+              :title="rule.is_active ? t('settings.automation.disable') : t('settings.automation.enable')">
               <component :is="rule.is_active ? Pause : Play" class="w-4 h-4" />
             </button>
             <button v-if="!rule.is_system" @click="deleteRule(rule)" 
-              class="p-2 text-gray-400 hover:text-red-600" title="删除">
+              class="p-2 text-gray-400 hover:text-red-600" :title="t('common.delete')">
               <Trash2 class="w-4 h-4" />
             </button>
           </div>
@@ -285,7 +286,7 @@ onMounted(() => {
     </div>
 
     <!-- 规则编辑器弹窗 -->
-    <CommonModal v-model="showEditor" :title="editingRule?.id ? '编辑规则' : '新建规则'" size="xl">
+    <CommonModal v-model="showEditor" :title="editingRule?.id ? t('settings.automation.editRule') : t('settings.automation.newRule')" size="xl">
       <AutomationRuleEditor 
         v-if="showEditor && metadata"
         :rule="editingRule"
@@ -296,14 +297,14 @@ onMounted(() => {
     </CommonModal>
 
     <!-- 日志弹窗 -->
-    <CommonModal v-model="showLogs" title="执行日志" size="xl">
+    <CommonModal v-model="showLogs" :title="t('settings.automation.executionLogs')" size="xl">
       <div class="space-y-4">
         <div v-if="logsLoading" class="flex justify-center py-8">
           <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
         </div>
         
         <div v-else-if="logs.length === 0" class="text-center py-8 text-gray-500">
-          暂无执行日志
+          {{ t('settings.automation.noLogs') }}
         </div>
         
         <div v-else class="space-y-2 max-h-96 overflow-y-auto">
@@ -312,29 +313,29 @@ onMounted(() => {
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <component :is="getStatusIcon(log.status)" :class="['w-4 h-4', getStatusColor(log.status)]" />
-                <span class="font-medium text-gray-900 dark:text-white">{{ log.rule_name || `规则 #${log.rule_id}` }}</span>
+                <span class="font-medium text-gray-900 dark:text-white">{{ log.rule_name || t('settings.automation.ruleFallback', { id: log.rule_id }) }}</span>
               </div>
               <span class="text-xs text-gray-500">{{ formatTime(log.created_at) }}</span>
             </div>
             <div class="mt-2 text-sm text-gray-600 dark:text-gray-400">
-              <span>触发: {{ getTriggerTypeName(log.trigger_type) }}</span>
+              <span>{{ t('settings.automation.triggerLabel') }}: {{ getTriggerTypeName(log.trigger_type) }}</span>
               <span class="mx-2">|</span>
-              <span>条件: {{ log.conditions_matched ? '匹配' : '不匹配' }}</span>
+              <span>{{ t('settings.automation.conditionsLabel') }}: {{ log.conditions_matched ? t('settings.automation.matched') : t('settings.automation.notMatched') }}</span>
               <span class="mx-2">|</span>
-              <span>耗时: {{ log.execution_time_ms }}ms</span>
+              <span>{{ t('settings.automation.durationLabel') }}: {{ log.execution_time_ms }}ms</span>
             </div>
             <div v-if="log.error_message" class="mt-2 text-sm text-red-500">
-              错误: {{ log.error_message }}
+              {{ t('settings.automation.errorLabel') }}: {{ log.error_message }}
             </div>
           </div>
         </div>
         
         <div v-if="logsTotal > 10" class="flex justify-center gap-2">
           <button @click="logsPage--; loadLogs(selectedRuleId || undefined)" :disabled="logsPage <= 1"
-            class="px-3 py-1 text-sm border rounded disabled:opacity-50">上一页</button>
+            class="px-3 py-1 text-sm border rounded disabled:opacity-50">{{ t('settings.automation.prevPage') }}</button>
           <span class="px-3 py-1 text-sm">{{ logsPage }} / {{ Math.ceil(logsTotal / 10) }}</span>
           <button @click="logsPage++; loadLogs(selectedRuleId || undefined)" :disabled="logsPage >= Math.ceil(logsTotal / 10)"
-            class="px-3 py-1 text-sm border rounded disabled:opacity-50">下一页</button>
+            class="px-3 py-1 text-sm border rounded disabled:opacity-50">{{ t('settings.automation.nextPage') }}</button>
         </div>
       </div>
     </CommonModal>
