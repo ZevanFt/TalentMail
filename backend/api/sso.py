@@ -215,6 +215,67 @@ async def sso_callback(
     )
 
 
+class SSOBackchannelLogoutRequest(BaseModel):
+    """Auth-Center 单点登出通知（back-channel）"""
+    sso_user_id: Optional[str] = None
+    username: Optional[str] = None
+
+
+@router.post("/backchannel-logout")
+async def sso_backchannel_logout(
+    body: SSOBackchannelLogoutRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Auth-Center 登出后调用：吊销该 SSO 用户在本应用的全部会话。"""
+    secret = (settings.SSO_BACKCHANNEL_SECRET or "").strip()
+    if not secret:
+        raise HTTPException(404, "Back-channel logout 未配置")
+
+    provided = request.headers.get("X-Backchannel-Secret", "")
+    if not provided or provided != secret:
+        raise HTTPException(401, "Invalid backchannel secret")
+
+    if not body.sso_user_id and not body.username:
+        raise HTTPException(400, "sso_user_id or username required")
+
+    user = None
+    if body.sso_user_id:
+        user = db.query(User).filter(User.sso_user_id == str(body.sso_user_id)).first()
+    if not user and body.username:
+        for candidate in email_match_candidates(body.username, settings.BASE_DOMAIN):
+            user = db.query(User).filter(User.email == candidate).first()
+            if user:
+                break
+
+    if not user:
+        # 未知用户按成功返回，避免 Auth-Center 侧重试风暴
+        return {"ok": True, "revoked": 0, "matched": False}
+
+    updated = (
+        db.query(UserSession)
+        .filter(UserSession.user_id == user.id, UserSession.is_active == True)  # noqa: E712
+        .update({"is_active": False}, synchronize_session=False)
+    )
+    db.commit()
+
+    try:
+        from core.audit import record_operation
+        record_operation(
+            db,
+            action="auth.sso_backchannel_logout",
+            user_id=user.id,
+            actor_type="system",
+            resource_type="session",
+            detail={"sso_user_id": user.sso_user_id, "revoked": updated},
+        )
+    except Exception as e:
+        logger.error(f"SSO back-channel 登出审计失败: {e}")
+
+    logger.info(f"SSO back-channel logout: user={user.email} revoked={updated}")
+    return {"ok": True, "revoked": updated, "matched": True}
+
+
 @router.get("/status")
 def sso_status():
     """检查 SSO 是否启用（前端用来决定是否显示 SSO 按钮）"""

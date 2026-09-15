@@ -54,6 +54,8 @@ class Settings(BaseSettings):
     SSO_CLIENT_ID: str = ""
     SSO_CLIENT_SECRET: str = ""
     SSO_REDIRECT_URI: str = ""  # e.g. https://mail.talenting.vip/auth/sso/callback
+    # 与 Auth-Center 共享的 back-channel logout 密钥（空则拒绝 back-channel 调用）
+    SSO_BACKCHANNEL_SECRET: str = ""
 
     # 系统 API IP 白名单（逗号分隔，空=不限制，依赖 Caddy 层）
     SYSTEM_API_ALLOWED_IPS: str = ""
