@@ -289,6 +289,11 @@ onMounted(async () => {
                         {{ t('auth.register') }}
                     </NuxtLink>
                 </div>
+                <div class="text-xs text-gray-400">
+                    <NuxtLink to="/developers" class="hover:text-primary transition-colors">
+                        {{ t('developers.eyebrow') }} / API
+                    </NuxtLink>
+                </div>
             </div>
 
         </div>

@@ -25,6 +25,8 @@ import authPagesZh from './fragments/authPages.zh'
 import authPagesEn from './fragments/authPages.en'
 import miscZh from './fragments/misc.zh'
 import miscEn from './fragments/misc.en'
+import developersZh from './fragments/developers.zh'
+import developersEn from './fragments/developers.en'
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -55,7 +57,7 @@ export const zhCNFull = deepMerge(
     }),
     layoutZh
   ),
-  deepMerge(drivePagesZh, deepMerge(authPagesZh, miscZh))
+  deepMerge(drivePagesZh, deepMerge(authPagesZh, deepMerge(miscZh, developersZh)))
 )
 
 export const enUSFull = deepMerge(
@@ -70,7 +72,7 @@ export const enUSFull = deepMerge(
     }),
     layoutEn
   ),
-  deepMerge(drivePagesEn, deepMerge(authPagesEn, miscEn))
+  deepMerge(drivePagesEn, deepMerge(authPagesEn, deepMerge(miscEn, developersEn)))
 )
 
 export default { zhCNFull, enUSFull }
