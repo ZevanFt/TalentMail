@@ -52,7 +52,14 @@ def _authenticate(request: Request, db: Session) -> Optional[User]:
     user = db.query(User).filter(User.email == username).first()
     if not user or not getattr(user, "is_active", True):
         return None
-    # SSO 用户无可用密码
+    # 应用专用密码优先（SSO 用户也可用）
+    try:
+        from core.app_passwords import verify_app_password
+        if verify_app_password(db, user.id, password):
+            return user
+    except Exception as e:
+        logger.debug(f"[CalDAV] app password verify failed: {e}")
+    # 本地登录密码
     if not user.password_hash or user.password_hash == "!SSO_USER_NO_PASSWORD":
         return None
     try:

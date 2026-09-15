@@ -133,3 +133,21 @@ class SpamReport(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="报告时间")
     user = relationship("User")
     email = relationship("Email", foreign_keys=[email_id])
+
+
+class AppPassword(Base):
+    """CalDAV / 客户端应用专用密码（仅存哈希，明文创建时展示一次）"""
+    __tablename__ = "app_passwords"
+    __table_args__ = (
+        Index('ix_app_passwords_user_active', 'user_id', 'revoked_at'),
+        {'comment': '应用专用密码，供 CalDAV 等客户端使用'},
+    )
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True, comment="所属用户ID")
+    name = Column(String(100), nullable=False, comment="用途备注，如 Thunderbird")
+    password_hash = Column(String(255), nullable=False, comment="bcrypt 哈希")
+    prefix = Column(String(16), nullable=False, comment="明文前缀，用于列表识别")
+    last_used_at = Column(DateTime(timezone=True), nullable=True, comment="最后使用时间")
+    revoked_at = Column(DateTime(timezone=True), nullable=True, comment="吊销时间")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="创建时间")
+    user = relationship("User")

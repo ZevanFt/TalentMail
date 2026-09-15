@@ -142,7 +142,7 @@
 - [ ] **CalDAV 增强**
   - [x] 写回（PUT/DELETE）- 2026-03-08
   - [x] sync-token 增量同步（RFC 6578 + calendar-query/multiget）- 2026-09-16
-  - 应用专用密码
+  - [x] 应用专用密码（设置→登录与安全；SSO 用户也可用）- 2026-09-16
 - [x] **SSO 单点登出闭环** - 2026-09-16
   - TalentMail `POST /api/auth/sso/backchannel-logout`（共享密钥校验，吊销该 SSO 用户全部会话）
   - Auth-Center 登出后 fire-and-forget 通知 `AUTH_CENTER_BACKCHANNEL_LOGOUT_URLS`

@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import asyncio
 from db.database import engine, SessionLocal
 from db import models  # 确保导入 models 以注册表
-from api import auth, mail, users, folders, tracking, invite, pool, signatures, attachments, billing, reserved_prefixes, email_templates, totp, blocklist, aliases, tags, contacts, external_accounts, drive, automation, automation_temp_mailboxes, workflows, workflow_templates, changelog, spam, health, api_keys, proxy, system_mail, templates, email_import, calendar, encryption, sso, admin_ops, caldav
+from api import auth, mail, users, folders, tracking, invite, pool, signatures, attachments, billing, reserved_prefixes, email_templates, totp, blocklist, aliases, tags, contacts, external_accounts, drive, automation, automation_temp_mailboxes, workflows, workflow_templates, changelog, spam, health, api_keys, proxy, system_mail, templates, email_import, calendar, encryption, sso, admin_ops, caldav, app_passwords
 from api.deps import get_current_user_from_token
 from api.auth import cleanup_old_sessions
 from initial import initial_data
@@ -503,6 +503,7 @@ app.include_router(templates.router, prefix="/api", tags=["User Templates"])
 app.include_router(email_import.router, prefix="/api", tags=["Email Import"])
 app.include_router(calendar.router, prefix="/api", tags=["Calendar"])
 app.include_router(encryption.router, prefix="/api", tags=["Encryption"])
+app.include_router(app_passwords.router, prefix="/api", tags=["App Passwords"])
 app.include_router(sso.router, prefix="/api", tags=["SSO"])
 app.include_router(admin_ops.router, prefix="/api", tags=["Admin Ops"])
 # CalDAV 只读（Basic Auth），客户端可配置 https://host/.well-known/caldav 或 /caldav/

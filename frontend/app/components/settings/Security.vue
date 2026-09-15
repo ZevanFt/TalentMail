@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { KeyRound, Smartphone, ShieldCheck, History, Laptop, Globe, X, Monitor, Trash2, LogOut, Mail, Edit3, QrCode, Shield, ShieldOff } from 'lucide-vue-next'
 
-const { changePassword, getLoginSessions, revokeSession, revokeAllSessions, getMe, sendRecoveryEmailCode, updateRecoveryEmail, get2FAStatus, setup2FA, enable2FA, disable2FA } = useApi()
+const { changePassword, getLoginSessions, revokeSession, revokeAllSessions, getMe, sendRecoveryEmailCode, updateRecoveryEmail, get2FAStatus, setup2FA, enable2FA, disable2FA, listAppPasswords, createAppPassword, revokeAppPassword } = useApi()
 const toast = useToast()
 const { confirm: confirmDialog } = useConfirmDialog()
 const { t } = useI18n()
@@ -76,6 +76,81 @@ const twoFASaving = ref(false)
 const twoFAMessage = ref('')
 const twoFAMessageType = ref<'success' | 'error'>('success')
 const loading2FA = ref(false)
+
+// 应用专用密码（CalDAV）
+interface AppPasswordRow {
+    id: number
+    name: string
+    prefix: string
+    last_used_at?: string | null
+    created_at?: string | null
+}
+const appPasswords = ref<AppPasswordRow[]>([])
+const loadingAppPasswords = ref(false)
+const showAppPasswordModal = ref(false)
+const appPasswordName = ref('')
+const appPasswordCreating = ref(false)
+const newAppPassword = ref('')
+const copiedAppPassword = ref(false)
+
+const loadAppPasswords = async () => {
+    loadingAppPasswords.value = true
+    try {
+        appPasswords.value = await listAppPasswords()
+    } catch (e: any) {
+        console.error(e)
+    } finally {
+        loadingAppPasswords.value = false
+    }
+}
+
+const handleCreateAppPassword = async () => {
+    if (!appPasswordName.value.trim()) return
+    appPasswordCreating.value = true
+    try {
+        const res = await createAppPassword(appPasswordName.value.trim())
+        newAppPassword.value = res.password
+        await loadAppPasswords()
+    } catch (e: any) {
+        toast.error(e?.data?.detail || t('settingsSecurity.appPasswords.createFailed'))
+    } finally {
+        appPasswordCreating.value = false
+    }
+}
+
+const closeAppPasswordModal = () => {
+    showAppPasswordModal.value = false
+    appPasswordName.value = ''
+    newAppPassword.value = ''
+    copiedAppPassword.value = false
+}
+
+const copyAppPassword = async () => {
+    try {
+        await navigator.clipboard.writeText(newAppPassword.value)
+        copiedAppPassword.value = true
+        toast.success(t('settingsSecurity.appPasswords.copied'))
+    } catch {
+        toast.error(t('settingsSecurity.appPasswords.copyFailed'))
+    }
+}
+
+const handleRevokeAppPassword = async (row: AppPasswordRow) => {
+    const ok = await confirmDialog({
+        title: t('settingsSecurity.appPasswords.revokeTitle'),
+        message: t('settingsSecurity.appPasswords.revokeConfirm', { name: row.name }),
+        confirmText: t('common.delete'),
+        cancelText: t('common.cancel'),
+    })
+    if (!ok) return
+    try {
+        await revokeAppPassword(row.id)
+        toast.success(t('settingsSecurity.appPasswords.revoked'))
+        await loadAppPasswords()
+    } catch (e: any) {
+        toast.error(e?.data?.detail || t('settingsSecurity.appPasswords.revokeFailed'))
+    }
+}
 
 // 加载 2FA 状态
 const load2FAStatus = async () => {
@@ -394,6 +469,7 @@ onMounted(() => {
     loadSessions()
     loadUser()
     load2FAStatus()
+    loadAppPasswords()
 })
 </script>
 
@@ -438,6 +514,43 @@ onMounted(() => {
                             {{ twoFAStatus.enabled ? t('settingsSecurity.security.manage') : t('settingsSecurity.security.enableNow') }}
                         </button>
                     </template>
+                </div>
+            </div>
+
+            <!-- 应用专用密码（CalDAV） -->
+            <div class="p-6 space-y-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <div class="icon-box bg-amber-100 text-amber-600 dark:bg-amber-900/30">
+                            <KeyRound class="w-5 h-5" />
+                        </div>
+                        <div>
+                            <div class="font-bold text-gray-900 dark:text-white">{{ t('settingsSecurity.appPasswords.title') }}</div>
+                            <div class="text-sm text-gray-500 mt-0.5">{{ t('settingsSecurity.appPasswords.desc') }}</div>
+                        </div>
+                    </div>
+                    <button class="btn-primary" @click="showAppPasswordModal = true">
+                        {{ t('settingsSecurity.appPasswords.create') }}
+                    </button>
+                </div>
+                <div v-if="loadingAppPasswords" class="text-sm text-gray-400">{{ t('common.loading') }}</div>
+                <div v-else-if="appPasswords.length === 0" class="text-sm text-gray-400">
+                    {{ t('settingsSecurity.appPasswords.empty') }}
+                </div>
+                <div v-else class="divide-y divide-gray-100 dark:divide-gray-700/60">
+                    <div v-for="row in appPasswords" :key="row.id"
+                        class="flex items-center justify-between gap-3 py-2.5 text-sm">
+                        <div class="min-w-0">
+                            <div class="font-medium text-gray-900 dark:text-white truncate">{{ row.name }}</div>
+                            <div class="text-xs text-gray-400 font-mono">
+                                {{ row.prefix }}••••
+                                <span v-if="row.last_used_at"> · {{ t('settingsSecurity.appPasswords.lastUsed') }} {{ new Date(row.last_used_at).toLocaleString() }}</span>
+                            </div>
+                        </div>
+                        <button class="btn-secondary text-xs shrink-0" @click="handleRevokeAppPassword(row)">
+                            {{ t('settingsSecurity.appPasswords.revoke') }}
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -731,6 +844,40 @@ onMounted(() => {
                     <button @click="handleDisable2FA" :disabled="twoFASaving || !twoFACode || !twoFAPassword" class="btn-danger">
                         {{ twoFASaving ? t('settingsSecurity.security.processing') : t('settingsSecurity.security.confirmDisable') }}
                     </button>
+                </template>
+            </template>
+        </CommonModal>
+
+        <!-- 应用专用密码创建 -->
+        <CommonModal v-model="showAppPasswordModal" :title="t('settingsSecurity.appPasswords.createTitle')" @update:model-value="v => { if (!v) closeAppPasswordModal() }">
+            <div class="space-y-4">
+                <template v-if="!newAppPassword">
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('settingsSecurity.appPasswords.nameLabel') }}</label>
+                        <input v-model="appPasswordName" type="text" class="input-field" maxlength="100"
+                            :placeholder="t('settingsSecurity.appPasswords.namePlaceholder')" @keyup.enter="handleCreateAppPassword">
+                    </div>
+                    <p class="text-xs text-gray-400">{{ t('settingsSecurity.appPasswords.caldavHint') }}</p>
+                </template>
+                <template v-else>
+                    <div class="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                        <p class="text-sm text-amber-800 dark:text-amber-200 mb-2">{{ t('settingsSecurity.appPasswords.saveOnce') }}</p>
+                        <code class="text-sm font-mono text-gray-900 dark:text-white select-all break-all">{{ newAppPassword }}</code>
+                    </div>
+                    <button class="btn-secondary w-full" @click="copyAppPassword">
+                        {{ copiedAppPassword ? t('settingsSecurity.appPasswords.copied') : t('settingsSecurity.appPasswords.copy') }}
+                    </button>
+                </template>
+            </div>
+            <template #footer>
+                <template v-if="!newAppPassword">
+                    <button class="btn-secondary" @click="closeAppPasswordModal">{{ t('common.cancel') }}</button>
+                    <button class="btn-primary" :disabled="appPasswordCreating || !appPasswordName.trim()" @click="handleCreateAppPassword">
+                        {{ appPasswordCreating ? t('settings.common.saving') : t('settingsSecurity.appPasswords.create') }}
+                    </button>
+                </template>
+                <template v-else>
+                    <button class="btn-primary" @click="closeAppPasswordModal">{{ t('common.confirm') }}</button>
                 </template>
             </template>
         </CommonModal>
