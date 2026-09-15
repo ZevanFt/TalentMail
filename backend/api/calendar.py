@@ -1,4 +1,4 @@
-"""日历 API — 事件 CRUD + .ics 导入"""
+﻿"""日历 API — 事件 CRUD + .ics 导入"""
 import logging
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List
@@ -192,76 +192,7 @@ def create_event(
     return event
 
 
-@router.get("/{event_id}", response_model=EventResponse)
-def get_event(
-    event_id: int,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    """获取事件详情"""
-    event = db.query(CalendarEvent).filter(
-        CalendarEvent.id == event_id,
-        CalendarEvent.user_id == user.id,
-    ).first()
-    if not event:
-        raise HTTPException(404, "事件不存在")
-    return event
-
-
-@router.put("/{event_id}", response_model=EventResponse)
-def update_event(
-    event_id: int,
-    data: EventUpdate,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    """更新日历事件"""
-    if not _event_limiter.allow(f"cal_update:{user.id}"):
-        raise HTTPException(429, "操作过于频繁，请稍后再试")
-    event = db.query(CalendarEvent).filter(
-        CalendarEvent.id == event_id,
-        CalendarEvent.user_id == user.id,
-    ).first()
-    if not event:
-        raise HTTPException(404, "事件不存在")
-
-    event.title = data.title
-    event.description = data.description
-    event.location = data.location
-    event.start_time = data.start_time
-    event.end_time = data.end_time
-    event.all_day = data.all_day
-    event.color = data.color
-    event.reminder_minutes = data.reminder_minutes
-    event.recurrence = data.recurrence or "none"
-    event.recurrence_until = data.recurrence_until
-    db.commit()
-    db.refresh(event)
-    logger.info(f"用户 {user.id} 更新日历事件: id={event.id}, title={event.title}")
-    return event
-
-
-@router.delete("/{event_id}")
-def delete_event(
-    event_id: int,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    """删除日历事件"""
-    event = db.query(CalendarEvent).filter(
-        CalendarEvent.id == event_id,
-        CalendarEvent.user_id == user.id,
-    ).first()
-    if not event:
-        raise HTTPException(404, "事件不存在")
-
-    event_title = event.title
-    db.delete(event)
-    db.commit()
-    logger.info(f"用户 {user.id} 删除日历事件: id={event_id}, title={event_title}")
-    return {"status": "success", "message": "事件已删除"}
-
-
+# 注意：固定路径必须注册在 /{event_id} 之前，否则会被当成 event_id
 @router.get("/export.ics")
 def export_ics(
     start: Optional[datetime] = Query(None),
@@ -424,3 +355,74 @@ async def import_ics(
         skipped=skipped,
         errors=errors[:20],
     )
+
+
+@router.get("/{event_id}", response_model=EventResponse)
+def get_event(
+    event_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """获取事件详情"""
+    event = db.query(CalendarEvent).filter(
+        CalendarEvent.id == event_id,
+        CalendarEvent.user_id == user.id,
+    ).first()
+    if not event:
+        raise HTTPException(404, "事件不存在")
+    return event
+
+
+@router.put("/{event_id}", response_model=EventResponse)
+def update_event(
+    event_id: int,
+    data: EventUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """更新日历事件"""
+    if not _event_limiter.allow(f"cal_update:{user.id}"):
+        raise HTTPException(429, "操作过于频繁，请稍后再试")
+    event = db.query(CalendarEvent).filter(
+        CalendarEvent.id == event_id,
+        CalendarEvent.user_id == user.id,
+    ).first()
+    if not event:
+        raise HTTPException(404, "事件不存在")
+
+    event.title = data.title
+    event.description = data.description
+    event.location = data.location
+    event.start_time = data.start_time
+    event.end_time = data.end_time
+    event.all_day = data.all_day
+    event.color = data.color
+    event.reminder_minutes = data.reminder_minutes
+    event.recurrence = data.recurrence or "none"
+    event.recurrence_until = data.recurrence_until
+    db.commit()
+    db.refresh(event)
+    logger.info(f"用户 {user.id} 更新日历事件: id={event.id}, title={event.title}")
+    return event
+
+
+@router.delete("/{event_id}")
+def delete_event(
+    event_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """删除日历事件"""
+    event = db.query(CalendarEvent).filter(
+        CalendarEvent.id == event_id,
+        CalendarEvent.user_id == user.id,
+    ).first()
+    if not event:
+        raise HTTPException(404, "事件不存在")
+
+    event_title = event.title
+    db.delete(event)
+    db.commit()
+    logger.info(f"用户 {user.id} 删除日历事件: id={event_id}, title={event_title}")
+    return {"status": "success", "message": "事件已删除"}
+
