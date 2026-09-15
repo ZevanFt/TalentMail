@@ -107,7 +107,7 @@ def sso_login(request: Request, mode: str = "login"):
     state = f"bind_{nonce}" if mode == "bind" else nonce
 
     auth_url = (
-        f"{settings.SSO_AUTH_CENTER_URL}/login"
+        f"{settings.sso_auth_center_browser_url}/login"
         f"?client_id={settings.SSO_CLIENT_ID}"
         f"&redirect_uri={settings.SSO_REDIRECT_URI}"
         f"&state={state}"
@@ -371,7 +371,7 @@ def sso_status():
     """检查 SSO 是否启用（前端用来决定是否显示 SSO 按钮）"""
     return {
         "enabled": settings.SSO_ENABLED,
-        "auth_center_url": settings.SSO_AUTH_CENTER_URL if settings.SSO_ENABLED else None,
+        "auth_center_url": settings.sso_auth_center_browser_url if settings.SSO_ENABLED else None,
         "client_id": settings.SSO_CLIENT_ID if settings.SSO_ENABLED else None,
     }
 
@@ -399,7 +399,7 @@ async def my_sso_status(
 
     status = MySsoStatusResponse(
         sso_bound=True,
-        auth_center_url=settings.SSO_AUTH_CENTER_URL,
+        auth_center_url=settings.sso_auth_center_browser_url,
     )
     # 优先按 sso_user_id 精确查询（本地邮箱可能 ≠ 认证中心用户名，如纯用户名注册），
     # 回退到本地邮箱（兼容旧版认证中心）

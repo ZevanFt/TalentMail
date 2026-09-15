@@ -50,12 +50,23 @@ class Settings(BaseSettings):
 
     # --- SSO (auth-center) ---
     SSO_ENABLED: bool = False
-    SSO_AUTH_CENTER_URL: str = ""  # e.g. https://auth.talenting.vip
+    # 服务端调用地址（token/introspect/backchannel），容器内可达
+    SSO_AUTH_CENTER_URL: str = ""  # e.g. http://host.docker.internal:8000 或 https://auth.example.com
+    # 浏览器跳转地址（/login、设置里「去认证中心」）；留空则与 SSO_AUTH_CENTER_URL 相同
+    SSO_AUTH_CENTER_PUBLIC_URL: str = ""  # 本地开发常用 http://127.0.0.1:8000
     SSO_CLIENT_ID: str = ""
     SSO_CLIENT_SECRET: str = ""
     SSO_REDIRECT_URI: str = ""  # e.g. https://mail.talenting.vip/auth/sso/callback
     # 与 Auth-Center 共享的 back-channel logout 密钥（空则拒绝 back-channel 调用）
     SSO_BACKCHANNEL_SECRET: str = ""
+
+    @property
+    def sso_auth_center_browser_url(self) -> str:
+        """浏览器可访问的 Auth-Center 根地址（去掉尾斜杠）。"""
+        pub = (self.SSO_AUTH_CENTER_PUBLIC_URL or "").strip().rstrip("/")
+        if pub:
+            return pub
+        return (self.SSO_AUTH_CENTER_URL or "").strip().rstrip("/")
 
     # 系统 API IP 白名单（逗号分隔，空=不限制，依赖 Caddy 层）
     SYSTEM_API_ALLOWED_IPS: str = ""
