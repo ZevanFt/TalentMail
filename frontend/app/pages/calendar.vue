@@ -19,10 +19,9 @@ const currentMonth = ref(today.getMonth()) // 0-indexed
 const monthLabel = computed(() => {
   if (viewMode.value === 'week') {
     const days = weekDays.value
-    const first = days[0]
-    const last = days[days.length - 1]
+    if (!days.length) return ''
     const fmt = (d: Date) => `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}`
-    return `${fmt(first)} – ${fmt(last)}`
+    return `${fmt(days[0].date)} – ${fmt(days[days.length - 1].date)}`
   }
   const monthKey = `m${currentMonth.value + 1}` as const
   return t('calendar.monthYear', {
