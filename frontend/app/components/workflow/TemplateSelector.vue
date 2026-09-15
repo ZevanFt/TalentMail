@@ -18,6 +18,7 @@ const emit = defineEmits<{
 const router = useRouter()
 const { getWorkflowTemplates, getWorkflowTemplateCategories, getWorkflowTemplateTags, useWorkflowTemplate, toggleWorkflowTemplateFavorite } = useApi()
 const toast = useToast()
+const { t } = useI18n()
 
 // 状态
 const loading = ref(true)
@@ -58,7 +59,7 @@ const loadData = async () => {
     popularTags.value = tagsRes.slice(0, 10)
   } catch (e: any) {
     console.error('加载模板失败:', e)
-    toast.error(e.data?.detail || '加载模板失败')
+    toast.error(e.data?.detail || t('workflows.templateSelector.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -138,7 +139,7 @@ const useTemplate = async (template: any) => {
     }
   } catch (e: any) {
     console.error('使用模板失败:', e)
-    toast.error(e.data?.detail || '使用模板失败')
+    toast.error(e.data?.detail || t('workflows.templateSelector.useFailed'))
   } finally {
     usingTemplate.value = false
   }
@@ -153,7 +154,7 @@ const toggleFavorite = async (template: any, event: Event) => {
     template.favorite_count = result.favorite_count
   } catch (e: any) {
     console.error('收藏失败:', e)
-    toast.error(e.data?.detail || '收藏操作失败')
+    toast.error(e.data?.detail || t('workflows.templateSelector.favoriteFailed'))
   }
 }
 
@@ -194,8 +195,8 @@ watch(() => props.modelValue, (value) => {
           <!-- 左侧：分类筛选 -->
           <div class="w-56 border-r border-gray-200 dark:border-gray-700 flex flex-col shrink-0">
             <div class="p-4 border-b border-gray-100 dark:border-gray-800">
-              <h3 class="font-bold text-gray-900 dark:text-white">工作流模板</h3>
-              <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">选择一个模板快速开始</p>
+              <h3 class="font-bold text-gray-900 dark:text-white">{{ t('workflows.templateSelector.title') }}</h3>
+              <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ t('workflows.templateSelector.subtitle') }}</p>
             </div>
             
             <!-- 分类列表 -->
@@ -210,7 +211,7 @@ watch(() => props.modelValue, (value) => {
                 ]"
               >
                 <Package class="w-4 h-4" />
-                <span class="flex-1">全部模板</span>
+                <span class="flex-1">{{ t('workflows.templateSelector.allTemplates') }}</span>
                 <span class="text-xs text-gray-400">{{ templates.length }}</span>
               </button>
               
@@ -244,7 +245,7 @@ watch(() => props.modelValue, (value) => {
                 ]"
               >
                 <Star class="w-4 h-4" :class="{ 'fill-current': activeFilter === 'featured' }" />
-                <span>推荐模板</span>
+                <span>{{ t('workflows.templateSelector.featured') }}</span>
               </button>
               
               <button
@@ -257,13 +258,13 @@ watch(() => props.modelValue, (value) => {
                 ]"
               >
                 <Heart class="w-4 h-4" :class="{ 'fill-current': activeFilter === 'favorites' }" />
-                <span>我的收藏</span>
+                <span>{{ t('workflows.templateSelector.myFavorites') }}</span>
               </button>
             </div>
             
             <!-- 热门标签 -->
             <div class="p-3 border-t border-gray-100 dark:border-gray-800">
-              <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">热门标签</p>
+              <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">{{ t('workflows.templateSelector.popularTags') }}</p>
               <div class="flex flex-wrap gap-1">
                 <button
                   v-for="tag in popularTags"
@@ -293,7 +294,7 @@ watch(() => props.modelValue, (value) => {
                     v-model="searchQuery"
                     @input="onSearch"
                     type="text"
-                    placeholder="搜索模板..."
+                    :placeholder="t('workflows.templateSelector.searchPlaceholder')"
                     class="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                   />
                 </div>
@@ -302,7 +303,7 @@ watch(() => props.modelValue, (value) => {
                   class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm whitespace-nowrap"
                 >
                   <Plus class="w-4 h-4" />
-                  空白工作流
+                  {{ t('workflows.templateSelector.blankWorkflow') }}
                 </button>
                 <button
                   @click="close"
@@ -362,7 +363,7 @@ watch(() => props.modelValue, (value) => {
                   
                   <!-- 描述 -->
                   <p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mb-3">
-                    {{ template.description || '暂无描述' }}
+                    {{ template.description || t('workflows.common.noDescription') }}
                   </p>
                   
                   <!-- 标签 -->
@@ -381,7 +382,7 @@ watch(() => props.modelValue, (value) => {
                   
                   <!-- 底部信息 -->
                   <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                    <span>{{ template.node_count }} 个节点</span>
+                    <span>{{ t('workflows.common.nodesCount', { n: template.node_count }) }}</span>
                     <div class="flex items-center gap-3">
                       <span class="flex items-center gap-1">
                         <Workflow class="w-3 h-3" />
@@ -399,7 +400,7 @@ watch(() => props.modelValue, (value) => {
                     v-if="template.is_featured"
                     class="absolute top-2 right-2 px-2 py-0.5 bg-yellow-500 text-white text-xs font-medium rounded-full"
                   >
-                    推荐
+                    {{ t('workflows.templateSelector.featuredBadge') }}
                   </div>
                 </div>
               </div>
@@ -410,17 +411,17 @@ watch(() => props.modelValue, (value) => {
                   <Package class="w-8 h-8 text-gray-400" />
                 </div>
                 <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                  暂无模板
+                  {{ t('workflows.templateSelector.emptyTitle') }}
                 </h3>
                 <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                  {{ searchQuery ? '没有找到匹配的模板' : '该分类下暂无模板' }}
+                  {{ searchQuery ? t('workflows.templateSelector.noMatch') : t('workflows.templateSelector.emptyCategory') }}
                 </p>
                 <button
                   @click="createBlank"
                   class="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm"
                 >
                   <Plus class="w-4 h-4" />
-                  创建空白工作流
+                  {{ t('workflows.templateSelector.createBlank') }}
                 </button>
               </div>
             </div>
@@ -433,7 +434,7 @@ watch(() => props.modelValue, (value) => {
               class="w-80 border-l border-gray-200 dark:border-gray-700 flex flex-col shrink-0"
             >
               <div class="p-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
-                <h3 class="font-bold text-gray-900 dark:text-white">模板详情</h3>
+                <h3 class="font-bold text-gray-900 dark:text-white">{{ t('workflows.templateSelector.detailTitle') }}</h3>
                 <button
                   @click="selectedTemplate = null"
                   class="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
@@ -466,28 +467,28 @@ watch(() => props.modelValue, (value) => {
                 
                 <!-- 描述 -->
                 <p class="text-sm text-gray-600 dark:text-gray-400">
-                  {{ selectedTemplate.description || '暂无描述' }}
+                  {{ selectedTemplate.description || t('workflows.common.noDescription') }}
                 </p>
                 
                 <!-- 统计信息 -->
                 <div class="grid grid-cols-3 gap-3">
                   <div class="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                     <p class="text-lg font-bold text-gray-900 dark:text-white">{{ selectedTemplate.node_count }}</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">节点</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('workflows.templateSelector.statNodes') }}</p>
                   </div>
                   <div class="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                     <p class="text-lg font-bold text-gray-900 dark:text-white">{{ selectedTemplate.use_count }}</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">使用</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('workflows.templateSelector.statUses') }}</p>
                   </div>
                   <div class="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                     <p class="text-lg font-bold text-gray-900 dark:text-white">{{ selectedTemplate.favorite_count }}</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">收藏</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('workflows.templateSelector.statFavorites') }}</p>
                   </div>
                 </div>
                 
                 <!-- 标签 -->
                 <div v-if="selectedTemplate.tags?.length > 0">
-                  <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">标签</p>
+                  <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">{{ t('workflows.templateSelector.tagsLabel') }}</p>
                   <div class="flex flex-wrap gap-1">
                     <span
                       v-for="tag in selectedTemplate.tags"
@@ -501,13 +502,13 @@ watch(() => props.modelValue, (value) => {
                 
                 <!-- 作者 -->
                 <div v-if="selectedTemplate.author_name" class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                  <span>作者:</span>
+                  <span>{{ t('workflows.templateSelector.author') }}</span>
                   <span class="text-gray-900 dark:text-white">{{ selectedTemplate.author_name }}</span>
                 </div>
                 
                 <!-- 来源 -->
                 <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                  <span>来源:</span>
+                  <span>{{ t('workflows.templateSelector.source') }}</span>
                   <span
                     :class="[
                       'px-2 py-0.5 text-xs rounded-full',
@@ -516,7 +517,7 @@ watch(() => props.modelValue, (value) => {
                       'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
                     ]"
                   >
-                    {{ selectedTemplate.source_type === 'official' ? '官方' : selectedTemplate.source_type === 'community' ? '社区' : '用户' }}
+                    {{ selectedTemplate.source_type === 'official' ? t('workflows.templateSelector.sourceOfficial') : selectedTemplate.source_type === 'community' ? t('workflows.templateSelector.sourceCommunity') : t('workflows.templateSelector.sourceUser') }}
                   </span>
                 </div>
               </div>
@@ -529,7 +530,7 @@ watch(() => props.modelValue, (value) => {
                   class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
                 >
                   <Plus class="w-5 h-5" />
-                  {{ usingTemplate ? '创建中...' : '使用此模板' }}
+                  {{ usingTemplate ? t('workflows.templateSelector.creating') : t('workflows.templateSelector.useThisTemplate') }}
                 </button>
                 <button
                   @click="toggleFavorite(selectedTemplate, $event)"
@@ -539,7 +540,7 @@ watch(() => props.modelValue, (value) => {
                     class="w-4 h-4"
                     :class="selectedTemplate.is_favorited ? 'text-red-500 fill-current' : 'text-gray-400'"
                   />
-                  {{ selectedTemplate.is_favorited ? '取消收藏' : '收藏模板' }}
+                  {{ selectedTemplate.is_favorited ? t('workflows.templateSelector.unfavorite') : t('workflows.templateSelector.favorite') }}
                 </button>
               </div>
             </div>

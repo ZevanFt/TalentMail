@@ -7,6 +7,8 @@ import { VueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Workflow, Edit, X, RefreshCw } from 'lucide-vue-next'
 
+const { t } = useI18n()
+
 const props = withDefaults(defineProps<{
   modelValue: boolean
   workflow: { name?: string; description?: string; id?: number } | null
@@ -47,7 +49,7 @@ const close = () => emit('update:modelValue', false)
                   {{ workflow?.name }}
                 </h3>
                 <p class="text-sm text-gray-500 dark:text-gray-400">
-                  {{ workflow?.description || '暂无描述' }}
+                  {{ workflow?.description || t('workflows.common.noDescription') }}
                 </p>
               </div>
             </div>
@@ -57,11 +59,11 @@ const close = () => emit('update:modelValue', false)
                 class="flex items-center gap-2 px-4 py-2 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg whitespace-nowrap transition-colors"
               >
                 <Edit class="w-4 h-4" />
-                编辑
+                {{ t('workflows.common.edit') }}
               </button>
               <button
                 @click="close"
-                aria-label="关闭"
+                :aria-label="t('workflows.common.close')"
                 class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
               >
                 <X class="w-5 h-5 text-gray-500" />
@@ -79,13 +81,13 @@ const close = () => emit('update:modelValue', false)
             <!-- 空状态 -->
             <div v-else-if="nodes.length === 0" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900">
               <Workflow class="w-16 h-16 text-gray-300 dark:text-gray-600 mb-4" />
-              <p class="text-gray-500 dark:text-gray-400 mb-4">该工作流暂无节点</p>
+              <p class="text-gray-500 dark:text-gray-400 mb-4">{{ t('workflows.preview.noNodes') }}</p>
               <button
                 @click="emit('edit')"
                 class="flex items-center gap-2 px-4 py-2 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg whitespace-nowrap transition-colors"
               >
                 <Edit class="w-4 h-4" />
-                开始编辑
+                {{ t('workflows.preview.startEditing') }}
               </button>
             </div>
 
@@ -126,27 +128,27 @@ const close = () => emit('update:modelValue', false)
 
             <!-- 图例（可选） -->
             <div v-if="showLegend && nodes.length > 0" class="absolute bottom-4 left-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-lg p-3 shadow-lg">
-              <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">节点类型</p>
+              <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">{{ t('workflows.preview.legendTitle') }}</p>
               <div class="grid grid-cols-2 gap-2 text-xs">
                 <div class="flex items-center gap-1.5">
                   <span class="w-3 h-3 rounded bg-[#10b981]"></span>
-                  <span class="text-gray-600 dark:text-gray-400">触发器</span>
+                  <span class="text-gray-600 dark:text-gray-400">{{ t('workflows.catalog.catTrigger') }}</span>
                 </div>
                 <div class="flex items-center gap-1.5">
                   <span class="w-3 h-3 rounded bg-[#3b82f6]"></span>
-                  <span class="text-gray-600 dark:text-gray-400">逻辑控制</span>
+                  <span class="text-gray-600 dark:text-gray-400">{{ t('workflows.catalog.catLogic') }}</span>
                 </div>
                 <div class="flex items-center gap-1.5">
                   <span class="w-3 h-3 rounded bg-[#f59e0b]"></span>
-                  <span class="text-gray-600 dark:text-gray-400">邮件动作</span>
+                  <span class="text-gray-600 dark:text-gray-400">{{ t('workflows.catalog.catEmailAction') }}</span>
                 </div>
                 <div class="flex items-center gap-1.5">
                   <span class="w-3 h-3 rounded bg-[#06b6d4]"></span>
-                  <span class="text-gray-600 dark:text-gray-400">数据处理</span>
+                  <span class="text-gray-600 dark:text-gray-400">{{ t('workflows.catalog.catData') }}</span>
                 </div>
                 <div class="flex items-center gap-1.5">
                   <span class="w-3 h-3 rounded bg-[#6b7280]"></span>
-                  <span class="text-gray-600 dark:text-gray-400">结束节点</span>
+                  <span class="text-gray-600 dark:text-gray-400">{{ t('workflows.catalog.catEnd') }}</span>
                 </div>
               </div>
             </div>
@@ -154,8 +156,8 @@ const close = () => emit('update:modelValue', false)
             <!-- 统计信息 -->
             <div v-if="nodes.length > 0" class="absolute bottom-4 right-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-lg px-4 py-2 shadow-lg">
               <p class="text-sm text-gray-600 dark:text-gray-400">
-                <span class="font-medium">{{ nodes.length }}</span> 个节点，
-                <span class="font-medium">{{ edges.length }}</span> 条连接
+                <span class="font-medium">{{ nodes.length }}</span>{{ t('workflows.preview.nodesUnit') }}
+                <span class="font-medium">{{ edges.length }}</span>{{ t('workflows.preview.edgesUnit') }}
               </p>
             </div>
           </div>

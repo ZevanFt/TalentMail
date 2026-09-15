@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { Settings, X, Plus, Trash2, Link, Save } from 'lucide-vue-next'
 
+const { t } = useI18n()
+
 const props = defineProps<{
   modelValue: boolean
   workflow: any
@@ -38,8 +40,8 @@ const getNodeConfigFields = inject<(nodeId: string) => { key: string; title: str
                 <Settings class="w-5 h-5 text-primary" />
               </div>
               <div>
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">工作流设置</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400">配置工作流的基本信息和全局配置项</p>
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('workflows.settingsModal.title') }}</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('workflows.settingsModal.subtitle') }}</p>
               </div>
             </div>
             <button @click="emit('update:modelValue', false)" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
@@ -53,15 +55,15 @@ const getNodeConfigFields = inject<(nodeId: string) => { key: string; title: str
             <div class="space-y-4">
               <h4 class="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                 <span class="w-1 h-4 bg-primary rounded-full"></span>
-                基础信息
+                {{ t('workflows.settingsModal.basicInfo') }}
               </h4>
               <div class="grid gap-4">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">工作流名称</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('workflows.settingsModal.nameLabel') }}</label>
                   <input v-model="workflow.name" type="text" class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">描述</label>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('workflows.settingsModal.descLabel') }}</label>
                   <textarea v-model="workflow.description" rows="3" class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
                 </div>
               </div>
@@ -72,15 +74,15 @@ const getNodeConfigFields = inject<(nodeId: string) => { key: string; title: str
               <div class="flex items-center justify-between">
                 <h4 class="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                   <span class="w-1 h-4 bg-primary rounded-full"></span>
-                  全局配置项
+                  {{ t('workflows.settingsModal.globalConfig') }}
                 </h4>
                 <button @click="emit('add-config-item')" class="flex items-center gap-1.5 px-3 py-1.5 text-sm text-primary hover:bg-primary/10 rounded-lg whitespace-nowrap transition-colors">
                   <Plus class="w-4 h-4" />
-                  添加配置项
+                  {{ t('workflows.settingsModal.addConfigItem') }}
                 </button>
               </div>
               <p class="text-xs text-gray-500 dark:text-gray-400">
-                这些配置项会在工作流列表的「配置」按钮中显示，并会同步到关联的节点配置
+                {{ t('workflows.settingsModal.configHint') }}
               </p>
 
               <!-- 已有配置项 -->
@@ -94,27 +96,27 @@ const getNodeConfigFields = inject<(nodeId: string) => { key: string; title: str
                   <div class="flex items-start gap-4">
                     <div class="flex-1 grid grid-cols-2 gap-4">
                       <div>
-                        <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">配置名称</label>
-                        <input v-model="prop.title" type="text" placeholder="例如：需要邮箱验证" class="w-full px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
+                        <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">{{ t('workflows.settingsModal.configName') }}</label>
+                        <input v-model="prop.title" type="text" :placeholder="t('workflows.settingsModal.namePlaceholder')" class="w-full px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
                       </div>
                       <div>
-                        <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">类型</label>
+                        <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">{{ t('workflows.settingsModal.typeLabel') }}</label>
                         <select v-model="prop.type" class="w-full px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
-                          <option value="boolean">开关（布尔值）</option>
-                          <option value="string">文本</option>
-                          <option value="integer">数字</option>
+                          <option value="boolean">{{ t('workflows.settingsModal.typeBoolean') }}</option>
+                          <option value="string">{{ t('workflows.settingsModal.typeString') }}</option>
+                          <option value="integer">{{ t('workflows.settingsModal.typeNumber') }}</option>
                         </select>
                       </div>
                       <div class="col-span-2">
-                        <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">描述</label>
-                        <input v-model="prop.description" type="text" placeholder="配置项说明..." class="w-full px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
+                        <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">{{ t('workflows.settingsModal.descLabel') }}</label>
+                        <input v-model="prop.description" type="text" :placeholder="t('workflows.settingsModal.descPlaceholder')" class="w-full px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
                       </div>
                       <div>
-                        <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">默认值</label>
+                        <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">{{ t('workflows.settingsModal.defaultValue') }}</label>
                         <template v-if="prop.type === 'boolean'">
                           <select v-model="workflow.default_config[key]" class="w-full px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
-                            <option :value="true">开启</option>
-                            <option :value="false">关闭</option>
+                            <option :value="true">{{ t('workflows.settingsModal.on') }}</option>
+                            <option :value="false">{{ t('workflows.settingsModal.off') }}</option>
                           </select>
                         </template>
                         <template v-else-if="prop.type === 'integer'">
@@ -125,7 +127,7 @@ const getNodeConfigFields = inject<(nodeId: string) => { key: string; title: str
                         </template>
                       </div>
                     </div>
-                    <button @click="emit('remove-config-item', key as string)" class="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="删除配置项">
+                    <button @click="emit('remove-config-item', key as string)" class="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" :title="t('workflows.settingsModal.removeItemTitle')">
                       <Trash2 class="w-4 h-4" />
                     </button>
                   </div>
@@ -135,15 +137,15 @@ const getNodeConfigFields = inject<(nodeId: string) => { key: string; title: str
                     <div class="flex items-center justify-between mb-2">
                       <label class="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1.5">
                         <Link class="w-3.5 h-3.5" />
-                        关联节点配置
+                        {{ t('workflows.settingsModal.bindingLabel') }}
                       </label>
                       <button @click="emit('add-config-binding', key as string)" class="text-xs text-primary hover:text-primary/80 flex items-center gap-1">
                         <Plus class="w-3 h-3" />
-                        添加关联
+                        {{ t('workflows.settingsModal.addBinding') }}
                       </button>
                     </div>
                     <p class="text-xs text-gray-400 dark:text-gray-500 mb-2">
-                      当此配置项的值改变时，会自动同步到关联的节点配置字段
+                      {{ t('workflows.settingsModal.bindingHint') }}
                     </p>
 
                     <div v-if="prop.bindings && prop.bindings.length > 0" class="space-y-2">
@@ -153,12 +155,12 @@ const getNodeConfigFields = inject<(nodeId: string) => { key: string; title: str
                         class="flex items-center gap-2 p-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
                       >
                         <select v-model="binding.nodeId" class="flex-1 px-2 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
-                          <option value="">选择节点...</option>
+                          <option value="">{{ t('workflows.settingsModal.selectNode') }}</option>
                           <option v-for="node in nodes" :key="node.id" :value="node.id">{{ node.data?.label || node.id }}</option>
                         </select>
                         <span class="text-gray-400 text-xs">&rarr;</span>
                         <select v-model="binding.field" :disabled="!binding.nodeId" class="flex-1 px-2 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50">
-                          <option value="">选择字段...</option>
+                          <option value="">{{ t('workflows.settingsModal.selectField') }}</option>
                           <option v-for="field in getNodeConfigFields(binding.nodeId)" :key="field.key" :value="field.key">{{ field.title }}</option>
                         </select>
                         <button @click="emit('remove-config-binding', key as string, bIndex as number)" class="p-1 text-gray-400 hover:text-red-500 transition-colors">
@@ -167,7 +169,7 @@ const getNodeConfigFields = inject<(nodeId: string) => { key: string; title: str
                       </div>
                     </div>
                     <div v-else class="text-xs text-gray-400 dark:text-gray-500 italic">
-                      暂无关联，配置值不会同步到任何节点
+                      {{ t('workflows.settingsModal.noBindings') }}
                     </div>
                   </div>
                 </div>
@@ -176,8 +178,8 @@ const getNodeConfigFields = inject<(nodeId: string) => { key: string; title: str
               <!-- 空状态 -->
               <div v-else class="text-center py-8 text-gray-500 dark:text-gray-400">
                 <Settings class="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p class="text-sm">暂无配置项</p>
-                <p class="text-xs mt-1">点击上方「添加配置项」按钮来创建</p>
+                <p class="text-sm">{{ t('workflows.settingsModal.emptyTitle') }}</p>
+                <p class="text-xs mt-1">{{ t('workflows.settingsModal.emptyHint') }}</p>
               </div>
             </div>
           </div>
@@ -185,11 +187,11 @@ const getNodeConfigFields = inject<(nodeId: string) => { key: string; title: str
           <!-- 底部按钮 -->
           <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
             <button @click="emit('update:modelValue', false)" class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
-              取消
+              {{ t('workflows.common.cancel') }}
             </button>
             <button @click="emit('save')" :disabled="savingSettings" class="flex items-center gap-2 px-4 py-2 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg whitespace-nowrap transition-colors disabled:opacity-50">
               <Save class="w-4 h-4" />
-              {{ savingSettings ? '保存中...' : '保存设置' }}
+              {{ savingSettings ? t('workflows.common.saving') : t('workflows.settingsModal.saveSettings') }}
             </button>
           </div>
         </div>

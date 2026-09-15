@@ -17,6 +17,8 @@ const emit = defineEmits<{
 const getIconComponent = (iconName: string): Component => {
   return props.iconComponents[iconName] ?? Package
 }
+
+const { t } = useI18n()
 </script>
 
 <template>
@@ -27,7 +29,7 @@ const getIconComponent = (iconName: string): Component => {
         <component :is="getIconComponent(selectedNode.data.icon)" class="w-5 h-5" :style="{ color: selectedNode.data.color }" />
         <span class="font-bold text-gray-900 dark:text-white text-sm">{{ selectedNode.data.label }}</span>
       </div>
-      <button @click="emit('close')" aria-label="关闭配置面板" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
+      <button @click="emit('close')" :aria-label="t('workflows.nodeConfig.closeAria')" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
         <X class="w-5 h-5 text-gray-500" />
       </button>
     </div>
@@ -36,7 +38,7 @@ const getIconComponent = (iconName: string): Component => {
     <div class="flex-1 overflow-y-auto p-4 space-y-4">
       <!-- 节点名称 -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">节点名称</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('workflows.nodeConfig.nameLabel') }}</label>
         <input
           v-model="selectedNode.data.label"
           class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
@@ -45,7 +47,7 @@ const getIconComponent = (iconName: string): Component => {
 
       <!-- 节点类型信息 -->
       <div class="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-        <p class="text-xs text-gray-500 dark:text-gray-400">节点类型</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('workflows.nodeConfig.typeLabel') }}</p>
         <p class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ selectedNode.data.nodeSubtype }}</p>
       </div>
 
@@ -64,7 +66,7 @@ const getIconComponent = (iconName: string): Component => {
             v-model="selectedNode.data.config[key]"
             class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
           >
-            <option value="">请选择邮件模板</option>
+            <option value="">{{ t('workflows.nodeConfig.selectTemplate') }}</option>
             <option v-for="template in emailTemplates" :key="template.code" :value="template.code">
               {{ template.name }} ({{ template.code }})
             </option>
@@ -114,7 +116,7 @@ const getIconComponent = (iconName: string): Component => {
 
       <!-- 无配置项 -->
       <div v-else class="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">
-        此节点无需配置
+        {{ t('workflows.nodeConfig.noConfig') }}
       </div>
     </div>
 
@@ -125,7 +127,7 @@ const getIconComponent = (iconName: string): Component => {
         class="w-full flex items-center justify-center gap-2 px-4 py-2 text-red-600 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
       >
         <Trash2 class="w-4 h-4" />
-        删除节点
+        {{ t('workflows.nodeConfig.deleteNode') }}
       </button>
     </div>
   </div>

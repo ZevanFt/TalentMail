@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Star, RefreshCw, Loader2, Circle, Clock, X, Send, CheckCircle, XCircle, Eye, Paperclip, SquareCheck, Square, Trash2, Archive, FolderInput, CheckCheck, CircleDot, MoreHorizontal, Tag } from 'lucide-vue-next'
 
+const { t } = useI18n()
 const { emails, selectedEmailId, folders, currentFolderId, loading, syncing, loadFolders, loadEmails, loadEmailDetail, sync, formatTime, toggleRead, toggleStar, snooze, searchQuery, isSearching, clearSearch, startAutoSync, stopAutoSync, editDraft, emailHasMore, loadingMore, loadMoreEmails, emailTotal } = useEmails()
 const { isComposeOpen, requestCloseCompose } = useGlobalModal()
 const { getEmail, bulkMarkRead, bulkMarkStarred, bulkDeleteEmails, bulkArchiveEmails, bulkMoveEmails, markAsSpam, markAsNotSpam, getTags, bulkAddTag, bulkRemoveTag } = useApi()
@@ -65,7 +66,7 @@ const handleBulkMarkRead = async (isRead: boolean) => {
     isSelectionMode.value = false
   } catch (e: any) {
     console.error('批量标记失败', e)
-    toast.error(e.data?.detail || '批量标记失败')
+    toast.error(e.data?.detail || t('mail.list.bulkMarkFailed'))
   } finally {
     bulkLoading.value = false
   }
@@ -74,7 +75,7 @@ const handleBulkMarkRead = async (isRead: boolean) => {
 // 批量删除
 const handleBulkDelete = async () => {
   if (selectedEmailIds.value.size === 0) return
-  const ok = await confirmDialog({ message: `确定删除 ${selectedEmailIds.value.size} 封邮件？`, type: 'danger' })
+  const ok = await confirmDialog({ message: t('mail.list.confirmDelete', { n: selectedEmailIds.value.size }), type: 'danger' })
   if (!ok) return
   bulkLoading.value = true
   try {
@@ -84,7 +85,7 @@ const handleBulkDelete = async () => {
     isSelectionMode.value = false
   } catch (e: any) {
     console.error('批量删除失败', e)
-    toast.error(e.data?.detail || '批量删除失败')
+    toast.error(e.data?.detail || t('mail.list.bulkDeleteFailed'))
   } finally {
     bulkLoading.value = false
   }
@@ -101,7 +102,7 @@ const handleBulkArchive = async () => {
     isSelectionMode.value = false
   } catch (e: any) {
     console.error('批量归档失败', e)
-    toast.error(e.data?.detail || '批量归档失败')
+    toast.error(e.data?.detail || t('mail.list.bulkArchiveFailed'))
   } finally {
     bulkLoading.value = false
   }
@@ -110,7 +111,7 @@ const handleBulkArchive = async () => {
 // 批量标记为垃圾邮件
 const handleBulkMarkSpam = async () => {
   if (selectedEmailIds.value.size === 0) return
-  const ok = await confirmDialog({ message: `确定将 ${selectedEmailIds.value.size} 封邮件标记为垃圾邮件？`, type: 'danger' })
+  const ok = await confirmDialog({ message: t('mail.list.confirmMarkSpam', { n: selectedEmailIds.value.size }), type: 'danger' })
   if (!ok) return
   bulkLoading.value = true
   try {
@@ -120,7 +121,7 @@ const handleBulkMarkSpam = async () => {
     isSelectionMode.value = false
   } catch (e: any) {
     console.error('批量标记垃圾邮件失败', e)
-    toast.error(e.data?.detail || '批量标记垃圾邮件失败')
+    toast.error(e.data?.detail || t('mail.list.bulkMarkSpamFailed'))
   } finally {
     bulkLoading.value = false
   }
@@ -137,7 +138,7 @@ const handleBulkMarkNotSpam = async () => {
     isSelectionMode.value = false
   } catch (e: any) {
     console.error('批量标记非垃圾邮件失败', e)
-    toast.error(e.data?.detail || '标记非垃圾邮件失败')
+    toast.error(e.data?.detail || t('mail.list.bulkMarkNotSpamFailed'))
   } finally {
     bulkLoading.value = false
   }
@@ -151,13 +152,13 @@ const handleBulkMove = async (folderId: number) => {
   bulkLoading.value = true
   try {
     await bulkMoveEmails(Array.from(selectedEmailIds.value), folderId)
-    toast.success(`已移动 ${selectedEmailIds.value.size} 封邮件`)
+    toast.success(t('mail.list.movedCount', { n: selectedEmailIds.value.size }))
     selectedEmailIds.value.clear()
     isSelectionMode.value = false
     if (currentFolderId.value) await loadEmails(currentFolderId.value)
   } catch (e: any) {
     console.error('批量移动失败', e)
-    toast.error(e.data?.detail || '批量移动失败')
+    toast.error(e.data?.detail || t('mail.list.bulkMoveFailed'))
   } finally {
     bulkLoading.value = false
     showMoveMenu.value = false
@@ -191,13 +192,13 @@ const handleBulkAddTag = async (tagId: number) => {
   try {
     const res = await bulkAddTag(Array.from(selectedEmailIds.value), tagId)
     const tagName = userTags.value.find(t => t.id === tagId)?.name || ''
-    toast.success(`已为 ${res.success_count} 封邮件添加标签「${tagName}」`)
+    toast.success(t('mail.list.tagAdded', { n: res.success_count, name: tagName }))
     selectedEmailIds.value.clear()
     isSelectionMode.value = false
     if (currentFolderId.value) await loadEmails(currentFolderId.value)
   } catch (e: any) {
     console.error('批量添加标签失败', e)
-    toast.error(e.data?.detail || '批量添加标签失败')
+    toast.error(e.data?.detail || t('mail.list.bulkAddTagFailed'))
   } finally {
     bulkLoading.value = false
     showTagMenu.value = false
@@ -211,13 +212,13 @@ const handleBulkRemoveTag = async (tagId: number) => {
   try {
     const res = await bulkRemoveTag(Array.from(selectedEmailIds.value), tagId)
     const tagName = userTags.value.find(t => t.id === tagId)?.name || ''
-    toast.success(`已从 ${res.success_count} 封邮件移除标签「${tagName}」`)
+    toast.success(t('mail.list.tagRemoved', { n: res.success_count, name: tagName }))
     selectedEmailIds.value.clear()
     isSelectionMode.value = false
     if (currentFolderId.value) await loadEmails(currentFolderId.value)
   } catch (e: any) {
     console.error('批量移除标签失败', e)
-    toast.error(e.data?.detail || '批量移除标签失败')
+    toast.error(e.data?.detail || t('mail.list.bulkRemoveTagFailed'))
   } finally {
     bulkLoading.value = false
     showTagMenu.value = false
@@ -284,34 +285,34 @@ const handleCustomSnooze = async () => {
 }
 
 // 文件夹角色 -> 中文名称映射
-const folderNames: Record<string, string> = {
-  inbox: '收件箱', sent: '已发送', drafts: '草稿箱',
-  trash: '已删除', spam: '垃圾邮件', archive: '归档'
-}
+const folderNames = computed<Record<string, string>>(() => ({
+  inbox: t('mail.list.folder.inbox'), sent: t('mail.list.folder.sent'), drafts: t('mail.list.folder.drafts'),
+  trash: t('mail.list.folder.trash'), spam: t('mail.list.folder.spam'), archive: t('mail.list.folder.archive')
+}))
 
 // 虚拟文件夹名称映射
-const virtualFolderNames: Record<string, string> = {
-  starred: '红旗邮件',
-  unread: '未读邮件',
-  snoozed: '待办邮件',
-  all: '所有邮件'
-}
+const virtualFolderNames = computed<Record<string, string>>(() => ({
+  starred: t('mail.list.virtual.starred'),
+  unread: t('mail.list.virtual.unread'),
+  snoozed: t('mail.list.virtual.snoozed'),
+  all: t('mail.list.virtual.all')
+}))
 
 // 当前文件夹名称
 const { currentTagName } = useEmails()
 const currentFolderName = computed(() => {
-  if (isSearching.value) return `搜索: ${searchQuery.value}`
+  if (isSearching.value) return t('mail.list.searchLabel', { q: searchQuery.value })
   // 标签
   if (selectedTagId.value && currentTagName.value) {
-    return `标签: ${currentTagName.value}`
+    return t('mail.list.tagLabel', { name: currentTagName.value })
   }
   // 虚拟文件夹
   if (selectedVirtualId.value) {
-    return virtualFolderNames[selectedVirtualId.value] || selectedVirtualId.value
+    return virtualFolderNames.value[selectedVirtualId.value] || selectedVirtualId.value
   }
   // 真实文件夹
   const folder = folders.value.find(f => f.id === currentFolderId.value)
-  return folder ? (folderNames[folder.role] || folder.name) : '收件箱'
+  return folder ? (folderNames.value[folder.role] || folder.name) : folderNames.value.inbox
 })
 
 // 是否是已发送文件夹
@@ -349,7 +350,7 @@ const selectEmail = async (id: number) => {
       isComposeOpen.value = true
     } catch (e: any) {
       const toast = useToast()
-      toast.error(e?._friendlyMessage || '加载草稿失败')
+      toast.error(e?._friendlyMessage || t('mail.list.loadDraftFailed'))
     }
     return
   }
@@ -411,14 +412,14 @@ onUnmounted(() => {
       <div class="flex items-center gap-1 shrink-0">
         <button v-if="isSearching" @click="clearSearch"
           class="p-1.5 hover:bg-primary/10 dark:hover:bg-primary/20 rounded-md text-primary transition-all duration-200 hover:scale-105"
-          title="清除搜索">
+          :title="t('mail.list.clearSearch')">
           <X class="w-4 h-4" />
         </button>
         <!-- 批量选择按钮 - 改进交互 -->
         <button @click="toggleSelectionMode"
           class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-all duration-200 hover:scale-105"
           :class="{ 'bg-primary/10 dark:bg-primary/20 text-primary ring-1 ring-primary/30': isSelectionMode }"
-          :title="isSelectionMode ? '退出选择' : '批量选择'">
+          :title="isSelectionMode ? t('mail.list.exitSelect') : t('mail.list.selectMode')">
           <SquareCheck class="w-4 h-4" />
         </button>
         <button @click="sync" :disabled="syncing"
@@ -436,33 +437,33 @@ onUnmounted(() => {
         <!-- 全选 - 改进样式 -->
         <button @click="toggleSelectAll"
           class="p-1.5 hover:bg-white dark:hover:bg-gray-700 rounded-md transition-all duration-200 hover:scale-105"
-          :title="isAllSelected ? '取消全选' : '全选'">
+          :title="isAllSelected ? t('mail.list.unselectAll') : t('mail.list.selectAll')">
           <SquareCheck v-if="isAllSelected" class="w-4 h-4 text-primary" />
           <Square v-else class="w-4 h-4 text-gray-500 hover:text-primary" />
         </button>
-        <span class="text-xs font-medium text-primary dark:text-primary-light">已选 {{ selectedEmailIds.size }} 封</span>
+        <span class="text-xs font-medium text-primary dark:text-primary-light">{{ t('mail.list.selectedCount', { n: selectedEmailIds.size }) }}</span>
         <div class="flex-1"></div>
         <!-- 批量操作按钮 - 改进样式 -->
         <button @click="handleBulkMarkRead(true)" :disabled="bulkLoading"
           class="p-1.5 hover:bg-white dark:hover:bg-gray-700 rounded-md transition-all duration-200 hover:scale-105 disabled:opacity-50"
-          title="标记已读">
+          :title="t('mail.markRead')">
           <CheckCheck class="w-4 h-4 text-gray-600 dark:text-gray-400 hover:text-green-500" />
         </button>
         <button @click="handleBulkArchive" :disabled="bulkLoading"
           class="p-1.5 hover:bg-white dark:hover:bg-gray-700 rounded-md transition-all duration-200 hover:scale-105 disabled:opacity-50"
-          title="归档">
+          :title="t('mail.archive')">
           <Archive class="w-4 h-4 text-gray-600 dark:text-gray-400 hover:text-blue-500" />
         </button>
         <button @click="handleBulkDelete" :disabled="bulkLoading"
           class="p-1.5 hover:bg-white dark:hover:bg-gray-700 rounded-md transition-all duration-200 hover:scale-105 disabled:opacity-50"
-          title="删除">
+          :title="t('mail.delete')">
           <Trash2 class="w-4 h-4 text-red-500 hover:text-red-600" />
         </button>
         <!-- 更多操作下拉 - 改进样式 -->
         <div class="relative">
           <button @click="showBulkMenu = !showBulkMenu"
             class="p-1.5 hover:bg-white dark:hover:bg-gray-700 rounded-md transition-all duration-200 hover:scale-105"
-            title="更多操作">
+            :title="t('mail.list.moreActions')">
             <MoreHorizontal class="w-4 h-4 text-gray-600 dark:text-gray-400" />
           </button>
           <!-- 点击外部关闭遮罩 -->
@@ -473,17 +474,17 @@ onUnmounted(() => {
             <button @click="handleBulkMarkRead(false); showBulkMenu = false"
               class="w-full px-3 py-2.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2.5 transition-colors group">
               <CircleDot class="w-4 h-4 text-gray-500 group-hover:text-blue-500 transition-colors" />
-              <span class="group-hover:text-blue-600 dark:group-hover:text-blue-400">标记未读</span>
+              <span class="group-hover:text-blue-600 dark:group-hover:text-blue-400">{{ t('mail.markUnread') }}</span>
             </button>
             <button @click="handleBulkMarkSpam(); showBulkMenu = false"
               class="w-full px-3 py-2.5 text-left text-sm hover:bg-orange-50 dark:hover:bg-orange-900/20 flex items-center gap-2.5 text-orange-600 dark:text-orange-400 transition-colors group">
               <X class="w-4 h-4 group-hover:scale-110 transition-transform" />
-              <span class="group-hover:font-medium">标记垃圾邮件</span>
+              <span class="group-hover:font-medium">{{ t('mail.list.markSpam') }}</span>
             </button>
             <button v-if="isSpamFolder" @click="handleBulkMarkNotSpam(); showBulkMenu = false"
               class="w-full px-3 py-2.5 text-left text-sm hover:bg-green-50 dark:hover:bg-green-900/20 flex items-center gap-2.5 text-green-600 dark:text-green-400 transition-colors group">
               <CheckCircle class="w-4 h-4 group-hover:scale-110 transition-transform" />
-              <span class="group-hover:font-medium">不是垃圾邮件</span>
+              <span class="group-hover:font-medium">{{ t('mail.list.markNotSpam') }}</span>
             </button>
             <!-- 移动到文件夹 -->
             <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
@@ -491,7 +492,7 @@ onUnmounted(() => {
               <button @click="showMoveMenu = !showMoveMenu"
                 class="w-full px-3 py-2.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2.5 transition-colors group">
                 <FolderInput class="w-4 h-4 text-gray-500 group-hover:text-indigo-500 transition-colors" />
-                <span class="group-hover:text-indigo-600 dark:group-hover:text-indigo-400 flex-1">移动到...</span>
+                <span class="group-hover:text-indigo-600 dark:group-hover:text-indigo-400 flex-1">{{ t('mail.list.moveTo') }}</span>
               </button>
               <div v-if="showMoveMenu"
                 class="absolute left-full top-0 ml-1 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-50 py-1.5 max-h-60 overflow-y-auto">
@@ -507,13 +508,13 @@ onUnmounted(() => {
               <button @click="showTagMenu = !showTagMenu"
                 class="w-full px-3 py-2.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2.5 transition-colors group">
                 <Tag class="w-4 h-4 text-gray-500 group-hover:text-emerald-500 transition-colors" />
-                <span class="group-hover:text-emerald-600 dark:group-hover:text-emerald-400 flex-1">标签...</span>
+                <span class="group-hover:text-emerald-600 dark:group-hover:text-emerald-400 flex-1">{{ t('mail.list.tagMenu') }}</span>
               </button>
               <div v-if="showTagMenu"
                 class="absolute left-full top-0 ml-1 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-50 py-1.5 max-h-60 overflow-y-auto">
-                <div v-if="userTags.length === 0" class="px-3 py-2 text-xs text-gray-400">暂无标签</div>
+                <div v-if="userTags.length === 0" class="px-3 py-2 text-xs text-gray-400">{{ t('mail.list.noTags') }}</div>
                 <template v-else>
-                  <div class="px-3 py-1 text-xs text-gray-400 font-medium">添加标签</div>
+                  <div class="px-3 py-1 text-xs text-gray-400 font-medium">{{ t('mail.list.addTag') }}</div>
                   <button v-for="tag in userTags" :key="'add-'+tag.id"
                     @click="handleBulkAddTag(tag.id)"
                     class="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2 truncate">
@@ -521,7 +522,7 @@ onUnmounted(() => {
                     {{ tag.name }}
                   </button>
                   <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
-                  <div class="px-3 py-1 text-xs text-gray-400 font-medium">移除标签</div>
+                  <div class="px-3 py-1 text-xs text-gray-400 font-medium">{{ t('mail.list.removeTag') }}</div>
                   <button v-for="tag in userTags" :key="'rm-'+tag.id"
                     @click="handleBulkRemoveTag(tag.id)"
                     class="w-full px-3 py-2 text-left text-sm hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors flex items-center gap-2 truncate">
@@ -546,7 +547,7 @@ onUnmounted(() => {
           <Loader2 class="w-8 h-8" />
         </div>
       </div>
-      <span class="text-sm text-gray-500 dark:text-gray-400 animate-pulse">加载中...</span>
+      <span class="text-sm text-gray-500 dark:text-gray-400 animate-pulse">{{ t('mail.loading') }}</span>
     </div>
 
     <!-- 空状态 - 改进样式 -->
@@ -555,9 +556,9 @@ onUnmounted(() => {
         <span class="text-3xl opacity-50">📭</span>
       </div>
       <div class="text-center">
-        <p class="font-medium text-gray-600 dark:text-gray-400">暂无邮件</p>
+        <p class="font-medium text-gray-600 dark:text-gray-400">{{ t('mail.empty') }}</p>
         <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">
-          {{ isSearching ? '未找到匹配的邮件' : '收件箱是空的' }}
+          {{ isSearching ? t('mail.list.noMatch') : t('mail.list.inboxEmpty') }}
         </p>
       </div>
     </div>
@@ -604,20 +605,20 @@ onUnmounted(() => {
             <!-- 未读/已读 -->
             <button @click.stop="toggleRead(email.id, !email.is_read)"
               class="p-1.5 rounded-md opacity-0 group-hover:opacity-100 hover:bg-white dark:hover:bg-gray-700/80 transition-all duration-200 hover:scale-110 shadow-sm"
-              :title="email.is_read ? '标记为未读' : '标记为已读'">
+              :title="email.is_read ? t('mail.markUnread') : t('mail.markRead')">
               <Circle class="w-3.5 h-3.5 transition-colors" :class="email.is_read ? 'text-gray-400 hover:text-blue-500' : 'fill-blue-500 text-blue-500'" />
             </button>
             <!-- 待办 -->
             <button @click.stop="openSnoozeModal(email.id)"
               class="p-1.5 rounded-md opacity-0 group-hover:opacity-100 hover:bg-white dark:hover:bg-gray-700/80 transition-all duration-200 hover:scale-110 shadow-sm"
-              title="待办">
+              :title="t('mail.list.snooze')">
               <Clock class="w-3.5 h-3.5 text-gray-400 hover:text-orange-500 transition-colors" />
             </button>
             <!-- 星标（常亮时始终显示） -->
             <button @click.stop="toggleStar(email.id, !email.is_starred)"
               class="p-1.5 rounded-md hover:bg-white dark:hover:bg-gray-700/80 transition-all duration-200 hover:scale-110 shadow-sm"
               :class="email.is_starred ? '' : 'opacity-0 group-hover:opacity-100'"
-              title="星标">
+              :title="t('mail.star')">
               <Star class="w-3.5 h-3.5 transition-all duration-200"
                 :class="email.is_starred ? 'fill-yellow-400 text-yellow-400 drop-shadow-sm' : 'text-gray-400 hover:text-yellow-500'" />
             </button>
@@ -637,25 +638,25 @@ onUnmounted(() => {
           <p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 leading-relaxed flex-1 transition-colors">{{ email.snippet }}</p>
           <div class="flex items-center gap-1.5 shrink-0">
             <!-- 附件图标 - 改进样式 -->
-            <span v-if="email.has_attachments" class="text-gray-400 transition-colors group-hover:text-gray-500" title="有附件">
+            <span v-if="email.has_attachments" class="text-gray-400 transition-colors group-hover:text-gray-500" :title="t('mail.list.hasAttachment')">
               <Paperclip class="w-3 h-3" />
             </span>
             <!-- 已发送文件夹：显示投递状态 - 改进颜色 -->
             <template v-if="isSentFolder">
-              <span v-if="email.delivery_status === 'pending'" class="text-gray-400" title="等待发送">
+              <span v-if="email.delivery_status === 'pending'" class="text-gray-400" :title="t('mail.delivery.pending')">
                 <Loader2 class="w-3 h-3 animate-spin" />
               </span>
-              <span v-else-if="email.delivery_status === 'sending'" class="text-blue-500" title="发送中">
+              <span v-else-if="email.delivery_status === 'sending'" class="text-blue-500" :title="t('mail.delivery.sending')">
                 <Loader2 class="w-3 h-3 animate-spin" />
               </span>
-              <span v-else-if="email.delivery_status === 'sent'" class="text-emerald-500" title="已发送">
+              <span v-else-if="email.delivery_status === 'sent'" class="text-emerald-500" :title="t('mail.delivery.sent')">
                 <CheckCircle class="w-3 h-3" />
               </span>
-              <span v-else-if="email.delivery_status === 'failed'" class="text-red-500" title="发送失败">
+              <span v-else-if="email.delivery_status === 'failed'" class="text-red-500" :title="t('mail.delivery.failed')">
                 <XCircle class="w-3 h-3" />
               </span>
               <!-- 追踪图标 -->
-              <span v-if="email.is_tracked" class="text-purple-500" title="已启用追踪">
+              <span v-if="email.is_tracked" class="text-purple-500" :title="t('mail.delivery.tracked')">
                 <Eye class="w-3 h-3" />
               </span>
             </template>
@@ -670,17 +671,17 @@ onUnmounted(() => {
       <!-- 无限滚动：加载更多指示器 -->
       <div v-if="loadingMore" class="flex items-center justify-center py-4 gap-2">
         <Loader2 class="w-4 h-4 animate-spin text-primary" />
-        <span class="text-xs text-gray-500">加载更多...</span>
+        <span class="text-xs text-gray-500">{{ t('mail.list.loadMore') }}</span>
       </div>
       <div v-else-if="!emailHasMore && emails.length >= 50" class="text-center py-3">
-        <span class="text-xs text-gray-400">已加载全部 {{ emailTotal }} 封邮件</span>
+        <span class="text-xs text-gray-400">{{ t('mail.list.loadedAll', { n: emailTotal }) }}</span>
       </div>
       <!-- IntersectionObserver 哨兵 -->
       <div ref="sentinel" class="h-1"></div>
     </div>
 
     <!-- 待办时间选择对话框 -->
-    <CommonModal v-model="showSnoozeModal" title="设置待办提醒" width-class="w-full max-w-sm">
+    <CommonModal v-model="showSnoozeModal" :title="t('mail.list.snoozeTitle')" width-class="w-full max-w-sm">
       <div v-if="!showCustomPicker" class="space-y-1">
         <!-- 快捷选项 - 改进样式 -->
         <button @click="handleSnooze('later')"
@@ -689,30 +690,30 @@ onUnmounted(() => {
             <Clock class="w-5 h-5 text-orange-500" />
           </div>
           <div class="flex-1">
-            <div class="font-semibold group-hover:text-primary transition-colors">今天晚些时候</div>
-            <div class="text-xs text-gray-500 dark:text-gray-400">3小时后提醒</div>
+            <div class="font-semibold group-hover:text-primary transition-colors">{{ t('mail.list.snoozeLater') }}</div>
+            <div class="text-xs text-gray-500 dark:text-gray-400">{{ t('mail.list.snoozeLaterHint') }}</div>
           </div>
         </button>
 
         <button @click="handleSnooze('tomorrow')"
           class="w-full px-4 py-3.5 text-left hover:bg-primary/10 dark:hover:bg-primary/20 rounded-xl transition-all duration-200 flex items-center gap-3.5 group hover:shadow-sm">
           <div class="w-11 h-11 rounded-full bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-900/30 dark:to-blue-900/20 flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
-            <span class="text-blue-500 font-bold text-sm">明</span>
+            <span class="text-blue-500 font-bold text-sm">{{ t('mail.list.snoozeTomorrowIcon') }}</span>
           </div>
           <div class="flex-1">
-            <div class="font-semibold group-hover:text-primary transition-colors">明天</div>
-            <div class="text-xs text-gray-500 dark:text-gray-400">明天早上 9:00</div>
+            <div class="font-semibold group-hover:text-primary transition-colors">{{ t('mail.list.snoozeTomorrow') }}</div>
+            <div class="text-xs text-gray-500 dark:text-gray-400">{{ t('mail.list.snoozeTomorrowHint') }}</div>
           </div>
         </button>
 
         <button @click="handleSnooze('nextWeek')"
           class="w-full px-4 py-3.5 text-left hover:bg-primary/10 dark:hover:bg-primary/20 rounded-xl transition-all duration-200 flex items-center gap-3.5 group hover:shadow-sm">
           <div class="w-11 h-11 rounded-full bg-gradient-to-br from-purple-100 to-purple-50 dark:from-purple-900/30 dark:to-purple-900/20 flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
-            <span class="text-purple-500 font-bold text-sm">周一</span>
+            <span class="text-purple-500 font-bold text-sm">{{ t('mail.list.snoozeNextWeekIcon') }}</span>
           </div>
           <div class="flex-1">
-            <div class="font-semibold group-hover:text-primary transition-colors">下周一</div>
-            <div class="text-xs text-gray-500 dark:text-gray-400">下周一早上 9:00</div>
+            <div class="font-semibold group-hover:text-primary transition-colors">{{ t('mail.list.snoozeNextWeek') }}</div>
+            <div class="text-xs text-gray-500 dark:text-gray-400">{{ t('mail.list.snoozeNextWeekHint') }}</div>
           </div>
         </button>
 
@@ -726,8 +727,8 @@ onUnmounted(() => {
             <span class="text-2xl">📅</span>
           </div>
           <div class="flex-1">
-            <div class="font-semibold group-hover:text-primary transition-colors">选择日期和时间</div>
-            <div class="text-xs text-gray-500 dark:text-gray-400">自定义提醒时间</div>
+            <div class="font-semibold group-hover:text-primary transition-colors">{{ t('mail.list.snoozeCustom') }}</div>
+            <div class="text-xs text-gray-500 dark:text-gray-400">{{ t('mail.list.snoozeCustomHint') }}</div>
           </div>
         </button>
       </div>
@@ -738,11 +739,11 @@ onUnmounted(() => {
         <div class="flex gap-2 mt-4">
           <button @click="showCustomPicker = false"
             class="flex-1 px-4 py-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 rounded-lg">
-            返回
+            {{ t('mail.list.back') }}
           </button>
           <button @click="handleCustomSnooze" :disabled="!customDateTime"
             class="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed">
-            确定
+            {{ t('mail.confirm') }}
           </button>
         </div>
       </div>

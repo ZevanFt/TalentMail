@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { History, X, Eye, RotateCcw } from 'lucide-vue-next'
 
+const { t } = useI18n()
+
 const props = defineProps<{
   modelValue: boolean
   versions: any[]
@@ -44,13 +46,13 @@ const handleClose = () => {
                 <History class="w-5 h-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">版本历史</h3>
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('workflows.common.versionHistory') }}</h3>
                 <p class="text-sm text-gray-500 dark:text-gray-400">
-                  {{ previewingVersion ? `正在预览 v${previewingVersion.version}` : '查看和恢复历史版本' }}
+                  {{ previewingVersion ? t('workflows.versionHistory.previewing', { v: previewingVersion.version }) : t('workflows.versionHistory.subtitle') }}
                 </p>
               </div>
             </div>
-            <button @click="handleClose" aria-label="关闭" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
+            <button @click="handleClose" :aria-label="t('workflows.common.close')" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
               <X class="w-5 h-5 text-gray-500" />
             </button>
           </div>
@@ -60,11 +62,11 @@ const handleClose = () => {
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2 text-amber-700 dark:text-amber-400">
                 <Eye class="w-4 h-4" />
-                <span class="text-sm font-medium">预览模式</span>
-                <span class="text-xs text-amber-600 dark:text-amber-500">- 画布显示的是 v{{ previewingVersion.version }} 的内容</span>
+                <span class="text-sm font-medium">{{ t('workflows.versionHistory.previewMode') }}</span>
+                <span class="text-xs text-amber-600 dark:text-amber-500">{{ t('workflows.versionHistory.previewCanvas', { v: previewingVersion.version }) }}</span>
               </div>
               <button @click="emit('exit-preview')" class="text-xs px-2 py-1 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/30 rounded transition-colors">
-                退出预览
+                {{ t('workflows.versionHistory.exitPreview') }}
               </button>
             </div>
           </div>
@@ -92,14 +94,14 @@ const handleClose = () => {
                   <div class="flex-1">
                     <div class="flex items-center gap-2">
                       <span class="font-semibold text-gray-900 dark:text-white">v{{ version.version }}</span>
-                      <span v-if="version.version === currentVersion" class="px-2 py-0.5 text-xs bg-primary/20 text-primary rounded-full">当前版本</span>
-                      <span v-if="previewingVersion?.version === version.version" class="px-2 py-0.5 text-xs bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200 rounded-full">预览中</span>
+                      <span v-if="version.version === currentVersion" class="px-2 py-0.5 text-xs bg-primary/20 text-primary rounded-full">{{ t('workflows.versionHistory.currentVersion') }}</span>
+                      <span v-if="previewingVersion?.version === version.version" class="px-2 py-0.5 text-xs bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200 rounded-full">{{ t('workflows.versionHistory.previewingBadge') }}</span>
                     </div>
                     <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ formatTime(version.created_at) }}</p>
                     <p v-if="version.change_summary" class="text-xs text-gray-400 dark:text-gray-500 mt-1">{{ version.change_summary }}</p>
                     <div class="flex items-center gap-3 mt-2 text-xs text-gray-400">
-                      <span>{{ version.nodes_count || 0 }} 个节点</span>
-                      <span>{{ version.edges_count || 0 }} 条连接</span>
+                      <span>{{ t('workflows.common.nodesCount', { n: version.nodes_count || 0 }) }}</span>
+                      <span>{{ t('workflows.common.connectionsCount', { n: version.edges_count || 0 }) }}</span>
                     </div>
                   </div>
                   <div class="flex items-center gap-1">
@@ -107,7 +109,7 @@ const handleClose = () => {
                       v-if="version.version !== currentVersion"
                       @click="emit('preview', version)"
                       class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                      title="预览此版本"
+                      :title="t('workflows.versionHistory.previewTooltip')"
                     >
                       <Eye class="w-4 h-4" />
                     </button>
@@ -116,7 +118,7 @@ const handleClose = () => {
                       @click="emit('restore', version)"
                       :disabled="restoringVersion"
                       class="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors disabled:opacity-50"
-                      title="恢复到此版本"
+                      :title="t('workflows.versionHistory.restoreTooltip')"
                     >
                       <RotateCcw class="w-4 h-4" />
                     </button>
@@ -127,18 +129,18 @@ const handleClose = () => {
 
             <div v-else class="text-center py-12 text-gray-500 dark:text-gray-400">
               <History class="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p class="text-sm">暂无版本历史</p>
-              <p class="text-xs mt-1">保存工作流后会自动创建版本记录</p>
+              <p class="text-sm">{{ t('workflows.versionHistory.emptyTitle') }}</p>
+              <p class="text-xs mt-1">{{ t('workflows.versionHistory.emptyDesc') }}</p>
             </div>
           </div>
 
           <!-- 底部 -->
           <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
             <button v-if="previewingVersion" @click="emit('exit-preview')" class="px-4 py-2 text-sm text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors">
-              退出预览
+              {{ t('workflows.versionHistory.exitPreview') }}
             </button>
             <button @click="handleClose" class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
-              关闭
+              {{ t('workflows.common.close') }}
             </button>
           </div>
         </div>

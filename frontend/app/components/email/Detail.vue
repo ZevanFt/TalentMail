@@ -3,6 +3,7 @@ import { ArrowLeft, Trash2, Archive, Star, Reply, Forward, MoreHorizontal, Mail,
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
 import ComposePanel from './ComposePanel.vue'
 
+const { t } = useI18n()
 const { selectedEmailDetail, selectedEmailId, detailLoading, formatTime, toggleRead, removeEmail, startReply, startReplyAll, startForward, folders, currentFolderId, loadEmails, loadEmailDetail, tags, loadTags, addTag, removeTag } = useEmails()
 const { isComposeOpen, requestOpenCompose } = useGlobalModal()
 const { getTrackingStats, resendEmail, downloadAttachmentUrl, exportEmailUrl, token, bulkArchiveEmails, bulkMoveEmails } = useApi()
@@ -38,13 +39,13 @@ const handleDecrypt = async () => {
     // 提取 PGP 消息块
     const pgpMatch = body.match(/-----BEGIN PGP MESSAGE-----[\s\S]*?-----END PGP MESSAGE-----/)
     if (!pgpMatch) {
-      decryptError.value = '未找到有效的 PGP 加密内容'
+      decryptError.value = t('mail.detail.noPgpContent')
       return
     }
     decryptedContent.value = await decryptMessage(pgpMatch[0])
   } catch (e: any) {
     console.error('解密失败', e)
-    decryptError.value = e.message?.includes('passphrase') ? '密码短语错误' : '解密失败: ' + (e.message || '未知错误')
+    decryptError.value = e.message?.includes('passphrase') ? t('mail.detail.wrongPassphrase') : t('mail.detail.decryptFailed', { msg: e.message || t('mail.unknownError') })
   } finally {
     decrypting.value = false
   }
@@ -101,7 +102,7 @@ const copyCode = async () => {
     }, 2000)
   } catch (err: any) {
     console.error('复制失败:', err)
-    toast.error('复制失败')
+    toast.error(t('mail.detail.copyFailed'))
   }
 }
 
@@ -210,15 +211,15 @@ const confirmDelete = async () => {
   await removeEmail(emailId)
   // 显示可撤销的 toast
   if (originalFolderId) {
-    toast.success('已删除', 8000, {
+    toast.success(t('mail.detail.deleted'), 8000, {
       action: {
-        label: '撤销',
+        label: t('mail.detail.undo'),
         onClick: async () => {
           try {
             await bulkMoveEmails([emailId], originalFolderId)
             await loadEmails(originalFolderId)
-            toast.success('已撤销删除')
-          } catch { toast.error('撤销失败') }
+            toast.success(t('mail.detail.deleteUndone'))
+          } catch { toast.error(t('mail.detail.undoFailed')) }
         },
       },
     })
@@ -233,15 +234,15 @@ const formatRecipients = (recipientsStr: string) => {
     const parts: string[] = []
     if (data.to?.length) {
       const toList = data.to.map((r: any) => r.name ? `${r.name} <${r.email}>` : r.email).join(', ')
-      parts.push(`收件人: ${toList}`)
+      parts.push(`${t('mail.composer.to')}: ${toList}`)
     }
     if (data.cc?.length) {
       const ccList = data.cc.map((r: any) => r.name ? `${r.name} <${r.email}>` : r.email).join(', ')
-      parts.push(`抄送: ${ccList}`)
+      parts.push(`${t('mail.composer.cc')}: ${ccList}`)
     }
     return parts.join(' | ')
   } catch {
-    return `收件人: ${recipientsStr}`
+    return `${t('mail.composer.to')}: ${recipientsStr}`
   }
 }
 
@@ -252,18 +253,18 @@ const isSentFolder = computed(() => {
 })
 
 // 投递状态配置
-const deliveryStatusConfig: Record<string, { icon: any; text: string; class: string }> = {
-  pending: { icon: Loader2, text: '等待发送', class: 'text-gray-500 bg-gray-100 dark:bg-gray-800' },
-  sending: { icon: Loader2, text: '发送中', class: 'text-blue-500 bg-blue-100 dark:bg-blue-900/30' },
-  sent: { icon: Send, text: '已发送', class: 'text-green-600 bg-green-100 dark:bg-green-900/30' },
-  delivered: { icon: CheckCircle, text: '已送达', class: 'text-green-600 bg-green-100 dark:bg-green-900/30' },
-  failed: { icon: XCircle, text: '发送失败', class: 'text-red-500 bg-red-100 dark:bg-red-900/30' },
-}
+const deliveryStatusConfig = computed<Record<string, { icon: any; text: string; class: string }>>(() => ({
+  pending: { icon: Loader2, text: t('mail.delivery.pending'), class: 'text-gray-500 bg-gray-100 dark:bg-gray-800' },
+  sending: { icon: Loader2, text: t('mail.delivery.sending'), class: 'text-blue-500 bg-blue-100 dark:bg-blue-900/30' },
+  sent: { icon: Send, text: t('mail.delivery.sent'), class: 'text-green-600 bg-green-100 dark:bg-green-900/30' },
+  delivered: { icon: CheckCircle, text: t('mail.delivery.delivered'), class: 'text-green-600 bg-green-100 dark:bg-green-900/30' },
+  failed: { icon: XCircle, text: t('mail.delivery.failed'), class: 'text-red-500 bg-red-100 dark:bg-red-900/30' },
+}))
 
 // 当前投递状态
 const currentDeliveryStatus = computed(() => {
   const status = selectedEmailDetail.value?.delivery_status
-  return status ? deliveryStatusConfig[status] : null
+  return status ? deliveryStatusConfig.value[status] : null
 })
 
 // 重新发送
@@ -273,13 +274,13 @@ const handleResend = async () => {
   resending.value = true
   try {
     await resendEmail(selectedEmailDetail.value.id)
-    toast.success('邮件已重新发送')
+    toast.success(t('mail.detail.resent'))
     // 刷新邮件列表
     if (currentFolderId.value) {
       await loadEmails(currentFolderId.value)
     }
   } catch (e: any) {
-    toast.error(e?.data?.detail || e?._friendlyMessage || '重新发送失败')
+    toast.error(e?.data?.detail || e?._friendlyMessage || t('mail.detail.resendFailed'))
   } finally {
     resending.value = false
   }
@@ -322,22 +323,22 @@ const handleArchive = async () => {
     selectedEmailDetail.value = null
     if (originalFolderId) {
       await loadEmails(originalFolderId)
-      toast.success('已归档', 8000, {
+      toast.success(t('mail.detail.archived'), 8000, {
         action: {
-          label: '撤销',
+          label: t('mail.detail.undo'),
           onClick: async () => {
             try {
               await bulkMoveEmails([emailId], originalFolderId)
               await loadEmails(originalFolderId)
-              toast.success('已撤销归档')
-            } catch { toast.error('撤销失败') }
+              toast.success(t('mail.detail.archiveUndone'))
+            } catch { toast.error(t('mail.detail.undoFailed')) }
           },
         },
       })
     }
   } catch (e: any) {
     console.error('归档失败:', e)
-    toast.error('归档失败')
+    toast.error(t('mail.detail.archiveFailed'))
   }
 }
 
@@ -385,7 +386,7 @@ const handlePrint = () => {
   const printWindow = window.open('', '_blank', 'width=800,height=600')
   if (!printWindow) return
   // 对 subject/sender/recipients 做转义防 XSS；body 使用已 sanitize 的 HTML
-  const safeSubject = escapeHtmlForPrint(email.subject || '(无主题)')
+  const safeSubject = escapeHtmlForPrint(email.subject || t('mail.detail.noSubject'))
   const safeSender = escapeHtmlForPrint(email.sender || '')
   const safeRecipients = escapeHtmlForPrint(email.recipients || '')
   const safeBody = sanitizedBodyHtml.value || escapeHtmlForPrint(email.body_text || '')
@@ -408,9 +409,9 @@ const handlePrint = () => {
       <div class="header">
         <div class="subject">${safeSubject}</div>
         <div class="meta">
-          <div><strong>发件人:</strong> ${safeSender}</div>
-          <div><strong>收件人:</strong> ${safeRecipients}</div>
-          <div><strong>时间:</strong> ${formatTime(email.received_at)}</div>
+          <div><strong>${t('mail.composer.from')}:</strong> ${safeSender}</div>
+          <div><strong>${t('mail.composer.to')}:</strong> ${safeRecipients}</div>
+          <div><strong>${t('mail.composer.time')}:</strong> ${formatTime(email.received_at)}</div>
         </div>
       </div>
       <div class="body">${safeBody}</div>
@@ -460,25 +461,25 @@ const handleThreadEmailClick = (emailId: number) => {
       <!-- 顶部工具栏 -->
       <div class="h-14 lg:h-16 border-b border-gray-200/50 dark:border-gray-800/50 flex items-center px-3 lg:px-6 justify-between shrink-0">
         <div class="flex items-center gap-1 lg:gap-2">
-          <button v-if="isMobile" class="btn-icon" title="返回列表" @click="handleBack">
+          <button v-if="isMobile" class="btn-icon" :title="t('mail.detail.backToList')" @click="handleBack">
             <ArrowLeft class="w-5 h-5" />
           </button>
           <div class="w-px h-5 bg-gray-300 dark:bg-gray-600 mx-1"></div>
-          <button class="btn-icon group" @click="handleToggleRead" :title="selectedEmailDetail.is_read ? '标记为未读' : '标记为已读'">
+          <button class="btn-icon group" @click="handleToggleRead" :title="selectedEmailDetail.is_read ? t('mail.markUnread') : t('mail.markRead')">
             <MailOpen v-if="selectedEmailDetail.is_read" class="w-5 h-5 group-hover:scale-110 transition-transform" />
             <Mail v-else class="w-5 h-5 group-hover:scale-110 transition-transform" />
           </button>
-          <button class="btn-icon group" @click="handleArchive" title="归档">
+          <button class="btn-icon group" @click="handleArchive" :title="t('mail.archive')">
             <Archive class="w-5 h-5 group-hover:scale-110 transition-transform" />
           </button>
-          <button class="btn-icon group hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30" @click="handleDelete" title="删除">
+          <button class="btn-icon group hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30" @click="handleDelete" :title="t('mail.delete')">
             <Trash2 class="w-5 h-5 group-hover:scale-110 transition-transform" />
           </button>
         </div>
         
         <!-- 更多操作菜单 -->
         <Menu as="div" class="relative">
-          <MenuButton class="btn-icon" title="更多操作（导出等）">
+          <MenuButton class="btn-icon" :title="t('mail.detail.moreActions')">
             <MoreHorizontal class="w-5 h-5" />
           </MenuButton>
           <transition
@@ -491,7 +492,7 @@ const handleThreadEmailClick = (emailId: number) => {
           >
             <MenuItems class="absolute right-0 mt-2 w-52 bg-white dark:bg-gray-800 rounded-xl shadow-xl shadow-gray-900/10 dark:shadow-black/30 border border-gray-200 dark:border-gray-700 py-1.5 z-50 focus:outline-none">
               <div class="px-4 py-2.5 text-xs font-semibold text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
-                导出邮件
+                {{ t('mail.detail.exportEmail') }}
               </div>
               <MenuItem v-slot="{ active }">
                 <button
@@ -500,7 +501,7 @@ const handleThreadEmailClick = (emailId: number) => {
                   :class="active ? 'bg-gray-50 dark:bg-gray-700' : ''"
                 >
                   <FileDown class="w-4 h-4 text-gray-500 group-hover:text-primary transition-colors" />
-                  <span class="text-gray-700 dark:text-gray-200 group-hover:text-primary transition-colors">导出为 EML</span>
+                  <span class="text-gray-700 dark:text-gray-200 group-hover:text-primary transition-colors">{{ t('mail.detail.exportEml') }}</span>
                 </button>
               </MenuItem>
               <MenuItem v-slot="{ active }">
@@ -510,7 +511,7 @@ const handleThreadEmailClick = (emailId: number) => {
                   :class="active ? 'bg-gray-50 dark:bg-gray-700' : ''"
                 >
                   <FileText class="w-4 h-4 text-gray-500 group-hover:text-primary transition-colors" />
-                  <span class="text-gray-700 dark:text-gray-200 group-hover:text-primary transition-colors">导出为 PDF</span>
+                  <span class="text-gray-700 dark:text-gray-200 group-hover:text-primary transition-colors">{{ t('mail.detail.exportPdf') }}</span>
                 </button>
               </MenuItem>
               <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
@@ -521,7 +522,7 @@ const handleThreadEmailClick = (emailId: number) => {
                   :class="active ? 'bg-gray-50 dark:bg-gray-700' : ''"
                 >
                   <Printer class="w-4 h-4 text-gray-500 group-hover:text-primary transition-colors" />
-                  <span class="text-gray-700 dark:text-gray-200 group-hover:text-primary transition-colors">打印邮件</span>
+                  <span class="text-gray-700 dark:text-gray-200 group-hover:text-primary transition-colors">{{ t('mail.detail.print') }}</span>
                 </button>
               </MenuItem>
             </MenuItems>
@@ -569,7 +570,7 @@ const handleThreadEmailClick = (emailId: number) => {
               <Menu as="div" class="relative">
                 <MenuButton class="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                   <Plus class="w-3 h-3" />
-                  标签
+                  {{ t('mail.detail.tag') }}
                 </MenuButton>
                 <transition
                   enter-active-class="transition duration-100 ease-out"
@@ -581,7 +582,7 @@ const handleThreadEmailClick = (emailId: number) => {
                 >
                   <MenuItems class="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50 focus:outline-none">
                     <div v-if="availableTags.length === 0" class="px-4 py-2 text-xs text-gray-500 text-center">
-                      无可用标签
+                      {{ t('mail.detail.noTagsAvailable') }}
                     </div>
                     <MenuItem v-for="tag in availableTags" :key="tag.id" v-slot="{ active }">
                       <button
@@ -633,14 +634,14 @@ const handleThreadEmailClick = (emailId: number) => {
                 <button v-if="canResend" @click="handleResend" :disabled="resending"
                   class="flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
                   <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': resending }" />
-                  {{ resending ? '发送中...' : '重新发送' }}
+                  {{ resending ? t('mail.sending') : t('mail.detail.resend') }}
                 </button>
                 <!-- 追踪统计 -->
                 <template v-if="selectedEmailDetail.is_tracked && trackingStats">
                   <span class="text-gray-300 dark:text-gray-600">→</span>
                   <span class="flex items-center gap-1 px-2 py-1 rounded-full" :class="trackingStats.open_count > 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-800'">
                     <Eye class="w-3 h-3" />
-                    {{ trackingStats.open_count > 0 ? `对方已读 ${trackingStats.open_count} 次` : '对方未读' }}
+                    {{ trackingStats.open_count > 0 ? t('mail.detail.readCount', { n: trackingStats.open_count }) : t('mail.detail.notRead') }}
                   </span>
                   <span v-if="trackingStats.last_opened_at" class="text-gray-400">
                     {{ formatTime(trackingStats.last_opened_at) }}
@@ -656,7 +657,7 @@ const handleThreadEmailClick = (emailId: number) => {
               <div class="p-1.5 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
                 <Paperclip class="w-4 h-4 text-blue-600 dark:text-blue-400" />
               </div>
-              <span>{{ attachments.length }} 个附件</span>
+              <span>{{ t('mail.detail.attachmentCount', { n: attachments.length }) }}</span>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
               <button v-for="att in attachments" :key="att.id" @click="downloadAttachment(att.id)"
@@ -680,10 +681,10 @@ const handleThreadEmailClick = (emailId: number) => {
           <div v-if="emailHasRemoteImages && !remoteImagesLoaded"
             class="mb-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg px-4 py-2.5 flex items-center gap-3">
             <Eye class="w-4 h-4 text-yellow-600 dark:text-yellow-400 shrink-0" />
-            <span class="text-sm text-yellow-700 dark:text-yellow-300 flex-1">远程图片已被隐藏以保护您的隐私</span>
+            <span class="text-sm text-yellow-700 dark:text-yellow-300 flex-1">{{ t('mail.detail.remoteImagesHidden') }}</span>
             <button @click="remoteImagesLoaded = true"
               class="text-xs font-medium px-3 py-1.5 bg-yellow-100 dark:bg-yellow-800/50 text-yellow-700 dark:text-yellow-300 rounded-md hover:bg-yellow-200 dark:hover:bg-yellow-800 transition-colors whitespace-nowrap">
-              加载远程图片
+              {{ t('mail.detail.loadRemoteImages') }}
             </button>
           </div>
 
@@ -694,7 +695,7 @@ const handleThreadEmailClick = (emailId: number) => {
               <Shield class="w-5 h-5 shrink-0" :class="decryptedContent ? 'text-green-600' : 'text-amber-600'" />
               <div class="flex-1">
                 <div class="text-sm font-medium" :class="decryptedContent ? 'text-green-700 dark:text-green-300' : 'text-amber-700 dark:text-amber-300'">
-                  {{ decryptedContent ? '已解密的 PGP 加密邮件' : '此邮件已 PGP 加密' }}
+                  {{ decryptedContent ? t('mail.detail.decryptedBanner') : t('mail.detail.encryptedBanner') }}
                 </div>
                 <div v-if="decryptError" class="text-xs text-red-500 mt-1">{{ decryptError }}</div>
               </div>
@@ -702,10 +703,10 @@ const handleThreadEmailClick = (emailId: number) => {
                 class="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary-hover disabled:opacity-50 whitespace-nowrap">
                 <Loader2 v-if="decrypting" class="w-3.5 h-3.5 animate-spin" />
                 <Unlock v-else class="w-3.5 h-3.5" />
-                {{ decrypting ? '解密中...' : '解密' }}
+                {{ decrypting ? t('mail.detail.decrypting') : t('mail.detail.decrypt') }}
               </button>
               <span v-if="!decryptedContent && !hasLocalPrivateKey" class="text-xs text-amber-600 whitespace-nowrap">
-                需要在设置中导入私钥
+                {{ t('mail.detail.needPrivateKey') }}
               </span>
             </div>
           </div>
@@ -726,7 +727,7 @@ const handleThreadEmailClick = (emailId: number) => {
               {{ selectedEmailDetail.body_text }}
             </div>
             <div v-else class="text-gray-400 italic">
-              (无正文内容)
+              {{ t('mail.detail.noBody') }}
             </div>
             <!-- 隐藏的追踪像素（确保追踪功能正常工作） -->
             <div v-if="selectedEmailDetail.body_html" v-html="sanitizedBodyHtml" class="hidden"></div>
@@ -736,7 +737,7 @@ const handleThreadEmailClick = (emailId: number) => {
           <div v-if="threadEmails.length > 0" class="mt-8 border-t border-gray-200 dark:border-gray-800 pt-6">
             <h3 class="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
               <Mail class="w-4 h-4" />
-              会话中的其他邮件 ({{ threadEmails.length }})
+              {{ t('mail.detail.threadTitle', { n: threadEmails.length }) }}
             </h3>
             <div class="space-y-2">
               <button
@@ -765,7 +766,7 @@ const handleThreadEmailClick = (emailId: number) => {
             </div>
           </div>
           <div v-else-if="threadLoading" class="mt-8 text-center text-sm text-gray-400">
-            <Loader2 class="w-4 h-4 animate-spin inline-block mr-1" /> 加载会话...
+            <Loader2 class="w-4 h-4 animate-spin inline-block mr-1" /> {{ t('mail.detail.loadingThread') }}
           </div>
         </div>
       </div>
@@ -781,7 +782,7 @@ const handleThreadEmailClick = (emailId: number) => {
                  transition-all duration-200 text-sm font-semibold border-2 border-gray-200 dark:border-gray-700
                  shadow-lg hover:shadow-xl hover:-translate-y-0.5 group">
           <Forward class="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-          <span>转发</span>
+          <span>{{ t('mail.forward') }}</span>
         </button>
         <button @click="handleReplyAll"
           class="flex items-center gap-1.5 lg:gap-2.5 px-4 lg:px-6 py-2.5 lg:py-3 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300
@@ -789,8 +790,8 @@ const handleThreadEmailClick = (emailId: number) => {
                  transition-all duration-200 text-sm font-semibold border-2 border-gray-200 dark:border-gray-700
                  shadow-lg hover:shadow-xl hover:-translate-y-0.5 group">
           <ReplyAll class="w-4 h-4 group-hover:-rotate-12 transition-transform" />
-          <span class="hidden lg:inline">回复全部</span>
-          <span class="lg:hidden">全部</span>
+          <span class="hidden lg:inline">{{ t('mail.replyAll') }}</span>
+          <span class="lg:hidden">{{ t('mail.detail.replyAllShort') }}</span>
         </button>
         <button @click="handleReply"
           class="flex items-center gap-1.5 lg:gap-2.5 px-5 lg:px-7 py-2.5 lg:py-3 bg-gradient-to-r from-primary to-primary-hover text-white
@@ -798,7 +799,7 @@ const handleThreadEmailClick = (emailId: number) => {
                  transition-all duration-200 text-sm font-bold
                  hover:-translate-y-1 group ring-2 ring-primary/20">
           <Reply class="w-4 h-4 group-hover:-rotate-12 transition-transform" />
-          <span>回复</span>
+          <span>{{ t('mail.reply') }}</span>
         </button>
       </div>
     </template>
@@ -832,35 +833,35 @@ const handleThreadEmailClick = (emailId: number) => {
           </svg>
         </div>
         <div class="text-center">
-          <p class="text-lg font-semibold text-gray-600 dark:text-gray-400">选择一封邮件查看</p>
-          <p class="text-sm text-gray-500 dark:text-gray-500 mt-1">从左侧列表中选择要阅读的邮件</p>
+          <p class="text-lg font-semibold text-gray-600 dark:text-gray-400">{{ t('mail.detail.emptyTitle') }}</p>
+          <p class="text-sm text-gray-500 dark:text-gray-500 mt-1">{{ t('mail.detail.emptyHint') }}</p>
         </div>
       </div>
     </template>
 
     <!-- 删除确认对话框 - 改进样式 -->
-    <CommonModal v-model="showDeleteConfirm" title="确认删除" width-class="w-full max-w-sm">
+    <CommonModal v-model="showDeleteConfirm" :title="t('mail.detail.confirmDeleteTitle')" width-class="w-full max-w-sm">
       <div class="flex items-start gap-3 py-2">
         <div class="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">
           <Trash2 class="w-5 h-5 text-red-500" />
         </div>
         <div>
-          <p class="text-gray-800 dark:text-gray-200 font-medium">确定要将此邮件移到垃圾箱吗？</p>
-          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">此操作可以在垃圾箱中撤销</p>
+          <p class="text-gray-800 dark:text-gray-200 font-medium">{{ t('mail.detail.confirmDeleteAsk') }}</p>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ t('mail.detail.confirmDeleteHint') }}</p>
         </div>
       </div>
       <template #footer>
         <button @click="showDeleteConfirm = false"
           class="px-5 py-2.5 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200
                  hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-all duration-200 font-medium">
-          取消
+          {{ t('mail.cancel') }}
         </button>
         <button @click="confirmDelete"
           class="px-5 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl
                  hover:shadow-lg hover:shadow-red-500/30 transition-all duration-200 font-semibold
                  active:scale-95 flex items-center gap-2">
           <Trash2 class="w-4 h-4" />
-          <span>删除</span>
+          <span>{{ t('mail.delete') }}</span>
         </button>
       </template>
     </CommonModal>

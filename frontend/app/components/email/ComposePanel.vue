@@ -2,6 +2,7 @@
 import { Paperclip, Send, Loader2, Eye, X, FileText, FilePen, Clock, ChevronDown, CheckCircle, XCircle, Shield } from 'lucide-vue-next'
 import TemplateSelector from './TemplateSelector.vue'
 
+const { t } = useI18n()
 const toastNotify = useToast()
 const { isComposeOpen, composeCloseGuard } = useGlobalModal()
 const { sendEmail, saveDraft, updateDraft, deleteDraft, getDefaultSignature, uploadAttachment, deleteAttachment, getAliases, getMe, getComposeTemplates, lookupPgpKey } = useApi()
@@ -62,17 +63,17 @@ const loadDefaultSignature = async () => {
     defaultSignature.value = res.signature || ''
   } catch (e: any) {
     console.error('加载签名失败', e)
-    toastNotify.error('加载签名失败')
+    toastNotify.error(t('mail.composer.loadSignatureFailed'))
   }
 }
 
 const modalTitle = computed(() => {
   switch (composeState.value.mode) {
-    case 'reply': return '回复'
-    case 'replyAll': return '回复全部'
-    case 'forward': return '转发'
-    case 'draft': return '编辑草稿'
-    default: return '新邮件'
+    case 'reply': return t('mail.reply')
+    case 'replyAll': return t('mail.replyAll')
+    case 'forward': return t('mail.forward')
+    case 'draft': return t('mail.composer.editDraft')
+    default: return t('mail.composer.newEmail')
   }
 })
 
@@ -183,10 +184,10 @@ watch(() => [isComposeOpen.value, composeState.value], async () => {
   const quoteHtml = `
     <p><br></p>
     <hr />
-    <p><strong>原始邮件</strong></p>
-    <p>发件人: ${escapeHtml(originalEmail.sender)}</p>
-    <p>时间: ${escapeHtml(formatTime(originalEmail.received_at))}</p>
-    <p>主题: ${escapeHtml(originalEmail.subject || '')}</p>
+    <p><strong>${t('mail.composer.originalEmail')}</strong></p>
+    <p>${t('mail.composer.from')}: ${escapeHtml(originalEmail.sender)}</p>
+    <p>${t('mail.composer.time')}: ${escapeHtml(formatTime(originalEmail.received_at))}</p>
+    <p>${t('mail.composer.subject')}: ${escapeHtml(originalEmail.subject || '')}</p>
     <blockquote style="margin:8px 0 0;padding-left:12px;border-left:3px solid #d1d5db;color:#6b7280;">
       ${escapeHtml(originalBody).replace(/\n/g, '<br>')}
     </blockquote>
@@ -207,8 +208,8 @@ const handleFileSelect = async (e: Event) => {
     }
   } catch (e: any) {
     console.error('上传失败', e)
-    error.value = '附件上传失败'
-    toastNotify.error('附件上传失败')
+    error.value = t('mail.composer.uploadFailed')
+    toastNotify.error(t('mail.composer.uploadFailed'))
   } finally {
     uploading.value = false
     input.value = ''
@@ -242,10 +243,10 @@ const handleDrop = async (e: DragEvent) => {
       const res = await uploadAttachment(file)
       attachments.value.push({ id: res.id, filename: res.filename, size: res.size })
     }
-    toastNotify.success(`已上传 ${files.length} 个附件`)
+    toastNotify.success(t('mail.composer.uploadedCount', { n: files.length }))
   } catch (e: any) {
     console.error('拖拽上传失败', e)
-    toastNotify.error('附件上传失败')
+    toastNotify.error(t('mail.composer.uploadFailed'))
   } finally {
     uploading.value = false
   }
@@ -257,7 +258,7 @@ const removeAttachment = async (att: UploadedFile) => {
     attachments.value = attachments.value.filter(a => a.id !== att.id)
   } catch (e: any) {
     console.error('删除附件失败', e)
-    toastNotify.error('删除附件失败')
+    toastNotify.error(t('mail.composer.deleteAttachmentFailed'))
   }
 }
 
@@ -270,7 +271,7 @@ const validateRecipients = (field: string, label: string): string | null => {
   const emails = field.split(/[,;，；]\s*/).map(e => e.trim()).filter(Boolean)
   for (const email of emails) {
     if (!emailRegex.test(email)) {
-      return `${label}中「${email}」不是有效的邮箱地址`
+      return t('mail.composer.invalidEmail', { field: label, email })
     }
   }
   return null
@@ -278,16 +279,16 @@ const validateRecipients = (field: string, label: string): string | null => {
 
 const handleSend = async (scheduleTime?: string) => {
   if (!recipients.value || !subject.value) {
-    error.value = '请填写收件人和主题'
+    error.value = t('mail.composer.missingRecipientSubject')
     return
   }
 
   // 校验所有收件人邮箱格式
-  const toError = validateRecipients(recipients.value, '收件人')
+  const toError = validateRecipients(recipients.value, t('mail.composer.to'))
   if (toError) { error.value = toError; return }
-  const ccError = validateRecipients(ccRecipients.value, '抄送')
+  const ccError = validateRecipients(ccRecipients.value, t('mail.composer.cc'))
   if (ccError) { error.value = ccError; return }
-  const bccError = validateRecipients(bccRecipients.value, '密送')
+  const bccError = validateRecipients(bccRecipients.value, t('mail.composer.bcc'))
   if (bccError) { error.value = bccError; return }
 
   sending.value = true
@@ -309,7 +310,7 @@ const handleSend = async (scheduleTime?: string) => {
 
         const lookup = await lookupPgpKey(recipientEmail)
         if (!lookup.has_key || !lookup.public_key) {
-          error.value = `收件人 ${recipientEmail} 未设置 PGP 公钥，无法加密发送`
+          error.value = t('mail.composer.pgpKeyMissing', { email: recipientEmail })
           sending.value = false
           return
         }
@@ -321,7 +322,7 @@ const handleSend = async (scheduleTime?: string) => {
         finalBodyText = encrypted
       } catch (e: any) {
         console.error('PGP 加密失败', e)
-        error.value = 'PGP 加密失败: ' + (e.message || '未知错误')
+        error.value = t('mail.composer.pgpFailed', { msg: e.message || t('mail.unknownError') })
         sending.value = false
         return
       }
@@ -353,14 +354,14 @@ const handleSend = async (scheduleTime?: string) => {
         await deleteDraft(draftId.value)
       } catch (e: any) {
         console.error('删除草稿失败', e)
-        toastNotify.error('删除草稿失败')
+        toastNotify.error(t('mail.composer.deleteDraftFailed'))
       }
     }
 
     if (sendAt) {
-      toastNotify.success(`邮件已设置定时发送: ${new Date(sendAt).toLocaleString()}`, 5000)
+      toastNotify.success(t('mail.composer.scheduledToast', { time: new Date(sendAt).toLocaleString() }), 5000)
     } else {
-      toastNotify.success('邮件已加入发送队列，请在"已发送"文件夹查看发送状态', 5000)
+      toastNotify.success(t('mail.composer.queuedToast'), 5000)
     }
 
     closeAndReset()
@@ -371,7 +372,7 @@ const handleSend = async (scheduleTime?: string) => {
       await loadEmails(sentFolder.id)
     }
   } catch (e: any) {
-    error.value = e.data?.detail || '发送失败'
+    error.value = e.data?.detail || t('mail.composer.sendFailed')
     toastNotify.error(error.value)
   } finally {
     sending.value = false
@@ -380,12 +381,12 @@ const handleSend = async (scheduleTime?: string) => {
 
 const handleScheduleSend = () => {
   if (!scheduledSendAt.value) {
-    error.value = '请选择定时发送时间'
+    error.value = t('mail.composer.scheduleTimeRequired')
     return
   }
   const selectedTime = new Date(scheduledSendAt.value)
   if (selectedTime <= new Date()) {
-    error.value = '定时发送时间必须在未来'
+    error.value = t('mail.composer.scheduleTimeFuture')
     return
   }
   handleSend(scheduledSendAt.value)
@@ -409,9 +410,9 @@ const schedulePresets = computed(() => {
   nextMonday9am.setHours(9, 0, 0, 0)
 
   return [
-    { label: '2小时后', value: toLocalDatetimeStr(later) },
-    { label: '明天上午9点', value: toLocalDatetimeStr(tomorrow9am) },
-    { label: '下周一上午9点', value: toLocalDatetimeStr(nextMonday9am) },
+    { label: t('mail.composer.preset2h'), value: toLocalDatetimeStr(later) },
+    { label: t('mail.composer.presetTomorrow'), value: toLocalDatetimeStr(tomorrow9am) },
+    { label: t('mail.composer.presetNextMonday'), value: toLocalDatetimeStr(nextMonday9am) },
   ]
 })
 
@@ -481,7 +482,7 @@ const handleSaveDraft = async () => {
     }
   } catch (e: any) {
     console.error('保存草稿失败', e)
-    toastNotify.error('保存草稿失败')
+    toastNotify.error(t('mail.composer.saveDraftFailed'))
   } finally {
     savingDraft.value = false
   }
@@ -493,7 +494,7 @@ const discardDraft = async () => {
       await deleteDraft(draftId.value)
     } catch (e: any) {
       console.error('删除草稿失败', e)
-      toastNotify.error('删除草稿失败')
+      toastNotify.error(t('mail.composer.deleteDraftFailed'))
     }
   }
   draftDialogAction.value = 'discard'
@@ -650,7 +651,7 @@ const applyComposeTemplate = async (tmpl: UserComposeTemplate) => {
   if (tmpl.body_html) {
     await setBodyHtml(`${sanitizeHtml(tmpl.body_html)}${signatureHtml.value}`)
   }
-  toastNotify.success(`已应用模板「${tmpl.name}」`)
+  toastNotify.success(t('mail.composer.templateApplied', { name: tmpl.name }))
 }
 
 watch(showComposeTemplateMenu, (v) => {
@@ -723,7 +724,7 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
 </script>
 
 <template>
-  <CommonModal v-model="showDraftConfirm" title="保存草稿？" widthClass="w-full max-w-sm">
+  <CommonModal v-model="showDraftConfirm" :title="t('mail.composer.saveDraftTitle')" widthClass="w-full max-w-sm">
     <div class="flex items-start gap-3 py-2">
       <div class="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center shrink-0">
         <svg class="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -731,22 +732,22 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
         </svg>
       </div>
       <div>
-        <p class="text-gray-700 dark:text-gray-300 font-medium">是否将当前内容保存为草稿？</p>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">保存后可在草稿箱中继续编辑</p>
+        <p class="text-gray-700 dark:text-gray-300 font-medium">{{ t('mail.composer.saveDraftAsk') }}</p>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ t('mail.composer.saveDraftHint') }}</p>
       </div>
     </div>
     <template #footer>
       <button @click="discardDraft"
         class="px-5 py-2.5 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200
                hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-all duration-200 font-medium">
-        不保存
+        {{ t('mail.composer.discard') }}
       </button>
       <button @click="handleSaveDraft" :disabled="savingDraft"
         class="px-5 py-2.5 bg-gradient-to-r from-primary to-primary-hover text-white rounded-xl
                hover:shadow-lg hover:shadow-primary/30 transition-all duration-200 font-semibold
                disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
         <Loader2 v-if="savingDraft" class="w-4 h-4 animate-spin" />
-        <span>{{ savingDraft ? '保存中...' : '保存草稿' }}</span>
+        <span>{{ savingDraft ? t('mail.saving') : t('mail.composer.saveDraft') }}</span>
       </button>
     </template>
   </CommonModal>
@@ -760,7 +761,7 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
                flex items-center justify-center pointer-events-none">
         <div class="text-center">
           <Paperclip class="w-10 h-10 text-primary mx-auto mb-2" />
-          <p class="text-sm font-bold text-primary">松开以添加附件</p>
+          <p class="text-sm font-bold text-primary">{{ t('mail.composer.dropToAdd') }}</p>
         </div>
       </div>
     </Transition>
@@ -784,17 +785,17 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
           <button
             @click="showComposeTemplateMenu = !showComposeTemplateMenu"
             class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs whitespace-nowrap text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-            title="插入写信模板"
+            :title="t('mail.composer.insertTemplate')"
           >
             <FilePen class="w-3.5 h-3.5" />
-            <span class="hidden lg:inline">快捷模板</span>
+            <span class="hidden lg:inline">{{ t('mail.composer.quickTemplates') }}</span>
           </button>
           <Transition enter-active-class="transition duration-100 ease-out" enter-from-class="transform scale-95 opacity-0" enter-to-class="transform scale-100 opacity-100"
             leave-active-class="transition duration-75 ease-in" leave-from-class="transform scale-100 opacity-100" leave-to-class="transform scale-95 opacity-0">
             <div v-if="showComposeTemplateMenu" class="absolute right-0 top-full mt-1 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-50 max-h-72 overflow-y-auto">
-              <div v-if="loadingComposeTemplates" class="p-4 text-center text-gray-500 text-sm">加载中...</div>
+              <div v-if="loadingComposeTemplates" class="p-4 text-center text-gray-500 text-sm">{{ t('mail.loading') }}</div>
               <div v-else-if="composeTemplates.length === 0" class="p-4 text-center text-gray-500 text-sm">
-                暂无模板，前往设置创建
+                {{ t('mail.composer.noTemplates') }}
               </div>
               <div v-else class="py-1">
                 <button
@@ -814,12 +815,12 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
           :disabled="savingDraft"
           class="px-3 py-1.5 text-xs rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
         >
-          {{ savingDraft ? '保存中...' : '保存草稿' }}
+          {{ savingDraft ? t('mail.saving') : t('mail.composer.saveDraft') }}
         </button>
         <button
           @click="tryClose"
           class="p-1.5 rounded-md text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
-          title="关闭写信面板"
+          :title="t('mail.composer.closePanel')"
         >
           <X class="w-4 h-4" />
         </button>
@@ -836,7 +837,7 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
 
       <!-- 发件人选择（有别名时显示） -->
       <div v-if="aliasOptions.length > 0" class="flex items-center gap-2">
-        <span class="text-xs font-medium text-gray-500 dark:text-gray-400 w-12 shrink-0">发件人</span>
+        <span class="text-xs font-medium text-gray-500 dark:text-gray-400 w-12 shrink-0">{{ t('mail.composer.from') }}</span>
         <select v-model="selectedFromAlias"
           class="flex-1 px-3 py-2 text-sm border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none">
           <option :value="null">{{ userEmail }}</option>
@@ -848,35 +849,35 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
 
       <div class="flex items-stretch gap-2">
         <div class="flex-1 relative group">
-          <EmailContactAutocomplete v-model="recipients" placeholder="收件人 (多个用逗号分隔)" aria-label="收件人" />
+          <EmailContactAutocomplete v-model="recipients" :placeholder="t('mail.composer.toPlaceholder')" :aria-label="t('mail.composer.to')" />
           <div class="absolute inset-0 -z-10 bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 rounded-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300"></div>
         </div>
         <button v-if="!showCc" @click="showCc = true"
           class="px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary
                  bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800 border-2 border-gray-200 dark:border-gray-700
                  rounded-xl transition-all duration-200 hover:scale-105">
-          抄送
+          {{ t('mail.composer.cc') }}
         </button>
         <button v-if="!showBcc" @click="showBcc = true"
           class="px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary
                  bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800 border-2 border-gray-200 dark:border-gray-700
                  rounded-xl transition-all duration-200 hover:scale-105">
-          密送
+          {{ t('mail.composer.bcc') }}
         </button>
       </div>
 
       <div v-if="showCc" class="relative group animate-in fade-in slide-in-from-top-2 duration-200">
-        <EmailContactAutocomplete v-model="ccRecipients" placeholder="抄送 (多个用逗号分隔)" aria-label="抄送" />
+        <EmailContactAutocomplete v-model="ccRecipients" :placeholder="t('mail.composer.ccPlaceholder')" :aria-label="t('mail.composer.cc')" />
         <div class="absolute inset-0 -z-10 bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 rounded-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300"></div>
       </div>
 
       <div v-if="showBcc" class="relative group animate-in fade-in slide-in-from-top-2 duration-200">
-        <EmailContactAutocomplete v-model="bccRecipients" placeholder="密送 BCC (收件人互不可见)" aria-label="密送" />
+        <EmailContactAutocomplete v-model="bccRecipients" :placeholder="t('mail.composer.bccPlaceholder')" :aria-label="t('mail.composer.bcc')" />
         <div class="absolute inset-0 -z-10 bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 rounded-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300"></div>
       </div>
 
       <div class="relative group">
-        <input v-model="subject" type="text" placeholder="主题" aria-label="邮件主题"
+        <input v-model="subject" type="text" :placeholder="t('mail.composer.subject')" :aria-label="t('mail.composer.subjectAria')"
           class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900/50 border-2 border-gray-200 dark:border-gray-700 rounded-xl
                  focus:bg-white dark:focus:bg-gray-900 focus:ring-2 focus:ring-primary/30 focus:border-primary
                  outline-none transition-all duration-200 placeholder:text-gray-400">
@@ -886,8 +887,8 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
       <LazyEditorRichEditor
         ref="editorRef"
         v-model="body"
-        placeholder="撰写邮件内容..."
         :min-height="360"
+        :placeholder="t('mail.composer.bodyPlaceholder')"
       />
     </div>
 
@@ -897,7 +898,7 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
         <button @click="fileInput?.click()" :disabled="uploading"
           class="p-2.5 text-gray-500 hover:text-primary dark:hover:text-primary bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700
                  rounded-xl transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-          title="添加附件">
+          :title="t('mail.composer.addAttachment')">
           <Loader2 v-if="uploading" class="w-5 h-5 animate-spin text-primary" />
           <Paperclip v-else class="w-5 h-5" />
         </button>
@@ -911,7 +912,7 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
             <span class="text-gray-400">({{ formatFileSize(att.size) }})</span>
             <button @click="removeAttachment(att)"
               class="ml-1 p-0.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors group/btn"
-              title="删除附件">
+              :title="t('mail.composer.deleteAttachment')">
               <X class="w-3 h-3 text-gray-400 group-hover/btn:text-red-500 transition-colors" />
             </button>
           </span>
@@ -927,20 +928,20 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
             :class="isTracked ? 'translate-x-5' : 'translate-x-0.5'"></div>
         </div>
         <Eye class="w-4 h-4 transition-transform duration-200" :class="isTracked ? 'scale-110' : ''" />
-        <span class="transition-colors">追踪</span>
+        <span class="transition-colors">{{ t('mail.composer.track') }}</span>
       </button>
 
       <button @click="encryptEnabled = !encryptEnabled"
         class="flex items-center gap-2.5 px-3 py-2 text-sm font-medium mr-4 rounded-xl whitespace-nowrap transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-800"
         :class="encryptEnabled ? 'text-green-600' : 'text-gray-500 dark:text-gray-400'"
-        title="PGP 加密">
+        :title="t('mail.composer.pgpTitle')">
         <div class="relative w-10 h-5 rounded-full transition-all duration-200 shadow-inner"
           :class="encryptEnabled ? 'bg-green-500 shadow-green-500/30' : 'bg-gray-300 dark:bg-gray-600'">
           <div class="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-md transition-all duration-200"
             :class="encryptEnabled ? 'translate-x-5' : 'translate-x-0.5'"></div>
         </div>
         <Shield class="w-4 h-4 transition-transform duration-200" :class="encryptEnabled ? 'scale-110' : ''" />
-        <span class="transition-colors">加密</span>
+        <span class="transition-colors">{{ t('mail.composer.encrypt') }}</span>
       </button>
 
       <!-- 自动保存状态指示器 -->
@@ -954,7 +955,7 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
           <Loader2 v-if="autoSaveStatus === 'saving'" class="w-3 h-3 animate-spin" />
           <CheckCircle v-else-if="autoSaveStatus === 'saved'" class="w-3 h-3" />
           <XCircle v-else-if="autoSaveStatus === 'error'" class="w-3 h-3" />
-          {{ autoSaveStatus === 'saving' ? '保存中...' : autoSaveStatus === 'saved' ? '已保存' : '保存失败' }}
+          {{ autoSaveStatus === 'saving' ? t('mail.saving') : autoSaveStatus === 'saved' ? t('mail.composer.saved') : t('mail.composer.saveFailed') }}
         </span>
       </Transition>
 
@@ -964,10 +965,10 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
                  rounded-l-xl hover:shadow-lg hover:shadow-primary/30 active:scale-95
                  transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed
                  disabled:hover:shadow-none disabled:active:scale-100"
-          title="发送 (Ctrl+Enter)">
+          :title="t('mail.composer.sendTitle')">
           <Loader2 v-if="sending" class="w-4 h-4 animate-spin" />
           <Send v-else class="w-4 h-4" />
-          <span>{{ sending ? '发送中...' : '发送' }}</span>
+          <span>{{ sending ? t('mail.sending') : t('mail.composer.send') }}</span>
         </button>
         <button @click="showScheduleMenu = !showScheduleMenu" :disabled="sending"
           class="px-2.5 py-2.5 bg-gradient-to-r from-primary-hover to-primary-hover text-white
@@ -982,7 +983,7 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
           <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
             <div class="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
               <Clock class="w-4 h-4 text-primary" />
-              <span>定时发送</span>
+              <span>{{ t('mail.composer.scheduleSend') }}</span>
             </div>
           </div>
           <div class="p-2 space-y-1">
@@ -994,14 +995,14 @@ const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
             </button>
           </div>
           <div class="px-3 py-2 border-t border-gray-100 dark:border-gray-700">
-            <label class="text-xs text-gray-500 dark:text-gray-400 mb-1 block">自定义时间</label>
+            <label class="text-xs text-gray-500 dark:text-gray-400 mb-1 block">{{ t('mail.composer.customTime') }}</label>
             <div class="flex items-center gap-2">
               <input v-model="scheduledSendAt" type="datetime-local"
                 :min="new Date().toISOString().slice(0, 16)"
                 class="flex-1 px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
               <button @click="handleScheduleSend" :disabled="!scheduledSendAt"
                 class="px-3 py-1.5 text-sm font-medium bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                确定
+                {{ t('mail.confirm') }}
               </button>
             </div>
           </div>

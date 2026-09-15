@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { X, User, Clock } from 'lucide-vue-next'
 
+const { t } = useI18n()
+
 interface Suggestion {
   name: string | null
   email: string
@@ -215,7 +217,7 @@ const focusInput = () => {
         :class="isValidEmail(chip)
           ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-light'
           : 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 border border-red-300 dark:border-red-700'"
-        :title="isValidEmail(chip) ? chip : `${chip} — 邮箱格式无效`"
+        :title="isValidEmail(chip) ? chip : t('mail.ac.invalidTitle', { email: chip })"
       >
         <span class="truncate">{{ chip }}</span>
         <button
@@ -236,8 +238,8 @@ const focusInput = () => {
       @keydown="handleKeydown"
       @paste="handlePaste"
       @blur="handleBlur"
-      :placeholder="chips.length === 0 ? (placeholder || '收件人 (多个用逗号分隔)') : ''"
-      :aria-label="ariaLabel || placeholder || '收件人'"
+      :placeholder="chips.length === 0 ? (placeholder || t('mail.composer.toPlaceholder')) : ''"
+      :aria-label="ariaLabel || placeholder || t('mail.composer.to')"
       role="combobox"
       :aria-expanded="showSuggestions"
       aria-autocomplete="list"
@@ -252,7 +254,7 @@ const focusInput = () => {
         v-if="showSuggestions"
         ref="suggestionsRef"
         role="listbox"
-        :aria-label="(ariaLabel || '收件人') + '建议列表'"
+        :aria-label="t('mail.ac.suggestionsAria', { label: ariaLabel || t('mail.composer.to') })"
         class="absolute left-0 right-0 top-full mt-1 z-50
                bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700
                rounded-xl shadow-lg max-h-[240px] overflow-y-auto"
@@ -281,12 +283,12 @@ const focusInput = () => {
           </div>
           <span class="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full"
                 :class="s.source === 'contact' ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-500' : 'bg-gray-100 dark:bg-gray-700 text-gray-400'">
-            {{ s.source === 'contact' ? '联系人' : '历史' }}
+            {{ s.source === 'contact' ? t('mail.ac.sourceContact') : t('mail.ac.sourceHistory') }}
           </span>
         </button>
 
         <div v-if="suggestions.length === 0" class="px-4 py-3 text-sm text-gray-400 text-center">
-          无匹配联系人
+          {{ t('mail.ac.noMatch') }}
         </div>
       </div>
     </Transition>

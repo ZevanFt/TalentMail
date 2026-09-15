@@ -5,6 +5,7 @@
  */
 import { FileText, Search, ChevronRight, X } from 'lucide-vue-next'
 
+const { t } = useI18n()
 const { getEmailTemplates, getTemplateMetadata, previewEmailTemplate } = useApi()
 const toast = useToast()
 
@@ -65,16 +66,16 @@ const variableValues = ref<Record<string, string>>({})
 const previewing = ref(false)
 
 // 分类定义
-const categories: Record<string, { label: string; icon: string }> = {
-  'auth': { label: '认证相关', icon: '🔐' },
-  'notification': { label: '系统通知', icon: '🔔' },
-  'collaboration': { label: '协作分享', icon: '🤝' },
-  'finance': { label: '财务通知', icon: '📄' },
-  'hr': { label: '人事通知', icon: '👥' },
-  'marketing': { label: '营销推广', icon: '📢' },
-  'customer': { label: '客户服务', icon: '💬' },
-  'custom': { label: '自定义', icon: '✏️' },
-}
+const categories = computed<Record<string, { label: string; icon: string }>>(() => ({
+  'auth': { label: t('mail.template.catAuth'), icon: '🔐' },
+  'notification': { label: t('mail.template.catNotification'), icon: '🔔' },
+  'collaboration': { label: t('mail.template.catCollaboration'), icon: '🤝' },
+  'finance': { label: t('mail.template.catFinance'), icon: '📄' },
+  'hr': { label: t('mail.template.catHr'), icon: '👥' },
+  'marketing': { label: t('mail.template.catMarketing'), icon: '📢' },
+  'customer': { label: t('mail.template.catCustomer'), icon: '💬' },
+  'custom': { label: t('mail.template.catCustom'), icon: '✏️' },
+}))
 
 // 按分类分组的模板
 const groupedTemplates = computed(() => {
@@ -108,7 +109,7 @@ const loadTemplates = async () => {
     templates.value = await getEmailTemplates()
   } catch (e: any) {
     console.error('加载模板失败:', e)
-    toast.error(e.data?.detail || '加载模板失败')
+    toast.error(e.data?.detail || t('mail.template.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -159,7 +160,7 @@ const previewTemplate = async () => {
     })
   } catch (e: any) {
     console.error('预览失败:', e)
-    toast.error(e.data?.detail || '预览失败')
+    toast.error(e.data?.detail || t('mail.template.previewFailed'))
   } finally {
     previewing.value = false
   }
@@ -220,7 +221,7 @@ onUnmounted(() => {
       >
         <FileText :class="props.compact ? 'w-3.5 h-3.5' : 'w-4 h-4'" />
         <span v-if="selectedTemplate">{{ selectedTemplate.name }}</span>
-        <span v-else>使用模板</span>
+        <span v-else>{{ t('mail.template.useTemplate') }}</span>
         <ChevronRight :class="[props.compact ? 'w-3.5 h-3.5' : 'w-4 h-4', 'transition', showDropdown ? 'rotate-90' : '']" />
       </button>
       
@@ -244,8 +245,8 @@ onUnmounted(() => {
             <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input 
               v-model="searchQuery"
-              type="text" 
-              placeholder="搜索模板..." 
+              type="text"
+              :placeholder="t('mail.template.searchPlaceholder')"
               class="w-full pl-9 pr-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
           </div>
@@ -255,12 +256,12 @@ onUnmounted(() => {
         <div class="max-h-64 overflow-y-auto">
           <template v-if="loading">
             <div class="p-4 text-center text-gray-500">
-              加载中...
+              {{ t('mail.loading') }}
             </div>
           </template>
           <template v-else-if="Object.keys(groupedTemplates).length === 0">
             <div class="p-4 text-center text-gray-500">
-              没有可用模板
+              {{ t('mail.template.none') }}
             </div>
           </template>
           <template v-else>
@@ -293,13 +294,13 @@ onUnmounted(() => {
       <div class="flex items-center justify-between mb-4">
         <div class="flex items-center gap-2">
           <FileText class="w-4 h-4 text-blue-600 dark:text-blue-400" />
-          <span class="font-medium text-blue-700 dark:text-blue-400">填写模板变量</span>
+          <span class="font-medium text-blue-700 dark:text-blue-400">{{ t('mail.template.fillVars') }}</span>
         </div>
         <button 
           @click="clearTemplate"
           class="text-sm text-gray-500 hover:text-red-500"
         >
-          清空
+          {{ t('mail.template.clear') }}
         </button>
       </div>
       
@@ -315,17 +316,17 @@ onUnmounted(() => {
               {{ v.label }}
               <span v-if="v.required" class="text-red-500">*</span>
             </label>
-            <input 
+            <input
               v-if="v.type !== 'textarea'"
               v-model="variableValues[v.key]"
               :type="v.type === 'number' ? 'number' : v.type === 'url' ? 'url' : v.type === 'email' ? 'email' : 'text'"
-              :placeholder="v.example || `请输入${v.label}`"
+              :placeholder="v.example || t('mail.template.inputPlaceholder', { label: v.label })"
               class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
             <textarea 
               v-else
               v-model="variableValues[v.key]"
-              :placeholder="v.example || `请输入${v.label}`"
+              :placeholder="v.example || t('mail.template.inputPlaceholder', { label: v.label })"
               rows="2"
               class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
             />
@@ -339,14 +340,14 @@ onUnmounted(() => {
             <input 
               v-model="variableValues[v]"
               type="text"
-              :placeholder="`请输入 ${v}`"
+              :placeholder="t('mail.template.inputPlaceholder', { label: v })"
               class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
           </div>
         </template>
         <template v-else>
           <div class="col-span-2 text-center text-gray-500 text-sm py-2">
-            此模板无需填写变量
+            {{ t('mail.template.noVars') }}
           </div>
         </template>
       </div>
@@ -358,8 +359,8 @@ onUnmounted(() => {
           :disabled="previewing"
           class="flex items-center gap-2 px-4 py-2 text-sm text-blue-600 dark:text-blue-400 border border-blue-300 dark:border-blue-700 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 whitespace-nowrap transition disabled:opacity-50"
         >
-          <span v-if="previewing">生成中...</span>
-          <span v-else>✨ 应用模板</span>
+          <span v-if="previewing">{{ t('mail.template.generating') }}</span>
+          <span v-else>{{ t('mail.template.apply') }}</span>
         </button>
       </div>
     </div>

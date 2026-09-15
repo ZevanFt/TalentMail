@@ -26,6 +26,7 @@ import type { Component } from 'vue'
 const route = useRoute()
 const router = useRouter()
 const _config = useConfig()
+const { t } = useI18n()
 const workflowId = computed(() => route.params.id as string)
 const isNew = computed(() => workflowId.value === 'new')
 const isSystemWorkflow = computed(() => {
@@ -48,14 +49,14 @@ const emailTemplates = ref<any[]>([])
 // 工作流数据
 const workflow = ref<any>({
   id: null,
-  name: '新工作流',
+  name: t('workflows.editor.defaultName'),
   description: '',
   category: 'email',
   status: 'draft',
   version: 1
 })
 
-useHead({ title: computed(() => `${workflow.value.name || '工作流'} - ${_config.appName}`) })
+useHead({ title: computed(() => `${workflow.value.name || t('workflows.editor.fallbackTitle')} - ${_config.appName}`) })
 
 // 新建工作流触发器选择弹窗
 const showTriggerSelector = ref(false)
@@ -103,15 +104,15 @@ const sortedCategories = computed(() => {
 })
 
 // 分类标签（使用 Lucide 图标名称）
-const categoryLabels: Record<string, { label: string; icon: string }> = {
-  trigger: { label: '触发器', icon: 'Zap' },
-  logic: { label: '逻辑控制', icon: 'GitBranch' },
-  email_action: { label: '邮件动作', icon: 'Send' },
-  email_operation: { label: '邮件处理', icon: 'Mail' },
-  data: { label: '数据处理', icon: 'Database' },
-  integration: { label: '集成', icon: 'Link' },
-  end: { label: '结束节点', icon: 'Flag' }
-}
+const categoryLabels = computed<Record<string, { label: string; icon: string }>>(() => ({
+  trigger: { label: t('workflows.catalog.catTrigger'), icon: 'Zap' },
+  logic: { label: t('workflows.catalog.catLogic'), icon: 'GitBranch' },
+  email_action: { label: t('workflows.catalog.catEmailAction'), icon: 'Send' },
+  email_operation: { label: t('workflows.catalog.catEmailOperation'), icon: 'Mail' },
+  data: { label: t('workflows.catalog.catData'), icon: 'Database' },
+  integration: { label: t('workflows.editor.categoryIntegration'), icon: 'Link' },
+  end: { label: t('workflows.catalog.catEnd'), icon: 'Flag' }
+}))
 
 // 图标组件映射
 const iconComponents: Record<string, Component> = {
@@ -256,10 +257,10 @@ const saveWorkflowSettings = async () => {
       config: workflow.value.config
     } as any)
     showWorkflowSettings.value = false
-    showMessage('success', '设置保存成功')
+    showMessage('success', t('workflows.editor.settingsSaved'))
   } catch (e: any) {
     console.error('保存设置失败:', e)
-    showMessage('error', e.data?.detail || '保存设置失败')
+    showMessage('error', e.data?.detail || t('workflows.editor.settingsSaveFailed'))
   } finally {
     savingSettings.value = false
   }
@@ -276,7 +277,7 @@ const addCustomConfigItem = () => {
   const key = `custom_${Date.now()}`
   workflow.value.config_schema.properties[key] = {
     type: 'boolean',
-    title: '新配置项',
+    title: t('workflows.editor.newConfigItem'),
     description: '',
     default: false,
     bindings: [] // 关联的节点配置：[{ nodeId: 'xxx', field: 'yyy' }]
@@ -348,7 +349,7 @@ const loadNodeTypes = async () => {
     nodeTypes.value = await getNodeTypes()
   } catch (e) {
     console.error('加载节点类型失败:', e)
-    showMessage('error', '加载节点类型失败')
+    showMessage('error', t('workflows.common.loadNodeTypesFailed'))
   }
 }
 
@@ -358,7 +359,7 @@ const loadEmailTemplates = async () => {
     emailTemplates.value = await getEmailTemplates()
   } catch (e: any) {
     console.error('加载邮件模板失败:', e)
-    showMessage('error', '加载邮件模板失败')
+    showMessage('error', t('workflows.editor.loadTemplatesFailed'))
   }
 }
 
@@ -492,7 +493,7 @@ const loadWorkflow = async () => {
     }
   } catch (e: any) {
     console.error('加载工作流失败:', e)
-    showMessage('error', e.data?.detail || '加载工作流失败')
+    showMessage('error', e.data?.detail || t('workflows.editor.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -662,10 +663,10 @@ const saveWorkflowData = async () => {
     const result = await saveWorkflowCanvas(workflow.value.id, nodesData, edgesData)
     workflow.value.version = result.version
     
-    showMessage('success', '保存成功')
+    showMessage('success', t('workflows.editor.saved'))
   } catch (e: any) {
     console.error('保存失败:', e)
-    showMessage('error', e.data?.detail || '保存失败')
+    showMessage('error', e.data?.detail || t('workflows.editor.saveFailed'))
   } finally {
     saving.value = false
   }
@@ -674,12 +675,12 @@ const saveWorkflowData = async () => {
 // 测试工作流（不保存执行记录）
 const testWorkflowData = async () => {
   if (!workflow.value.id) {
-    showMessage('error', '请先保存工作流')
+    showMessage('error', t('workflows.editor.saveFirst'))
     return
   }
   
   if (nodes.value.length === 0) {
-    showMessage('error', '工作流没有任何节点')
+    showMessage('error', t('workflows.editor.noNodes'))
     return
   }
   
@@ -694,13 +695,13 @@ const testWorkflowData = async () => {
     showExecutionResult.value = true
     
     if (result.success) {
-      showMessage('success', `测试成功，执行了 ${result.nodes_executed} 个节点`)
+      showMessage('success', t('workflows.editor.testSuccess', { n: result.nodes_executed }))
     } else {
-      showMessage('error', result.error_message || '测试失败')
+      showMessage('error', result.error_message || t('workflows.editor.testFailed'))
     }
   } catch (e: any) {
     console.error('测试失败:', e)
-    showMessage('error', e.data?.detail || '测试失败')
+    showMessage('error', e.data?.detail || t('workflows.editor.testFailed'))
   } finally {
     testing.value = false
   }
@@ -709,17 +710,17 @@ const testWorkflowData = async () => {
 // 执行工作流（正式执行，保存记录）
 const executeWorkflowData = async () => {
   if (!workflow.value.id) {
-    showMessage('error', '请先保存工作流')
+    showMessage('error', t('workflows.editor.saveFirst'))
     return
   }
   
   if (workflow.value.status !== 'published') {
-    showMessage('error', '请先发布工作流')
+    showMessage('error', t('workflows.editor.publishFirst'))
     return
   }
   
   if (nodes.value.length === 0) {
-    showMessage('error', '工作流没有任何节点')
+    showMessage('error', t('workflows.editor.noNodes'))
     return
   }
   
@@ -730,13 +731,13 @@ const executeWorkflowData = async () => {
     showExecutionResult.value = true
     
     if (result.success) {
-      showMessage('success', `执行成功，共 ${result.nodes_executed} 个节点，耗时 ${result.duration_ms}ms`)
+      showMessage('success', t('workflows.editor.executeSuccess', { n: result.nodes_executed, ms: result.duration_ms }))
     } else {
-      showMessage('error', result.error_message || '执行失败')
+      showMessage('error', result.error_message || t('workflows.editor.executeFailed'))
     }
   } catch (e: any) {
     console.error('执行失败:', e)
-    showMessage('error', e.data?.detail || '执行失败')
+    showMessage('error', e.data?.detail || t('workflows.editor.executeFailed'))
   } finally {
     executing.value = false
   }
@@ -745,12 +746,12 @@ const executeWorkflowData = async () => {
 // 发布工作流
 const publishWorkflowData = async () => {
   if (!workflow.value.id) {
-    showMessage('error', '请先保存工作流')
+    showMessage('error', t('workflows.editor.saveFirst'))
     return
   }
   
   if (nodes.value.length === 0) {
-    showMessage('error', '工作流没有任何节点')
+    showMessage('error', t('workflows.editor.noNodes'))
     return
   }
   
@@ -758,10 +759,10 @@ const publishWorkflowData = async () => {
   try {
     const result = await publishWorkflow(workflow.value.id)
     workflow.value.status = result.status
-    showMessage('success', '发布成功')
+    showMessage('success', t('workflows.editor.publishSuccess'))
   } catch (e: any) {
     console.error('发布失败:', e)
-    showMessage('error', e.data?.detail || '发布失败')
+    showMessage('error', e.data?.detail || t('workflows.editor.publishFailed'))
   } finally {
     publishing.value = false
   }
@@ -808,7 +809,7 @@ const loadVersions = async () => {
     versions.value = await getWorkflowVersions(workflow.value.id)
   } catch (e: any) {
     console.error('加载版本历史失败:', e)
-    showMessage('error', e.data?.detail || '加载版本历史失败')
+    showMessage('error', e.data?.detail || t('workflows.editor.loadVersionsFailed'))
   } finally {
     loadingVersions.value = false
   }
@@ -857,10 +858,10 @@ const previewVersion = async (version: any) => {
     setNodes(vfNodes)
     setEdges(vfEdges)
     
-    showMessage('success', `正在预览版本 v${version.version}`)
+    showMessage('success', t('workflows.editor.previewingVersion', { v: version.version }))
   } catch (e: any) {
     console.error('加载版本详情失败:', e)
-    showMessage('error', e.data?.detail || '加载版本详情失败')
+    showMessage('error', e.data?.detail || t('workflows.editor.loadVersionDetailFailed'))
   }
 }
 
@@ -868,12 +869,12 @@ const previewVersion = async (version: any) => {
 const exitPreview = async () => {
   previewingVersion.value = null
   await loadWorkflow()
-  showMessage('success', '已恢复到当前版本')
+  showMessage('success', t('workflows.editor.restoredCurrent'))
 }
 
 // 恢复到某个版本
 const restoreToVersion = async (version: any) => {
-  const ok = await confirmDialog({ message: `确定要恢复到版本 v${version.version} 吗？这将创建一个新版本。`, type: 'warning' })
+  const ok = await confirmDialog({ message: t('workflows.editor.restoreConfirm', { v: version.version }), type: 'warning' })
   if (!ok) return
   
   restoringVersion.value = true
@@ -886,10 +887,10 @@ const restoreToVersion = async (version: any) => {
     await loadWorkflow()
     await loadVersions()
     
-    showMessage('success', `已恢复到版本 v${version.version}，当前版本为 v${result.new_version}`)
+    showMessage('success', t('workflows.editor.restoredToVersion', { v: version.version, newV: result.new_version }))
   } catch (e: any) {
     console.error('恢复版本失败:', e)
-    showMessage('error', e.data?.detail || '恢复版本失败')
+    showMessage('error', e.data?.detail || t('workflows.editor.restoreFailed'))
   } finally {
     restoringVersion.value = false
   }
@@ -928,7 +929,7 @@ definePageMeta({
         <input
           v-model="workflow.name"
           class="flex-1 bg-transparent font-bold text-gray-900 dark:text-white focus:outline-none text-sm"
-          placeholder="工作流名称"
+          :placeholder="t('workflows.editor.namePlaceholder')"
         />
       </div>
 
@@ -953,7 +954,7 @@ definePageMeta({
       <div v-if="loading" class="absolute inset-0 flex items-center justify-center bg-gray-50/80 dark:bg-bg-dark/80 z-50">
         <div class="text-center">
           <div class="animate-spin w-8 h-8 border-3 border-primary border-t-transparent rounded-full mx-auto"></div>
-          <p class="text-sm text-gray-500 mt-3">加载工作流...</p>
+          <p class="text-sm text-gray-500 mt-3">{{ t('workflows.editor.loading') }}</p>
         </div>
       </div>
       
@@ -998,20 +999,20 @@ definePageMeta({
           <button
             @click="goToTutorial"
             class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap transition-colors"
-            title="查看教程"
+            :title="t('workflows.common.viewTutorial')"
           >
             <BookOpen class="w-4 h-4" />
-            <span class="hidden sm:inline">教程</span>
+            <span class="hidden sm:inline">{{ t('workflows.common.tutorial') }}</span>
           </button>
 
           <!-- 工作流设置按钮 -->
           <button
             @click="showWorkflowSettings = true"
             class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap transition-colors"
-            title="工作流设置"
+            :title="t('workflows.editor.settingsTitle')"
           >
             <Settings class="w-4 h-4" />
-            <span class="hidden sm:inline">设置</span>
+            <span class="hidden sm:inline">{{ t('workflows.common.settings') }}</span>
           </button>
 
           <!-- 版本历史按钮 -->
@@ -1019,10 +1020,10 @@ definePageMeta({
             @click="openVersionHistory"
             :disabled="isNew || !workflow.id"
             class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            title="版本历史"
+            :title="t('workflows.common.versionHistory')"
           >
             <History class="w-4 h-4" />
-            <span class="hidden sm:inline">历史</span>
+            <span class="hidden sm:inline">{{ t('workflows.editor.historyShort') }}</span>
           </button>
 
           <!-- 分隔线 -->
@@ -1038,7 +1039,7 @@ definePageMeta({
               'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'
             ]"
           >
-            {{ workflow.status === 'published' ? '已发布' : workflow.status === 'draft' ? '草稿' : workflow.status }}
+            {{ workflow.status === 'published' ? t('workflows.common.published') : workflow.status === 'draft' ? t('workflows.common.draft') : workflow.status }}
           </span>
           
           <span class="text-xs text-gray-400">v{{ workflow.version }}</span>
@@ -1048,11 +1049,11 @@ definePageMeta({
             @click="testWorkflowData"
             :disabled="testing || !workflow.id || nodes.length === 0"
             class="flex items-center gap-1.5 px-3 py-2 text-sm text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/30 whitespace-nowrap transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            title="测试运行（不保存执行记录）"
+            :title="t('workflows.editor.testTooltip')"
           >
             <Loader2 v-if="testing" class="w-4 h-4 animate-spin" />
             <Bug v-else class="w-4 h-4" />
-            <span class="hidden sm:inline">{{ testing ? '测试中...' : '测试' }}</span>
+            <span class="hidden sm:inline">{{ testing ? t('workflows.common.testing') : t('workflows.common.test') }}</span>
           </button>
 
           <!-- 执行按钮 -->
@@ -1060,11 +1061,11 @@ definePageMeta({
             @click="executeWorkflowData"
             :disabled="executing || workflow.status !== 'published'"
             class="flex items-center gap-1.5 px-3 py-2 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 whitespace-nowrap transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            title="执行工作流（需要先发布）"
+            :title="t('workflows.editor.executeTooltip')"
           >
             <Loader2 v-if="executing" class="w-4 h-4 animate-spin" />
             <PlayCircle v-else class="w-4 h-4" />
-            <span class="hidden sm:inline">{{ executing ? '执行中...' : '执行' }}</span>
+            <span class="hidden sm:inline">{{ executing ? t('workflows.common.executing') : t('workflows.common.execute') }}</span>
           </button>
           
           <!-- 分隔线 -->
@@ -1076,7 +1077,7 @@ definePageMeta({
             class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
           >
             <Save class="w-4 h-4" />
-            {{ saving ? '保存中...' : '保存' }}
+            {{ saving ? t('workflows.common.saving') : t('workflows.common.save') }}
           </button>
           
           <button
@@ -1085,7 +1086,7 @@ definePageMeta({
             class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
             <Send class="w-4 h-4" />
-            {{ publishing ? '发布中...' : '发布' }}
+            {{ publishing ? t('workflows.common.publishing') : t('workflows.common.publish') }}
           </button>
         </Panel>
 
@@ -1225,10 +1226,12 @@ definePageMeta({
                 </div>
                 <div>
                   <h3 class="text-lg font-semibold" :class="executionResult.success ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'">
-                    {{ executionResult.mode === 'test' ? '测试' : '执行' }}{{ executionResult.success ? '成功' : '失败' }}
+                    {{ executionResult.mode === 'test'
+                      ? (executionResult.success ? t('workflows.editor.testSuccessTitle') : t('workflows.editor.testFailed'))
+                      : (executionResult.success ? t('workflows.editor.executeSuccessTitle') : t('workflows.editor.executeFailed')) }}
                   </h3>
                   <p class="text-sm" :class="executionResult.success ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
-                    {{ executionResult.mode === 'test' ? '测试运行完成' : '工作流执行完成' }}
+                    {{ executionResult.mode === 'test' ? t('workflows.editor.testCompleted') : t('workflows.editor.executeCompleted') }}
                   </p>
                 </div>
               </div>
@@ -1246,17 +1249,17 @@ definePageMeta({
               <div class="grid grid-cols-3 gap-4">
                 <div class="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                   <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ executionResult.nodes_executed }}</p>
-                  <p class="text-xs text-gray-500 dark:text-gray-400">执行节点数</p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('workflows.editor.nodesExecuted') }}</p>
                 </div>
                 <div class="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                   <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ executionResult.duration_ms }}</p>
-                  <p class="text-xs text-gray-500 dark:text-gray-400">耗时(ms)</p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('workflows.editor.duration') }}</p>
                 </div>
                 <div class="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                   <p class="text-2xl font-bold" :class="executionResult.success ? 'text-green-600' : 'text-red-600'">
                     {{ executionResult.status }}
                   </p>
-                  <p class="text-xs text-gray-500 dark:text-gray-400">状态</p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('workflows.common.status') }}</p>
                 </div>
               </div>
 
@@ -1265,7 +1268,7 @@ definePageMeta({
                 <div class="flex items-start gap-2">
                   <AlertCircle class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p class="font-medium text-red-800 dark:text-red-200">错误信息</p>
+                    <p class="font-medium text-red-800 dark:text-red-200">{{ t('workflows.editor.errorMessage') }}</p>
                     <p class="text-sm text-red-600 dark:text-red-400 mt-1">{{ executionResult.error_message }}</p>
                   </div>
                 </div>
@@ -1273,7 +1276,7 @@ definePageMeta({
 
               <!-- 执行结果 -->
               <div v-if="executionResult.result && Object.keys(executionResult.result).length > 0" class="space-y-2">
-                <p class="text-sm font-medium text-gray-700 dark:text-gray-300">执行结果</p>
+                <p class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('workflows.editor.resultLabel') }}</p>
                 <div class="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg max-h-48 overflow-auto">
                   <pre class="text-xs text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{{ JSON.stringify(executionResult.result, null, 2) }}</pre>
                 </div>
@@ -1281,9 +1284,9 @@ definePageMeta({
 
               <!-- 执行ID -->
               <div class="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">
-                <span>执行 ID: #{{ executionResult.execution_id }}</span>
+                <span>{{ t('workflows.editor.executionId') }} #{{ executionResult.execution_id }}</span>
                 <span v-if="executionResult.mode === 'test'" class="px-2 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded text-xs whitespace-nowrap">
-                  测试模式
+                  {{ t('workflows.editor.testMode') }}
                 </span>
               </div>
             </div>
@@ -1294,7 +1297,7 @@ definePageMeta({
                 @click="showExecutionResult = false"
                 class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
               >
-                关闭
+                {{ t('workflows.common.close') }}
               </button>
             </div>
           </div>

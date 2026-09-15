@@ -13,6 +13,10 @@ import adminToolsZh from './fragments/adminTools.zh'
 import adminToolsEn from './fragments/adminTools.en'
 import settingsSecurityZh from './fragments/settingsSecurity.zh'
 import settingsSecurityEn from './fragments/settingsSecurity.en'
+import mailZh from './fragments/mail.zh'
+import mailEn from './fragments/mail.en'
+import workflowsZh from './fragments/workflows.zh'
+import workflowsEn from './fragments/workflows.en'
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -36,6 +40,8 @@ export const zhCNFull = deepMerge(zhCN, {
   admin: adminZh,
   adminTools: adminToolsZh,
   settingsSecurity: settingsSecurityZh,
+  mail: mailZh,
+  workflows: workflowsZh,
 })
 
 export const enUSFull = deepMerge(enUS, {
@@ -43,6 +49,8 @@ export const enUSFull = deepMerge(enUS, {
   admin: adminEn,
   adminTools: adminToolsEn,
   settingsSecurity: settingsSecurityEn,
+  mail: mailEn,
+  workflows: workflowsEn,
 })
 
 export default { zhCNFull, enUSFull }

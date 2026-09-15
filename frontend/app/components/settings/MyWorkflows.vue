@@ -8,6 +8,7 @@ const router = useRouter()
 const { getWorkflows, getWorkflow, updateWorkflow, deleteWorkflow: deleteWorkflowApi, getNodeTypes, publishWorkflow, getWorkflowExecutions } = useApi()
 const toast = useToast()
 const { confirm: confirmDialog } = useConfirmDialog()
+const { t } = useI18n()
 
 const loading = ref(false)
 const workflows = ref<any[]>([])
@@ -40,7 +41,7 @@ const loadWorkflows = async () => {
     workflows.value = await getWorkflows()
   } catch (e: any) {
     console.error('加载工作流列表失败:', e)
-    toast.error(e.data?.detail || '加载工作流列表失败')
+    toast.error(e.data?.detail || t('workflows.myWorkflows.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -71,7 +72,7 @@ const editWorkflow = (id: number) => {
 // 删除工作流
 const deleting = ref<number | null>(null)
 const deleteWorkflow = async (id: number) => {
-  const ok = await confirmDialog({ message: '确定要删除这个工作流吗？此操作不可恢复。', type: 'danger' })
+  const ok = await confirmDialog({ message: t('workflows.myWorkflows.deleteConfirm'), type: 'danger' })
   if (!ok) return
 
   deleting.value = id
@@ -80,7 +81,7 @@ const deleteWorkflow = async (id: number) => {
     workflows.value = workflows.value.filter(w => w.id !== id)
   } catch (e: any) {
     console.error('删除失败:', e)
-    toast.error(e.data?.detail || '删除失败')
+    toast.error(e.data?.detail || t('workflows.common.deleteFailed'))
   } finally {
     deleting.value = null
   }
@@ -101,7 +102,7 @@ const toggleWorkflowActive = async (workflow: any) => {
     }
   } catch (e: any) {
     console.error('切换状态失败:', e)
-    toast.error('操作失败：' + (e.data?.detail || e.message || '未知错误'))
+    toast.error(t('workflows.myWorkflows.operationFailed', { msg: e.data?.detail || e.message || t('workflows.myWorkflows.unknownError') }))
   } finally {
     togglingActive.value = null
   }
@@ -145,7 +146,7 @@ const openPreviewModal = async (workflow: any) => {
     }))
   } catch (e: any) {
     console.error('加载工作流预览失败:', e)
-    toast.error(e.data?.detail || '加载工作流预览失败')
+    toast.error(e.data?.detail || t('workflows.myWorkflows.loadPreviewFailed'))
   } finally {
     loadingPreview.value = false
   }
@@ -178,7 +179,7 @@ const loadNodeTypes = async () => {
     nodeTypes.value = await getNodeTypes()
   } catch (e: any) {
     console.error('加载节点类型失败:', e)
-    toast.error(e.data?.detail || '加载节点类型失败')
+    toast.error(e.data?.detail || t('workflows.common.loadNodeTypesFailed'))
   }
 }
 
@@ -191,7 +192,7 @@ const openExecutionModal = async (workflow: any) => {
     executions.value = await getWorkflowExecutions('user', workflow.id, undefined, 20)
   } catch (e: any) {
     console.error('加载执行记录失败:', e)
-    toast.error(e.data?.detail || '加载执行记录失败')
+    toast.error(e.data?.detail || t('workflows.myWorkflows.loadExecutionsFailed'))
   } finally {
     loadingExecutions.value = false
   }
@@ -206,7 +207,7 @@ const openConfigModal = async (workflow: any) => {
     showConfigModal.value = true
   } catch (e: any) {
     console.error('加载配置失败:', e)
-    toast.error(e.data?.detail || '加载配置失败')
+    toast.error(e.data?.detail || t('workflows.myWorkflows.loadConfigFailed'))
   }
 }
 
@@ -219,7 +220,7 @@ const saveConfig = async () => {
     showConfigModal.value = false
   } catch (e: any) {
     console.error('保存配置失败:', e)
-    toast.error(e.data?.detail || '保存配置失败')
+    toast.error(e.data?.detail || t('workflows.myWorkflows.saveConfigFailed'))
   } finally {
     savingConfig.value = false
   }
@@ -271,9 +272,9 @@ const getStatusColor = (status: string) => {
 // 获取状态标签
 const getStatusLabel = (status: string) => {
   switch (status) {
-    case 'published': return '已发布'
-    case 'draft': return '草稿'
-    case 'disabled': return '已禁用'
+    case 'published': return t('workflows.common.published')
+    case 'draft': return t('workflows.common.draft')
+    case 'disabled': return t('workflows.common.disabled')
     default: return status
   }
 }
@@ -294,19 +295,19 @@ onMounted(() => {
     <!-- 标题和操作 -->
     <div class="flex items-center justify-between">
       <div>
-        <h2 class="text-xl font-bold text-gray-900 dark:text-white">我的工作流</h2>
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white">{{ t('workflows.myWorkflows.title') }}</h2>
         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          创建自动化规则，让邮件处理更智能。例如：自动标记重要邮件、自动转发、自动回复等。
+          {{ t('workflows.myWorkflows.subtitle') }}
         </p>
       </div>
       <div class="flex items-center gap-2">
         <button
           @click="goToTutorial"
           class="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg whitespace-nowrap transition-colors"
-          title="查看教程"
+          :title="t('workflows.common.viewTutorial')"
         >
           <BookOpen class="w-4 h-4" />
-          <span class="hidden sm:inline">教程</span>
+          <span class="hidden sm:inline">{{ t('workflows.common.tutorial') }}</span>
         </button>
         <button
           @click="loadWorkflows"
@@ -319,7 +320,7 @@ onMounted(() => {
           class="flex items-center gap-2 px-4 py-2 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg whitespace-nowrap transition-colors"
         >
           <Plus class="w-4 h-4" />
-          新建工作流
+          {{ t('workflows.myWorkflows.newWorkflow') }}
         </button>
       </div>
     </div>
@@ -341,34 +342,34 @@ onMounted(() => {
           <button
             @click="openPreviewModal(workflow)"
             class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg whitespace-nowrap transition-colors"
-            title="预览流程图"
+            :title="t('workflows.myWorkflows.previewTooltip')"
           >
             <Eye class="w-4 h-4" />
-            <span>预览</span>
+            <span>{{ t('workflows.myWorkflows.preview') }}</span>
           </button>
           <button
             @click="openExecutionModal(workflow)"
             class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg whitespace-nowrap transition-colors"
-            title="查看执行记录"
+            :title="t('workflows.myWorkflows.recordsTooltip')"
           >
             <Clock class="w-4 h-4" />
-            <span>记录</span>
+            <span>{{ t('workflows.myWorkflows.records') }}</span>
           </button>
           <button
             @click="openConfigModal(workflow)"
             class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg whitespace-nowrap transition-colors"
-            title="配置工作流"
+            :title="t('workflows.myWorkflows.configTooltip')"
           >
             <Settings class="w-4 h-4" />
-            <span>配置</span>
+            <span>{{ t('workflows.myWorkflows.config') }}</span>
           </button>
           <button
             @click="editWorkflow(workflow.id)"
             class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg whitespace-nowrap transition-colors"
-            title="编辑工作流"
+            :title="t('workflows.myWorkflows.editTooltip')"
           >
             <Edit class="w-4 h-4" />
-            <span>编辑</span>
+            <span>{{ t('workflows.common.edit') }}</span>
           </button>
           <!-- 启用/禁用开关 -->
           <div class="flex items-center gap-2 ml-2 pl-2 border-l border-gray-200 dark:border-gray-700">
@@ -379,7 +380,7 @@ onMounted(() => {
                 'relative w-11 h-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50',
                 workflow.is_active ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
               ]"
-              :title="workflow.is_active ? '点击禁用' : '点击启用'"
+              :title="workflow.is_active ? t('workflows.myWorkflows.clickToDisable') : t('workflows.myWorkflows.clickToEnable')"
             >
               <span
                 :class="[
@@ -397,10 +398,10 @@ onMounted(() => {
           @click="deleteWorkflow(workflow.id)"
           :disabled="deleting === workflow.id"
           class="absolute bottom-4 right-4 flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg whitespace-nowrap transition-colors disabled:opacity-50"
-          title="删除工作流"
+          :title="t('workflows.myWorkflows.deleteTooltip')"
         >
           <Trash2 class="w-4 h-4" />
-          <span>{{ deleting === workflow.id ? '删除中...' : '删除' }}</span>
+          <span>{{ deleting === workflow.id ? t('workflows.common.deleting') : t('workflows.common.delete') }}</span>
         </button>
 
         <!-- 左侧信息 -->
@@ -423,14 +424,14 @@ onMounted(() => {
           </div>
 
           <p class="mt-3 text-sm text-gray-600 dark:text-gray-400">
-            {{ workflow.description || '暂无描述' }}
+            {{ workflow.description || t('workflows.common.noDescription') }}
           </p>
 
           <!-- 统计信息 -->
           <div class="mt-4 flex items-center gap-6 text-sm text-gray-500 dark:text-gray-400">
             <span class="flex items-center gap-1">
               <Play class="w-3.5 h-3.5" />
-              执行 {{ workflow.execution_count || 0 }} 次
+              {{ t('workflows.myWorkflows.execCount', { n: workflow.execution_count || 0 }) }}
             </span>
             <span v-if="workflow.category" class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">
               {{ workflow.category }}
@@ -446,28 +447,28 @@ onMounted(() => {
         <Workflow class="w-8 h-8 text-gray-400" />
       </div>
       <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">
-        暂无工作流
+        {{ t('workflows.myWorkflows.emptyTitle') }}
       </h3>
       <p class="text-sm text-gray-500 dark:text-gray-400 mb-6 max-w-md mx-auto">
-        创建您的第一个自动化工作流，可以实现自动标记、转发、回复等功能
+        {{ t('workflows.myWorkflows.emptyDesc') }}
       </p>
       <button
         @click="createWorkflow"
         class="inline-flex items-center gap-2 px-5 py-2.5 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg whitespace-nowrap transition-colors"
       >
         <Plus class="w-5 h-5" />
-        创建工作流
+        {{ t('workflows.common.createWorkflow') }}
       </button>
     </div>
 
     <!-- 使用提示 -->
     <div class="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-      <h4 class="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">💡 工作流用途示例</h4>
+      <h4 class="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">💡 {{ t('workflows.myWorkflows.usageTitle') }}</h4>
       <ul class="text-sm text-blue-700 dark:text-blue-400 space-y-1">
-        <li>• 收到老板邮件时自动标记为重要</li>
-        <li>• 特定主题的邮件自动转发给团队</li>
-        <li>• 收到客户询盘时自动回复确认邮件</li>
-        <li>• 垃圾邮件自动移动到垃圾箱</li>
+        <li>• {{ t('workflows.myWorkflows.usage1') }}</li>
+        <li>• {{ t('workflows.myWorkflows.usage2') }}</li>
+        <li>• {{ t('workflows.myWorkflows.usage3') }}</li>
+        <li>• {{ t('workflows.myWorkflows.usage4') }}</li>
       </ul>
     </div>
 
@@ -489,7 +490,7 @@ onMounted(() => {
     />
 
     <!-- 执行记录模态框 -->
-    <CommonModal v-model="showExecutionModal" title="执行记录" size="lg">
+    <CommonModal v-model="showExecutionModal" :title="t('workflows.myWorkflows.executionsTitle')" size="lg">
       <div v-if="selectedWorkflow" class="space-y-4">
         <!-- 工作流信息 -->
         <div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
@@ -515,7 +516,7 @@ onMounted(() => {
               />
               <div>
                 <p class="text-sm font-medium text-gray-900 dark:text-white">
-                  执行 #{{ exec.id }}
+                  {{ t('workflows.myWorkflows.executionNo', { n: exec.id }) }}
                 </p>
                 <p class="text-xs text-gray-500 dark:text-gray-400">
                   {{ formatTime(exec.started_at) }}
@@ -531,7 +532,7 @@ onMounted(() => {
                 exec.status === 'running' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
                 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'
               ]">
-                {{ exec.status === 'success' ? '成功' : exec.status === 'failed' ? '失败' : exec.status === 'running' ? '运行中' : '等待中' }}
+                {{ exec.status === 'success' ? t('workflows.common.success') : exec.status === 'failed' ? t('workflows.common.failed') : exec.status === 'running' ? t('workflows.myWorkflows.running') : t('workflows.myWorkflows.pending') }}
               </span>
               <p v-if="exec.error_message" class="text-xs text-red-500 mt-1 max-w-xs truncate">
                 {{ exec.error_message }}
@@ -541,14 +542,14 @@ onMounted(() => {
 
           <!-- 空状态 -->
           <div v-if="executions.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
-            暂无执行记录
+            {{ t('workflows.myWorkflows.noExecutions') }}
           </div>
         </div>
       </div>
     </CommonModal>
 
     <!-- 配置模态框 -->
-    <CommonModal v-model="showConfigModal" title="工作流配置" size="lg">
+    <CommonModal v-model="showConfigModal" :title="t('workflows.myWorkflows.configTitle')" size="lg">
       <div v-if="selectedWorkflow" class="space-y-6">
         <!-- 工作流信息 -->
         <div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
@@ -558,7 +559,7 @@ onMounted(() => {
 
         <!-- 配置表单 -->
         <div class="space-y-4">
-          <h5 class="font-medium text-gray-900 dark:text-white">配置选项</h5>
+          <h5 class="font-medium text-gray-900 dark:text-white">{{ t('workflows.myWorkflows.configOptions') }}</h5>
 
           <!-- 动态渲染配置项 -->
           <template v-if="selectedWorkflow.config_schema?.properties">
@@ -612,7 +613,7 @@ onMounted(() => {
           </template>
 
           <div v-else class="text-center py-4 text-gray-500 dark:text-gray-400">
-            该工作流暂无可配置项
+            {{ t('workflows.myWorkflows.noConfigItems') }}
           </div>
         </div>
 
@@ -622,14 +623,14 @@ onMounted(() => {
             @click="showConfigModal = false"
             class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
           >
-            取消
+            {{ t('workflows.common.cancel') }}
           </button>
           <button
             @click="saveConfig"
             :disabled="savingConfig"
             class="px-4 py-2 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
           >
-            {{ savingConfig ? '保存中...' : '保存配置' }}
+            {{ savingConfig ? t('workflows.common.saving') : t('workflows.myWorkflows.saveConfig') }}
           </button>
         </div>
       </div>
