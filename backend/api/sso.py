@@ -70,6 +70,7 @@ def sso_login(request: Request):
 @router.post("/callback")
 async def sso_callback(
     body: SSOCallbackRequest,
+    request: Request,
     db: Session = Depends(get_db),
 ):
     """
@@ -178,6 +179,28 @@ async def sso_callback(
     db.commit()
 
     logger.info(f"SSO: 用户 {user.email} 登录成功, session_id={session.id}")
+
+    # 操作审计：SSO 登录成功
+    try:
+        from core.audit import record_operation
+        from api.auth import get_client_ip
+        record_operation(
+            db,
+            action="auth.sso_login",
+            user_id=user.id,
+            actor_type="user",
+            resource_type="session",
+            resource_id=session.id,
+            ip_address=get_client_ip(request),
+            user_agent=request.headers.get("User-Agent"),
+            detail={
+                "email": user.email,
+                "sso_user_id": user.sso_user_id,
+                "sso_username": sso_username,
+            },
+        )
+    except Exception as e:
+        logger.error(f"SSO 登录审计写入失败: {e}")
 
     return SSOCallbackResponse(
         access_token=access_token,

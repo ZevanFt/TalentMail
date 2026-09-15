@@ -617,7 +617,27 @@ class RuleEngine:
             variables=variables,
             db=self.db
         )
-        
+
+        try:
+            from core.audit import record_operation
+            record_operation(
+                self.db,
+                action="template.trigger_send",
+                user_id=user.id if user else None,
+                actor_type="system" if not user else "user",
+                resource_type="email_template",
+                resource_id=template_code,
+                status="success" if success else "failure",
+                detail={
+                    "to": to_email,
+                    "template_code": template_code,
+                    "to_type": to_type,
+                    "rule": getattr(self, "rule_name", None) or type(self).__name__,
+                },
+            )
+        except Exception as audit_err:
+            logger.error(f"模板触发审计写入失败: {audit_err}")
+
         return {
             "sent": success,
             "to": to_email,

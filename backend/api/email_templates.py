@@ -782,7 +782,22 @@ async def send_template_email(
         from_email=f"noreply-system@{settings.BASE_DOMAIN}",
         cc=cc_list
     )
-    
+
+    try:
+        from core.audit import record_operation
+        record_operation(
+            db,
+            action="template.manual_send",
+            user_id=current_user.id,
+            actor_type="admin",
+            resource_type="email_template",
+            resource_id=template.code,
+            status="success" if success else "failure",
+            detail={"to": send_data.to, "template_code": template.code, "template_id": template_id},
+        )
+    except Exception as e:
+        logger.error(f"模板手动发送审计写入失败: {e}")
+
     if success:
         return {
             "success": True,

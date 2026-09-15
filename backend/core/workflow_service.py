@@ -185,19 +185,43 @@ class SendTemplateEmailHandler(NodeHandler):
 
             if result:
                 logger.info(f"[SendTemplateEmailHandler] 已发送 {template_code} 到 {to_email}")
+                status_out = 'sent'
+            else:
+                logger.error(f"[SendTemplateEmailHandler] 发送失败: {template_code} -> {to_email}")
+                status_out = 'failed'
+
+            try:
+                from core.audit import record_operation
+                wf_user_id = None
+                try:
+                    wf_user_id = context.get_variable('user.id') or context.get_variable('trigger.user_id')
+                except Exception:
+                    wf_user_id = None
+                record_operation(
+                    self.db,
+                    action="template.workflow_send",
+                    user_id=int(wf_user_id) if wf_user_id else None,
+                    actor_type="system",
+                    resource_type="email_template",
+                    resource_id=template_code,
+                    status="success" if result else "failure",
+                    detail={"to": to_email, "template_code": template_code},
+                )
+            except Exception as audit_err:
+                logger.error(f"工作流模板发送审计写入失败: {audit_err}")
+
+            if result:
                 return {
                     'status': 'sent',
                     'to': to_email,
                     'template': template_code
                 }
-            else:
-                logger.error(f"[SendTemplateEmailHandler] 发送失败: {template_code} -> {to_email}")
-                return {
-                    'status': 'failed',
-                    'to': to_email,
-                    'template': template_code,
-                    'error': '邮件发送返回 False，可能模板不存在或 SMTP 失败'
-                }
+            return {
+                'status': 'failed',
+                'to': to_email,
+                'template': template_code,
+                'error': '邮件发送返回 False，可能模板不存在或 SMTP 失败'
+            }
         except Exception as e:
             logger.error(f"发送模板邮件异常: {e}", exc_info=True)
             raise

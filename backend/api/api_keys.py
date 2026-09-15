@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
@@ -11,6 +12,8 @@ from core.config import settings
 from db import models
 from db.models.system import ApiKey, ApiKeyAuditLog
 from utils.rate_limit import SlidingWindowLimiter
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 _key_limiter = SlidingWindowLimiter(max_attempts=10, window_seconds=300)
@@ -149,6 +152,20 @@ def create_api_key(
     db.commit()
     db.refresh(api_key)
 
+    try:
+        from core.audit import record_operation
+        record_operation(
+            db,
+            action="api_key.create",
+            user_id=current_user.id,
+            actor_type="user",
+            resource_type="api_key",
+            resource_id=api_key.id,
+            detail={"key_prefix": key_prefix, "scopes": scopes, "expires_in_days": payload.expires_in_days},
+        )
+    except Exception as e:
+        logger.error(f"API Key 创建审计写入失败: {e}")
+
     return ApiKeyCreateResponse(api_key=raw_key, key=api_key)
 
 
@@ -171,6 +188,21 @@ def revoke_api_key(
 
     api_key.revoked_at = datetime.now(timezone.utc)
     db.commit()
+
+    try:
+        from core.audit import record_operation
+        record_operation(
+            db,
+            action="api_key.revoke",
+            user_id=current_user.id,
+            actor_type="user",
+            resource_type="api_key",
+            resource_id=api_key.id,
+            detail={"key_prefix": api_key.key_prefix},
+        )
+    except Exception as e:
+        logger.error(f"API Key 吊销审计写入失败: {e}")
+
     return {"message": "API Key 已吊销"}
 
 
